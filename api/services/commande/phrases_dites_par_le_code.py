@@ -36,6 +36,12 @@ PHRASES = {
     "enregistree_retrouvee": PhraseDuCode("Votre commande est enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
     "deja_enregistree_pour": PhraseDuCode("Votre commande est déjà enregistrée pour {quand}.", EXCEPTION_FAIT_ACCOMPLI),  # le panier (ou l'anti-doublon) retombe sur une commande déjà prise : le fait accompli qui engage
     "deja_enregistree": PhraseDuCode("Votre commande est déjà enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
+    "reservation_enregistree": PhraseDuCode("C'est réservé pour {personnes}, {quand}, au nom de {prenom}.", EXCEPTION_FAIT_ACCOMPLI),  # 7b-C3 : la réservation faite engage ; dite par le code (``avant``)
+    "reservation_modifiee": PhraseDuCode("C'est modifié : {quand}, {personnes}.", EXCEPTION_FAIT_ACCOMPLI),
+    "reservation_annulee": PhraseDuCode("C'est annulé.", EXCEPTION_FAIT_ACCOMPLI),
+    "relecture_de_la_reservation": PhraseDuCode("Je vous réserve pour {personnes}, {quand}, au nom de {prenom}. {question}", EXCEPTION_RELECTURE),  # 7b-C3 : la relecture de la réservation, avec la question du numéro réglée à l'écran si elle existe
+    "relecture_du_changement": PhraseDuCode("Je change votre réservation : {changes}. C'est bon ?", EXCEPTION_RELECTURE),
+    "annulation_de_la_reservation": PhraseDuCode("Je peux aussi la déplacer. Vous voulez annuler la réservation {quand} pour {personnes} ?", EXCEPTION_DC4),  # B5 : le déplacement est offert par la question du code, règle du métier
     "quel_numero_je_note": PhraseDuCode("Quel numéro je note ?", EXCEPTION_NUMERO),  # DC10 : après un refus du numéro proposé, une seule fois ; le numéro est une valeur que le code porte
     "numero_affiche_propose": PhraseDuCode("Je note le numéro qui s'affiche, c'est bon ?", EXCEPTION_NUMERO),  # défaut de la question du registre ``numero_affiche`` (le réglage ``question_numero_affiche`` passe avant)
     "relecture_complete": PhraseDuCode("Je vous relis : {corps}. Cela fait {total}. C'est bon ?", EXCEPTION_RELECTURE),  # LA relecture, la première fois : tout est relu, avec le total
@@ -76,6 +82,34 @@ def enregistree_retrouvee(quand_dit: str | None) -> str:
 def prix_au_poids(*, arrondi: bool, fois: str | None, grammes: str, nom: str, prix: str) -> str:
     """Le prix d'un article au poids (QTE1), le total de la ligne : ``fois`` est le nombre de portions dit en lettres (``None`` pour une seule), ``prix`` le montant dit en lettres."""
     return PHRASES["prix_au_poids"].texte.format(arrondi="Arrondi à " if arrondi else "", fois=f"{fois} fois " if fois else "", grammes=grammes, nom=nom, prix=prix)
+
+
+def reservation_enregistree(*, personnes: str, quand: str, prenom: str) -> str:
+    """La réservation vient d'être enregistrée : ``personnes`` (« deux personnes ») et ``quand`` sont déjà dits."""
+    return PHRASES["reservation_enregistree"].texte.format(personnes=personnes, quand=quand, prenom=prenom)
+
+
+def reservation_modifiee(*, quand: str, personnes: str) -> str:
+    return PHRASES["reservation_modifiee"].texte.format(quand=quand, personnes=personnes)
+
+
+def reservation_annulee() -> str:
+    return PHRASES["reservation_annulee"].texte
+
+
+def relecture_de_la_reservation(*, personnes: str, quand: str, prenom: str, question: str | None = None) -> str:
+    """La relecture avant d'enregistrer : ``question`` est celle que le restaurant a réglée (numéro qui s'affiche), sinon « C'est bon ? »."""
+    return PHRASES["relecture_de_la_reservation"].texte.format(personnes=personnes, quand=quand, prenom=prenom, question=question or "C'est bon ?")
+
+
+def relecture_du_changement(changes: str) -> str:
+    """Le récapitulatif d'un changement : ``changes`` ce qui change, déjà dit."""
+    return PHRASES["relecture_du_changement"].texte.format(changes=changes)
+
+
+def annulation_de_la_reservation(*, quand: str, personnes: str) -> str:
+    """La question avant d'annuler : elle offre aussi le déplacement."""
+    return PHRASES["annulation_de_la_reservation"].texte.format(quand=quand, personnes=personnes)
 
 
 def note_de_moitie(*, ingredient: str, moitie: str) -> str:

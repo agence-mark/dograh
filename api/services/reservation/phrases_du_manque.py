@@ -11,14 +11,15 @@ from api.services.actions_communes import conversation as CONV
 from typing import Any
 
 from api.services.reservation import etat_pour_le_modele as E
+from api.services.reservation import textes_de_secours as TS
 
 PHRASES_DU_MANQUE: dict[str, str] = {
-    "le nombre de personnes": "Pour combien de personnes ?",
-    "le jour": "Pour quel jour ?",
-    "l'heure": "À quelle heure ?",
-    "le nom": "À quel nom ?",
-    "le numéro de téléphone": "Quel est votre numéro de téléphone ?",
-    "le nom et le jour de sa réservation d'avant": "À quel nom et pour quel jour était votre réservation ?",
+    "le nombre de personnes": TS.PERSONNES,
+    "le jour": TS.JOUR,
+    "l'heure": TS.HEURE,
+    "le nom": TS.NOM,
+    "le numéro de téléphone": TS.TELEPHONE,
+    "le nom et le jour de sa réservation d'avant": TS.NOM_ET_JOUR_D_AVANT,
 }
 
 

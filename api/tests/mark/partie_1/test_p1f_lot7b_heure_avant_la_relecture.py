@@ -10,6 +10,7 @@ from __future__ import annotations
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import parole as PAROLE
+from api.services.actions_communes.repli import phrase_du_fait_bloquant
 from api.services.commande import moteur
 from api.services.commande import porte as PORTE
 from api.services.commande import registre as RQ
@@ -44,7 +45,9 @@ async def test_l_heure_refusee_passe_avant_la_relecture_et_le_modele_la_dit(essa
     assert q.get("type") == "heure_proposee", (q, r["resultats"])
     textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
     assert not textes.get("avant") and not textes.get("prefixe"), textes  # le code ne dit ni le refus ni la relecture
-    assert r["faits"]["refus_de_la_fiche"][0]["explication"] == REFUS, r["faits"]
+    # lot 7b-C4 (R = A) : le refus est donné au modèle en faits, sans sa phrase ; la phrase du module reste le fait bloquant du repli
+    assert r["faits"]["refus_de_la_fiche"][0]["manque"] == "heure_voulue" and "explication" not in r["faits"]["refus_de_la_fiche"][0], r["faits"]
+    assert REFUS in (phrase_du_fait_bloquant(e.fiche_de_l_appel) or ""), e.fiche_de_l_appel
     assert PORTE.A_FAIRE_DES_REFUS_A_DIRE in r["a_faire"], r["a_faire"]
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Pour vingt-trois heures ce n'est pas possible ; pour quelle heure la voulez-vous ?"})
     assert d.mode != PAROLE.A_DIRE_SEUL, d  # le modèle a la parole sur ce tour

@@ -17,21 +17,13 @@ from api.services.commande.briques import produit_du_moment
 from api.services.commande.briques import formule as FO
 from api.services.commande.moteur.articles import _option_dite, _un_seul_candidat
 from api.services.commande.resultat import Resultat
+from api.services.restauration.carte_et_allergenes import textes_de_secours as TS
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import METIER, NON_CONFIRMABLE, Reglages, _PLUS_DE_NOMS, _avec, _r, _racines, _sans_accent
+from api.services.commande.moteur.socle import METIER, NON_CONFIRMABLE, Reglages, _avec, _r, _racines
 from api.services.restauration.carte_et_allergenes.allergie_de_la_commande import _consigne_d_allergie, _faits_du_prix, _informations_de_la_fiche, _lecture_de_la_formule, _nomme_une_categorie, _option_signale, _regime_dit, _regime_du_catalogue, _regles_d_information, _signalement_dit, _signalements_dits
 
 # M104 (appel 2591) : « vous avez des X sans Y ? », « quelque chose sans Y ? », un régime : chercher dans le catalogue ce qui est SANS une chose.
 _SANS = re.compile(r"(?<!\w)sans\s+(?P<chose>.+)$", re.IGNORECASE)
-
-
-def _sans_article(libelle: str) -> str:
-    """« le gluten » → « gluten », « les œufs » → « œufs »."""
-    return re.sub(r"^(?:le|la|les|l['’])\s*", "", libelle.strip(), flags=re.IGNORECASE)
-
-
-def _de(mot: str) -> str:
-    return ("d'" if _sans_accent(mot[:1]) in "aeiouyh" or mot[:1].casefold() == "œ" else "de ") + mot
 
 
 def _etat_sans(article: dict, code: str) -> str:
@@ -101,7 +93,7 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
             return sur_un_article  # « l'article X sans Y, c'est possible ? »
     if categories:
         articles = [a for a in articles if a.get("categorie") in categories]
-    mot = liste_dite_et([_sans_article((catalogue.get("libelles") or {}).get(c, c)) for c in codes])
+    mot = liste_dite_et([TS.sans_article((catalogue.get("libelles") or {}).get(c, c)) for c in codes])
     etats = [(a, _etat_sans_pour_tous(a, codes, mot_inconnu)) for a in articles]
     surs = [a["nom"] for a, e in etats if e == "sur"]
     selon = [a["nom"] for a, e in etats if e == "selon_le_choix"]
@@ -109,15 +101,8 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     inconnus = sum(1 for _, e in etats if e == "inconnu")
     faits = {"recherche": "sans", "code": code, **({"codes": codes} if len(codes) > 1 else {}), "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
     if surs:
-        dits = surs[:_PLUS_DE_NOMS]
-        entre_autres = ", entre autres," if len(surs) > len(dits) else ""
-        verbe = "ne contient pas" if len(surs) == 1 else "ne contiennent pas"
-        phrase = f"{INFO.SOURCE_FICHE}, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(mot)}."
-        if selon:
-            phrase += f" Pour {liste_dite_et(selon[:_PLUS_DE_NOMS])}, {INFO.CA_DEPEND_DU_CHOIX_NON_GARANTI}"
-        if inconnus:
-            phrase += f" {INFO.POUR_LES_AUTRES_NON_GARANTI}"
-        return _r("OK", faits, phrase)
+        faits = {**faits, "mot": mot}  # la chose évitée, que le texte dit
+        return _r("OK", faits, TS.article_sans_une_chose(faits))
     if contiennent and not inconnus and not selon:
         return _r("OK", faits, "")  # les faits disent combien en contiennent : le modèle le dit
     return _r("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")  # rien n'est écrit pour le reste : la proposition du module commun, en consigne
@@ -161,19 +146,7 @@ async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reg
     trouves = list(dict.fromkeys(a["nom"] for a, e in etats if e is (True if contient else False)))
     inconnus = sum(1 for _, e in etats if e is None)
     faits = {"recherche": "ingredient", "chose": chose, "contient": contient, "articles": trouves, "inconnus": inconnus}
-    chose_dite = _sans_article(chose)
-    if trouves:
-        dits = trouves[:_PLUS_DE_NOMS]
-        entre_autres = ", entre autres," if len(trouves) > len(dits) else ""
-        verbe = ("contient" if len(trouves) == 1 else "contiennent") if contient else ("ne contient pas" if len(trouves) == 1 else "ne contiennent pas")
-        phrase = f"{INFO.SOURCE_ARTICLES}, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(chose_dite)}."
-        if inconnus:
-            phrase += f" {INFO.POUR_LES_AUTRES_NON_CONFIRMABLE}"
-        return _r("OK", faits, phrase)
-    if inconnus:
-        return _r("OK", faits, NON_CONFIRMABLE)
-    phrase = f"{INFO.SOURCE_ARTICLES}, aucun ne contient {_de(chose_dite)}." if contient else f"{INFO.SOURCE_ARTICLES}, tous en contiennent."
-    return _r("OK", faits, phrase)
+    return _r("OK", faits, TS.articles_par_ingredient(faits))
 
 
 def ingredient_demande(texte: str | None) -> tuple[str, bool, str] | None:
@@ -213,14 +186,14 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         if r.faits.get("articles") or r.faits.get("inconnus"):
             return _avec(r, p)  # « lesquels sans oignons ? » : d'après les ingrédients du catalogue
     if not produit or not produit.strip():
-        return _r("ARGUMENT_INVALIDE", {}, "De quel article parlez-vous ?", "produit")
+        return _r("ARGUMENT_INVALIDE", {}, TS.de_quel_article({}), "produit")
     cherche = await source.chercher(produit.strip())
     trouve, dit_en_plus = await _un_seul_candidat(source, cherche, produit.strip())
     if trouve.statut != "RETENU":
         return _avec(trouve, p)
     fiche = await source.article(trouve.faits["retenu"], p.get("mode") or source.modes[0])
     if fiche is None:
-        return _avec(_r("INTROUVABLE", {}, "Je ne trouve pas cet article."), p)
+        return _avec(_r("INTROUVABLE", {}, TS.article_introuvable({})), p)
     option = _option_dite(fiche, dit_en_plus) if dit_en_plus else None
     if dit_en_plus and option is None:
         return _avec(cherche, p)  # le reste dit n'est pas une option certaine : le doute reste un doute
@@ -247,12 +220,14 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         prix = _faits_du_prix(fiche)  # PRX5 : le prix « à partir de », dit par le code
         if not composition:
             return _avec(_r("OK", {"article": nom, "renseigne": False, **avec, **prix}, NON_CONFIRMABLE), p)
-        return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition, **avec, **prix}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
+        faits = {"article": nom, "renseigne": True, "ingredients": composition, **avec, **prix}
+        return _avec(_r("OK", faits, TS.composition_d_un_article(faits)), p)
     regime = getattr(source, "regime_dit", lambda _t: None)(signale)
     if regime is not None:
         return _avec(_regime_dit(source, fiche, regime, info), p)
     if info.get("allergies_renvoyees_au_restaurant"):  # D22 : le restaurant a choisi de renvoyer toute question d'allergène vers lui
-        return _avec(_r("OK", {"article": nom, "signalement": "renvoye_au_restaurant", "equipe_confirme": True, **_consigne_d_allergie(info)}, "L'équipe vous le confirme."), p)
+        faits = {"article": nom, "signalement": "renvoye_au_restaurant", "equipe_confirme": True, **_consigne_d_allergie(info)}
+        return _avec(_r("OK", faits, TS.l_equipe_le_confirme(faits)), p)
     dit = _signalement_dit(source, fiche, option, signale)
     return _avec(Resultat(dit.statut, {**dit.faits, **_consigne_d_allergie(info)}, dit.suggestion, dit.manque), p)
 

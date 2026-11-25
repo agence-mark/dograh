@@ -12,7 +12,6 @@ from api.services.actions_communes.du import CLE_DU, CLE_FAITS_A_DIRE, RETRAIT_D
 from api.services.actions_communes.parole import A_DIRE_SEUL, MANQUE, QUESTION_DEJA_DONNEE, REFUS, SECOND_PASSAGE, EtatDuTour
 
 QUESTION_NEE = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "nee_au_tour": 3, "texte": "Quelle taille ?"}}}
-AMBIGUITE_NEE = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "ambiguite", "nee_au_tour": 3, "texte": "Laquelle ?"}}}
 RETOUR_QUESTION = {"question": {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?"}}
 
 
@@ -26,7 +25,6 @@ def _joue(retour: dict, phrase: str = "Très bien.", textes: dict | None = None,
 
 CAS = [
     ("texte du code (exception § 2)", {}, "Oui.", {"avant": "Je vous relis la commande."}, None, {}, A_DIRE_SEUL),
-    ("doute né dans le tour", {"question": {"id": "Q-2", "type": "ambiguite", "texte": "Laquelle ?"}}, "Oui.", {}, AMBIGUITE_NEE, {}, A_DIRE_SEUL),
     ("refus", {}, "Oui.", {}, None, {"apres_refus": True}, SECOND_PASSAGE),
     ("faits à dire sur une fiche vide", {RIEN_CHANGE: True, CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("rien n'a changé", {RIEN_CHANGE: True}, "Oui.", {}, {"lignes": [{}]}, {}, SECOND_PASSAGE),
@@ -52,9 +50,9 @@ def test_toutes_les_lignes_de_la_table_sont_jouees_par_un_cas():
 
 
 def test_ce_qui_manque_est_du_quand_la_phrase_ne_pose_pas_de_question():
-    _, d, _ = _joue({"texte_a_dire": "Qu'est-ce que je vous mets ?"}, "Très bien.")
+    _, d, _ = _joue({CLE_DU: {"manque": "Qu'est-ce que je vous mets ?"}}, "Très bien.")
     assert (d.mode, d.motif) == (SECOND_PASSAGE, MANQUE)
-    _, d, _ = _joue({"texte_a_dire": "Qu'est-ce que je vous mets ?"}, "Très bien. Autre chose ?")
+    _, d, _ = _joue({CLE_DU: {"manque": "Qu'est-ce que je vous mets ?"}}, "Très bien. Autre chose ?")
     assert d.mode == A_DIRE_SEUL
 
 

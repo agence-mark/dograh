@@ -90,6 +90,15 @@ async def test_si_elle_dit_oui_le_message_part_pour_de_bon(essai_de, monkeypatch
     assert e.ctx.fiche["call_disposition"] == "message_a_transmettre"  # l'issue de l'appel : sans réglage, le code est le nom de l'issue
 
 
+async def test_un_message_deja_laisse_n_est_plus_propose_au_suivi_suivant(essai_de, monkeypatch):
+    """7b-C4 : une fois le message laissé dans l'appel, un second suivi de la commande perdue ne redonne pas l'offre (la porte refuserait un second message)."""
+    r, e = await _suivi(essai_de, monkeypatch, "refusee")
+    assert r["a_faire"] == porte.A_FAIRE_DE_LA_COMMANDE_PERDUE
+    e.ctx.fiche[porte.CLE_MESSAGE_LAISSE] = True
+    r2 = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    assert porte.A_FAIRE_DE_LA_COMMANDE_PERDUE not in str(r2.get("a_faire") or ""), r2
+
+
 # ── R5 : « mettez-en 150 », « 200 », « 300 » est le même refus, le compteur du journal ne repart pas ──────────────────────
 
 async def test_une_quantite_trop_haute_a_la_modification_garde_la_meme_identite(appel):

@@ -95,3 +95,11 @@ async def test_deux_quantites_changees_sur_des_lignes_absentes_sont_deux_refusan
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
     r = await e.tour("deux à la sept et trois à la huit", changer_quantite=[{"ligne": 7, "quantite": 2}, {"ligne": 8, "quantite": 3}])
     assert len(r["faits"]["refus_de_la_fiche"]) == 2, r["faits"].get("refus_de_la_fiche")
+
+
+def test_trois_quantites_trop_hautes_sont_le_meme_refus():
+    """7b-C4 : « 150 », « 200 », « 300 » pièces sont un même refus (la valeur dite n'entre pas dans l'identité du manque ``quantite``) ; un autre fait, lui, distingue toujours."""
+    trois = {J.identite_du_refus(Resultat("ARGUMENT_INVALIDE", {"quantite": q, "quantite_max": 99}, "", "quantite")) for q in (150, 200, 300)}
+    assert len(trois) == 1, trois
+    autre = J.identite_du_refus(Resultat("ARGUMENT_INVALIDE", {"quantite": 150, "quantite_max": 50}, "", "quantite"))
+    assert autre not in trois

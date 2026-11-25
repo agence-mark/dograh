@@ -273,9 +273,14 @@ def je_vous_la_prepare_pour(faits: Faits) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def moyen_refuse(faits: Faits) -> str:
+    """Le moyen de paiement n'est pas pris : la phrase seule (celle de la base, qui ne dit pas lesquels le sont)."""
+    return "Ce moyen de paiement n'est pas accepté."
+
+
 def moyen_non_accepte(faits: Faits) -> str:
     """Faits : ``acceptes_dits`` (les libellés des moyens pris, dits)."""
-    return "Ce moyen de paiement n'est pas accepté. On prend : " + liste_dite_et(list(faits["acceptes_dits"])) + "."
+    return f"{moyen_refuse(faits)} On prend : " + liste_dite_et(list(faits["acceptes_dits"])) + "."
 
 
 def quel_montant(faits: Faits) -> str:

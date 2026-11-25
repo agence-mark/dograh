@@ -189,7 +189,8 @@ async def test_l_heure_refusee_est_dite_par_le_code_et_le_modele_recoit_le_refus
     assert any(x["manque"] == "heure_voulue" for x in toutes), toutes  # l'heure refusée est un fait donné au modèle
     refus = [x for x in toutes if x["manque"] != "heure_voulue"]
     assert len(refus) == 1 and refus[0]["faits"]["dit"] == "zzzquoi", r  # le modèle sait QUOI est refusé
-    assert (r.get("question") or {}).get("type") == "ambiguite", r.get("question")
+    # ligne 12 (7b-B, Q1) : l'heure refusée est la question ``heure_proposee``, qui passe avant ``ambiguite`` dans ``registre.ORDRE`` ; le refus de l'article reste un fait (ci-dessus)
+    assert (r.get("question") or {}).get("type") == "heure_proposee", r.get("question")
     assert porte.A_FAIRE_DES_REFUS_A_DIRE in r["a_faire"] and porte.A_FAIRE_DE_LA_QUESTION in r["a_faire"], r["a_faire"]  # les deux consignes, ensemble
 
 

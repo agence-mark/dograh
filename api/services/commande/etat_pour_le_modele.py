@@ -17,6 +17,7 @@ Le connecteur de la commande le déclare (``Connecteur.etat_pour_le_modele``) ; 
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE
 import hashlib
 import json
 from typing import Any
@@ -312,13 +313,25 @@ def _commune(p: dict[str, Any]) -> str | None:
     return (adresse.get("commune") if isinstance(adresse, dict) else None) or p.get("commune_dite")
 
 
+def _objet_de_la_question(q: dict[str, Any]) -> str | None:
+    """Ce dont parle une question que le modèle dit lui-même, en faits bruts lus dans le dossier de la question : jamais sa phrase de secours."""
+    from api.services.commande.moteur import CLE_CANDIDATS  # le moteur importe ce module : l'import ne peut pas être en tête
+
+    candidats = [str(c["libelle"]) for c in q.get(CLE_CANDIDATS) or [] if isinstance(c, dict) and c.get("libelle")] or [str(c) for c in q.get("choix") or []]
+    objet = q.get("article_en_question") or q.get("heure_dite") or (" ; ".join(candidats) if candidats else None)
+    return str(objet) if objet else None
+
+
 def _question(q: dict[str, Any]) -> str:
     if q.get("type") == "proposition" and q.get("article_propose"):
         quoi = q["article_propose"] + (f", offert ({q.get('offre') or 'offre'})" if q.get("offerte") else ", son prix dit par le code")
         return f"- Question en attente : {q['id']} (proposition) : {quoi} ; réponses : accepte, refuse, autre."
-    if q.get("type") == "etape":
-        return f"- Question en attente : {q['id']} (étape) : « {q.get('texte') or ''} » ; sa réponse : son choix, dans valeurs."
-    return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
+    nom = NOMS_DES_QUESTIONS.get(q.get("type"), q.get("type"))
+    if q.get("type") in QUESTIONS_DITES_PAR_LE_CODE:
+        return f"- Question en attente : {q['id']} ({nom}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
+    objet = _objet_de_la_question(q)
+    debut = f"- Question en attente : {q['id']} ({nom})" + (f" : {objet}" if objet else "")
+    return debut + (" ; sa réponse : son choix, dans valeurs." if q.get("type") == "etape" else " ; réponses : accepte, refuse, autre.")
 
 
 def manque_des_lignes(p: dict[str, Any]) -> Manque | None:

@@ -31,11 +31,13 @@ from api.schemas.workflow_configurations import DEFAULT_RESERVATION_BOUCLE_FOIS_
 from api.services.actions_communes.seuil_de_sortie import CLE_RESERVATION, CLE_RESERVATION_BOUCLE, seuil_de_sortie
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
-from api.services.actions_communes.enveloppe import Enveloppe, Question
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, Enveloppe, Question
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+from api.services.actions_communes.repli import poser_le_fait_bloquant
 from api.services.actions_communes.resultat import Resultat, avec_le_fait_du_numero_affiche, question_du_numero_affiche
 from api.services.reservation import etat_pour_le_modele, moteur
+from api.services.reservation import textes_de_secours as TS
 from api.services.reservation import source as registre_des_sources
 from api.services.reservation.lire import lire
 from api.services.actions_communes import du as DU
@@ -77,7 +79,6 @@ def _numerotee(q: dict[str, Any], e: dict[str, Any]) -> dict[str, Any]:
     return {**q, "id": RC.numero(e, RC.nommer(TABLE, q, e)), "objet": q["objet"]}
 MANQUES_DU_MODELE = {"prenom": "nom", "reference": "nom_et_jour_de_la_reservation"}   # les mots du classeur sont traduits à la source
 RAISONS_DE_REFUS = {"complet": "complet_a_cette_heure"}  # le reste : le détail du classeur, tel quel (rangé « métier »)
-TEXTE_DU_CHOIX = "Laquelle ?"
 GESTES_DE_LA_SOURCE = {"reserver": "reserver", "modifier": "modifier_reservation", "annuler": "annuler_reservation"}
 STATUTS_ENREGISTRES = ("ENREGISTREE",)
 
@@ -112,7 +113,7 @@ def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> d
         # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
         candidats = en_json(r.faits["candidats"])
         # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
-        return _numerotee({"type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
+        return _numerotee({"type": "choix", "texte": (r.suggestion or TS.laquelle({})), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation") and r.suggestion:
         return _numerotee({"type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}, e)
     return None
@@ -150,7 +151,7 @@ async def repondre_a_la_question(ctx: Any, question: dict[str, Any], sens: str |
         e["recherche"] = False
         return "reponse", Resultat("OK", {"reservation_choisie": en_json({k: gagnants[0].get(k) for k in ("numero", "quand_dit", "personnes", "prenom")})})
     # B6 (rustine 38) : les choix non compris comptés au journal de ce qui est dit (avant : un compteur à part)
-    if J.noter(e, CHOIX_NON_COMPRIS) >= seuil_de_sortie(ctx.configurations, CLE_RESERVATION, DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE):  # E28 : la clarification est bornée à deux, sauf réglage du restaurant (M6)
+    if J.noter(e, CHOIX_NON_COMPRIS) >= seuil_de_sortie(ctx.configurations, CLE_RESERVATION, DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE):  # E28 : la clarification est bornée à deux, sauf réglage de l'établissement (M6)
         return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris_deux_fois", "a_faire": "propose-lui de laisser un message à l'équipe"})
     return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris", "candidats_dits": question.get("candidats_dits") or []})
 
@@ -174,7 +175,7 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
     ou de l'annulation (D5, banc : ``deja_dit_par_le_code``)."""
     avant = PC.premier_cas((
         # lot 20 : le choix porte jours et heures
-        (nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation", "choix") and bool(nee.get("texte")), lambda: str(nee["texte"])),
+        (nee is not None and nee.get("type") in QUESTIONS_DITES_PAR_LE_CODE and bool(nee.get("texte")), lambda: str(nee["texte"])),  # 7b-C4 : le choix n'y est plus, le modèle dit les réservations
         (dernier is not None and bool(dernier.suggestion) and (
             dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)), lambda: dernier.suggestion),
     ))
@@ -356,6 +357,10 @@ def _transmettre_la_demande_a_l_equipe(ctx: Any, demande: Any) -> bool:
     return True
 
 
+METIER_DU_FAIT_BLOQUANT = "reservation"  # la case du fait bloquant de la fiche est partagée avec la commande : chaque porte n'écrit et ne retire que la sienne
+OPERATIONS_QUI_ECRIVENT = ("reserver", "modifier", "annuler")  # les gestes de la fiche qui créent, changent ou annulent une réservation (``noter``, ``executer_la_fiche_de_reservation``)
+
+
 def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: list[dict], ecartees: set[str], dernier: Resultat | None, operation: str | None,
                question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
     e = ctx.etat
@@ -384,7 +389,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
             metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "un changement passe par les cases personnes, jour, heure"})
     if dernier is not None and dernier.statut == "INCOMPLETE" and dernier.manque == "capacite":
         # Lot 7 (E2) : ni table ni capacité dite au formulaire : ce n'est pas « complet » et le modèle n'a aucune case pour y répondre.
-        metier.append({"raison": "capacite_non_reglee", "cases": [], "a_faire": "dis-lui que tu ne peux pas confirmer une place pour l'instant et propose de passer à l'équipe"})
+        metier.append({"raison": "capacite_non_reglee", "cases": [], "a_faire": "dis-lui que tu ne peux pas confirmer une place pour l'instant et propose de laisser un message à l'équipe"})
     if dernier is not None and dernier.statut == "REFUSEE":
         raison = _raison_du_refus(dernier)
         # B4 (M9) : « propose les horaires libres » seulement quand il y en a (avant : la consigne de tout refus, même d'un choix non compris)
@@ -397,6 +402,8 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         if transmise:
             faits["transmise_a_l_equipe"] = True  # la promesse est tenue : le modèle peut dire que la demande est transmise
         faits = {k: v for k, v in faits.items() if k != "raison"}
+        if dernier.statut == "AMBIGU" and isinstance(posee_choix := CONV.question_de(e), dict) and posee_choix.get("type") == "choix":
+            faits["candidats_dits"] = list(posee_choix.get("candidats_dits") or [])  # 7b-C4 : les réservations de la personne, que le modèle dit avec ses mots
         if isinstance((dernier.faits or {}).get("propositions"), list):
             faits["horaires_libres"] = [p.get("heure_dite") or p.get("quand_dit") for p in dernier.faits["propositions"]]  # B4 (M9), Pierre 14 : la base rend ``quand_dit``, le moteur ``heure_dite`` (avant : null)
     plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
@@ -408,13 +415,12 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     premier = toutes_les_refus[0] if toutes_les_refus else None
     posee = CONV.question_de(e)
     question = Question(posee["id"], posee["type"], posee.get("texte") or "") if posee is not None else None
+    phrase_du_jour = None
     if question is None and not toutes_les_refus and dernier is not None and (dernier.faits or {}).get("precision_gardee") is None:
         manque = MANQUES_DU_MODELE.get(dernier.manque, dernier.manque) if dernier.manque not in (None, "relecture", "confirmation") else None
-        phrase = (dernier.suggestion if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" and dernier.suggestion else None) or texte_a_dire_du_manque(e)
+        phrase_du_jour = dernier.suggestion if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" and dernier.suggestion else None
         if manque:
             plus["manque"] = manque
-        if phrase:
-            plus["texte_a_dire"] = phrase
     a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
         # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
@@ -425,7 +431,15 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     textes = textes_du_code(e, dernier, operation, nee, deja_enregistree)
     if isinstance(ctx.fiche, dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
-    return Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None, a_faire=a_faire, plus=plus).vers_json()
+        refus_a_dire = TS.du_refus(dernier, transmise) if dernier is not None else ""
+        if refus_a_dire:  # R = A : le modèle se tait deux fois, le code dit le refus
+            poser_le_fait_bloquant(ctx.fiche, tour, refus_a_dire, METIER_DU_FAIT_BLOQUANT)
+        elif operation in OPERATIONS_QUI_ECRIVENT:  # une écriture sans refus remplace le refus posé plus tôt dans ce tour ; une lecture ou une question ne touche à rien (même fiche, même clé que la commande)
+            poser_le_fait_bloquant(ctx.fiche, tour, None, METIER_DU_FAIT_BLOQUANT)
+    retour = Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None, a_faire=a_faire, plus=plus).vers_json()
+    if phrase_du_jour:
+        retour[DU.CLE_DU] = {"manque": phrase_du_jour}  # 7b-C4 : la phrase du jour est du repli, rangée dans le constat caché, jamais dans le retour du modèle
+    return retour
 
 
 # --------------------------------------------------------------------------- l'issue de l'appel (C10), posée par l'opération qui la fait

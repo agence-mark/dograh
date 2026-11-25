@@ -27,12 +27,21 @@ def _noms(e) -> list[str]:
     return [l["nom"] for l in e.p.get("lignes") or []]
 
 
+def _l_inconnu_est_un_fait_pour_le_modele(r) -> bool:
+    """7b-B (Q1) et R = A : l'introuvable n'est plus dit par le code d'avance, c'est un refus donné au modèle en faits (``refus_de_la_fiche``), et sa phrase est celle du fait bloquant, lue par le repli."""
+    refus = (r.get("faits") or {}).get("refus_de_la_fiche") or []
+    return [(x["statut_du_module"], x["faits"].get("dit")) for x in refus] == [("INTROUVABLE", "bubble tea")]
+
+
 async def test_famille_1_l_article_connu_entre_a_cote_d_un_inconnu(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
-    await e.tour("une regina et un bubble tea", ajouter=[REGINA, BUBBLE_TEA])
+    r = await e.tour("une regina et un bubble tea", ajouter=[REGINA, BUBBLE_TEA])
     assert _noms(e) == ["Regina Normale"], e.p.get("lignes")
-    assert "bubble tea" in _dit_par_le_code(e), _dit_par_le_code(e)  # l'inconnu est dit introuvable, il ne prend pas la regina avec lui
+    assert _l_inconnu_est_un_fait_pour_le_modele(r), r.get("faits")  # l'inconnu est dit introuvable (par le modèle), il ne prend pas la regina avec lui
+    # le seul texte du code est le prix de la proposition de boisson qui suit (exception du § 2, ``prix_dit_par_le_code_apres_ta_phrase``) : « Le Coca-Cola est à deux euros. » vient de la
+    # proposition ``vente_en_plus`` (la boisson manque à la commande), pas d'un article que la personne aurait dit ; le code ne dit plus l'introuvable
+    assert "bubble tea" not in _dit_par_le_code(e), _dit_par_le_code(e)
 
 
 async def test_famille_1_l_article_connu_est_garde_du_mode_a_cote_d_un_inconnu(essai_de):
@@ -40,9 +49,10 @@ async def test_famille_1_l_article_connu_est_garde_du_mode_a_cote_d_un_inconnu(e
     e = await essai_de()
     await e.tour("une regina et un bubble tea", ajouter=[REGINA, BUBBLE_TEA])
     assert {d["texte"] for d in e.p.get("dits_en_attente") or []} == {"regina", "bubble tea"}, e.p.get("dits_en_attente")
-    await e.tour("à emporter", mode_de_retrait="emporter")
+    r = await e.tour("à emporter", mode_de_retrait="emporter")
     assert _noms(e) == ["Regina Normale"], e.p.get("lignes")
-    assert "bubble tea" in _dit_par_le_code(e), _dit_par_le_code(e)
+    assert _l_inconnu_est_un_fait_pour_le_modele(r), r.get("faits")
+    assert "bubble tea" not in _dit_par_le_code(e), _dit_par_le_code(e)
 
 
 async def test_famille_2_annuler_dans_la_fiche_n_y_laisse_rien_entrer(essai_de):

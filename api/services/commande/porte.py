@@ -31,7 +31,7 @@ from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
-from api.services.actions_communes.enveloppe import Enveloppe
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
@@ -86,6 +86,7 @@ ORDRE_DES_CASES = (
     "code_de_remise", "reduction_annoncee", "c_est_tout",
 )
 INFORMATIONS = ORDRE_DES_CASES[ORDRE_DES_CASES.index("mode_de_retrait"):ORDRE_DES_CASES.index("c_est_tout")]
+METIER_DU_FAIT_BLOQUANT = "commande"  # la case du fait bloquant de la fiche est partagée avec la réservation : chaque porte n'écrit et ne retire que la sienne
 CLE_DES_PAROLES = "paroles_de_la_personne"
 CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
@@ -193,7 +194,7 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         return avec_la_question(confirmation())  # l'heure a changé : la nouvelle confirmation la dit
 
     enregistree = dernier.statut in STATUTS_ENREGISTRES
-    dite_par_la_question = nee is not None and nee.get("type") in ("relecture", RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte")
+    dite_par_la_question = nee is not None and nee.get("type") in QUESTIONS_DITES_PAR_LE_CODE and nee.get("texte")
     avant_le_reste = PC.premier_cas((
         (enregistree and bool(dernier.faits.get("remplace")), le_changement),
         (enregistree and bool(dernier.suggestion) and not deja_enregistree, lambda: avec_la_question(confirmation())),
@@ -251,6 +252,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
+        if (r.faits or {}).get("heure_proposee_dite"):
+            q["heure_dite"] = str(r.faits["heure_proposee_dite"])  # la même heure en mots : seule celle-ci est montrée au modèle
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(moteur.CLE_CANDIDATS), list):
         q[moteur.CLE_CANDIDATS] = r.faits[moteur.CLE_CANDIDATS]  # B5 (N1), n° 55
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(CLE_ARTICLE_DIT), dict):
@@ -279,9 +282,9 @@ def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
 
 
 def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
-    """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…) et son explication, pour qu'il le dise avec ses mots."""
-    explication = (r.suggestion or "").strip()
-    return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r), **({"explication": explication} if explication else {})}
+    """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…), sans phrase : le modèle le dit avec ses mots d'après les faits ;
+    le texte de secours du module (``r.suggestion``) n'est lu que par le repli, par le fait bloquant."""
+    return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r)}
 
 
 async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, question: dict, sens: str | None,
@@ -727,7 +730,7 @@ async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex
     CONV.de(p)["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
-        poser_le_fait_bloquant(ctx.fiche, None, None)
+        poser_le_fait_bloquant(ctx.fiche, None, None, METIER_DU_FAIT_BLOQUANT)
     f = await _lire(fiche_du_modele, ctx, ex)
     if isinstance(f, dict):
         return f  # l'enveloppe d'un refus entier, ou d'une fiche déjà faite
@@ -1175,7 +1178,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
         J.dire_le_fait(p, textes["avant"], tour)  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
-    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r) for r in refusants) if x) or None)
+    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r) for r in refusants) if x) or None, METIER_DU_FAIT_BLOQUANT)
     return consignes
 
 
@@ -1235,6 +1238,8 @@ def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
 def _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee) -> dict[str, Any]:
     """Les faits que la fiche rend au modèle : le panier, le refus du module, les refus de la fiche, l'heure qui manque, le montant d'une annulation à confirmer."""
     faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
+    if J.deja_dit(p, J.FERMETURE):
+        faits["fermeture_dite"] = True  # 7b-C4 : un fait simple (plus la phrase) : la fermeture est déjà dite dans cet appel, le modèle ne la redit pas à chaque tour
     if bloquant:
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     elif refusants:
@@ -1390,10 +1395,10 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
             if r.statut == "OK" and r.faits.get("statut"):
                 fiche[CLE_COMMANDE_RETROUVEE] = r.faits["statut"]
-                if r.faits["statut"] in STATUTS_PERDUS:
+                if r.faits["statut"] in STATUTS_PERDUS and not fiche.get(CLE_MESSAGE_LAISSE):  # 7b-C4 : un message déjà laissé dans l'appel n'est plus proposé (la porte le refuserait)
                     perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
             if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
-                a_preciser = {"manque": r.manque or "reference", "texte_a_dire": r.suggestion}
+                a_preciser = {"manque": r.manque or "reference"}  # 7b-C4 : la phrase du module n'est plus donnée au modèle
             elif r.statut == "INTROUVABLE":
                 # P4 : le numéro de l'appel est connu et rien n'y est trouvé : le dire, puis chercher autrement ; jamais redemander ce numéro
                 introuvable = "dis-lui qu'il n'y a pas de commande à ce numéro ; propose de chercher autrement (le numéro de la commande, ou un autre numéro) ; ne redemande pas le numéro de l'appel"
@@ -1640,7 +1645,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         if action.nom == "fiche" and isinstance(ctx.fiche, dict):
             # R = A : le modèle dit la panne avec ses mots ; le texte de secours (``TS.panne_de_la_porte``) n'est dit que par le repli, s'il se tait deux fois. Il ne promet un rappel que si
             # la commande a bien été jointe à l'équipe (le fait ``transmise_a_l_equipe``, la même consigne).
-            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne))
+            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne), METIER_DU_FAIT_BLOQUANT)
             a_faire = A_FAIRE_DE_LA_PANNE_TRANSMISE if transmise else A_FAIRE_DE_LA_PANNE
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
         faites = getattr(erreur, "cases_executees", None) if action.nom == "fiche" else None

@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
@@ -39,7 +40,7 @@ async def test_regle_1_une_phrase_qui_ne_demande_pas_ce_qui_manque_repasse(essai
     await _sans_question(e)
     cases = {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}
     r = await e.tour("et une regina normale", **cases)
-    assert r.get("texte_a_dire") and not CONV.question_de(e.p), r  # le retour porte ce qui manque : le modèle le demande avec ses mots
+    assert (r.get(CLE_DU) or {}).get("manque") and not CONV.question_de(e.p), r  # le retour porte ce qui manque : le modèle le demande avec ses mots
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.MANQUE, d
 
@@ -58,7 +59,7 @@ async def test_ce_qui_manque_est_dans_le_retour_d_une_fiche_refusee(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     r = await e.tour("oui", reponse={"question_id": "Q-9", "sens": "accepte"})  # une réponse sans question : refusée
-    assert r.get("texte_a_dire") == "Qu'est-ce que je vous mets ?", r
+    assert (r.get(CLE_DU) or {}).get("manque") == "Qu'est-ce que je vous mets ?", r
 
 
 async def test_regle_2_une_fiche_qui_ne_change_rien_vaut_une_phrase_sans_outil(essai_de):

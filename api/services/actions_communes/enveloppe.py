@@ -77,6 +77,11 @@ def rangee(raison: str) -> str | None:
     return None
 
 
+# Les questions que le code dit lui-même, mot pour mot, par ``avant`` (relecture, numéro dicté, récapitulatifs de la réservation, annulation de la réservation) : seules
+# elles rendent leur texte au modèle. Toute autre question lui est donnée par son type, sans phrase (7b-C4, R = A) ; son texte reste au registre, lu par le repli et la boucle.
+QUESTIONS_DITES_PAR_LE_CODE = frozenset({"relecture", "numero_dicte", "recapitulatif", "recap_modif", "annulation"})
+
+
 @dataclass
 class Question:
     """La prochaine question, numérotée par le code ; c'est le modèle qui la pose (interdit n° 5 du brief)."""
@@ -93,7 +98,8 @@ class Question:
             raise EnveloppeInvalide("une question rend ses réponses possibles")
 
     def vers_json(self) -> dict[str, Any]:
-        return {"id": self.id, "type": self.type, "texte": self.texte, "reponses": list(self.reponses)}
+        texte = self.texte if self.type in QUESTIONS_DITES_PAR_LE_CODE else ""
+        return {"id": self.id, "type": self.type, "texte": texte, "reponses": list(self.reponses)}
 
 
 @dataclass

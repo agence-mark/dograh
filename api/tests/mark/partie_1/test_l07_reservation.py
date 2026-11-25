@@ -6,6 +6,7 @@ aucun test n'appelle un fournisseur de modèle. Les règles du banc final (``ban
 
 from __future__ import annotations
 
+from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import conversation as CONV
 from api.services.gabarits.restauration.textes import banc as B
 
@@ -375,4 +376,4 @@ def test_phrases_du_manque_reservation():
 async def test_le_manque_est_rendu_par_la_fiche(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch)
     r = await essai.tour("quatre personnes", personnes=4)
-    assert r["manque"] == "jour" and r["texte_a_dire"] == "Pour quel jour ?", r
+    assert r["manque"] == "jour" and r[CLE_DU]["manque"] == "Pour quel jour ?", r

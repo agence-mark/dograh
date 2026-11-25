@@ -2,7 +2,7 @@
 réservation (revue d'ingénierie, point 6 : même faute, même traitement).
 
 Deux constats, posés dans le retour, lus par la parole (``actions_communes.parole``) :
-* ``texte_a_dire`` : ce qui manque, quand aucune question n'attend, à la sortie d'une fiche refusée, rejouée ou exécutée (avant : seulement
+* le manque (avant : ``texte_a_dire``, retiré du retour au lot 7b-C4, rangé dans le constat caché) : ce qui manque, quand aucune question n'attend, à la sortie d'une fiche refusée, rejouée ou exécutée (avant : seulement
   exécutée sans refus ; 42 cas rouges du test des combinaisons). Une seule place, une seule fonction par métier ;
 * ``rien_change`` : la fiche n'a rien changé de ce que la personne vit ; elle vaut une phrase sans outil (règle 2 : trace 508, « C'est noté » sur
   cinq fiches vides de suite).
@@ -126,7 +126,7 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
         faits_qui_engagent=engagent,
         question=str(q.get("type")) if q and q.get("type") else None, prix_apres=bool(retour.get("prix_dit_par_le_code_apres_ta_phrase")),
         faits_au_modele=tuple(x for x in ("fait_bloquant" if bloquant else None, FAITS_A_DIRE_PAR_LE_MODELE if retour.get(CLE_FAITS_A_DIRE) else None) if x),
-        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)),
+        manque=str(deja.get("manque") or "") or None if isinstance(deja, dict) else None, rien_change=bool(retour.get(RIEN_CHANGE)),
         consignes=consignes)
 
 
@@ -163,13 +163,14 @@ def _articles_par_ref(lignes: Any) -> dict[str, int]:
 
 def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], texte_du_manque: Callable[[dict[str, Any]], str | None],
               seuil_de_sortie: int) -> dict[str, Any]:
-    """Pose ce qui est dû dans le retour d'une fiche (``texte_a_dire``, ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
+    """Pose ce qui est dû dans le retour d'une fiche (le manque, rangé dans le constat caché ``CLE_DU`` et jamais dans le retour du modèle ; ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
     sortie, posees = False, []
     try:
-        if CONV.question_de(dossier) is None and not retour.get("texte_a_dire"):
+        deja = retour.get(CLE_DU)
+        if CONV.question_de(dossier) is None and not (isinstance(deja, dict) and deja.get("manque")):
             phrase = texte_du_manque(dossier)
             if phrase:
-                retour["texte_a_dire"] = phrase
+                retour[CLE_DU] = {**(deja if isinstance(deja, dict) else {}), "manque": phrase}  # 7b-C4 : la phrase du manque est du repli, le modèle ne la reçoit pas
         if not retour.get("refus") and retour.get("statut") != "REJETEE" and ce_qui_se_voit(dossier) == vu_avant:
             retour[RIEN_CHANGE] = True
             posees.append((C.RIEN_CHANGE, A_FAIRE_RIEN_CHANGE))

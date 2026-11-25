@@ -751,15 +751,19 @@ async def _parole_de(e, a_dire, **cases):
     return r, PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, **cases})
 
 
-async def test_conv_lot_9_une_ambiguite_est_dite_par_le_code(essai_de):
-    """Lot 9 (OPT3-A, recommandation 1 de SA-5, retenue par le coordinateur) : le code demande « Vous voulez dire : Bubble tea ? » et le modèle disait
-    « je ne trouve pas de bubble tea » : une question d'ambiguïté née dans le tour est dite par le code, à la place de la phrase du modèle."""
+async def test_conv_lot_9_une_ambiguite_est_rendue_au_modele_avec_ses_candidats(essai_de):
+    """Lot 7b-C4, E1 = A (Evan, 25/11 ; avant : lot 9, OPT3-A, le code disait « Vous voulez dire : Bubble tea ? » mot pour mot à la place de la phrase du modèle) : une question d'ambiguïté
+    née dans le tour suit la ligne de toute question née : le modèle repasse avec les candidats (``faits.candidats``, ``faits.dit``) et dit le doute avec ses mots ; si le modèle se tait, le repli
+    dit le texte du registre, que le modèle ne reçoit jamais."""
     from api.services.actions_communes import parole as PAROLE
+    from api.services.actions_communes.repli import repli_dit_par_le_code
 
     e = await brique(essai_de, "OPT3")
     r, d = await _parole_de(e, "Je ne trouve pas de bubble tea sur notre carte.", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}])
     assert r["question"]["type"] == "ambiguite", r
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and d.a_dire == r["question"]["texte"], d
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == "fait_bloquant" and d.a_dire is None, d
+    assert r["resultats"][0]["faits"] == {"candidats": ["Bubble tea"], "dit": "bubble tea avec des perles"}, r["resultats"]
+    assert repli_dit_par_le_code(e.p).startswith("Vous voulez dire"), "le modèle muet : le repli dit le doute du registre"
 
 
 async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_modele(essai_de):
@@ -770,7 +774,9 @@ async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_modele(essai_de):
     cases = {"ajouter": [{"article": "coupe de glace", "variante": "3 boules", "quantite": 1, "composition": ["vanille", "chocolat", "café", "pistache"]}]}
     r, d = await _parole_de(e, "C'est noté pour la coupe.", **cases)
     assert any(x.get("statut_du_module") == "MAXIMUM_ATTEINT" for x in r["resultats"]), r
-    assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None and "pas plus de trois" in json.dumps(r["faits"]["refus_de_la_fiche"], ensure_ascii=False), (d, r["faits"])
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None, (d, r["faits"])
+    refus = r["faits"]["refus_de_la_fiche"]  # lot 7b-C4 (R = A) : le maximum est un fait (« pas plus de trois » est le texte de secours du repli), sans phrase
+    assert [(x["statut_du_module"], x["faits"]["maximum"]) for x in refus] == [("MAXIMUM_ATTEINT", 3)], refus
 
 
 async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de):

@@ -17,7 +17,6 @@ from api.services.commande.lire import lecture_sur_une_copie
 from api.services.mots_dits import heure_en_lettres, liste_dite
 from api.services.reservation import moteur
 
-NON_RENSEIGNE = "Cette information n'est pas renseignée."
 JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 
 
@@ -44,7 +43,7 @@ async def _horaires(source: Any) -> Enveloppe:
     services = await source.horaires()
     dits = [f"de {heure_en_lettres(s['debut'].hour, s['debut'].minute)} à {heure_en_lettres(s['fin'].hour, s['fin'].minute)}" for s in services]
     if not dits:
-        return Enveloppe("LU", resultats=[{"operation": "lire", "sujet": "horaires"}], faits={"sujet": "horaires", "renseigne": False}, plus={"texte_a_dire": NON_RENSEIGNE})
+        return Enveloppe("LU", resultats=[{"operation": "lire", "sujet": "horaires"}], faits={"sujet": "horaires", "renseigne": False})
     return Enveloppe("LU", resultats=[{"operation": "lire", "sujet": "horaires"}], faits={"horaires_de_reservation": liste_dite(dits)})
 
 
@@ -57,5 +56,5 @@ async def lire(source: Any, etat: dict[str, Any], arguments: dict[str, Any]) -> 
     if sujet == "horaires":
         return (await _horaires(source)).vers_json()
     return Enveloppe(
-        "LU", resultats=[{"operation": "lire", "sujet": sujet}], faits={"sujet": sujet, "renseigne": False}, plus={"texte_a_dire": NON_RENSEIGNE},
+        "LU", resultats=[{"operation": "lire", "sujet": sujet}], faits={"sujet": sujet, "renseigne": False},
     ).vers_json()

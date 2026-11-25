@@ -25,10 +25,13 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
+from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
-from api.services.mots_dits import heure_en_lettres, montant_en_lettres
+from api.services.commande import textes_de_secours as TS
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
+from api.services.mots_dits import heure_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.article_simple import brique_art1_chiffrer
 from api.services.commande.briques import conditions_de_vente, supplement_de_formule, menu_a_taille_liee, lot_a_prix_fixe, choix_entre_deux_contenus, inclus_par_rubrique, a_volonte, livraison_offerte, quota_inclus_puis_payant, option_conditionnelle, prix_par_mode, consigne_et_emballage, produit_au_poids, supplement_selon_la_taille, changer_d_accompagnement, retrait_d_ingredient
@@ -131,6 +134,11 @@ def _refus(statut: str, suggestion: str, manque: str | None = None, **faits: Any
     return Resultat(statut, faits, suggestion, manque)
 
 
+def _refus_de_secours(statut: str, secours: Callable[[dict], str], manque: str | None = None, **faits: Any) -> Resultat:
+    """Un refus dont le texte de secours se refait de ses seuls faits (``textes_de_secours_commande``) : le test d'un refus compare ``suggestion`` à ``secours(faits)``."""
+    return Resultat(statut, faits, secours(faits), manque)
+
+
 # --------------------------------------------------------------------------- #
 # Le calcul d'un panier depuis la carte
 # --------------------------------------------------------------------------- #
@@ -190,17 +198,17 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         code = c.get("option_code")
         trouve = options.get(code)
         if trouve is None:
-            return 0, _refus("HORS_CARTE", "Ce choix n'existe pas pour ce produit.", code=code)
+            return 0, _refus_de_secours("HORS_CARTE", TSC.choix_hors_produit, code=code)
         g, o = trouve
         n = c.get("quantite", 1)
         if not isinstance(n, int) or n < 1:
-            return 0, _refus("ARGUMENT_INVALIDE", "Quantité de choix invalide.", "quantite", code=code)
+            return 0, _refus_de_secours("ARGUMENT_INVALIDE", TSC.quantite_de_choix_invalide, "quantite", code=code)
         if code in panier.ruptures:
-            return 0, _refus("RUPTURE", f"{o['nom']} n'est plus disponible.", code=code, nom=o["nom"])
+            return 0, _refus_de_secours("RUPTURE", TS.n_est_plus_disponible, code=code, nom=o["nom"])
         par_groupe[g["id"]] = par_groupe.get(g["id"], 0) + n
         par_option[code] = par_option.get(code, 0) + n
         if par_option[code] > g["max_par_option"]:
-            return 0, _refus("MAXIMUM_ATTEINT", f"{o['nom']} ne se prend pas plus de {g['max_par_option']} fois.", groupe=g["id"], code=code)
+            return 0, _refus_de_secours("MAXIMUM_ATTEINT", TSC.option_trop_de_fois, groupe=g["id"], code=code, nom=o["nom"], maximum=g["max_par_option"])
         refus = conditions_de_vente.refus_de_l_option(o, panier.mode)  # PRX1 et PRX3 : l'option hors de sa plage ou d'un autre mode
         if refus is not None:
             return 0, _refus("INTERDIT", "", **refus)
@@ -233,9 +241,9 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
     for g in groupes:
         n = par_groupe.get(g["id"], 0)
         if n < g["min"]:
-            return 0, _refus("CHOIX_OBLIGATOIRE", f"Il faut choisir : {g['nom']}.", groupe=g["id"], nom=g["nom"], minimum=g["min"])
+            return 0, _refus_de_secours("CHOIX_OBLIGATOIRE", TSC.choix_obligatoire, groupe=g["id"], nom=g["nom"], minimum=g["min"])
         if n > g["max"]:
-            return 0, _refus("MAXIMUM_ATTEINT", f"Pas plus de {g['max']} pour : {g['nom']}.", groupe=g["id"], nom=g["nom"], maximum=g["max"])
+            return 0, _refus_de_secours("MAXIMUM_ATTEINT", TSC.pas_plus_pour, groupe=g["id"], nom=g["nom"], maximum=g["max"])
     return supplement, None
 
 
@@ -284,16 +292,16 @@ def _formule(panier: _Panier, f: dict, code: str, choisis: list[dict]) -> tuple[
         code_c = c.get("option_code")
         n = c.get("quantite", 1)
         if not isinstance(n, int) or n < 1:
-            return [], 0, False, None, _refus("ARGUMENT_INVALIDE", "Quantité de choix invalide.", "quantite", code=code_c)
+            return [], 0, False, None, _refus_de_secours("ARGUMENT_INVALIDE", TSC.quantite_de_choix_invalide, "quantite", code=code_c)
         i, raison = _ligne_du_choix(panier, lignes, restantes, code_c, taille, c.get("etape"))
         if i is None:
-            return [], 0, False, None, _refus("HORS_CARTE", "Ce choix n'existe pas dans cette formule.", code=code_c, raison=raison or "choix_hors_liste")
+            return [], 0, False, None, _refus_de_secours("HORS_CARTE", TSC.choix_hors_formule, code=code_c, raison=raison or "choix_hors_liste")
         if code_c in panier.ruptures:
-            return [], 0, False, None, _refus("RUPTURE", "Un élément de la formule n'est plus disponible.", code=code_c)
+            return [], 0, False, None, _refus_de_secours("RUPTURE", TSC.element_de_formule_indisponible, code=code_c)
         prises = 1 if lignes[i]["a_volonte"] else n
         if prises > restantes[i]:
-            return [], 0, False, None, _refus("MAXIMUM_ATTEINT", f"Pas plus de {lignes[i]['quantite']} pour : {lignes[i]['nom']}.", groupe=lignes[i]["nom"],
-                                              maximum=lignes[i]["quantite"])
+            return [], 0, False, None, _refus_de_secours("MAXIMUM_ATTEINT", TSC.pas_plus_pour, groupe=lignes[i]["nom"],
+                                                        nom=lignes[i]["nom"], maximum=lignes[i]["quantite"])
         restantes[i] -= prises
         par_ligne.setdefault(i, []).append({**c, "quantite": prises})
     rendu: list[dict] = []
@@ -305,11 +313,11 @@ def _formule(panier: _Panier, f: dict, code: str, choisis: list[dict]) -> tuple[
             options = [{"code": x, "nom": x, "alternative": k} for k, a in enumerate(ligne["alternatives"]) for x in a.get("codes") or []]
             pris, refus = choix_entre_deux_contenus.brique_for12_une_alternative({"nom": ligne["nom"], "alternatives": ligne["alternatives"], "options": options}, pris)
             if refus is not None:
-                return [], 0, False, None, _refus("HORS_CARTE", "Une seule alternative.", groupe=ligne["nom"], **refus)
+                return [], 0, False, None, _refus_de_secours("HORS_CARTE", TSC.une_seule_alternative, groupe=ligne["nom"], **refus)
             voulu = next((int(a.get("quantite") or 1) for a in ligne["alternatives"] if pris and pris[0]["option_code"] in (a.get("codes") or [])), voulu)
         total = sum(c["quantite"] for c in pris)
         if ligne["obligatoire"] and total < (1 if ligne["a_volonte"] else voulu):
-            return [], 0, False, None, _refus("CHOIX_OBLIGATOIRE", f"Il faut choisir : {ligne['nom']}.", groupe=ligne["nom"], nom=ligne["nom"], minimum=voulu)
+            return [], 0, False, None, _refus_de_secours("CHOIX_OBLIGATOIRE", TSC.choix_obligatoire, groupe=ligne["nom"], nom=ligne["nom"], minimum=voulu)
         for c in pris:
             produit, d = panier.decl[c["option_code"]]
             groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
@@ -320,7 +328,7 @@ def _formule(panier: _Panier, f: dict, code: str, choisis: list[dict]) -> tuple[
             retirables = {x["nom"] for x in produit["ingredients"] if x.get("retirable")} | set(retrait_d_ingredient.options_retirables(groupes))
             inconnus = [r for r in (c.get("retires") or []) if r not in retirables]
             if inconnus:
-                return [], 0, False, None, _refus("HORS_CARTE", f"On ne peut pas retirer : {inconnus[0]}.", code=c["option_code"], retire=inconnus[0])
+                return [], 0, False, None, _refus_de_secours("HORS_CARTE", TSC.ne_peut_pas_retirer, code=c["option_code"], retire=inconnus[0])
             prix_ligne = supplement_de_formule.brique_for4_ajouter_le_supplement_de_ligne(ligne, c["option_code"])
             supplement += (prix_ligne + gain) * c["quantite"]
             alcool = alcool or bool(produit.get("alcool"))
@@ -369,7 +377,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
     for rang, l in enumerate(brouillon_lignes, start=1):
         code, n = l.get("code_caisse"), l.get("quantite", 1)
         if not isinstance(n, int) or not 1 <= n <= 99:
-            return [], 0, _refus("ARGUMENT_INVALIDE", "Quantité invalide.", "quantite", ligne=rang)
+            return [], 0, _refus_de_secours("ARGUMENT_INVALIDE", TSC.quantite_invalide, "quantite", ligne=rang)
         formule = panier.formules.get(code)
         if code in panier.decl:
             produit, d = panier.decl[code]
@@ -394,9 +402,9 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             base, groupes, retirables, options_retirables = declinaison_f["prix"], [], set(), {}
             rendu_f, supplement_f, alcool, taux, erreur_f = _formule(panier, formule, code, l.get("choix") or [])
         else:
-            return [], 0, _refus("HORS_CARTE", "Ce produit n'est pas à la carte.", code=code)
+            return [], 0, _refus_de_secours("HORS_CARTE", TSC.produit_hors_carte, code=code)
         if code in panier.ruptures:
-            return [], 0, _refus("RUPTURE", f"{nom} n'est plus disponible.", code=code, nom=nom)
+            return [], 0, _refus_de_secours("RUPTURE", TS.n_est_plus_disponible, code=code, nom=nom)
         # Lot 12 (PRX1, PRX3, PRX8, PRX9) : la plage, le mode, le maximum par commande et le délai minimal ; les quantités du même produit s'additionnent d'une ligne à l'autre
         objet = produit if code in panier.decl else formule
         refus = conditions_de_vente.refus_de_la_ligne(objet, d if code in panier.decl else None, panier.mode, n, pris_du_produit.get(objet["id"], 0), panier.maintenant, panier.servi_le)
@@ -404,12 +412,12 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             return [], 0, _refus("INTERDIT", "", **refus)
         pris_du_produit[objet["id"]] = pris_du_produit.get(objet["id"], 0) + n
         if l.get("prix_unitaire") is not None and l["prix_unitaire"] != base:
-            return [], 0, _refus("REFUSEE", "Le prix ne correspond pas à la carte.", raison="prix_different", code=code)
+            return [], 0, _refus_de_secours("REFUSEE", TSC.prix_different, raison="prix_different", code=code)
         if erreur_f:
             return [], 0, erreur_f
         inconnus = [r for r in (l.get("retires") or []) if r not in retirables]
         if inconnus:
-            return [], 0, _refus("HORS_CARTE", f"On ne peut pas retirer : {inconnus[0]}.", code=code, retire=inconnus[0])
+            return [], 0, _refus_de_secours("HORS_CARTE", TSC.ne_peut_pas_retirer, code=code, retire=inconnus[0])
         rendu: list[dict] = []
         if formule is not None:
             rendu, supplement = rendu_f, supplement_f  # lot 11 : les choix rangés sur les lignes de la formule (``_formule``)
@@ -440,12 +448,9 @@ async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: in
     Rend ``(zone, frais, None)`` ou ``(None, 0, Resultat)`` : ``HORS_ZONE`` ou ``MINIMUM_NON_ATTEINT``."""
     zone = await zone_de_l_etablissement(connexion, etablissement_id, zone_id)
     if zone is None:
-        return None, 0, _refus("HORS_ZONE", "Nous ne livrons pas à cette adresse.")
+        return None, 0, _refus_de_secours("HORS_ZONE", TSC.hors_zone)
     if sous_total < zone["minimum"]:
-        return None, 0, _refus(
-            "MINIMUM_NON_ATTEINT", f"Le minimum de commande est de {montant_en_lettres(zone['minimum'])}.",
-            minimum=zone["minimum"], sous_total=sous_total,
-        )
+        return None, 0, _refus_de_secours("MINIMUM_NON_ATTEINT", TSC.minimum_non_atteint, minimum=zone["minimum"], sous_total=sous_total)
     return zone, livraison_offerte.brique_off4_frais_retires(zone, sous_total)["frais"], None  # lot 14 (OFF4) : la règle nommée
 
 
@@ -489,7 +494,7 @@ async def chiffrer_panier(
     fermé du premier défaut : ``RUPTURE``, ``HORS_CARTE``, ``CHOIX_OBLIGATOIRE``, ``MAXIMUM_ATTEINT``, ``MINIMUM_NON_ATTEINT``…
     Hors des 17 fonctions du contrat : lecture seule, ce n'est pas un enregistrement."""
     if mode not in MODES:
-        return _refus("ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", "mode")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.mode_non_compris, "mode")
     moment = moment or await maintenant(connexion)
     carte = await carte_du_restaurant(connexion, etablissement_id, servi_le or moment)  # lot 12 (PRX1) : la carte à l'heure voulue d'une précommande
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
@@ -680,30 +685,31 @@ async def creneau_refuse(
     reglage = await connexion.fetchrow("SELECT * FROM mark.resto_reglage_type WHERE site_id = $1 AND type = $2", etablissement_id, mode)
     if plus_tard:
         if reglage is None or not reglage["planifiee_permise"]:
-            return _refus("ARGUMENT_INVALIDE", "Je ne prends pas de commande pour plus tard.", "heure_voulue")
+            return _refus_de_secours("ARGUMENT_INVALIDE", TSC.pas_de_commande_pour_plus_tard, "heure_voulue", plus_tard_refuse=True)
         # M91 (appel 2577, 00 h 50) : « J+1 » compte en JOURS du lieu (jusqu'à la fin de demain), comme la réservation (``capacite``), jamais en
         # 24 heures glissantes ; le refus dit jusqu'à quand.
         limite = (maintenant_.astimezone(fuseau) + timedelta(days=reglage["jours_a_l_avance"])).date() if reglage["jours_a_l_avance"] else None
         if limite is not None and heure_voulue.astimezone(fuseau).date() > limite:
             jusqu_a = "aujourd'hui" if limite == maintenant_.astimezone(fuseau).date() else jour_dit(limite)
-            return _refus("ARGUMENT_INVALIDE", f"Je prends les commandes jusqu'à {jusqu_a} : pour quand la voulez-vous ?", "heure_voulue")
+            return _refus_de_secours("ARGUMENT_INVALIDE", TSC.commandes_jusqu_a, "heure_voulue", jusqu_a=jusqu_a)
         if heure_voulue < maintenant_ + timedelta(minutes=reglage["delai_minimal"]):
-            return _refus("ARGUMENT_INVALIDE", "C'est trop tôt pour moi.", "heure_voulue")
+            return _refus_de_secours("ARGUMENT_INVALIDE", TSC.trop_tot, "heure_voulue", trop_tot=True, delai_minimal=reglage["delai_minimal"],
+                                      heure_demandee_dite=_quand_dit(heure_voulue, maintenant_, fuseau))  # 7b-C4 : l'heure demandée entre dans l'identité du refus (trois heures trop tôt ne sont pas un refus redit)
     etat = await etat_combine(connexion, etablissement_id, mode, heure_voulue or maintenant_)
     if not etat["ouvert"]:
         raison = etat["raison"]
         quand = etat["reprise"] or etat["prochaine_ouverture"]
+        faits = {"raison": raison, "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"]}
         if plus_tard and isinstance(quand, datetime):
-            phrase = f"À cette heure nous sommes fermés. Nous rouvrons {_quand_dit(quand, maintenant_, fuseau)} : pour quelle heure à partir de là ?"
-        else:
-            phrase = "Nous ne prenons pas de commande en ce moment."
-        return _refus(statut_de_fermeture(raison), phrase, "heure_voulue" if plus_tard else None, raison=raison, reprise=etat["reprise"], prochaine_ouverture=etat["prochaine_ouverture"])
+            faits["rouvre_dit"] = _quand_dit(quand, maintenant_, fuseau)
+            faits["heure_demandee_dite"] = _quand_dit(heure_voulue, maintenant_, fuseau)  # idem : une autre heure demandée est un autre refus
+        return _refus_de_secours(statut_de_fermeture(raison), TSC.ferme_a_cette_heure, "heure_voulue" if plus_tard else None, **faits)
     if plus_tard:
         libre = await creneau_complet(connexion, etablissement_id, mode, heure_voulue)
         if libre is not None:
-            return _refus(
-                "ARGUMENT_INVALIDE", f"Ce créneau est complet, je peux vous proposer {_quand_dit(libre, maintenant_, fuseau)}.", "heure_voulue",
-                raison="creneau_plein", proposition=libre,
+            return _refus_de_secours(
+                "ARGUMENT_INVALIDE", TSC.creneau_complet, "heure_voulue",
+                raison="creneau_plein", proposition=libre, proposition_dite=_quand_dit(libre, maintenant_, fuseau), heure_demandee_dite=_quand_dit(heure_voulue, maintenant_, fuseau),
             )
     return None
 
@@ -715,23 +721,23 @@ def _manques_de_la_demande(brouillon: dict, jeton_relecture: str | None, mainten
     heure_voulue = brouillon.get("heure_voulue")
     cree_par = brouillon.get("cree_par", "agent")
     if mode not in MODES:
-        return _refus("ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", "mode")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.mode_non_compris, "mode")
     if not brouillon.get("lignes"):
-        return _refus("INCOMPLETE", "Qu'est-ce que je vous mets ?", "lignes")
+        return _refus("INCOMPLETE", phrase_du_manque(Manque.ARTICLES), "lignes")
     if not isinstance(client.get("telephone"), str) or not E164.match(client["telephone"]):
-        return _refus("INCOMPLETE", "Quel est votre numéro de téléphone ?", "telephone")
+        return _refus("INCOMPLETE", phrase_du_manque(Manque.TELEPHONE), "telephone")
     if mode == "livraison" and not brouillon.get("adresse"):
-        return _refus("INCOMPLETE", "Quelle est l'adresse de livraison ?", "adresse")
+        return _refus("INCOMPLETE", phrase_du_manque(Manque.ADRESSE_ET_COMMUNE), "adresse")
     if mode == "livraison" and not brouillon.get("zone_id"):
-        return _refus("INCOMPLETE", "Je dois situer l'adresse de livraison.", "zone")
+        return _refus_de_secours("INCOMPLETE", TSC.situer_l_adresse, "zone")
     if not jeton_relecture or not str(jeton_relecture).strip():
-        return _refus("INCOMPLETE", "Je vous relis la commande avant de l'enregistrer.", "relecture")
+        return _refus_de_secours("INCOMPLETE", TSC.relire_la_commande, "relecture")
     if cree_par not in ("agent", "portail", "caisse"):
-        return _refus("ARGUMENT_INVALIDE", "Origine de la commande invalide.", "cree_par")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.origine_invalide, "cree_par")
     if heure_voulue is not None and (heure_voulue.tzinfo is None or heure_voulue < maintenant_):
-        return _refus("ARGUMENT_INVALIDE", "L'heure demandée n'est pas valable.", "heure_voulue")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.heure_non_valable, "heure_voulue")
     if len(str(client.get("prenom") or "")) > 60:
-        return _refus("ARGUMENT_INVALIDE", "Prénom trop long.", "prenom")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.prenom_trop_long, "prenom")
     return None
 
 
@@ -744,12 +750,12 @@ def _reglement_du_brouillon(brouillon: dict) -> tuple[dict, list, dict]:
 def _reglement_lisible(moyens: list, reste: dict, acceptes: set[str]) -> Resultat | None:
     """Un règlement donné, bien formé, par des moyens que l'établissement accepte."""
     if not moyens and not reste:
-        return _refus("INCOMPLETE", "Vous réglez comment ?", "paiement")
+        return _refus("INCOMPLETE", phrase_du_manque(Manque.PAIEMENT), "paiement")
     if not all(isinstance(m, dict) and isinstance(m.get("moyen"), str) and "montant" in m for m in moyens):
-        return _refus("ARGUMENT_INVALIDE", "Règlement invalide.", "paiement")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.reglement_invalide, "paiement")
     for moyen in [m["moyen"] for m in moyens] + list(reste):
         if moyen not in acceptes:
-            return _refus("MOYEN_NON_ACCEPTE", "Ce moyen de paiement n'est pas accepté.", moyen=moyen, acceptes=sorted(acceptes))
+            return _refus_de_secours("MOYEN_NON_ACCEPTE", TS.moyen_refuse, moyen=moyen, acceptes=sorted(acceptes))
     return None
 
 
@@ -758,24 +764,24 @@ def _titres_restaurant(paiement: dict, moyens: list, reste: dict, reglages: dict
     module, acceptes, plafond = reglages["module"], set(reglages["moyens_paiement"]), reglages["plafond_titre"]
     titres = sum(m["montant"] for m in moyens if m["moyen"] == "titre_restaurant") + reste.get("titre_restaurant", 0)
     if plafond is not None and titres > plafond:
-        return _refus("PLAFOND_TITRE_RESTAURANT", "Le montant en titres-restaurant dépasse le plafond.", plafond=plafond, montant=titres)
+        return _refus_de_secours("PLAFOND_TITRE_RESTAURANT", TSC.plafond_titre_depasse, plafond=plafond, montant=titres)
     if titres and module["titre_alcool_exclu"]:
         # Un titre-restaurant ne paie pas l'alcool : ce qui dépasse la part sans alcool de la commande est refusé.
         eligible = max(0, total - sum(l["prix_unitaire"] * l["quantite"] for l in calculees if l["alcool"]))
         if any(l["alcool"] for l in calculees) and titres > eligible:
-            return _refus("PLAFOND_TITRE_RESTAURANT", "Les titres-restaurant ne paient pas l'alcool.", plafond=eligible, montant=titres, raison="alcool")
+            return _refus_de_secours("PLAFOND_TITRE_RESTAURANT", TSC.titre_et_alcool, plafond=eligible, montant=titres, raison="alcool")
     if titres and module["titre_sans_rendu"] and paiement.get("rendu_sur") and not any(m["moyen"] == "especes" for m in moyens):
         # Pas de rendu sur un titre-restaurant : le billet ne se rend que sur des espèces.
-        return _refus("MOYEN_NON_ACCEPTE", "On ne rend pas la monnaie sur un titre-restaurant.", moyen="titre_restaurant", acceptes=sorted(acceptes), raison="sans_rendu")
+        return _refus_de_secours("MOYEN_NON_ACCEPTE", TSC.titre_sans_rendu, moyen="titre_restaurant", acceptes=sorted(acceptes), raison="sans_rendu")
     return None
 
 
 def _compte_du_reglement(moyens: list, reste: dict, total: int) -> Resultat | None:
     """Les montants sont des entiers positifs et leur somme est exactement le total."""
     if any(not isinstance(m["montant"], int) or m["montant"] < 0 for m in moyens) or any(not isinstance(v, int) or v < 0 for v in reste.values()):
-        return _refus("ARGUMENT_INVALIDE", "Montant de paiement invalide.", "paiement")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.montant_de_paiement_invalide, "paiement")
     if sum(m["montant"] for m in moyens) + sum(reste.values()) != total:
-        return _refus("INCOMPLETE", "Le règlement ne couvre pas exactement le total.", "paiement", total=total)
+        return _refus_de_secours("INCOMPLETE", TSC.reglement_incomplet, "paiement", total=total)
     return None
 
 
@@ -817,7 +823,7 @@ async def _remises_et_total(
             connexion, etablissement_id, panier, brouillon["mode"], calculees, sous_total, moment, brouillon.get("client") or {}, brouillon["remises"], brouillon.get("codes") or ()
         )
         if motif:
-            return _refus("REFUSEE", "Cette remise ne s'applique pas à votre commande.", raison=motif), [], calculees, sous_total, 0
+            return _refus_de_secours("REFUSEE", TSC.remise_non_applicable, raison=motif), [], calculees, sous_total, 0
     sous_total += sum(l["prix_unitaire"] * l["quantite"] for l in offertes)  # un article offert part à son prix de carte, la remise du même montant l'annule
     return None, retenues, calculees + offertes, sous_total, sous_total + frais - sum(r["montant"] for r in retenues)
 
@@ -1136,7 +1142,7 @@ async def statut_commande(
     else:
         return Resultat("ARGUMENT_INVALIDE", manque="numero")
     if not lignes:
-        return Resultat("INTROUVABLE", {}, "Je ne trouve pas cette commande.")
+        return Resultat("INTROUVABLE", {}, TSC.commande_introuvable({}))
     return Resultat("OK", {"commandes": [_commande(r) for r in lignes]})
 
 

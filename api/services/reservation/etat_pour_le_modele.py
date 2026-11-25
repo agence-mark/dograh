@@ -9,6 +9,7 @@ et sur ce que les gestes ont retenu (``retenir_la_reservation_visee``). Des fait
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE
 from typing import Any
 
 from loguru import logger
@@ -58,7 +59,10 @@ def objet_en_cours(etat: dict[str, Any]) -> bool:
 
 
 def _question(q: dict[str, Any]) -> str:
-    return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
+    """Le texte n'y est que pour une question que le code dit lui-même ; le choix entre réservations n'a que ses candidats (ligne « Ses réservations à venir »)."""
+    nom = NOMS_DES_QUESTIONS.get(q.get("type"), q.get("type"))
+    dite = f" : « {q.get('texte') or ''} »" if q.get("type") in QUESTIONS_DITES_PAR_LE_CODE else ""
+    return f"- Question en attente : {q['id']} ({nom}){dite} ; réponses : accepte, refuse, autre."
 
 
 def texte(fiche: dict | None, appel: dict | None = None) -> str | None:

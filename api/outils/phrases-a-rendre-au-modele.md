@@ -172,10 +172,8 @@ Lignes lues à la fin du lot 1, reprises au lot 2 (audit). Le tri est mécanique
 | `services/restauration/source_commande.py:159` | Cette heure est déjà passée, pour quelle heure ? | rendue au modèle (lot 7) : question |
 | `services/restauration/source_commande.py:425` | Je ne peux pas envoyer de message pour le moment. | rendue au modèle (lot 7) : explication ou refus |
 | `services/restauration/source_commande.py:427` | C'est déjà parti, ou je ne peux pas l'envoyer à ce numéro. | rendue au modèle (lot 7) |
-| `services/commande/porte.py:PHRASE_PANNE_COMMANDE_JOINTE` | Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle. | rendue au modèle (lot 7) : la panne se dit par le modèle, le code donne le fait et la consigne |
-| `services/commande/porte.py:PHRASE_PANNE_SANS_COMMANDE` | Je n'arrive pas à faire cela pour le moment. | rendue au modèle (lot 7) : la panne se dit par le modèle, le code donne le fait et la consigne |
 
-Total : 164 phrases.
+Total : 162 phrases (7b-C4 : ``PHRASE_PANNE_*`` retirées au commit 11 de C1, le fichier ne les cite plus ; plus aucun fichier du lot n'est à rendre, ``A_RENDRE`` est vide).
 | `services/actions_communes/phrases_d_information.py` (`NOUVELLE_COMMANDE_PROPOSEE`) | Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ? | rendue au modèle (lot 7) : refus suivi d'une question (DC5), proposée par le code ; le code ne la dit que dans le repli |
 | `services/restauration/carte_et_allergenes/voir_un_article.py:115` (`INFO.SOURCE_FICHE`) | D'après la fiche, … ne contient pas … | rendue au modèle (lot 7) : explication ou refus, montée d'une constante du module commun |
 | `services/restauration/carte_et_allergenes/voir_un_article.py:117` (`INFO.CA_DEPEND_DU_CHOIX_NON_GARANTI`) | Pour …, ça dépend du choix : je ne peux pas le garantir. | rendue au modèle (lot 7) : explication ou refus |

@@ -349,5 +349,6 @@ async def test_maximum_atteint_est_dit_par_le_code(essai_de):
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
     assert not e.fiche_de_l_appel[CLE_TEXTES_DU_CODE].get("prefixe"), "le code ne dit rien avant la phrase du modèle"
-    dit = json.dumps(r["faits"]["refus_de_la_fiche"], ensure_ascii=False)
-    assert "trois" in dit.lower() and "Viandes" in dit, dit
+    # lot 7b-C4 (R = A) : le refus est un fait (le groupe et le maximum), sans phrase ; « trois viandes au plus » est le texte de secours du repli
+    refus = r["faits"]["refus_de_la_fiche"]
+    assert [(x["statut_du_module"], x["faits"]["groupe"], x["faits"]["maximum"]) for x in refus] == [("MAXIMUM_ATTEINT", "Viandes", 3)], refus

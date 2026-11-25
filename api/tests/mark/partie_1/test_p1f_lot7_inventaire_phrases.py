@@ -19,7 +19,7 @@ from api.outils import inventaire_rustines as I
 
 FICHIERS_DU_LOT = (
     "db/bases_clients/restauration_commande.py",
-    "db/bases_clients/restauration_reservation.py",
+    "db/bases_clients/restauration_zone.py",
     "services/actions_communes/parole.py",
     "services/actions_communes/repli.py",
     "services/commande/moteur/articles.py",
@@ -41,7 +41,10 @@ FICHIERS_DU_LOT = (
 
 # Un catalogue de secours n'est lu que par le repli (le texte que le code dit quand le modèle se tait deux fois sur un refus, jamais donné au modèle) : ses phrases sont permises.
 # Il s'exempte par son nom, jamais par une liste de phrases : ranger une phrase au catalogue ailleurs ne la rend pas permise (I-7).
-CATALOGUES_DE_SECOURS = ("services/commande/phrases_du_manque.py", "services/commande/textes_de_secours.py", "services/reservation/phrases_du_manque.py")
+CATALOGUES_DE_SECOURS = (
+    "db/bases_clients/textes_de_secours_commande.py", "services/commande/phrases_du_manque.py", "services/commande/textes_de_secours.py",
+    "services/reservation/phrases_du_manque.py", "services/reservation/textes_de_secours.py", "services/restauration/carte_et_allergenes/textes_de_secours.py",
+)
 NOM_D_UN_CATALOGUE_DE_SECOURS = re.compile(r"(?:^|/)(?:textes_de_secours[^/]*|phrases_du_manque)\.py$")
 
 # Textes écrits pour l'équipe du restaurant (ticket, SMS au gérant), jamais dits à la personne au téléphone : un morceau passé à l'un de ces envois est permis (liste blanche,
@@ -58,20 +61,10 @@ _SQL = re.compile(r"\s*(?:SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER)\s")
 A_RENDRE_C1: frozenset[str] = frozenset()
 
 # C2 base et source de la commande : ``db/bases_clients/restauration_commande.py`` et ``restauration/source_commande.py``
-A_RENDRE_C2 = frozenset({
-    "db/bases_clients/restauration_commande.py",
-    "services/restauration/source_commande.py",
-})
+A_RENDRE_C2: frozenset[str] = frozenset()  # rendu par la 7b-C2 : la base et la source de la commande ne disent plus rien en dur
 
 # C3 réservation et allergie : ``services/reservation/*``, ``db/bases_clients/restauration_reservation.py``, ``restauration/carte_et_allergenes/*``
-A_RENDRE_C3 = frozenset({
-    "db/bases_clients/restauration_reservation.py",
-    "services/reservation/lire.py",
-    "services/reservation/moteur.py",
-    "services/reservation/porte.py",
-    "services/restauration/carte_et_allergenes/allergie_de_la_commande.py",
-    "services/restauration/carte_et_allergenes/voir_un_article.py",
-})
+A_RENDRE_C3: frozenset[str] = frozenset()  # rendu par la 7b-C4 : ``reservation/lire.py`` ne porte plus « Cette information n'est pas renseignée. », seulement ``renseigne: False``
 
 A_RENDRE = A_RENDRE_C1 | A_RENDRE_C2 | A_RENDRE_C3
 
