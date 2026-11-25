@@ -28,7 +28,7 @@ def brique_for12_une_alternative(etape: dict[str, Any], choix: list[dict[str, An
     options = {o["code"]: o for o in etape["options"]}
     rangs = {options[c["option_code"]].get("alternative") for c in choix if c["option_code"] in options}
     if len(rangs) > 1:
-        return choix, {"raison": RAISON, "etape": etape["nom"], "choix": alternatives_dites(etape)}
+        return choix, {"raison": RAISON, "etape": etape["nom"], "alternatives": alternatives_brutes(etape)}
     rang = next(iter(rangs), None)
     if rang is None:
         return choix, None
@@ -41,12 +41,10 @@ def brique_for12_une_alternative(etape: dict[str, Any], choix: list[dict[str, An
     return choix, None
 
 
-def alternatives_dites(etape: dict[str, Any]) -> list[str]:
-    """Chaque alternative à sa quantité (« un Coca Bouteille », « trois Coca Canette ou Fanta », conversation FOR12-B du lot 11 : sans les quantités, le refus
-    disait trois choix au lieu de deux alternatives)."""
-    from api.services.mots_dits import liste_dite, nombre_en_lettres
-
-    return [f"{nombre_en_lettres(int(a.get('quantite') or 1))} {liste_dite([o['nom'] for o in etape['options'] if o.get('alternative') == k])}"
+def alternatives_brutes(etape: dict[str, Any]) -> list[dict[str, Any]]:
+    """Chaque alternative à sa quantité, en faits bruts : ``[{"quantite": 3, "options": ["Coca Canette", "Fanta"]}]`` (conversation FOR12-B du lot 11 : sans les
+    quantités, le refus disait trois choix au lieu de deux alternatives). Le modèle les dit avec ses mots ; le code n'écrit aucune phrase."""
+    return [{"quantite": int(a.get("quantite") or 1), "options": [o["nom"] for o in etape["options"] if o.get("alternative") == k]}
             for k, a in enumerate(etape["alternatives"])]
 
 

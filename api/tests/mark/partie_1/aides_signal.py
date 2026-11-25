@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from api.services.actions_communes import porte_commune as PC
+from api.services.commande.briques import formule as FO
 from api.services.actions_communes.barriere_des_chiffres import valeurs_des_faits
 from api.services.actions_communes.enveloppe_legere import pour_le_modele
 from api.services.actions_communes.forme import norm
@@ -58,3 +59,17 @@ def valeurs_absentes(r: Any, chemin: str, valeurs: list[tuple[str, str]], discri
     vus = feuilles(signal(r, chemin))
     absentes = [] if norm(discriminant) in vus else [f"discriminant « {discriminant} »"]
     return absentes + [dans_le_signal for dans_le_signal, _ in valeurs if norm(dans_le_signal) not in vus]
+
+
+def etape_de_boissons(**en_plus):
+    def opt(code, nom, alt=None, decl=()):
+        return {"code": code, "nom": nom, "produit": nom, "alternative": alt, "declinaisons_du_produit": list(decl)}
+    return {"id": "e1", "nom": "Boisson", "role": FO.ROLE_ETAPE, "options": [opt("B", "Coca Bouteille", 0), opt("C", "Coca Canette", 1), opt("F", "Fanta", 1)],
+            "alternatives": [{"quantite": 1, "codes": ["B"]}, {"quantite": 3, "codes": ["C", "F"]}], **en_plus}
+
+
+def formule_du_menu(etape, taille=None):
+    article = {"formule": True, "groupes": [etape], "declinaisons": [{"code": "M", "taille": taille}]}
+    ligne = {"nom": "Menu partage", "code": "M", "choix": [{"option_code": c, "nom": c, "quantite": 1, "choix": [], "etape": etape["id"]} for c in ("B", "C")]}
+    return article, ligne
+

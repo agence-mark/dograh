@@ -6,6 +6,9 @@ from __future__ import annotations
 
 from api.services.actions_communes.enveloppe_legere import pour_le_modele
 from api.services.commande import moteur
+from api.services.commande.briques import choix_entre_deux_contenus as FOR12
+from api.services.commande.moteur import articles
+from api.tests.mark.partie_1.aides_signal import etape_de_boissons, formule_du_menu
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as A_
 from api.tests.mark.partie_1.test_p1f_lot7c3_allergie_secours import Source as SourceAllergie, fiche, option
 from api.tests.mark import test_commande_kebab_sa52 as _KEBAB
@@ -88,3 +91,31 @@ async def test_f8_des_articles_etiquetes_portent_autres_a_confirmer():
 async def test_f8_voisin_la_case_halal_du_restaurant_seule_n_a_rien_a_confirmer():
     r = await _regime([], halal_restaurant=True, regime="halal", code="halal")
     assert r.faits.get("restaurant") is True and "autres_a_confirmer" not in r.faits, r.faits
+
+
+# ── F9 : les alternatives d'un menu partagé, en faits bruts ─────────────────────────────────────────────────────────────
+
+ALTERNATIVES = [{"quantite": 1, "options": ["Coca Bouteille"]}, {"quantite": 3, "options": ["Coca Canette", "Fanta"]}]
+
+
+def test_f9_un_melange_d_alternatives_donne_la_quantite_et_les_options_de_chacune():
+    """Modèle « C'est trois canettes au choix entre Coca et Fanta, pas un mélange des deux. » : la quantité est un nombre, jamais « trois … » écrit en lettres dans un fait."""
+    article, ligne = formule_du_menu(etape_de_boissons())
+    r = articles.a_la_taille_de_la_formule(article, ligne)
+    assert r.faits["raison"] == "alternatives_melangees" and r.faits["alternatives"] == ALTERNATIVES, r.faits
+    assert "choix" not in r.faits and "trois" not in str(r.faits), r.faits
+
+
+def test_f9_la_brique_refuse_avec_les_memes_faits_pour_la_commande_de_la_base():
+    etape = etape_de_boissons()
+    choix = [{"option_code": "B", "quantite": 1}, {"option_code": "C", "quantite": 1}]
+    _, refus = FOR12.brique_for12_une_alternative(etape, choix)
+    assert refus["alternatives"] == ALTERNATIVES and "choix" not in refus, refus
+
+
+def test_f9_voisin_une_valeur_sans_la_taille_garde_ses_choix_en_noms():
+    etape = etape_de_boissons(alternatives=None)
+    etape["options"][0]["declinaisons_du_produit"] = [{"nom": "Maxi", "vendable": True, "rupture": False, "code": "BM"}]
+    article, ligne = formule_du_menu(etape, {"nom": "Maxi", "declinaisons": {"Boisson": "Maxi"}})
+    r = articles.a_la_taille_de_la_formule(article, ligne)
+    assert r.faits["raison"] == "choix_sans_la_taille" and r.faits["choix"] == ["Coca Bouteille"], r.faits

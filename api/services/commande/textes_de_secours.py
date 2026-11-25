@@ -104,8 +104,9 @@ def sur_lequel(faits: Faits) -> str:
 
 
 def melange_refuse(faits: Faits) -> str:
-    """Un menu à alternatives : l'appelant a mélangé deux contenus. Faits : ``article`` et ``choix`` (les alternatives, chacune dite en entier)."""
-    return f"{faits['article']} : soit " + ", soit ".join(faits["choix"]) + "."
+    """Un menu à alternatives : l'appelant a mélangé deux contenus. Faits : ``article`` et ``alternatives`` (``[{"quantite", "options"}]``, la quantité de chacune et ses options)."""
+    dites = [f"{nombre_en_lettres(a['quantite'])} {liste_dite(list(a['options']))}" for a in faits["alternatives"]]
+    return f"{faits['article']} : soit " + ", soit ".join(dites) + "."
 
 
 def valeur_parmi_les_choix(faits: Faits) -> str:
