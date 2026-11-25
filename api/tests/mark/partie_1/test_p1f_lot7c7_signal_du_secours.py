@@ -34,7 +34,7 @@ from api.tests.mark import test_restauration_commande_panier as _PANIER
 from api.tests.mark import test_restauration_zones as ZONES
 from api.tests.mark.commande_sur_la_fiche import article as ART
 from api.tests.mark.partie_1.aides_briques import brique
-from api.tests.mark.partie_1.aides_signal import valeurs_absentes
+from api.tests.mark.partie_1.aides_signal import etape_de_boissons, formule_du_menu, valeurs_absentes
 from api.tests.mark.partie_1.test_p1f_lot7c3_allergie_secours import Source as SourceAllergie, fiche, option
 from api.tests.mark import test_commande_kebab_sa52 as _KEBAB
 
@@ -94,19 +94,6 @@ def _groupe(maximum: int, par_option: int) -> dict:
     return {"id": "g", "nom": "Sauces", "role": "sauce", "min": 0, "max": maximum, "max_par_option": par_option, "options": [KETCHUP, MAYO]}
 
 
-def _etape_de_boissons(**en_plus):
-    def opt(code, nom, alt=None, decl=()):
-        return {"code": code, "nom": nom, "produit": nom, "alternative": alt, "declinaisons_du_produit": list(decl)}
-    return {"id": "e1", "nom": "Boisson", "role": FO.ROLE_ETAPE, "options": [opt("B", "Coca Bouteille", 0), opt("C", "Coca Canette", 1), opt("F", "Fanta", 1)],
-            "alternatives": [{"quantite": 1, "codes": ["B"]}, {"quantite": 3, "codes": ["C", "F"]}], **en_plus}
-
-
-def _formule(etape, taille=None):
-    article = {"formule": True, "groupes": [etape], "declinaisons": [{"code": "M", "taille": taille}]}
-    ligne = {"nom": "Menu partage", "code": "M", "choix": [{"option_code": c, "nom": c, "quantite": 1, "choix": [], "etape": etape["id"]} for c in ("B", "C")]}
-    return article, ligne
-
-
 def _noms(liste) -> list[str]:
     return [x["nom"] if isinstance(x, dict) else str(x) for x in liste]
 
@@ -127,14 +114,14 @@ def _etat_ferme(**en_plus):
 
 
 async def _melange(_=None):
-    article, ligne = _formule(_etape_de_boissons())
+    article, ligne = formule_du_menu(etape_de_boissons())
     return articles.a_la_taille_de_la_formule(article, ligne)
 
 
 async def _valeur_sans_la_taille(_=None):
-    etape = _etape_de_boissons(alternatives=None)
+    etape = etape_de_boissons(alternatives=None)
     etape["options"][0]["declinaisons_du_produit"] = [{"nom": "Maxi", "vendable": True, "rupture": False, "code": "BM"}]
-    article, ligne = _formule(etape, {"nom": "Maxi", "declinaisons": {"Boisson": "Maxi"}})
+    article, ligne = formule_du_menu(etape, {"nom": "Maxi", "declinaisons": {"Boisson": "Maxi"}})
     return articles.a_la_taille_de_la_formule(article, ligne)
 
 
@@ -394,7 +381,7 @@ CAS_PURS: list[Cas] = [
     Cas("notes_non_acceptees", TS.notes_non_acceptees, lambda: articles._noter({}, "sans stress", Reglages(notes_libres=False)), "F", [], "notes_non_acceptees"),
     Cas("notes_refusees_a_la_commande", TS.notes_non_acceptees, lambda: articles.noter_la_commande(P.nouveau(), Reglages(notes_libres=False), "pour Léa"), "F", [], "notes_non_acceptees"),
     Cas("melange_refuse", TS.melange_refuse, _melange, "F", [("3", "trois"), ("Coca Canette", "Coca Canette"), ("Fanta", "Fanta"), ("1", "un"), ("Coca Bouteille", "Coca Bouteille")],
-        "alternatives_melangees", manque="F9 : les alternatives sont des phrases, pas des faits bruts"),
+        "alternatives_melangees"),
     Cas("valeur_parmi_les_choix", TS.valeur_parmi_les_choix, _valeur_sans_la_taille, "F", pareilles("Coca Bouteille"), "choix_sans_la_taille"),
     Cas("sur_lequel", TS.sur_lequel, _retrait_sur_deux_plats, "F", pareilles("Pizza", "Pâtes"), "AMBIGU"),
     Cas("code_inconnu", TS.code_inconnu, lambda: _un_code("FAUX"), "F", [], "code_inconnu"),
