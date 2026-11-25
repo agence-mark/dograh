@@ -32,7 +32,7 @@ from api.db.bases_clients.instantane import stable, vivant
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.mots_dits import nombre_en_lettres
 from api.services.reservation import textes_de_secours as TS
-from api.db.bases_clients.restauration_commande import E164, _quand_dit
+from api.db.bases_clients.restauration_commande import E164, _heure_dite, _quand_dit
 from api.db.bases_clients.restauration_commun import json_lu
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
 
@@ -175,6 +175,7 @@ def _fait(r: asyncpg.Record, noms: dict[int, str], fuseau: ZoneInfo, maintenant_
         "numero": str(r["numero"]), "debut": r["debut"], "fin": fin, "duree_minutes": r["duree_minutes"], "couverts": r["couverts"],
         "prenom": r["prenom"], "statut": r["statut"], "tables": [noms.get(i, str(i)) for i in r["table_ids"]], "note": r["note"],
         "quand_dit": _quand_dit(r["debut"], maintenant_, fuseau), "jour_dit": jour_dit(r["debut"].astimezone(fuseau).date()),
+        "heure_dite": _heure_dite(r["debut"], fuseau),  # C6 n° 8 : l'heure seule, exigée de la phrase du modèle qui demande l'annulation (P2)
     }
 
 

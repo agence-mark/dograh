@@ -7,12 +7,9 @@ from api.services.commande import phrases_dites_par_le_code as PD
 from api.services.commande import registre as RQ
 
 # Chaque type de la liste fermée, lié à son exception du plan (§ 2 de phrases_dites_par_le_code) : une question dite par le code est une exception écrite.
-# C6 n° 3b (décision d'Evan 25/11 9 h 30) : la relecture de la commande n'y est plus, le modèle la dit.
+# C6 n° 3b et 8 (décision d'Evan 25/11 9 h 30) : la relecture de la commande, les récapitulatifs et l'annulation de la réservation n'y sont plus, le modèle les dit.
 EXCEPTION_DU_TYPE = {
     RQ.TYPE_DU_NUMERO_DICTE: PD.EXCEPTION_NUMERO,
-    "recapitulatif": PD.EXCEPTION_RELECTURE,
-    "recap_modif": PD.EXCEPTION_RELECTURE,
-    "annulation": PD.EXCEPTION_DC4,
 }
 
 

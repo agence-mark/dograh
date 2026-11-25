@@ -77,7 +77,8 @@ def test_b5_un_message_est_urgent_quand_la_commande_retrouvee_est_en_cours():
     assert porte._message_urgent({"objet": "question", "urgent": True}, {})  # elle a dit que cela ne peut pas attendre
 
 
-# « Avant d'annuler, tu proposes de déplacer » : la question de confirmation du code le porte.
+# « Avant d'annuler, tu proposes de déplacer » : C6 n° 8 (décision d'Evan 25/11 9 h 30), la question est dite par le modèle ; le moteur rend les faits (le moment, les personnes),
+# la porte la consigne qui propose le déplacement.
 
 
 async def test_b5_la_confirmation_d_annulation_propose_de_deplacer():
@@ -87,10 +88,14 @@ async def test_b5_la_confirmation_d_annulation_propose_de_deplacer():
 
     class Source:
         async def retrouver(self, numero=None, **k):
-            return SimpleNamespace(statut="OK", faits={"reservations": [{"numero": numero, "quand_dit": "jeudi à vingt heures", "personnes": 2}]})
+            return SimpleNamespace(statut="OK", faits={"reservations": [{"numero": numero, "quand_dit": "jeudi à vingt heures", "heure_dite": "vingt heures", "personnes": 2}]})
+
+    from api.services.reservation import porte
 
     r = await moteur.annuler(Source(), {"cible": "R-1"}, None)
-    assert r.statut == "INCOMPLETE" and r.suggestion.startswith("Je peux aussi la déplacer.") and r.suggestion.endswith("?"), r
+    assert r.statut == "INCOMPLETE" and r.manque == "confirmation" and not r.suggestion, r
+    assert r.faits["quand"] == "jeudi à vingt heures" and r.faits["heure"] == "vingt heures" and r.faits["personnes"] == 2, r
+    assert "déplacer" in porte.A_FAIRE_DE_L_ANNULATION
 
 
 # C3 (D-L) : la lecture tolérante d'une liste fermée : la valeur écrite en tête est lue, le reste jamais exécuté ; hors liste, toujours refusé.

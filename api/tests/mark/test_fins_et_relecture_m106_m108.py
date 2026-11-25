@@ -197,5 +197,5 @@ async def test_m106_m107_reservation_rappel_sans_rien_de_nouveau(salle):
     r = await a.reserver(**dit)
     assert r.statut == "INCOMPLETE" and r.suggestion == "" and r.faits["relecture_deja_dite"] is True and r.faits["numero_affiche_dit"]
     autre = await a.reserver(personnes=3)  # une vraie correction : relue
-    assert autre.manque == "relecture" and "trois personnes" in autre.suggestion
+    assert autre.manque == "relecture" and autre.faits["personnes"] == 3 and not autre.suggestion  # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture en faits, dite par le modèle
     assert (await a.reserver(confirmer=True)).statut == "ENREGISTREE"
