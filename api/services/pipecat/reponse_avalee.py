@@ -729,16 +729,8 @@ class RepliqueVerifiee:
         """Ce que rend la réplique quand elle est retenue : relancée UNE fois, et si cette relance est retenue à son tour avec une consigne (le fait, C5), relancée UNE fois encore (``du_fait``, la
         même méthode, appelée par elle-même : une seule façon de relancer, un seul ``except`` qui ne laisse jamais une erreur sortir à la place du service). ⛔ Ne lève jamais."""
         if retenue is not None:
-            a_dire = getattr(retenue, "a_dire", None)
-            if isinstance(a_dire, str) and a_dire.strip():
-                # SA-36 (M87) : la retenue sait ce qu'il faut dire à la place (la question du dernier outil) : dit sans relance.
-                logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : remplacée par le texte de l'outil")
-                for morceau in self._a_dire(a_dire.strip(), usage):
-                    yield morceau
-                return
-            if not getattr(retenue, "consigne", None) and not getattr(retenue, "outil", None):
-                # Rien à redonner au modèle (ni fait, ni appel exigé) : pas de requête de plus, la phrase du code (le fait accompli ou la phrase réglée) : jamais un tour muet.
-                async for morceau in self._sans_reponse_de_la_relance(retenue, appel, tenus, usage):
+            if self._rien_a_relancer(retenue):
+                async for morceau in self._dire_sans_relancer(retenue, appel, tenus, usage):
                     yield morceau
                 return
             reprise = None
@@ -746,8 +738,8 @@ class RepliqueVerifiee:
                 reprise = await self._relancer(retenue)
             except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
                 logger.warning(f"[cerveau] relance de la réplique retenue en échec : {erreur!r}")
-            outil_du_code = self._appel_a_faire_par_le_code(retenue, reprise)
-            if outil_du_code:
+            outil_du_code = getattr(retenue, "outil", None) if getattr(retenue, "appel_par_le_code", False) else None
+            if outil_du_code and not self._relance_appelle(reprise, outil_du_code):
                 # SA-49 (M115, appel 2599) : la relance avec l'appel obligatoire a encore rendu du texte (le fournisseur ne tient pas
                 # ``tool_choice``) : le code fait l'appel annoncé, jamais l'annonce fausse.
                 logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : l'appel de {outil_du_code} est fait par le code")
@@ -760,10 +752,22 @@ class RepliqueVerifiee:
         for tenu in tenus:
             yield tenu
 
-    def _appel_a_faire_par_le_code(self, retenue, reprise) -> str | None:
-        """SA-49 : l'outil que le code appelle lui-même, quand la retenue le demande (``appel_par_le_code``) et que la relance ne l'a pas appelé ; sinon ``None``."""
-        outil = getattr(retenue, "outil", None) if getattr(retenue, "appel_par_le_code", False) else None
-        return outil if outil and not self._relance_appelle(reprise, outil) else None
+    @staticmethod
+    def _rien_a_relancer(retenue) -> bool:
+        """La retenue porte son texte à dire (SA-36), ou n'a ni consigne ni appel exigé (un second silence du tour, C5) : aucune requête de plus."""
+        a_dire = getattr(retenue, "a_dire", None)
+        return bool(isinstance(a_dire, str) and a_dire.strip()) or not (getattr(retenue, "consigne", None) or getattr(retenue, "outil", None))
+
+    async def _dire_sans_relancer(self, retenue, appel, tenus, usage):
+        """Le texte de la retenue, dit sans relance (SA-36 : la question du dernier outil) ; sans texte, la phrase du code : le fait accompli ou la phrase réglée, jamais un tour muet."""
+        a_dire = getattr(retenue, "a_dire", None)
+        if isinstance(a_dire, str) and a_dire.strip():
+            logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : remplacée par le texte de l'outil")
+            for morceau in self._a_dire(a_dire.strip(), usage):
+                yield morceau
+            return
+        async for morceau in self._sans_reponse_de_la_relance(retenue, appel, tenus, usage):
+            yield morceau
 
     async def _rendre_la_relance(self, retenue, reprise, appel, tenus, usage, du_fait):
         """La réponse de la relance, dite telle quelle ; retenue à son tour avec le fait à redonner, la méthode de relance est rappelée UNE fois (``du_fait``) ; sans réponse : le fait accompli ou la phrase réglée."""
