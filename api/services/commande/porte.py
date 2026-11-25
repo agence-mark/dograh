@@ -1236,6 +1236,8 @@ def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
 def _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee) -> dict[str, Any]:
     """Les faits que la fiche rend au modèle : le panier, le refus du module, les refus de la fiche, l'heure qui manque, le montant d'une annulation à confirmer."""
     faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
+    if J.deja_dit(p, J.FERMETURE):
+        faits["fermeture_dite"] = True  # 7b-C4 : un fait simple (plus la phrase) : la fermeture est déjà dite dans cet appel, le modèle ne la redit pas à chaque tour
     if bloquant:
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     elif refusants:
