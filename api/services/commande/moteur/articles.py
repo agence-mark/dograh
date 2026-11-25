@@ -341,11 +341,6 @@ def _retrait_et_moitie(morceau: str, moities: list[str]) -> tuple[str, str | Non
     return f"{morceau[:coupe]} {morceau[m.end():]}".strip(" ,;."), nom
 
 
-def note_pour_la_cuisine(note: str) -> str:
-    """Une note écrite par le code sur la ligne, lue par l'équipe (ticket, caisse), jamais dite à la personne : un envoi pour l'équipe (``ENVOIS_POUR_L_EQUIPE`` du test L2)."""
-    return note
-
-
 def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) -> Resultat | None:
     """Une ligne en deux moitiés : le code n'essaie pas de retirer un ingrédient d'une moitié (le catalogue ne le sait pas). Il l'ACCEPTE et
     l'écrit en note sur la ligne (« sans X sur la moitié A »), que la source reçoit avec la ligne. Quelle moitié :
@@ -359,7 +354,7 @@ def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) ->
         if moitie is None:
             faits = {"candidats": list(moities), "dit": ingredient}
             return _r("AMBIGU", faits, TS.sur_quelle_moitie(faits))
-        notes.append(note_pour_la_cuisine(f"sans {ingredient} sur la moitié {moitie}"))
+        notes.append(PHRASES_DITES.note_de_moitie(ingredient=ingredient, moitie=moitie))
     for note in notes:
         if note not in (ligne.get("note") or ""):
             ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]
