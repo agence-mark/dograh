@@ -11,6 +11,7 @@ from typing import Any
 
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -238,7 +239,7 @@ async def _finaliser(
     qui a changé). Le total est celui de la source."""
     deja = p.get("enregistree")
     if deja and p["lignes"]:
-        return _avec(Resultat("DEJA_FAIT", dict(deja), "Votre commande est déjà enregistrée."), p)
+        return _avec(Resultat("DEJA_FAIT", dict(deja), PHRASES_DITES.deja_enregistree(None)), p)
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque

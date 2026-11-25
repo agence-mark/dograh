@@ -884,7 +884,7 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
             return Resultat(
                 "DEJA_FAIT",
                 {"numero": str(existante["numero"]), "numero_court": existante["numero_court"], "heure_annoncee": existante["heure_annoncee"], "total": existante["total"]},
-                f"Votre commande est déjà enregistrée pour {_heure_dite(existante['heure_annoncee'], fuseau)}." if existante["heure_annoncee"] else "Votre commande est déjà enregistrée.",
+                PHRASES_DITES.deja_enregistree(_heure_dite(existante["heure_annoncee"], fuseau) if existante["heure_annoncee"] else None),
             ), numero, ""
         prefixe = _prefixe_du_numero(
             module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,

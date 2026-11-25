@@ -34,6 +34,8 @@ PHRASES = {
     "enregistree_avec_delai": PhraseDuCode("Votre commande est enregistrée, elle sera {etat} {quand}.", EXCEPTION_FAIT_ACCOMPLI),
     "enregistree_retrouvee_quand": PhraseDuCode("Votre commande est enregistrée pour {quand}.", EXCEPTION_FAIT_ACCOMPLI),
     "enregistree_retrouvee": PhraseDuCode("Votre commande est enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
+    "deja_enregistree_pour": PhraseDuCode("Votre commande est déjà enregistrée pour {quand}.", EXCEPTION_FAIT_ACCOMPLI),  # le panier (ou l'anti-doublon) retombe sur une commande déjà prise : le fait accompli qui engage
+    "deja_enregistree": PhraseDuCode("Votre commande est déjà enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
 }
 
 TEXTE_ANNULATION_CONFIRMEE = PHRASES["annulation_confirmee"].texte
@@ -52,6 +54,11 @@ def changement(total: str | None) -> str:
 
 def enregistree_avec_delai(etat: str, quand: str) -> str:
     return PHRASES["enregistree_avec_delai"].texte.format(etat=etat, quand=quand)
+
+
+def deja_enregistree(quand_dit: str | None) -> str:
+    """« Votre commande est déjà enregistrée » (avec l'heure annoncée quand elle est connue) : dite par la fin de la commande et par l'anti-doublon de la source."""
+    return PHRASES["deja_enregistree_pour"].texte.format(quand=quand_dit) if quand_dit else PHRASES["deja_enregistree"].texte
 
 
 def enregistree_retrouvee(quand_dit: str | None) -> str:
