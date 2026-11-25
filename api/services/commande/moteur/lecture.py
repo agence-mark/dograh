@@ -14,7 +14,7 @@ from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES, te
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.moteur.socle import NON_CONFIRMABLE, Reglages, _PERDUES, _avec, phrase_d_une_remise_appliquee, _r, cle_de_la_remise
+from api.services.commande.moteur.socle import NON_CONFIRMABLE, Reglages, STATUTS_PERDUS, _avec, phrase_d_une_remise_appliquee, _r, cle_de_la_remise
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _minimum_non_atteint, _phrase_des_lignes
 from api.services.commande.moteur.socle import Appelant
@@ -169,8 +169,8 @@ async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages
     faits = {"numero_court": c["numero_court"], "statut": c["statut"], "mode": c["mode"], "quand_dit": c.get("quand_dit")}
     if c["statut"] == "annulee":
         phrase = TS.commande_annulee(faits)
-    elif c["statut"] in _PERDUES:
-        phrase = "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe qui vous rappelle."
+    elif c["statut"] in STATUTS_PERDUS:
+        phrase = TS.commande_pas_passee(faits)
     else:
         phrase = PHRASES_DITES.enregistree_retrouvee(c.get("quand_dit"))
     return _avec(_r("OK", faits, phrase), p)

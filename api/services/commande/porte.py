@@ -41,6 +41,7 @@ from api.services.actions_communes.resultat import avec_le_fait_du_numero_affich
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
+from api.services.commande.moteur.socle import STATUTS_PERDUS
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
@@ -101,6 +102,8 @@ A_FAIRE_DE_L_HEURE = "demande-lui avec tes mots ce qui manque de l'heure voulue 
 A_FAIRE_DE_LA_REGLE = "dis-lui avec tes mots la règle de la ligne ou de l'article (faits.regle_de_la_ligne, faits.regles_a_dire)"
 A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus de la fiche, avec leurs chiffres et leurs lieux (faits.refus_de_la_fiche)"
 A_FAIRE_DE_L_ANNULATION = "demande-lui avec tes mots si elle est sûre de vouloir annuler sa commande, en disant le montant (faits.annulation_a_confirmer) ; rien n'est annulé avant son « oui »"
+A_FAIRE_DE_LA_COMMANDE_PERDUE = ("sa commande n'a pas été confirmée par la cuisine : dis-le-lui, et propose-lui de laisser un message à l'équipe pour qu'elle la rappelle ; "
+                                 "si elle dit oui, laisser_un_message avec l'objet")
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
@@ -1341,6 +1344,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     refus: list[dict] = []
     a_preciser: dict[str, str] = {}
     introuvable = ""
+    perdue = ""  # une commande refusée ou en échec : l'offre du message, tenue par le modèle
     demande = fiche_du_modele.get("retrouver_une_commande_enregistree")
     if isinstance(demande, dict):
         numero_dit = str(demande.get("numero_de_commande") or "").strip() or None
@@ -1369,6 +1373,8 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
             if r.statut == "OK" and r.faits.get("statut"):
                 fiche[CLE_COMMANDE_RETROUVEE] = r.faits["statut"]
+                if r.faits["statut"] in STATUTS_PERDUS:
+                    perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
             if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
                 a_preciser = {"manque": r.manque or "reference", "texte_a_dire": r.suggestion}
             elif r.statut == "INTROUVABLE":
@@ -1389,7 +1395,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
     statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else ("A_PRECISER" if a_preciser else ("INTROUVABLE" if introuvable else "FAIT")))
     premier = refus[0] if refus else None
-    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or None),
+    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or perdue or None),
                      plus={**({"refus": refus} if refus else {}), **a_preciser}).vers_json()
 
 

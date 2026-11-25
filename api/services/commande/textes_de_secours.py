@@ -365,6 +365,11 @@ def commandes_plusieurs(faits: Faits) -> str:
     return "Vous en avez plusieurs : " + liste_dite(dites) + ". Laquelle ?"
 
 
+def commande_pas_passee(faits: Faits) -> str:
+    """Une commande refusée ou en échec : une offre posée en question, jamais une promesse. Le message part seulement si elle dit oui (outil ``laisser_un_message``, tenu par le modèle)."""
+    return "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe pour qu'elle vous rappelle ?"
+
+
 def commande_annulee(faits: Faits) -> str:
     return "Cette commande est annulée."
 
