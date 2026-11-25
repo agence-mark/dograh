@@ -151,7 +151,7 @@ async def repondre_a_la_question(ctx: Any, question: dict[str, Any], sens: str |
         e["recherche"] = False
         return "reponse", Resultat("OK", {"reservation_choisie": en_json({k: gagnants[0].get(k) for k in ("numero", "quand_dit", "personnes", "prenom")})})
     # B6 (rustine 38) : les choix non compris comptés au journal de ce qui est dit (avant : un compteur à part)
-    if J.noter(e, CHOIX_NON_COMPRIS) >= seuil_de_sortie(ctx.configurations, CLE_RESERVATION, DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE):  # E28 : la clarification est bornée à deux, sauf réglage du restaurant (M6)
+    if J.noter(e, CHOIX_NON_COMPRIS) >= seuil_de_sortie(ctx.configurations, CLE_RESERVATION, DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE):  # E28 : la clarification est bornée à deux, sauf réglage de l'établissement (M6)
         return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris_deux_fois", "a_faire": "propose-lui de laisser un message à l'équipe"})
     return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris", "candidats_dits": question.get("candidats_dits") or []})
 

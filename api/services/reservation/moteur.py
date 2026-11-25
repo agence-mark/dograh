@@ -14,6 +14,7 @@ Chaque geste prend la SOURCE (la capacité vraie), l'état de la réservation en
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 import hashlib
 import json
 import uuid
@@ -294,7 +295,7 @@ async def _reserver(
     if not (confirmer and relue and relue.get("empreinte") == empreinte):
         etat["lecture"] = {"empreinte": empreinte, "jeton": uuid.uuid4().hex}
         question = (question_numero_affiche or "").strip() if numero_e164 == appelant.telephone_affiche else ""
-        phrase = f"Je vous réserve pour {_personnes_dites(b['personnes'])}, {quand_dit}, au nom de {b['prenom']}. " + (question or "C'est bon ?")
+        phrase = PHRASES_DITES.relecture_de_la_reservation(personnes=_personnes_dites(b["personnes"]), quand=quand_dit, prenom=b["prenom"], question=question)
         return _r(
             "INCOMPLETE", {"a_confirmer": True, "personnes": b["personnes"], "quand": quand_dit, "prenom": b["prenom"]}, phrase, "relecture",
         )
@@ -493,7 +494,7 @@ async def modifier(
     relue = etat.get("lecture_modification")
     if not (confirmer and relue and relue.get("empreinte") == empreinte):
         etat["lecture_modification"] = {"empreinte": empreinte, "jeton": uuid.uuid4().hex}
-        return _r("INCOMPLETE", {"a_confirmer": True, "reservation": r["numero"]}, f"Je change votre réservation : {liste_dite(dit).replace(' ou ', ' et ')}. C'est bon ?", "relecture")
+        return _r("INCOMPLETE", {"a_confirmer": True, "reservation": r["numero"]}, PHRASES_DITES.relecture_du_changement(liste_dite(dit).replace(" ou ", " et ")), "relecture")
     ecrit = await source.modifier(r["numero"], changements)
     if ecrit.statut in ("OK", "DEJA_FAIT"):
         etat.pop("lecture_modification", None)
@@ -515,7 +516,7 @@ async def annuler(source: Source, etat: dict[str, Any], appelant: Appelant, *, c
         # B5 (audit des textes § 2.5) : avant d'annuler, le déplacement est proposé par la question du code (règle du métier, plus par le texte).
         return _r(
             "INCOMPLETE", {"a_confirmer": True, "reservation": r["numero"]},
-            f"Je peux aussi la déplacer. Vous voulez annuler la réservation {r['quand_dit']} pour {_personnes_dites(r['personnes'])} ?", "confirmation",
+            PHRASES_DITES.annulation_de_la_reservation(quand=r["quand_dit"], personnes=_personnes_dites(r["personnes"])), "confirmation",
         )
     fait = await source.annuler(r["numero"])
     if fait.statut in ("OK", "DEJA_FAIT"):

@@ -65,7 +65,6 @@ A_RENDRE_C2: frozenset[str] = frozenset()  # rendu par la 7b-C2 : la base et la 
 # C3 réservation et allergie : ``services/reservation/*``, ``db/bases_clients/restauration_reservation.py``, ``restauration/carte_et_allergenes/*``
 A_RENDRE_C3 = frozenset({
     "services/reservation/lire.py",
-    "services/reservation/moteur.py",
 })
 
 A_RENDRE = A_RENDRE_C1 | A_RENDRE_C2 | A_RENDRE_C3
