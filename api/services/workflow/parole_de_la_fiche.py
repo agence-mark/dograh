@@ -87,12 +87,14 @@ class VerificateurDeLaFiche:
             PAROLE.garder(fiche, etat)
             return Retenue(RAISON_ACTION_NON_FAITE, texte[:80], CONSIGNE_ACTION)
         if raison is None and PAROLE.dit_ce_que_le_code_dit(texte, etat):
-            # C6 : le code dit la question après la phrase (la relecture) ; une phrase du modèle qui la pose déjà est relancée une fois, puis n'est pas dite (ni le total, ni accord)
+            # C6 : le code dit la question après la phrase (la relecture) ; une phrase du modèle qui la pose déjà est relancée une fois ; si la relance la pose encore,
+            # la phrase du modèle n'est pas dite et seule la phrase réglée du code part (R0 : jamais un tour muet), sans nouvelle requête
             consigne = consigne_de_ce_que_le_code_dit(etat)
+            a_dire = None
             if not consigne:
-                etat.suffixe = etat.suffixe_lu = None
+                a_dire, etat.suffixe, etat.suffixe_lu = etat.suffixe, None, None
             PAROLE.garder(fiche, etat)
-            return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "")
+            return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "", a_dire=a_dire)
         if raison is None:
             # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33)
             dit = PAROLE.avec_le_suffixe(texte, etat)

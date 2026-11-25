@@ -65,13 +65,13 @@ def test_une_relecture_qui_pose_la_question_du_code_est_retenue_et_relancee_une_
     assert relance is not None and relance.a_dire == f"{RELECTURE} {TOTAL_DIT}"
 
 
-def test_une_relance_qui_pose_encore_la_question_n_est_pas_dite_et_le_code_ne_dit_pas_le_total():
-    """Relance échouée : ni la phrase, ni le total (le « oui » ne vaudrait pas accord) ; pas de seconde relance."""
+def test_une_relance_qui_pose_encore_la_question_laisse_dire_la_seule_phrase_du_code():
+    """R0 : relance échouée, la phrase du modèle n'est pas dite, la phrase réglée du total part seule (jamais un tour muet) ; pas de seconde relance."""
     fiche = _fiche_avec_relecture()
     verificateur = _verificateur(fiche)
     assert verificateur.controler("Alors deux Regina, c'est bon ?").consigne
     relance = verificateur.controler_la_relance("Deux Regina, c'est bon ?")
-    assert relance is not None and relance.a_dire is None and not relance.consigne
+    assert relance is not None and relance.a_dire == TOTAL_DIT and not relance.consigne
     assert PAROLE.etat_du_tour(fiche).suffixe is None
 
 
