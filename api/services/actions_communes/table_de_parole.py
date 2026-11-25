@@ -31,7 +31,6 @@ class Entrees:
     phrase: str
     avant: str
     suffixe_du_code: str | None
-    texte_de_la_question: str | None  # la question née dans ce retour, telle que la porte la pose
     question_nee: bool  # elle est née dans CE tour
     question_id: Any
     suffixe_avant: str | None  # le prix que le code dit après la phrase, posé au passage précédent
@@ -59,15 +58,6 @@ class Entrees:
 
 def _texte(e: Entrees) -> Decision:
     return Decision(A_DIRE_SEUL, a_dire=e.avant, motif="texte_du_code")
-
-
-def _doute(e: Entrees) -> bool:
-    return e.du.question == "ambiguite" and e.texte_de_la_question is not None and e.question_nee
-
-
-def _remplace(e: Entrees) -> Decision:
-    """Une question d'ambiguïté née dans ce tour : le code la pose mot pour mot. Un maximum atteint est un refus comme un autre : le modèle le dit."""
-    return Decision(A_DIRE_SEUL, a_dire=e.texte_de_la_question, motif="texte_du_code")
 
 
 def _second(motif: str, avant: Callable[[Entrees], None] | None = None) -> Callable[[Entrees], Decision]:
@@ -131,7 +121,6 @@ def _dite_ou_due(e: Entrees) -> Decision:
 # Les lignes, dans l'ordre : la première dont la condition est vraie décide.
 LIGNES: tuple[tuple[str, Callable[[Entrees], bool], Callable[[Entrees], Decision]], ...] = (
     ("texte du code (exception § 2)", lambda e: bool(e.avant), _texte),
-    ("doute né dans le tour", _doute, _remplace),
     ("refus", lambda e: apres_un_refus(e.etat), _second("refus")),
     ("faits à dire sur une fiche vide", lambda e: e.du.rien_change and "faits_a_dire" in e.du.faits_au_modele, _second(FAITS_A_DIRE, avant=_rendre_la_fiche)),
     ("rien n'a changé", lambda e: e.du.rien_change and not e.question_deja_donnee, _rien_change),
@@ -163,13 +152,12 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
     from api.services.actions_communes.du import du_du_retour
 
     du = du_du_retour(retour)
-    q = retour.get("question") if isinstance(retour.get("question"), dict) else None
     dossier_q = CONV.question_de(p)
     if objet_en_cours is None:
         objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
     return Entrees(
         du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None,
-        texte_de_la_question=sans_balisage(str((q or {}).get("texte") or "")) or None, question_nee=question_nee_dans_ce_tour(p, etat.tour),
+        question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),
         etat=etat, retour=retour, p=p)

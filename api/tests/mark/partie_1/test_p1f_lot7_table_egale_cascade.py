@@ -1,5 +1,6 @@
 """[.mark] Lot 7a : preuve que la table de la parole décide comme l'ancienne cascade (``_decision_du_tour`` d'avant 260210e9c), recopiée ici comme référence, SANS le préfixe : lot 7b (Q1), le code ne dit plus rien avant la phrase du modèle (un refus au chiffre
-ou au lieu, un maximum atteint, est un fait que le modèle dit ; la cascade de référence a perdu ces deux cas).
+ou au lieu, un maximum atteint, est un fait que le modèle dit ; la cascade de référence a perdu ces deux cas). Lot 7b-C4 (E1 = A, Evan 25/11) : le doute « Vous voulez dire… ? » est rendu au
+modèle avec ses candidats ; la cascade de référence a perdu le troisième cas, la question d'ambiguïté dite mot pour mot.
 
 Sur une grille de retours, de phrases, de textes du code, de dossiers et d'états du tour : même mode, même motif, même phrase dite, et mêmes mouvements de
 l'état du tour (fiches, rattrapage, retenues, question donnée, prix). La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
@@ -23,15 +24,6 @@ def _compose(retour):
     return any(isinstance(r, dict) and r.get("operation") == "ajouter" and isinstance((r.get("faits") or {}).get("composition"), list) for r in retour.get("resultats") or [])
 
 
-def _remplace(retour, p, tour):
-    q = retour.get("question") if isinstance(retour.get("question"), dict) else None
-    texte_q = sans_balisage(str((q or {}).get("texte") or "")) or None
-    ambiguite = q is not None and q.get("type") == "ambiguite" and texte_q is not None and P.question_nee_dans_ce_tour(p, tour)
-    if ambiguite:
-        return texte_q
-    return None
-
-
 def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
     """L'ancienne cascade, telle qu'elle était, avec les mêmes mouvements de l'état du tour."""
     etat.fiches += 1
@@ -42,9 +34,6 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
     q_dossier = CONV.question_de(p) if isinstance(p, dict) else None
     if avant:
         return Decision(A_DIRE_SEUL, a_dire=avant, motif="texte_du_code")
-    remplace = _remplace(retour, p, etat.tour)
-    if remplace:
-        return Decision(A_DIRE_SEUL, a_dire=remplace, motif="texte_du_code")
     if refuse(retour):
         return Decision(SECOND_PASSAGE, motif="refus")
     if retour.get(RIEN_CHANGE) and retour.get(CLE_FAITS_A_DIRE):
