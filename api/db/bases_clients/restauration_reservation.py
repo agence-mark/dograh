@@ -288,7 +288,7 @@ async def creer_reservation(
         )
         if doublon is not None:
             faits = _fait(doublon, noms, fuseau, maintenant_)
-            return Resultat("DEJA_FAIT", faits, f"C'est déjà réservé pour {_quand_dit(doublon['debut'], maintenant_, fuseau)}.")
+            return Resultat("DEJA_FAIT", faits, TS.deja_reservee(faits))
         raison, tables = capacite.placer(debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
         if raison != "ok":
             refus = _refus(raison, maximum=regles.effectif_max) if raison == capacite.GROUPE_TROP_GRAND else _refus(raison)
@@ -347,7 +347,8 @@ async def modifier_reservation(
             return Resultat("ARGUMENT_INVALIDE", manque="prenom" if len(prenom) > PRENOM_MAX else "note")
         place_change = nouveau_debut != r["debut"] or couverts != r["couverts"]
         if (nouveau_debut, couverts, prenom, note) == (r["debut"], r["couverts"], r["prenom"], r["note"]):
-            return Resultat("DEJA_FAIT", _fait(r, noms, fuseau, maintenant_), "C'est déjà comme cela.")
+            faits = _fait(r, noms, fuseau, maintenant_)
+            return Resultat("DEJA_FAIT", faits, TS.deja_comme_cela(faits))
         tables, duree = list(r["table_ids"]), r["duree_minutes"]
         if place_change:
             duree = await duree_du_groupe(connexion, etablissement_id, couverts) if couverts != r["couverts"] else r["duree_minutes"]
@@ -398,7 +399,8 @@ async def annuler_reservation(
             return Resultat("INTROUVABLE", {"numero": str(numero)})
         noms: dict[int, str] = {}
         if r["statut"] == "annulee":
-            return Resultat("DEJA_FAIT", _fait(r, noms, fuseau, maintenant_), "Cette réservation est déjà annulée.")
+            faits = _fait(r, noms, fuseau, maintenant_)
+            return Resultat("DEJA_FAIT", faits, TS.deja_annulee(faits))
         if r["statut"] != "confirmee":
             return _refus("plus_modifiable", statut=r["statut"])
         if r["debut"] <= maintenant_:
@@ -431,7 +433,7 @@ async def retrouver_reservation(
         except ValueError:
             return Resultat("INTROUVABLE", {"reservations": []})
     elif not (telephone or (prenom and jour)):
-        return Resultat("INCOMPLETE", {}, "Sous quel nom, et pour quel jour ?", "reference")
+        return Resultat("INCOMPLETE", {}, TS.sous_quel_nom_et_quel_jour({}), "reference")
     elif telephone is not None and not E164.match(str(telephone)):
         return Resultat("INTROUVABLE", {"reservations": []})
     debut_jour = datetime(jour.year, jour.month, jour.day, tzinfo=fuseau) if jour else None
@@ -443,9 +445,8 @@ async def retrouver_reservation(
         etablissement_id, numero, telephone, prenom.strip() if prenom else None, debut_jour, maintenant_ if a_venir else None, LIMITE_DE_RESULTATS,
     )
     if not lignes:
-        return Resultat("INTROUVABLE", {"reservations": []}, "Je ne trouve pas de réservation.")
+        faits = {"reservations": []}
+        return Resultat("INTROUVABLE", faits, TS.pas_de_reservation(faits))
     noms = {t["id"]: t["nom"] for t in await connexion.fetch("SELECT id, nom FROM mark.resto_table WHERE site_id = $1", etablissement_id)}
-    faits = [_fait(r, noms, fuseau, maintenant_) for r in lignes]
-    if len(faits) == 1:
-        return Resultat("OK", {"reservations": faits}, f"Vous avez une réservation {faits[0]['quand_dit']} pour {nombre_en_lettres(faits[0]['couverts'])} personne" + ("s" if faits[0]["couverts"] > 1 else "") + ".")
-    return Resultat("OK", {"reservations": faits}, f"Je trouve {len(faits)} réservations.")
+    faits = {"reservations": [_fait(r, noms, fuseau, maintenant_) for r in lignes]}
+    return Resultat("OK", faits, TS.une_reservation(faits) if len(lignes) == 1 else TS.plusieurs_reservations(faits))

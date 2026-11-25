@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from api.services.mots_dits import nombre_en_lettres
+
 Faits = Mapping[str, Any]
 
 
@@ -109,3 +111,41 @@ def quel_numero(faits: Faits) -> str:
 
 def note_trop_longue(faits: Faits) -> str:
     return "Cette note est trop longue."
+
+
+# --------------------------------------------------------------------------- #
+# Ce qui est déjà fait, et la recherche d'une réservation (``restauration_reservation``)
+# --------------------------------------------------------------------------- #
+
+
+def personnes_dites(n: int) -> str:
+    return f"{nombre_en_lettres(n)} personne" + ("s" if n > 1 else "")
+
+
+def deja_reservee(faits: Faits) -> str:
+    return f"C'est déjà réservé pour {faits['quand_dit']}."
+
+
+def deja_comme_cela(faits: Faits) -> str:
+    return "C'est déjà comme cela."
+
+
+def deja_annulee(faits: Faits) -> str:
+    return "Cette réservation est déjà annulée."
+
+
+def sous_quel_nom_et_quel_jour(faits: Faits) -> str:
+    return "Sous quel nom, et pour quel jour ?"
+
+
+def pas_de_reservation(faits: Faits) -> str:
+    return "Je ne trouve pas de réservation."
+
+
+def une_reservation(faits: Faits) -> str:
+    seule = faits["reservations"][0]
+    return f"Vous avez une réservation {seule['quand_dit']} pour {personnes_dites(seule['couverts'])}."
+
+
+def plusieurs_reservations(faits: Faits) -> str:
+    return f"Je trouve {len(faits['reservations'])} réservations."
