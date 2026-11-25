@@ -504,6 +504,8 @@ CAS_NON_GARANTIS: list[tuple[str, Callable]] = [
     ("liste_avec_option_sans_donnee", _allergie(signalements=["lait"], mot="allergènes", options=[option("sauce maison", None)])),
     ("selon_option_avec_des_inconnues", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce maison", None)])),
     ("inconnu_selon_le_choix", _allergie(signalements=[], options=[option("sauce maison", None)])),
+    ("plusieurs_dont_une_option_sans_donnee", _allergie(signalements=[], option_=option("sauce maison", None), mot="lait et gluten")),
+    ("plusieurs_avec_un_mot_inconnu", _allergie(signalements=["lait"], mot="lait et kiwi")),
 ]
 
 CAS_GARANTIS: list[tuple[str, Callable]] = [
@@ -511,6 +513,9 @@ CAS_GARANTIS: list[tuple[str, Callable]] = [
     ("absent_de_la_fiche", _allergie(signalements=["gluten"])),
     ("liste_sans_inconnue", _allergie(signalements=["lait"], mot="allergènes", options=[option("sauce blanche", ["lait"])])),
     ("selon_option_sans_inconnue", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce rouge", ["gluten"])])),
+    # A6 : « plusieurs » ne renvoie à l'équipe que si l'une de ses réponses y renvoie ; un sans-fiche dit « je ne peux pas vous le confirmer » (NON_CONFIRMABLE)
+    ("plusieurs_sans_fiche", _allergie(signalements=None, mot="lait et gluten")),
+    ("plusieurs_selon_option_sans_inconnue", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce rouge", ["gluten"])], mot="lait et gluten")),
 ]
 
 

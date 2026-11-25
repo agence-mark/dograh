@@ -351,8 +351,9 @@ def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: 
     libelles = fiche.get("signalements_libelles") or {}
     reponses = [_signalement_d_un_mot(source, fiche, option, libelles.get(c, c)) for c in codes]
     faits = {"article": fiche["nom"], **({"option": option["nom"]} if option else {}), "signalement": "plusieurs",
-             "par_signalement": [{**r.faits, "code": c} for c, r in zip(codes, reponses)], "a_confirmer_par_l_equipe": mot_inconnu or any(
-                 r.faits.get("signalement") in ("inconnu", "selon_option") for r in reponses)}
+             "par_signalement": [{**r.faits, "code": c} for c, r in zip(codes, reponses)],
+             # l'équipe ne confirme que ce que l'une des réponses lui renvoie (un sans-fiche dit seulement qu'il ne peut pas confirmer), ou un mot inconnu
+             "a_confirmer_par_l_equipe": mot_inconnu or any(r.faits.get("a_confirmer_par_l_equipe") for r in reponses)}
     if mot_inconnu:
         faits["mot_inconnu"] = True  # le texte dit « pour le reste de ce que vous citez » seulement quand un mot n'est pas reconnu
     return _r("OK", faits, "")
