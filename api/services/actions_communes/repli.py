@@ -118,6 +118,23 @@ CONSIGNE_DE_RELANCE = (
     "- Ta réponse précédente n'a pas dit ce qui est dû à la personne : elle n'a pas été dite. Réponds-lui avec tes mots d'après ces faits (JSON, ne les recopie pas) : "
     "``a_dire`` est ce que tu lui dis d'abord, ``puis`` ce que tu lui demandes ensuite, en une seule question : "
 )
+# C6 (décision d'Evan 25/11 9 h 30) : après certaines phrases du modèle (la relecture), le CODE dit la phrase du total et la question. Une phrase du modèle qui les dit déjà est relancée UNE fois, par la même relance du fait que
+# ci-dessus (``etat.relance_du_fait``) : un seul mécanisme.
+CONSIGNE_DE_CE_QUE_LE_CODE_DIT = (
+    "- Ta réponse précédente disait ce que le code dit lui-même juste après ta phrase (le total, ou la question) : elle n'a pas été dite. Redis-la sans prix et sans question : "
+    "ta phrase seule, le code ajoute le reste."
+)
+
+
+def consigne_de_ce_que_le_code_dit(etat: Any) -> str | None:
+    """La consigne qui relance le modèle quand sa phrase dit ce que le code dit après elle ; ``None`` quand la relance du tour est déjà faite. L'appelant garde l'état."""
+    if etat.relance_du_fait:
+        return None
+    etat.relance_du_fait = True
+    etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True
+    return CONSIGNE_DE_CE_QUE_LE_CODE_DIT
+
+
 CLES_DE_L_OBJET_D_UNE_QUESTION = ("article_en_question", "article_propose", "heure_dite", "choix", "candidats_dits")
 
 

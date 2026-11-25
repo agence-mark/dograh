@@ -16,7 +16,7 @@ from loguru import logger
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import journal_du_dit as J
-from api.services.actions_communes.repli import consigne_de_relance
+from api.services.actions_communes.repli import consigne_de_ce_que_le_code_dit, consigne_de_relance
 from api.services.commande import panier as P
 from api.services.workflow.verite_des_actions import Retenue, tracer_une_retenue
 
@@ -86,6 +86,13 @@ class VerificateurDeLaFiche:
 
             PAROLE.garder(fiche, etat)
             return Retenue(RAISON_ACTION_NON_FAITE, texte[:80], CONSIGNE_ACTION)
+        if raison is None and PAROLE.dit_ce_que_le_code_dit(texte, etat):
+            # C6 : le code dit la question après la phrase (la relecture) ; une phrase du modèle qui la pose déjà est relancée une fois, puis n'est pas dite (ni le total, ni accord)
+            consigne = consigne_de_ce_que_le_code_dit(etat)
+            if not consigne:
+                etat.suffixe = etat.suffixe_lu = None
+            PAROLE.garder(fiche, etat)
+            return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "")
         if raison is None:
             # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33)
             dit = PAROLE.avec_le_suffixe(texte, etat)

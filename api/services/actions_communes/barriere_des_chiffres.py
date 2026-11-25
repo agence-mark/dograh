@@ -16,7 +16,7 @@ par le code. » Règle de VALEUR, jamais de sens. Trois exemptions, chacune une 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from api.services.actions_communes.forme import (
@@ -26,6 +26,7 @@ from api.services.actions_communes.forme import (
     UNITES,
     norm,
     valeur_dite_par_elle,
+    valeurs,
     valeurs_et_places,
 )
 
@@ -135,6 +136,23 @@ def chiffre_dans_la_phrase(texte: Any, fiches: Iterable[dict] = (), paroles: Ite
         if isinstance(code, str) and code_lu(code):
             reste = sans_le_code(reste, code_lu(code))
     return (a_un_chiffre(reste) or a_un_nombre_en_lettres_que_le_code_dit(reste))
+
+
+def porte_les_chiffres(phrase: Any, attendus: Mapping[str, Any]) -> bool:
+    """C6 (P2, décision d'Evan 25/11) : la phrase du modèle porte-t-elle chacune des valeurs que le code vérifie (la réservation : ``personnes`` et ``heure``) ? Une valeur
+    attendue est dite comme les faits la donnent (« quatre personnes », « vingt heures ») ; ses nombres se lisent avec le même lecteur que « elle l'a dit » (``forme.valeurs``),
+    une valeur sans nombre (« midi ») se cherche telle quelle. Une valeur attendue vide n'est pas exigée. Règle de VALEUR, jamais de sens."""
+    dites = valeurs(phrase)
+    net = norm(phrase)
+    for attendu in attendus.values():
+        if attendu is None or not str(attendu).strip():
+            continue
+        voulues = valeurs(attendu)
+        if voulues and not all(v in {valeur for valeur, _ in dites} for v, _ in voulues):
+            return False
+        if not voulues and norm(attendu) not in net:
+            return False
+    return True
 
 
 def sans_balisage(texte: str) -> str:

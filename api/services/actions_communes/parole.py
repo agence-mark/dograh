@@ -36,6 +36,8 @@ SECOND_PASSAGE = "second_passage"
 RAPPEL_SANS_OUTIL = "- Ta réponse précédente n'avait pas d'appel d'outil : elle n'a pas été dite, et rien n'est changé."
 # Raisons de retenue d'une phrase libre (liste fermée, au glossaire)
 SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refus", "repli_a", "chiffre"
+# C6 : la phrase du modèle (la relecture) dit déjà ce que le CODE dit juste après elle (la question, le total) : retenue, le modèle est relancé une fois (``repli.consigne_de_ce_que_le_code_dit``).
+CE_QUE_LE_CODE_DIT = "dit_ce_que_le_code_dit"
 SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le modèle est relancé avec le fait (C5)
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
@@ -207,6 +209,11 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
     etat.suffixe = etat.suffixe_lu = None
     return dit
+
+
+def dit_ce_que_le_code_dit(texte: str, etat: EtatDuTour) -> bool:
+    """C6 : le code dit une QUESTION après la phrase du modèle (``etat.suffixe`` se termine par « ? ») et la phrase du modèle en pose déjà une : deux questions dans un tour. Forme seulement."""
+    return bool(etat.suffixe) and pose_une_question(etat.suffixe) and pose_une_question(texte)
 
 
 REPRISE = "reprise_de_la_question"  # motif : la phrase dite n'a pas posé la question en attente ; le modèle est relancé avec elle (lot 20, C5)
