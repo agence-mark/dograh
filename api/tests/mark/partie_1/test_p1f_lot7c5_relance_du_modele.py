@@ -288,6 +288,27 @@ async def test_s2_trois_retenues_deux_relances_au_plus_et_jamais_un_texte_de_sec
     assert "INTROUVABLE" in consignes[1] and HOMARD not in consignes[1], consignes
 
 
+async def test_r1_une_erreur_imprevue_a_la_relance_du_fait_dit_la_phrase_reglee_sans_lever():
+    """Reprise R1 : la relance du fait est une requête comme la première ; une erreur imprévue (ici ``KeyError``) ne sort jamais du flux : la phrase réglée est dite."""
+    fiche = _fiche_du_homard()
+    verificateur = _verificateur(fiche)
+    appels: list[str] = []
+
+    async def flux():
+        yield _morceau("Ça vous fera 15 euros.")
+
+    async def relancer(retenue):
+        appels.append(retenue.consigne)
+        if len(appels) == 1:
+            return _reprise("C'est 15 euros.")
+        raise KeyError("consigne mal préparée")
+
+    verifie = RepliqueVerifiee(flux(), verificateur.controler, relancer, None, verificateur.controler_la_relance,
+                               lambda *a, **k: verificateur.controler_le_silence(None, **k), lambda: REGLEE)
+    dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in verifie])
+    assert dit == REGLEE and len(appels) == 2, (dit, appels)
+
+
 async def test_s2_mini_dialogue_la_relance_du_fait_repare_la_reponse():
     """Hors zone : avant, le code disait « Nous ne livrons pas … À emporter ? » ; après, le modèle relancé avec le refus le dit avec ses mots."""
     bonne = "Désolé, on ne livre pas là-bas ; vous préférez venir la chercher ?"
