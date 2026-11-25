@@ -1,15 +1,19 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "7da1237bfa0f2ec9a1dbfc3a79b509ef12fcfd71",
+ "commit_teste": "e7ef4749fce7a88c5481b83ecfe81b06c0de2dbf",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
- "poste": "sa11",
+ "poste": "sa13",
  "vert": true,
  "controles": {
   "ruff": {
    "vert": true,
    "ecarts": [],
    "fichiers_de_la_zone": 49
+  },
+  "noqa": {
+   "vert": true,
+   "ajoutes": []
   },
   "linter": {
    "vert": true,
@@ -26,11 +30,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.78s ========================"
-  },
-  "noqa": {
-   "vert": true,
-   "ajoutes": []
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.20s ========================"
   },
   "donnes": {
    "vert": true,
@@ -65,7 +65,7 @@
     "tests/mark/partie_1/test_cloture_b4_passation.py",
     "tests/mark/partie_1/test_p1f_lot5_g36.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E4]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E5]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E11]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_est_vu_rouge_quand_le_code_ne_ramene_plus_l_appel\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_un_panier_ouvert_au_revoir_deux_fois_puis_le_silence_l_appel_se_termine\n=========== 581 passed, 10 xfailed, 8 warnings in 449.49s (0:07:29) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E4]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E5]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E11]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_est_vu_rouge_quand_le_code_ne_ramene_plus_l_appel\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_un_panier_ouvert_au_revoir_deux_fois_puis_le_silence_l_appel_se_termine\n=========== 585 passed, 10 xfailed, 8 warnings in 480.47s (0:08:00) ==========="
   }
  }
 }
