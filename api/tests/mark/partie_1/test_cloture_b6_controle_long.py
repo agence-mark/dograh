@@ -41,8 +41,7 @@ async def test_famille_1_l_article_connu_entre_a_cote_d_un_inconnu(essai_de):
     r = await e.tour("une regina et un bubble tea", ajouter=[REGINA, BUBBLE_TEA])
     assert _noms(e) == ["Regina Normale"], e.p.get("lignes")
     assert _l_inconnu_est_un_fait_pour_le_modele(r), r.get("faits")  # l'inconnu est dit introuvable (par le modèle), il ne prend pas la regina avec lui
-    # le seul texte du code est le prix de la proposition de boisson qui suit (exception du § 2, ``prix_dit_par_le_code_apres_ta_phrase``) : « Le Coca-Cola est à deux euros. » vient de la
-    # proposition ``vente_en_plus`` (la boisson manque à la commande), pas d'un article que la personne aurait dit ; le code ne dit plus l'introuvable
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le prix de la proposition de boisson qui suit est un fait que le modèle dit ; le code ne dit plus l'introuvable
     assert "bubble tea" not in _dit_par_le_code(e), _dit_par_le_code(e)
 
 

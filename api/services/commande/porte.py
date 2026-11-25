@@ -207,7 +207,7 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     changement, non). C6 n° 5 et 6 (décision d'Evan 25/11 9 h 30) : la confirmation et le changement sont dits par le MODÈLE ; le code dit après sa phrase le rendu, le nouveau
     total et la question M108. RC1 (contrôle long, lot 3) : UNE seule question dans le tour : une question du registre en attente (l'annulation demandée, un doute, une taille)
     est posée par le modèle, et M108 ne s'y ajoute pas.
-    ``phrase_du_total`` (C6) : la phrase réglée du total de la relecture, que le code dit après la phrase du modèle (elle porte la question) ; ``suffixe``, comme le prix d'une proposition.
+    ``phrase_du_total`` (C6) : la phrase réglée du total de la relecture, que le code dit après la phrase du modèle (elle porte la question) ; ``suffixe``.
     ``phrase_du_rendu`` (C6 n° 5) : la phrase réglée du rendu de monnaie, dite après la confirmation du modèle (``_textes_de_la_confirmation``) ; ``phrase_du_changement`` (C6 n° 6) : celle
     du nouveau total d'une commande enregistrée puis changée (``_textes_du_changement``)."""
     textes: dict[str, str] = {}
@@ -238,8 +238,9 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     ))
     if avant_le_reste is not None:
         textes["avant"] = avant_le_reste
-    elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
-        textes["suffixe"] = str(nee["chiffre"])
+    elif nee is not None and nee.get("type") == "proposition" and nee.get("prix") and not nee.get("offerte") and not refus:
+        # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le modèle pose la proposition avec son prix, exigé de sa phrase ; absent ou faux, il est relancé (même ligne que DC4)
+        return {"suffixe": "", "chiffres_exiges": {"prix": montant_en_lettres(int(nee["prix"]))}}
     elif nee is not None and nee.get("type") == "relecture" and phrase_du_total:
         textes["suffixe"] = phrase_du_total
     return textes
@@ -280,8 +281,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q.update({"article_propose": proposition.get("nom"), "offerte": bool(proposition.get("offre")), "offre": proposition.get("offre")})
         cachee = p_de_la_question.get("proposition_en_plus") if isinstance(p_de_la_question, dict) else None
         if isinstance(cachee, dict):
-            # ce que le code dit lui-même (le chiffre après la phrase du modèle, le repli de B8) : gardé dans la question, jamais dans le retour
-            q.update({"chiffre": cachee.get("chiffre"), "repli": cachee.get("repli")})
+            # le prix (un fait que le modèle dit, exigé de sa question : C6 n° 11) et le repli de B8 : gardés dans la question
+            q.update({"prix": cachee.get("prix"), "repli": cachee.get("repli")})
     if type_ == "relecture" and isinstance(p_de_la_question, dict):
         q["jeton"] = (p_de_la_question.get("relecture") or {}).get("jeton")  # C6 : l'identité de la relecture, dont le texte n'est plus au registre (le modèle la dit)
     if isinstance((r.faits or {}).get("candidats"), list):
@@ -1287,17 +1288,18 @@ def refusants_de_la_fiche(f: LaFiche) -> list[Resultat]:
     return refusants
 
 
-def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
-    """D33 (B9 § 2 point 4 ; B10 § 1 point 4) : la proposition née dans ce tour est posée par le modèle, avec ses mots et sans chiffre ; le code dit le
-    prix juste après sa phrase (le drapeau seul est dans le retour, jamais la phrase). Une proposition offerte n'a pas de chiffre."""
+def _a_faire_de_la_proposition(q: dict[str, Any]) -> str:
+    """D33 (B9 § 2 point 4 ; B10 § 1 point 4) : la proposition née dans ce tour est posée par le modèle, avec ses mots. C6 n° 11 (décision d'Evan 25/11 9 h 30) : il dit son prix,
+    un fait du retour (``faits.proposition_a_poser``) exigé de sa phrase. Une proposition offerte n'a pas de prix."""
     article = q.get("article_propose") or ""
     if q.get("offerte"):
-        return f"propose-lui {article} offert en une question, avec tes mots", False
-    return f"propose-lui {article} en une question, avec tes mots et sans aucun chiffre : le code dit son prix juste après ta phrase", bool(q.get("chiffre"))
+        return f"propose-lui {article} offert en une question, avec tes mots"
+    return f"propose-lui {article} en une question, avec tes mots, en disant son prix (faits.proposition_a_poser)"
 
 
 def _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee) -> dict[str, Any]:
-    """Les faits que la fiche rend au modèle : le panier, le refus du module, les refus de la fiche, l'heure qui manque, le montant d'une annulation à confirmer."""
+    """Les faits que la fiche rend au modèle : le panier, le refus du module, les refus de la fiche, l'heure qui manque, le montant d'une annulation à confirmer, le prix d'une
+    proposition à poser."""
     faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
     if J.deja_dit(p, J.FERMETURE):
         faits["fermeture_dite"] = True  # 7b-C4 : un fait simple (plus la phrase) : la fermeture est déjà dite dans cet appel, le modèle ne la redit pas à chaque tour
@@ -1311,21 +1313,23 @@ def _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee) -> dict[str
         faits["heure_a_dire"] = [_refus_pour_le_modele(r) for r in heures]  # ce qui manque de l'heure voulue : le modèle le demande avec ses mots
     if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and (p.get("enregistree") or {}).get("total") is not None:
         faits["annulation_a_confirmer"] = {"montant": p["enregistree"]["total"]}  # DC4 (Q2 = A) : le modèle pose la question, le montant est un fait que la barrière des chiffres laisse passer
+    if nee is not None and nee.get("type") == "proposition" and nee.get("prix") and not nee.get("offerte"):
+        faits["proposition_a_poser"] = {"article": nee.get("article_propose"), "prix": nee["prix"]}  # C6 n° 11 : le prix que le modèle dit dans sa question (en centimes)
     return faits
 
 
-def _a_faire_de_la_fiche(refus, executees, nee) -> tuple[Any, bool]:
-    """La consigne du tour (selon la question née, jamais quand la fiche a refusé) et si le prix est dit par le code après la phrase du modèle."""
-    a_faire, prix_dit = B.a_faire_des_refus(refus, executees), False
+def _a_faire_de_la_fiche(refus, executees, nee) -> Any:
+    """La consigne du tour (selon la question née, jamais quand la fiche a refusé)."""
+    a_faire = B.a_faire_des_refus(refus, executees)
     if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and not refus:
         a_faire = A_FAIRE_DE_L_ANNULATION
     if nee is not None and nee.get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION and not refus:
         a_faire = formule_a_etapes.A_FAIRE
     if nee is not None and nee.get("type") == "proposition" and not refus:
-        a_faire, prix_dit = _a_faire_de_la_proposition(nee)
+        a_faire = _a_faire_de_la_proposition(nee)
     if nee is not None and nee.get("type") == "relecture" and not refus:
         a_faire = A_FAIRE_DE_LA_RELECTURE
-    return a_faire, prix_dit
+    return a_faire
 
 
 def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee=None, refusants=(), heures=()) -> dict[str, Any]:
@@ -1348,9 +1352,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         plus["cases_non_executees_car_liees"] = sorted(ecartees - set(plus["cases_refusees"]) - {"*"})
     faits = _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee)
     premier = refus[0] if refus else None
-    a_faire, prix_dit = _a_faire_de_la_fiche(refus, executees, nee)
-    if prix_dit:
-        plus["prix_dit_par_le_code_apres_ta_phrase"] = True
+    a_faire = _a_faire_de_la_fiche(refus, executees, nee)
     return Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None,
                      a_faire=a_faire, plus=plus).vers_json()
 

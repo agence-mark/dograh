@@ -13,7 +13,7 @@ from api.services.mots_dits import montant_en_lettres, nom_dit
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _dit, _le, _r, cle_de_la_remise
+from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _dit, _r, cle_de_la_remise
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _bloque_l_ajout, chercher_l_article, etat_apres_ajout, _un_article
 
@@ -28,8 +28,8 @@ def _peut_parler_d_offre(p: dict[str, Any], regles: Reglages, ref: str | None = 
 async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles: Reglages, chiffre: Resultat | None = None) -> Resultat | None:
     """Lot 4 (A18, M47, D23, D33) : UN article précis proposé en plus (une offre atteinte, sinon ce qui manque au panier, la meilleure vente d'abord),
     UNE fois par commande, jamais après un refus. Le code décide quoi et quand ; le modèle pose la question avec ses mots (``texte`` : « proposer X ») ;
-    le chiffre est dit par le code juste après la phrase du modèle (``chiffre``, gardé dans la question, jamais montré au modèle) ; une proposition
-    offerte n'a pas de chiffre. ``repli`` : la proposition de B8, dite par le code seulement quand le modèle n'a aucune phrase (lot 6, E-b).
+    C6 n° 11 (décision d'Evan 25/11 9 h 30) : son prix (``prix``, en centimes, gardé dans la question) est un fait que le modèle dit dans sa question, exigé
+    par la barrière ; une proposition offerte n'a pas de prix. ``repli`` : la proposition de B8, dite par le code seulement quand le modèle n'a aucune phrase (lot 6, E-b).
     ``None`` : rien à proposer, la commande continue."""
     if not regles.vente_en_plus or p.get("vente_en_plus_faite") or p.get("proposition_refusee") or not P.lignes_pretes(p) or P.a_completer(p):
         return None
@@ -57,13 +57,13 @@ async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles:
         faits["proposition"]["offre"] = offre["nom"]
         offert = "offerte" if proposition.get("genre") == "f" else "offert"
         repli = f"{_dit(offre['nom'])} : vous avez droit à {nom} {offert}. Je vous l'ajoute ?"
-        chiffre_dit = None
+        prix = None
     else:
         repli = f"Avec cela, je vous propose {nom} à {montant_en_lettres(proposition['prix'])}. Je vous l'ajoute ?"
-        chiffre_dit = f"{_le(proposition['nom'], proposition.get('genre'))} est à {montant_en_lettres(proposition['prix'])}."
+        prix = proposition["prix"]
     p["proposition_en_plus"] = {
         "ref": proposition.get("ref"), "nom": proposition["nom"], "choix": [c for c in (proposition.get("choix") or []) if isinstance(c, str)],
-        "offerte": offerte, "chiffre": chiffre_dit, "repli": repli,
+        "offerte": offerte, "prix": prix, "repli": repli,
     }
     return _r("INCOMPLETE", faits, f"proposer {proposition['nom']}" + (" offert" if offerte else ""), "vente_en_plus")
 

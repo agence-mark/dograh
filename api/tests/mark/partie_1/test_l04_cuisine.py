@@ -54,10 +54,11 @@ async def test_proposition_une_fois_question_numerotee(essai_de):
     r = await _premier_article(e)
     q = _q(e)
     assert q.get("type") == "proposition" and re.fullmatch(r"Q-\d+", q["id"]), r
-    assert r.get("prix_dit_par_le_code_apres_ta_phrase") is True and "sans aucun chiffre" in (r.get("a_faire") or ""), r
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le prix est un fait que le modèle dit dans sa question, plus une phrase que le code dit après elle
+    assert "prix_dit_par_le_code_apres_ta_phrase" not in r and "en disant son prix" in (r.get("a_faire") or ""), r
     propose = q["article_propose"]
     assert propose and "euro" not in _faits(r).lower() and not re.search(r"\d+[,.]\d\d", json.dumps(r.get("question"))), r
-    assert q.get("chiffre") and "euro" in q["chiffre"], q  # la phrase du prix est gardée dans la question, jamais dans le retour
+    assert r["faits"]["proposition_a_poser"] == {"article": propose, "prix": q["prix"]} and isinstance(q["prix"], int), (r["faits"], q)  # un fait brut, jamais une phrase
     await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     r = await _premier_article(e, "regina")
     assert _q(e).get("type") != "proposition" and "prix_dit_par_le_code_apres_ta_phrase" not in r, r  # une fois par commande, jamais après un refus
