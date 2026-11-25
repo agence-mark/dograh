@@ -49,14 +49,40 @@ NOM_D_UN_CATALOGUE_DE_SECOURS = re.compile(r"(?:^|/)(?:textes_de_secours[^/]*|ph
 ENVOIS_POUR_L_EQUIPE = frozenset({"secours_par_defaut", "secours_de_la_commande"})  # source_commande.py : le ticket et le SMS « risque de doublon en cuisine »
 _SQL = re.compile(r"\s*(?:SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER)\s")
 
-# Les fichiers qui portent encore des phrases du code à rendre au modèle (``outils/phrases-a-rendre-au-modele.md``). Un commit de 7b-C retire ici son fichier.
-# Les fichiers propres pour le détecteur (``parole.py``, ``repli.py``, ``commande/registre.py``) n'ont aucune phrase dite : leur test passe tel quel, et c'est lui qui garde qu'une
-# phrase n'y entre pas.
-A_RENDRE = frozenset(FICHIERS_DU_LOT) - {
-    "services/actions_communes/parole.py",
-    "services/actions_communes/repli.py",
-    "services/commande/registre.py",
-}
+# Les fichiers qui portent encore des phrases du code à rendre au modèle (``outils/phrases-a-rendre-au-modele.md``), en trois blocs, un par sous-tranche de la 7b-C : chaque agent
+# ne touche que le sien et retire son fichier de son bloc au commit qui rend ses phrases. Rien n'est retiré d'avance : toutes les phrases encore à rendre y sont listées.
+# Les fichiers du lot hors de tout bloc (``parole.py``, ``repli.py``, ``commande/registre.py``, et chaque fichier retiré de son bloc) n'ont aucune phrase dite : leur test passe tel
+# quel, et c'est lui qui garde qu'une phrase n'y entre pas.
+
+# C1 commande : ``services/commande/*``
+A_RENDRE_C1 = frozenset({
+    "services/commande/moteur/articles.py",
+    "services/commande/moteur/changement.py",
+    "services/commande/moteur/enregistrement.py",
+    "services/commande/moteur/lecture.py",
+    "services/commande/moteur/mode_et_adresse.py",
+    "services/commande/moteur/prealables.py",
+    "services/commande/moteur/reglement.py",
+    "services/commande/porte.py",
+})
+
+# C2 base et source de la commande : ``db/bases_clients/restauration_commande.py`` et ``restauration/source_commande.py``
+A_RENDRE_C2 = frozenset({
+    "db/bases_clients/restauration_commande.py",
+    "services/restauration/source_commande.py",
+})
+
+# C3 réservation et allergie : ``services/reservation/*``, ``db/bases_clients/restauration_reservation.py``, ``restauration/carte_et_allergenes/*``
+A_RENDRE_C3 = frozenset({
+    "db/bases_clients/restauration_reservation.py",
+    "services/reservation/lire.py",
+    "services/reservation/moteur.py",
+    "services/reservation/porte.py",
+    "services/restauration/carte_et_allergenes/allergie_de_la_commande.py",
+    "services/restauration/carte_et_allergenes/voir_un_article.py",
+})
+
+A_RENDRE = A_RENDRE_C1 | A_RENDRE_C2 | A_RENDRE_C3
 
 _MOT = re.compile(r"[^\W\d_]+")
 _S_ADRESSE_AU_MODELE = re.compile(r"\b(?:tu|ton|ta|tes|toi)\b|-lui\b")  # le tutoiement et « dis-lui » : une consigne au modèle, jamais une phrase dite au client (qui se vouvoie)
@@ -174,3 +200,12 @@ def test_un_catalogue_de_secours_est_exempte_par_son_nom_et_les_deux_connus_exis
 
 def test_la_liste_a_rendre_ne_nomme_que_des_fichiers_du_lot():
     assert A_RENDRE <= set(FICHIERS_DU_LOT)
+
+
+def test_les_trois_blocs_a_rendre_se_partagent_les_fichiers_du_lot_sans_recouvrement():
+    """Un fichier à rendre est dans UN bloc (C1, C2 ou C3) ; chaque bloc ne nomme que les fichiers de sa zone (la fiche de la 7b-C, § 6) : un agent ne touche que le sien."""
+    blocs = (A_RENDRE_C1, A_RENDRE_C2, A_RENDRE_C3)
+    assert sum(len(b) for b in blocs) == len(A_RENDRE), "un fichier est dans deux blocs"
+    assert all(f.startswith("services/commande/") for f in A_RENDRE_C1)
+    assert A_RENDRE_C2 <= {"db/bases_clients/restauration_commande.py", "services/restauration/source_commande.py"}
+    assert all(f.startswith(("services/reservation/", "services/restauration/carte_et_allergenes/")) or f == "db/bases_clients/restauration_reservation.py" for f in A_RENDRE_C3)
