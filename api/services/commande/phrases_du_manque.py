@@ -48,7 +48,8 @@ PHRASES_DU_MANQUE: dict[Manque, str | None] = {
     Manque.PRENOM: "À quel nom je mets la commande ?",
     Manque.CONSIGNE_LIVREUR: "Une consigne pour le livreur ?",
 }
-PORTEES_PAR_UNE_QUESTION = frozenset(k for k, v in PHRASES_DU_MANQUE.items() if v is None and k is not Manque.MODE)
+# Liste fermée : ce qui manque et qu'une question du module porte (la variante, l'accord sur le récapitulatif) ; la relance ne le reçoit jamais seul.
+PORTEES_PAR_UNE_QUESTION = frozenset({Manque.VARIANTE, Manque.ACCORD})
 
 
 def phrase_du_manque(manque: Manque | None, modes: list[str] | tuple[str, ...] | None = None) -> str | None:
@@ -60,10 +61,13 @@ def phrase_du_manque(manque: Manque | None, modes: list[str] | tuple[str, ...] |
 
 
 def valeur_du_manque(p: dict[str, Any]) -> str | None:
-    """La valeur fermée de ce qui manque ENSUITE pour ce panier, quand aucune question n'attend et qu'une phrase la dirait (C5 : la relance du modèle la reçoit comme un fait)."""
+    """La valeur fermée de ce qui manque ENSUITE pour ce panier, quand aucune question n'attend (C5 : la relance du modèle la reçoit comme un fait). Choisie dans une liste
+    fermée, jamais selon qu'une phrase existe (lot 7b-C7) : ni une valeur portée par une question (``PORTEES_PAR_UNE_QUESTION``), ni le mode sans mode ouvert."""
     from api.services.commande import etat_pour_le_modele as E
 
     if CONV.question_de(p):
         return None
     manque, modes = E.ce_qui_manque(p, p.get(E.CLE_CONNU) or {})
-    return str(manque.value) if manque and phrase_du_manque(manque, modes) else None
+    if manque is None or manque in PORTEES_PAR_UNE_QUESTION or (manque is Manque.MODE and not modes):
+        return None
+    return str(manque.value)
