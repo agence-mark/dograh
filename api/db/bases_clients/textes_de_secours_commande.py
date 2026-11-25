@@ -177,3 +177,65 @@ def ferme_a_cette_heure(faits: Faits) -> str:
 
 def creneau_complet(faits: Faits) -> str:
     return f"Ce créneau est complet, je peux vous proposer {faits['proposition_dite']}."
+
+
+# --------------------------------------------------------------------------- #
+# Ce qui manque à la demande, le règlement, la remise, la commande introuvable
+# (les manques qui ont une phrase au catalogue ``phrases_du_manque`` la prennent de là : articles, téléphone, adresse, paiement)
+# --------------------------------------------------------------------------- #
+
+
+def situer_l_adresse(faits: Faits) -> str:
+    return "Je dois situer l'adresse de livraison."
+
+
+def relire_la_commande(faits: Faits) -> str:
+    return "Je vous relis la commande avant de l'enregistrer."
+
+
+def origine_invalide(faits: Faits) -> str:
+    return "Origine de la commande invalide."
+
+
+def heure_non_valable(faits: Faits) -> str:
+    return "L'heure demandée n'est pas valable."
+
+
+def prenom_trop_long(faits: Faits) -> str:
+    return "Prénom trop long."
+
+
+def moyen_non_accepte(faits: Faits) -> str:
+    return "Ce moyen de paiement n'est pas accepté."
+
+
+def reglement_invalide(faits: Faits) -> str:
+    return "Règlement invalide."
+
+
+def plafond_titre_depasse(faits: Faits) -> str:
+    return "Le montant en titres-restaurant dépasse le plafond."
+
+
+def titre_et_alcool(faits: Faits) -> str:
+    return "Les titres-restaurant ne paient pas l'alcool."
+
+
+def titre_sans_rendu(faits: Faits) -> str:
+    return "On ne rend pas la monnaie sur un titre-restaurant."
+
+
+def montant_de_paiement_invalide(faits: Faits) -> str:
+    return "Montant de paiement invalide."
+
+
+def reglement_incomplet(faits: Faits) -> str:
+    return "Le règlement ne couvre pas exactement le total."
+
+
+def remise_non_applicable(faits: Faits) -> str:
+    return "Cette remise ne s'applique pas à votre commande."
+
+
+def commande_introuvable(faits: Faits) -> str:
+    return "Je ne trouve pas cette commande."

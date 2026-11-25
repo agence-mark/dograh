@@ -69,9 +69,7 @@ A_RENDRE_C1 = frozenset({
 })
 
 # C2 base et source de la commande : ``db/bases_clients/restauration_commande.py`` et ``restauration/source_commande.py``
-A_RENDRE_C2 = frozenset({
-    "db/bases_clients/restauration_commande.py",
-})
+A_RENDRE_C2: frozenset[str] = frozenset()  # rendu par la 7b-C2 : la base et la source de la commande ne disent plus rien en dur
 
 # C3 réservation et allergie : ``services/reservation/*``, ``db/bases_clients/restauration_reservation.py``, ``restauration/carte_et_allergenes/*``
 A_RENDRE_C3 = frozenset({

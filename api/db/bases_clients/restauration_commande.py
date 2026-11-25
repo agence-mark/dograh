@@ -29,6 +29,7 @@ from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.mots_dits import heure_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.article_simple import brique_art1_chiffrer
@@ -719,21 +720,21 @@ def _manques_de_la_demande(brouillon: dict, jeton_relecture: str | None, mainten
     if mode not in MODES:
         return _refus_de_secours("ARGUMENT_INVALIDE", TSC.mode_non_compris, "mode")
     if not brouillon.get("lignes"):
-        return _refus("INCOMPLETE", "Qu'est-ce que je vous mets ?", "lignes")
+        return _refus("INCOMPLETE", phrase_du_manque(Manque.ARTICLES), "lignes")
     if not isinstance(client.get("telephone"), str) or not E164.match(client["telephone"]):
-        return _refus("INCOMPLETE", "Quel est votre numéro de téléphone ?", "telephone")
+        return _refus("INCOMPLETE", phrase_du_manque(Manque.TELEPHONE), "telephone")
     if mode == "livraison" and not brouillon.get("adresse"):
-        return _refus("INCOMPLETE", "Quelle est l'adresse de livraison ?", "adresse")
+        return _refus("INCOMPLETE", phrase_du_manque(Manque.ADRESSE_ET_COMMUNE), "adresse")
     if mode == "livraison" and not brouillon.get("zone_id"):
-        return _refus("INCOMPLETE", "Je dois situer l'adresse de livraison.", "zone")
+        return _refus_de_secours("INCOMPLETE", TSC.situer_l_adresse, "zone")
     if not jeton_relecture or not str(jeton_relecture).strip():
-        return _refus("INCOMPLETE", "Je vous relis la commande avant de l'enregistrer.", "relecture")
+        return _refus_de_secours("INCOMPLETE", TSC.relire_la_commande, "relecture")
     if cree_par not in ("agent", "portail", "caisse"):
-        return _refus("ARGUMENT_INVALIDE", "Origine de la commande invalide.", "cree_par")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.origine_invalide, "cree_par")
     if heure_voulue is not None and (heure_voulue.tzinfo is None or heure_voulue < maintenant_):
-        return _refus("ARGUMENT_INVALIDE", "L'heure demandée n'est pas valable.", "heure_voulue")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.heure_non_valable, "heure_voulue")
     if len(str(client.get("prenom") or "")) > 60:
-        return _refus("ARGUMENT_INVALIDE", "Prénom trop long.", "prenom")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.prenom_trop_long, "prenom")
     return None
 
 
@@ -746,12 +747,12 @@ def _reglement_du_brouillon(brouillon: dict) -> tuple[dict, list, dict]:
 def _reglement_lisible(moyens: list, reste: dict, acceptes: set[str]) -> Resultat | None:
     """Un règlement donné, bien formé, par des moyens que l'établissement accepte."""
     if not moyens and not reste:
-        return _refus("INCOMPLETE", "Vous réglez comment ?", "paiement")
+        return _refus("INCOMPLETE", phrase_du_manque(Manque.PAIEMENT), "paiement")
     if not all(isinstance(m, dict) and isinstance(m.get("moyen"), str) and "montant" in m for m in moyens):
-        return _refus("ARGUMENT_INVALIDE", "Règlement invalide.", "paiement")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.reglement_invalide, "paiement")
     for moyen in [m["moyen"] for m in moyens] + list(reste):
         if moyen not in acceptes:
-            return _refus("MOYEN_NON_ACCEPTE", "Ce moyen de paiement n'est pas accepté.", moyen=moyen, acceptes=sorted(acceptes))
+            return _refus_de_secours("MOYEN_NON_ACCEPTE", TSC.moyen_non_accepte, moyen=moyen, acceptes=sorted(acceptes))
     return None
 
 
@@ -760,24 +761,24 @@ def _titres_restaurant(paiement: dict, moyens: list, reste: dict, reglages: dict
     module, acceptes, plafond = reglages["module"], set(reglages["moyens_paiement"]), reglages["plafond_titre"]
     titres = sum(m["montant"] for m in moyens if m["moyen"] == "titre_restaurant") + reste.get("titre_restaurant", 0)
     if plafond is not None and titres > plafond:
-        return _refus("PLAFOND_TITRE_RESTAURANT", "Le montant en titres-restaurant dépasse le plafond.", plafond=plafond, montant=titres)
+        return _refus_de_secours("PLAFOND_TITRE_RESTAURANT", TSC.plafond_titre_depasse, plafond=plafond, montant=titres)
     if titres and module["titre_alcool_exclu"]:
         # Un titre-restaurant ne paie pas l'alcool : ce qui dépasse la part sans alcool de la commande est refusé.
         eligible = max(0, total - sum(l["prix_unitaire"] * l["quantite"] for l in calculees if l["alcool"]))
         if any(l["alcool"] for l in calculees) and titres > eligible:
-            return _refus("PLAFOND_TITRE_RESTAURANT", "Les titres-restaurant ne paient pas l'alcool.", plafond=eligible, montant=titres, raison="alcool")
+            return _refus_de_secours("PLAFOND_TITRE_RESTAURANT", TSC.titre_et_alcool, plafond=eligible, montant=titres, raison="alcool")
     if titres and module["titre_sans_rendu"] and paiement.get("rendu_sur") and not any(m["moyen"] == "especes" for m in moyens):
         # Pas de rendu sur un titre-restaurant : le billet ne se rend que sur des espèces.
-        return _refus("MOYEN_NON_ACCEPTE", "On ne rend pas la monnaie sur un titre-restaurant.", moyen="titre_restaurant", acceptes=sorted(acceptes), raison="sans_rendu")
+        return _refus_de_secours("MOYEN_NON_ACCEPTE", TSC.titre_sans_rendu, moyen="titre_restaurant", acceptes=sorted(acceptes), raison="sans_rendu")
     return None
 
 
 def _compte_du_reglement(moyens: list, reste: dict, total: int) -> Resultat | None:
     """Les montants sont des entiers positifs et leur somme est exactement le total."""
     if any(not isinstance(m["montant"], int) or m["montant"] < 0 for m in moyens) or any(not isinstance(v, int) or v < 0 for v in reste.values()):
-        return _refus("ARGUMENT_INVALIDE", "Montant de paiement invalide.", "paiement")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.montant_de_paiement_invalide, "paiement")
     if sum(m["montant"] for m in moyens) + sum(reste.values()) != total:
-        return _refus("INCOMPLETE", "Le règlement ne couvre pas exactement le total.", "paiement", total=total)
+        return _refus_de_secours("INCOMPLETE", TSC.reglement_incomplet, "paiement", total=total)
     return None
 
 
@@ -819,7 +820,7 @@ async def _remises_et_total(
             connexion, etablissement_id, panier, brouillon["mode"], calculees, sous_total, moment, brouillon.get("client") or {}, brouillon["remises"], brouillon.get("codes") or ()
         )
         if motif:
-            return _refus("REFUSEE", "Cette remise ne s'applique pas à votre commande.", raison=motif), [], calculees, sous_total, 0
+            return _refus_de_secours("REFUSEE", TSC.remise_non_applicable, raison=motif), [], calculees, sous_total, 0
     sous_total += sum(l["prix_unitaire"] * l["quantite"] for l in offertes)  # un article offert part à son prix de carte, la remise du même montant l'annule
     return None, retenues, calculees + offertes, sous_total, sous_total + frais - sum(r["montant"] for r in retenues)
 
@@ -1138,7 +1139,7 @@ async def statut_commande(
     else:
         return Resultat("ARGUMENT_INVALIDE", manque="numero")
     if not lignes:
-        return Resultat("INTROUVABLE", {}, "Je ne trouve pas cette commande.")
+        return Resultat("INTROUVABLE", {}, TSC.commande_introuvable({}))
     return Resultat("OK", {"commandes": [_commande(r) for r in lignes]})
 
 
