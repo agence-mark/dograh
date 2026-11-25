@@ -153,3 +153,62 @@ async def test_c2_une_suggestion_vide_garde_la_consigne_du_refus(essai_de, monke
     r = await e.tour("Deux reines normales, livrées au 8 rue Solférino à Compiègne", ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}],
                      mode_de_retrait="livraison", adresse="8 Rue Solférino", commune="Compiègne")
     assert A_FAIRE_DES_REFUS_A_DIRE in str(r.get("a_faire")), r
+
+
+# --------------------------------------------------------------------------- commit 3 : la consigne de relance, une fois par tour
+
+
+def _faits_de_la_consigne(consigne: str) -> dict:
+    import json
+
+    return json.loads(consigne[consigne.index("{"):])
+
+
+def _refus_de_homard() -> dict:
+    return {"statut_du_module": "HORS_CARTE", "manque": None, "faits": {"article": "pizza au homard", "plus_proches": ["4 fromages", "Regina"]}}
+
+
+def test_c3_la_consigne_porte_les_refus_et_la_question_en_faits_jamais_en_phrases():
+    """Client « Une pizza au homard. » : la consigne dit le refus (faits) puis la question due (objet), sans le texte de secours ni le texte de la question."""
+    from api.services.actions_communes.repli import consigne_de_relance
+
+    fiche = _fiche(question=_question())
+    poser_le_fait_bloquant(fiche, 1, HOMARD, "commande", [_refus_de_homard()])
+    consigne = consigne_de_relance(P.du_dossier(fiche), fiche, PAROLE.etat_du_tour(fiche))
+    assert consigne and HOMARD not in consigne and QUESTION_DU_CODE not in consigne, consigne
+    faits = _faits_de_la_consigne(consigne)
+    assert faits["a_dire"] == [_refus_de_homard()]
+    assert faits["puis"] == {"question": {"id": "Q-1", "type": "variante", "article_en_question": "Regina"}}
+
+
+def test_c3_sans_question_la_consigne_porte_ce_qui_manque_en_valeur_fermee():
+    from api.services.actions_communes.repli import consigne_de_relance
+
+    fiche = _fiche()
+    P.du_dossier(fiche)["mode"] = "emporter"
+    consigne = consigne_de_relance(P.du_dossier(fiche), fiche, PAROLE.etat_du_tour(fiche))
+    assert consigne and _faits_de_la_consigne(consigne) == {"puis": {"manque": "les articles"}}, consigne
+
+
+def test_c3_une_seule_relance_du_fait_par_tour_de_la_personne():
+    """Au deuxième appel du même tour : ``None`` ; la personne reparle : le compteur repart."""
+    from api.services.actions_communes.repli import consigne_de_relance
+
+    fiche = _fiche(fait_bloquant=HOMARD)
+    etat = PAROLE.etat_du_tour(fiche)
+    assert consigne_de_relance(P.du_dossier(fiche), fiche, etat) is not None
+    assert consigne_de_relance(P.du_dossier(fiche), fiche, etat) is None
+    PAROLE.garder(fiche, etat)
+    assert PAROLE.etat_du_tour(fiche).relance_du_fait is True
+    fiche[CLE_DU_TOUR] = 2
+    assert PAROLE.etat_du_tour(fiche).relance_du_fait is False
+
+
+def test_c3_rien_a_dire_rien_a_relancer():
+    """Un connecteur qui ne manque de rien (le service), sans refus ni question : aucune relance, l'état n'est pas touché."""
+    from api.services.actions_communes.repli import consigne_de_relance
+
+    fiche = _fiche()
+    etat = PAROLE.etat_du_tour(fiche)
+    sans_manque = SimpleNamespace(valeur_du_manque=lambda _dossier, _fiche: None)
+    assert consigne_de_relance(P.du_dossier(fiche), fiche, etat, sans_manque) is None and etat.relance_du_fait is False

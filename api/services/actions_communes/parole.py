@@ -29,7 +29,6 @@ from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_
 CLE_ETAT_DU_TOUR = "parole_du_tour"
 CLE_TEXTES_DU_CODE = "textes_du_code_de_la_fiche"  # ce que le code dit lui-même pour la fiche du tour (``avant``, ``prefixe``, ``suffixe``), posé par la porte
 CLE_DU_TOUR = "tour_de_la_personne"  # le tour de la personne, la même clé que la porte (cases_selon_l_etat.CLE_DU_TOUR)
-PASSES_AU_PLUS = 5
 
 A_DIRE_SEUL = "a_dire_seul"
 SECOND_PASSAGE = "second_passage"
@@ -64,6 +63,7 @@ class EtatDuTour:
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
     jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
+    relance_du_fait: bool = False  # C5 : le modèle a été relancé avec le fait dans ce tour (une fois par tour de la personne, remis à zéro avec l'état)
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
 
 

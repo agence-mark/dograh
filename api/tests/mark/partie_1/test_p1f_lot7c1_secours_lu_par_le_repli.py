@@ -13,7 +13,7 @@ import re
 from api.outils import inventaire_rustines as I
 
 CATALOGUE = re.compile(r"(?:^|/)(?:textes_de_secours[^/]*|phrases_du_manque)\.py$")
-LIBRES = frozenset({"Manque", "MODE", "PORTEES_PAR_UNE_QUESTION"})  # la valeur fermée de ce qui manque : pas un texte
+LIBRES = frozenset({"Manque", "MODE", "PORTEES_PAR_UNE_QUESTION", "valeur_du_manque"})  # la valeur fermée de ce qui manque : pas un texte (C5 : la relance du modèle la lit)
 
 TOUS = "*"
 # (catalogue, importeur, nom importé ou ``*``) : ce que chaque catalogue laisse lire, et par qui.

@@ -33,3 +33,11 @@ def texte_a_dire(etat: dict[str, Any], fiche: dict[str, Any] | None = None) -> s
     if CONV.question_de(etat):
         return None
     return phrase_du_manque(E.ce_qui_manque_ensuite(etat, bool(etat.get("numero_affiche"))))
+
+
+def valeur_du_manque(etat: dict[str, Any], fiche: dict[str, Any] | None = None) -> str | None:
+    """La valeur fermée de ce qui manque ENSUITE pour cette réservation, quand aucune question n'attend (C5 : la relance du modèle la reçoit comme un fait)."""
+    if CONV.question_de(etat):
+        return None
+    manque = E.ce_qui_manque_ensuite(etat, bool(etat.get("numero_affiche")))
+    return manque if manque in PHRASES_DU_MANQUE else None

@@ -69,3 +69,13 @@ def texte_a_dire(p: dict[str, Any]) -> str | None:
         return None
     manque, modes = E.ce_qui_manque(p, p.get(E.CLE_CONNU) or {})
     return phrase_du_manque(manque, modes)
+
+
+def valeur_du_manque(p: dict[str, Any]) -> str | None:
+    """La valeur fermée de ce qui manque ENSUITE pour ce panier, quand aucune question n'attend et qu'une phrase la dirait (C5 : la relance du modèle la reçoit comme un fait)."""
+    from api.services.commande import etat_pour_le_modele as E
+
+    if CONV.question_de(p):
+        return None
+    manque, modes = E.ce_qui_manque(p, p.get(E.CLE_CONNU) or {})
+    return str(manque.value) if manque and phrase_du_manque(manque, modes) else None

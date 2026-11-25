@@ -151,6 +151,8 @@ class Connecteur:
     dossier_de_la_parole: Callable[[dict], dict] | None = None
     objet_en_cours: Callable[[dict], bool] | None = None
     texte_du_manque: Callable[[dict, dict], str | None] | None = None
+    # C5 : la valeur fermée de ce qui manque ensuite (donnée au modèle comme un fait par la relance, jamais une phrase) ; ``None`` : celle de la commande.
+    valeur_du_manque: Callable[[dict, dict], str | None] | None = None
     # [.mark] Partie 1, lot 2 (E26) : les cases que l'état de l'appel et la carte ouvrent maintenant, en chemins (``reponse``, ``reponse.sens``,
     # ``ajouter[].composition``), d'après la fiche de l'appel ; et la forme qui change avec l'état (``{"requises": {chemin: [...]}, "descriptions":
     # {chemin: texte}}``). Lus avant chaque requête (``workflow/cases_selon_l_etat.py``). Même principe qu'``action_ouverte`` : le connecteur dit,

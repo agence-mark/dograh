@@ -87,6 +87,12 @@ def _texte_du_manque(dossier: dict, _fiche: dict) -> str | None:
     return texte_a_dire(dossier)
 
 
+def _valeur_du_manque(dossier: dict, _fiche: dict) -> str | None:
+    from api.services.reservation.phrases_du_manque import valeur_du_manque
+
+    return valeur_du_manque(dossier)
+
+
 RESERVATION = declarer(
     Connecteur(
         nom="reservation",
@@ -97,6 +103,7 @@ RESERVATION = declarer(
         dossier_de_la_parole=_dossier_de_la_parole,
         objet_en_cours=_objet_en_cours,
         texte_du_manque=_texte_du_manque,
+        valeur_du_manque=_valeur_du_manque,
         cases_visibles=contrat.cases_visibles,
         porte_la_fiche="fiche",
         porte_la_lecture="lire",

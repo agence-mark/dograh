@@ -11,11 +11,12 @@
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
+import json
 import re
 from typing import Any
 
 from api.services.actions_communes import journal_du_dit as J
-from api.services.actions_communes.enveloppe import REFUS_DE_LA_FICHE
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, REFUS_DE_LA_FICHE
 
 RAPPEL_APRES_REFUS = (
     "- Ta réponse précédente n'avait pas d'appel d'outil après le refus de ta fiche : elle n'a pas été dite, et rien n'est changé."
@@ -168,3 +169,62 @@ def _question_ou_manque(p: dict[str, Any], texte_du_manque: Any = None, fiche: A
     from api.services.commande.phrases_du_manque import texte_a_dire
 
     return texte_a_dire(p)
+
+
+# C5 (décision d'Evan 25/11 8 h 45) : le code ne compose plus de phrase vers la voix. Le modèle muet sur un refus, ou qui oublie la question due, est relancé UNE fois par tour de la personne avec le fait.
+CONSIGNE_DE_RELANCE = (
+    "- Ta réponse précédente n'a pas dit ce qui est dû à la personne : elle n'a pas été dite. Réponds-lui avec tes mots d'après ces faits (JSON, ne les recopie pas) : "
+    "``a_dire`` est ce que tu lui dis d'abord, ``puis`` ce que tu lui demandes ensuite, en une seule question : "
+)
+CLES_DE_L_OBJET_D_UNE_QUESTION = ("article_en_question", "article_propose", "heure_dite", "choix", "candidats_dits")
+
+
+def _libelles(candidats: Any) -> list[str]:
+    return [str(c["libelle"]) for c in candidats or [] if isinstance(c, dict) and c.get("libelle")]
+
+
+def question_pour_la_relance(q: dict[str, Any]) -> dict[str, Any]:
+    """La question en attente donnée au modèle en faits : son numéro, son type, son objet (l'article, les candidats, les choix) ; jamais le texte de secours du module,
+    sauf pour les questions que le code dit lui-même (``QUESTIONS_DITES_PAR_LE_CODE``, jusqu'à C6)."""
+    sortie: dict[str, Any] = {"id": q.get("id"), "type": q.get("type")}
+    for cle in CLES_DE_L_OBJET_D_UNE_QUESTION:
+        if q.get(cle):
+            sortie[cle] = q[cle]
+    candidats = _libelles(q.get("candidats_par_identifiant"))
+    if candidats:
+        sortie["candidats"] = candidats
+    if q.get("type") in QUESTIONS_DITES_PAR_LE_CODE and q.get("texte"):
+        sortie["texte"] = q["texte"]
+    return sortie
+
+
+def _valeur_du_manque(p: dict[str, Any], connecteur: Any, fiche: Any) -> str | None:
+    """La valeur fermée de ce qui manque ensuite (``Manque`` pour la commande, la liste de la réservation) : celle que déclare le connecteur de l'étape, sinon celle de la commande."""
+    lire = getattr(connecteur, "valeur_du_manque", None)
+    if callable(lire):
+        return lire(p, fiche if isinstance(fiche, dict) else {})
+    from api.services.commande.phrases_du_manque import valeur_du_manque
+
+    return valeur_du_manque(p)
+
+
+def consigne_de_relance(p: dict[str, Any] | None, fiche: Any, etat: Any, connecteur: Any = None) -> str | None:
+    """La consigne qui relance le modèle avec le fait, une fois par tour de la personne (``etat.relance_du_fait``) : ``None`` au deuxième appel du tour, ou sans rien à dire.
+    Les faits sont du JSON (``json.dumps``), jamais de la prose : ``a_dire`` = les refus du tour tels que le modèle les reçoit ; ``puis`` = la question en attente (son objet), sinon
+    ce qui manque (valeur fermée). Jamais ``r.suggestion``, jamais ``q.texte`` d'une question que le modèle dit, jamais une phrase du catalogue du manque. L'appelant garde l'état."""
+    if etat.relance_du_fait:
+        return None
+    faits: dict[str, Any] = {}
+    a_dire = faits_du_fait_bloquant(fiche)
+    if a_dire:
+        faits["a_dire"] = a_dire
+    q = CONV.question_de(p) if isinstance(p, dict) else None
+    manque = None if q is not None or not isinstance(p, dict) else _valeur_du_manque(p, connecteur, fiche)
+    if q is not None:
+        faits["puis"] = {"question": question_pour_la_relance(q)}
+    elif manque:
+        faits["puis"] = {"manque": str(manque)}
+    if not faits:
+        return None
+    etat.relance_du_fait = True
+    return CONSIGNE_DE_RELANCE + json.dumps(faits, ensure_ascii=False, default=str)
