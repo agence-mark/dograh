@@ -215,22 +215,14 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
     return dit
 
 
-REPRISE = "reprise_de_la_question"  # pas une retenue : la phrase dite, suivie de la question en attente redite par le code (lot 20)
+REPRISE = "reprise_de_la_question"  # motif : la phrase dite n'a pas posé la question en attente ; le modèle est relancé avec elle (lot 20, C5)
 
 
-def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_du_manque: Any = None, fiche: Any = None, *, rien_change: bool = False) -> str | None:
-    """Lot 20 (Evan, 21/11 : « l'agent dit "je n'ai pas compris", puis reprend ce qu'il faisait ») : la question en attente, redite par le code après la
-    phrase du modèle, quand rien n'a changé dans ce tour (aucune fiche) et que sa phrase ne pose pas déjà une question (une question à la fois). Sinon ``None``.
-    Critère sur l'état du tour et la forme de la phrase, jamais sur ses mots.
-    ``rien_change`` (M1, RC4 : trois fois la même fiche dans un tour) : la fiche qui vient de passer n'a rien changé, les fiches d'avant dans le tour ne retirent
-    pas ce qui est dû : la question en attente, ou ce qui manque, suit la phrase."""
-    from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
-
-    if (etat.fiches and not rien_change) or not isinstance(p, dict) or CONV.question_de(p) is None:
-        return None
-    if pose_une_question(texte):
-        return None
-    return _repli_sans_le_fait_bloquant(p, texte_du_manque, fiche)
+def question_oubliee(texte: str, etat: EtatDuTour, p: dict | None) -> bool:
+    """Lot 20 (Evan, 21/11 : « l'agent dit "je n'ai pas compris", puis reprend ce qu'il faisait ») : une question attend, rien n'a changé dans ce tour (aucune fiche) et la phrase du modèle
+    n'en pose aucune (une question à la fois). C5 (décision d'Evan 25/11 8 h 45) : le code ne la redit plus, le modèle est relancé avec elle. Critère sur l'état du tour et la forme de la phrase,
+    jamais sur ses mots."""
+    return not etat.fiches and isinstance(p, dict) and CONV.question_de(p) is not None and not pose_une_question(texte)
 
 
 def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, question_en_attente: bool, paroles: list[str], p: dict | None = None) -> str | None:

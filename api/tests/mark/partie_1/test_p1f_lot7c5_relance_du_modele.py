@@ -1,15 +1,13 @@
 """[.mark] Lot 7b-C5 (décision d'Evan 25/11 8 h 45) : le code ne compose plus de phrase vers la voix ; le modèle muet sur un refus ou sur une question oubliée est RELANCÉ avec le fait.
 
-Garde G2 : ce qui part à la voix est la phrase du modèle, une phrase du § 2 (le fait accompli, jusqu'à C6) ou la phrase réglée de l'agent. Un xfail strict par site qui composait un
-texte (S1 silence, S2 relance retenue, S3 relance en échec, S4 cases illisibles, E2a rien n'a changé, E2b question donnée, E2c reprise) ; chaque commit qui ferme un site retire son xfail.
+Garde G2 : ce qui part à la voix est la phrase du modèle, une phrase du § 2 (le fait accompli, jusqu'à C6) ou la phrase réglée de l'agent. Un test par site qui composait un
+texte (S1 silence, S2 relance retenue, S3 relance en échec, S4 cases illisibles, E2a rien n'a changé, E2b question donnée, E2c reprise), posé en xfail strict au commit 1 puis retiré par le commit qui ferme le site.
 Aucun modèle, aucun appel : des fiches d'appel en mémoire.
 """
 
 from __future__ import annotations
 
 from types import SimpleNamespace
-
-import pytest
 
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes import parole as PAROLE
@@ -24,7 +22,6 @@ from api.services.workflow.cases_selon_l_etat import CLE_DES_CASES_MONTREES
 HOMARD = "Nous n'avons pas de pizza au homard."
 QUESTION_DU_CODE = "Quelle taille pour la Regina ?"
 REGLEE = "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"
-G2 = pytest.mark.xfail(strict=True, raises=AssertionError, reason="C5 : ce site compose encore une phrase (garde G2)")
 
 
 def _fiche(*, fait_bloquant: str | None = None, question: dict | None = None, rattrapage: bool = False) -> dict:
@@ -112,7 +109,6 @@ def test_e2b_une_question_deja_donnee_ne_complete_pas_la_phrase_par_la_question_
     assert decision.a_dire in (None, "C'est noté."), decision
 
 
-@G2
 def test_e2c_une_reprise_ne_compose_pas_la_question_du_code():
     """Client « Pardon ? » : le modèle dit « Pas de souci. » sans question ; le code relance avec la question en attente, il ne la redit pas de sa voix."""
     retenue = _verificateur(_fiche(question=_question(), rattrapage=True)).controler("Pas de souci.")
@@ -363,3 +359,20 @@ def test_e2b_le_prix_a_dire_apres_la_phrase_survit_au_second_passage():
     e = _entrees(_fiche(question=_question()), "C'est noté.", question_donnee=True)
     e.suffixe_avant = "Cela fait deux euros."
     assert TABLE.decider(e).mode == PAROLE.SECOND_PASSAGE and e.etat.suffixe == "Cela fait deux euros."
+
+
+# --------------------------------------------------------------------------- commit 8 : E2c, la reprise relance avec la question
+
+
+async def test_e2c_mini_dialogue_pardon_le_modele_est_relance_avec_la_question_en_attente():
+    """Client « Pardon ? » / avant : modèle « Pas de souci. » + code « Quelle taille pour la Regina ? » / après : le modèle, relancé avec l'objet de la question, dit « Pas de souci : la Regina, en moyenne ou en grande ? »."""
+    bonne = "Pas de souci : la Regina, en moyenne ou en grande ?"
+    dit, consignes = await _tour_avec_texte(_fiche(question=_question(), rattrapage=True), "Pas de souci.", [bonne])
+    assert dit == bonne and len(consignes) == 1, (dit, consignes)
+    assert '"article_en_question": "Regina"' in consignes[0] and QUESTION_DU_CODE not in consignes[0], consignes
+
+
+async def test_e2c_une_seule_reprise_par_tour():
+    """Le modèle redit « Pas de souci. » sans la question : sa phrase est dite seule (un plafond par tour), jamais la question du code."""
+    dit, consignes = await _tour_avec_texte(_fiche(question=_question(), rattrapage=True), "Pas de souci.", ["Pas de souci."])
+    assert dit == "Pas de souci." and len(consignes) == 1, (dit, consignes)

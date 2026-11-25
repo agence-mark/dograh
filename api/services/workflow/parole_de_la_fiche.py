@@ -90,12 +90,10 @@ class VerificateurDeLaFiche:
         if raison is None:
             # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33)
             dit = PAROLE.avec_le_suffixe(texte, etat)
-            if not dit:
-                # Lot 20 : rien n'a changé dans ce tour et une question attend : après sa phrase (« je n'ai pas compris »), le code repose la question
-                reprise = PAROLE.reprise_apres_la_phrase(texte, etat, p, getattr(connecteur, "texte_du_manque", None), fiche)
-                if reprise:
-                    PAROLE.garder(fiche, etat)
-                    return Retenue(PAROLE.REPRISE, texte[:80], "", a_dire=f"{PAROLE.sans_balisage(texte)} {reprise}")
+            if not dit and PAROLE.question_oubliee(texte, etat, p) and (consigne := consigne_de_relance(p, fiche, etat, connecteur)):
+                # Lot 20 : rien n'a changé dans ce tour et une question attend, la phrase (« je n'ai pas compris ») ne la pose pas : le modèle repasse avec elle (C5)
+                PAROLE.garder(fiche, etat)
+                return Retenue(PAROLE.REPRISE, texte[:80], consigne)
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.SUFFIXE, texte[:80], "", a_dire=dit) if dit else None
         PAROLE.garder(fiche, etat)
@@ -125,7 +123,7 @@ class VerificateurDeLaFiche:
             if not porte_la_fiche(self._fiche()):
                 return self.autre.controler(texte, messages) if self.autre is not None else None
             retenue = self._retenue(texte, relance=False)
-            if retenue is not None and retenue.raison not in (PAROLE.SUFFIXE, PAROLE.REPRISE):
+            if retenue is not None and retenue.raison != PAROLE.SUFFIXE:
                 tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
             return retenue
         except Exception as erreur:  # noqa: BLE001
