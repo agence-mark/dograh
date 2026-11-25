@@ -221,7 +221,7 @@ def que_change_t_on(faits: Faits) -> str:
 
 
 def pas_de_commande_en_ce_moment(faits: Faits) -> str:
-    """Le texte de secours d'une fermeture. Depuis le lot 7b-C7a la source n'écrit plus sa phrase (``etat["phrase"]`` est toujours vide) et personne n'appelle plus ce texte : à retirer en C7."""
+    """Le texte de secours d'une fermeture. Depuis le lot 7b-C7a la source n'écrit plus sa phrase (``etat["phrase"]`` est toujours vide); ce texte n'est plus appelé que par ``TSC.ferme_a_cette_heure`` (quand la reprise manque), refus encore non vidé : il part avec lui en C7."""
     return "Nous ne prenons pas de commande en ce moment."
 
 
