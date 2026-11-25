@@ -1394,7 +1394,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
                 if r.faits["statut"] in STATUTS_PERDUS:
                     perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
             if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
-                a_preciser = {"manque": r.manque or "reference", "texte_a_dire": r.suggestion}
+                a_preciser = {"manque": r.manque or "reference"}  # 7b-C4 : la phrase du module n'est plus donnée au modèle
             elif r.statut == "INTROUVABLE":
                 # P4 : le numéro de l'appel est connu et rien n'y est trouvé : le dire, puis chercher autrement ; jamais redemander ce numéro
                 introuvable = "dis-lui qu'il n'y a pas de commande à ce numéro ; propose de chercher autrement (le numéro de la commande, ou un autre numéro) ; ne redemande pas le numéro de l'appel"

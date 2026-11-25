@@ -14,6 +14,8 @@ from typing import Any
 
 import pytest
 
+from api.services.actions_communes.enveloppe_legere import pour_le_modele
+
 from api.services.commande import moteur, porte
 from api.services.commande.phrases_dites_par_le_code import PHRASES as PHRASES_DU_PLAN
 from api.services.commande.moteur import socle as _socle
@@ -75,7 +77,7 @@ def _hors_du_plan(valeurs: list[str]) -> list[str]:
 
 def _fuites(r: dict, du_tour: list[str]) -> list[str]:
     """G1 sur le retour ENTIER (audit C0) : une suggestion du tour sous n'importe quelle clé (``pourquoi``, ``dit``…) est une fuite, pas seulement dans son canal."""
-    return _qui_figurent(du_tour, _hors_du_plan(_valeurs(r)))
+    return _qui_figurent(du_tour, _hors_du_plan(_valeurs(pour_le_modele(r))))  # la copie que le modèle lit : le constat caché (``CLE_DU``) n'en fait pas partie
 
 
 async def _explication(essai_de, suggestions):
@@ -137,15 +139,11 @@ async def test_scenario_question_atteint_le_canal(essai_de, suggestions):
 
 
 async def test_scenario_texte_a_dire_atteint_le_canal(salle, monkeypatch, suggestions):
-    _, valeurs, du_tour = await _texte_a_dire(salle, monkeypatch, suggestions)
-    assert valeurs and du_tour, (valeurs, du_tour)
+    r, valeurs, du_tour = await _texte_a_dire(salle, monkeypatch, suggestions)
+    assert r["manque"] and du_tour and not valeurs, (r, du_tour)  # le manque est un fait (« jour »), sa phrase est dans le constat caché
 
 
 # ── G1 : aucune suggestion du tour dans le canal (échec attendu strict, un par canal) ───────────────────────────────────
-
-def _a_fermer(canal: str):
-    return pytest.mark.xfail(strict=True, raises=AssertionError, reason=f"G1, canal {canal} : la suggestion du module arrive encore au modèle (7b-C4 ferme le canal)")
-
 
 async def test_g1_canal_explication(essai_de, suggestions):
     """Client « Une pizza au homard. » : le retour ne dit ni la phrase du module ni « pas de pizza » ; le modèle dit le refus avec ses mots, d'après les faits."""
@@ -164,7 +162,6 @@ async def test_g1_canal_question_texte(essai_de, suggestions):
     assert not _fuites(r, du_tour), _fuites(r, du_tour)
 
 
-@_a_fermer("texte_a_dire")
 async def test_g1_canal_texte_a_dire(salle, monkeypatch, suggestions):
     r, _, du_tour = await _texte_a_dire(salle, monkeypatch, suggestions)
     assert not _fuites(r, du_tour), _fuites(r, du_tour)

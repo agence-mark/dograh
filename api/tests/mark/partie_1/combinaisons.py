@@ -12,6 +12,7 @@ point 2). Le tirage est maison (``random.Random(graine)``, R5 : aucune dépendan
 
 from __future__ import annotations
 
+from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import conversation as CONV
 
 import copy
@@ -578,10 +579,10 @@ def rc1(o: Observation) -> list[Faute]:
     f: list[Faute] = []
     p, r = o.apres, o.retour or {}
     if o.fiche is not None and not finie(p) and p.get("lignes") is not None:
-        a_dire = r.get("texte_a_dire") or ""
+        a_dire = (r.get(CLE_DU) or {}).get("manque") or ""
         if not question(p) and not a_dire and not _code_a_parle(o) and not (r.get("faits") or {}).get("fait_bloquant") and p.get("mode"):
             f.append(("RC1", "commande ni enregistrée ni annulée : aucune question, aucune phrase de manque, rien dit par le code"))
-    manque = r.get("texte_a_dire")
+    manque = (r.get(CLE_DU) or {}).get("manque")
     d = o.decision
     # le modèle formule la question de ce qui manque avec ses mots (Evan, 17/11) : la faute est une phrase dite seule qui n'en pose AUCUNE
     if (manque and d is not None and d.mode == PAROLE.A_DIRE_SEUL and manque not in (d.a_dire or "") and manque not in o.dit_par_le_code
@@ -786,11 +787,11 @@ def rc12(o: Observation) -> list[Faute]:
 
     r = o.retour or {}
     fb = (r.get("faits") or {}).get("fait_bloquant") or {}
-    if r.get("texte_a_dire") and fb.get("manque"):
+    if (r.get(CLE_DU) or {}).get("manque") and fb.get("manque"):
         manque, modes = manque_du_moteur(fb["manque"])
         attendu = M.phrase_du_manque(manque, modes)
-        if attendu and attendu != r["texte_a_dire"]:
-            return [("RC12", f"phrase de manque « {r['texte_a_dire']} », le moteur bloque sur « {fb['manque']} »")]
+        if attendu and attendu != r[CLE_DU]["manque"]:
+            return [("RC12", f"phrase de manque « {r[CLE_DU]['manque']} », le moteur bloque sur « {fb['manque']} »")]
     return []
 
 

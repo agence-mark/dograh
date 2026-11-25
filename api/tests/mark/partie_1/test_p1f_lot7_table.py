@@ -50,9 +50,9 @@ def test_toutes_les_lignes_de_la_table_sont_jouees_par_un_cas():
 
 
 def test_ce_qui_manque_est_du_quand_la_phrase_ne_pose_pas_de_question():
-    _, d, _ = _joue({"texte_a_dire": "Qu'est-ce que je vous mets ?"}, "Très bien.")
+    _, d, _ = _joue({CLE_DU: {"manque": "Qu'est-ce que je vous mets ?"}}, "Très bien.")
     assert (d.mode, d.motif) == (SECOND_PASSAGE, MANQUE)
-    _, d, _ = _joue({"texte_a_dire": "Qu'est-ce que je vous mets ?"}, "Très bien. Autre chose ?")
+    _, d, _ = _joue({CLE_DU: {"manque": "Qu'est-ce que je vous mets ?"}}, "Très bien. Autre chose ?")
     assert d.mode == A_DIRE_SEUL
 
 

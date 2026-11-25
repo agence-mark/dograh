@@ -415,13 +415,12 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     premier = toutes_les_refus[0] if toutes_les_refus else None
     posee = CONV.question_de(e)
     question = Question(posee["id"], posee["type"], posee.get("texte") or "") if posee is not None else None
+    phrase_du_jour = None
     if question is None and not toutes_les_refus and dernier is not None and (dernier.faits or {}).get("precision_gardee") is None:
         manque = MANQUES_DU_MODELE.get(dernier.manque, dernier.manque) if dernier.manque not in (None, "relecture", "confirmation") else None
-        phrase = (dernier.suggestion if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" and dernier.suggestion else None) or texte_a_dire_du_manque(e)
+        phrase_du_jour = dernier.suggestion if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" and dernier.suggestion else None
         if manque:
             plus["manque"] = manque
-        if phrase:
-            plus["texte_a_dire"] = phrase
     a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
         # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
@@ -437,7 +436,10 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
             poser_le_fait_bloquant(ctx.fiche, tour, refus_a_dire, METIER_DU_FAIT_BLOQUANT)
         elif operation in OPERATIONS_QUI_ECRIVENT:  # une écriture sans refus remplace le refus posé plus tôt dans ce tour ; une lecture ou une question ne touche à rien (même fiche, même clé que la commande)
             poser_le_fait_bloquant(ctx.fiche, tour, None, METIER_DU_FAIT_BLOQUANT)
-    return Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None, a_faire=a_faire, plus=plus).vers_json()
+    retour = Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None, a_faire=a_faire, plus=plus).vers_json()
+    if phrase_du_jour:
+        retour[DU.CLE_DU] = {"manque": phrase_du_jour}  # 7b-C4 : la phrase du jour est du repli, rangée dans le constat caché, jamais dans le retour du modèle
+    return retour
 
 
 # --------------------------------------------------------------------------- l'issue de l'appel (C10), posée par l'opération qui la fait

@@ -64,9 +64,7 @@ A_RENDRE_C1: frozenset[str] = frozenset()
 A_RENDRE_C2: frozenset[str] = frozenset()  # rendu par la 7b-C2 : la base et la source de la commande ne disent plus rien en dur
 
 # C3 réservation et allergie : ``services/reservation/*``, ``db/bases_clients/restauration_reservation.py``, ``restauration/carte_et_allergenes/*``
-A_RENDRE_C3 = frozenset({
-    "services/reservation/lire.py",
-})
+A_RENDRE_C3: frozenset[str] = frozenset()  # rendu par la 7b-C4 : ``reservation/lire.py`` ne porte plus « Cette information n'est pas renseignée. », seulement ``renseigne: False``
 
 A_RENDRE = A_RENDRE_C1 | A_RENDRE_C2 | A_RENDRE_C3
 
