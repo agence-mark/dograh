@@ -1147,7 +1147,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
         consignes.append((C.QUESTION, A_FAIRE_DE_L_HEURE))
     if raison and "avant" not in textes:
         # Le refus se dit une fois comme un fait (B3, M5, C7, DF7) ; redit, le journal donne l'issue, puis la sortie. Une question née avec le refus se dit d'une seule voix avec lui.
-        etape = J.fait_redit(p, raison, tour, _seuil_de_sortie(ctx))
+        etape = J.fait_redit(p, " ".join(J.identite_du_refus(r) for r in refusants if raison_du_fait_bloquant(r)), tour, _seuil_de_sortie(ctx))
         if etape in (J.ISSUE, J.SORTIE) or (etape != J.PREMIERE and nee is None):
             consignes.append(_consigne_du_journal(etape))  # déjà dit : l'issue, puis la sortie (rien de plus dans le même tour)
         else:
@@ -1180,8 +1180,8 @@ def refusants_de_la_fiche(f: LaFiche) -> list[Resultat]:
     vus: set[str] = set()
     refusants = []
     for r in tous:
-        if r.statut in STATUTS_QUI_REFUSENT and (r.suggestion or "").strip() not in vus:
-            vus.add((r.suggestion or "").strip())
+        if r.statut in STATUTS_QUI_REFUSENT and J.identite_du_refus(r) not in vus:
+            vus.add(J.identite_du_refus(r))
             refusants.append(r)
     return refusants
 

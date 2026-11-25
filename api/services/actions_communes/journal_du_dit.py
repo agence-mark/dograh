@@ -5,7 +5,8 @@ Avant : cinq mémoires, chacune pour un cas (la fermeture ``fermeture_dite``, le
 redisaient à chaque fiche (C7, H6, DF7) ; aucun compteur d'échec hors du choix d'une réservation (C5, C10 : « pardon » ou le parfum quatre fois).
 
 Le journal vit dans la conversation du dossier de l'action (le panier, le dossier de la réservation) : ``{clé du fait: {"fois": n, "tour": t}}``. La clé est le
-fait lui-même (sa phrase, ou un nom fermé : ``fermeture``, ``remise:<ref>``) : un fait qui change (un autre montant manquant) est un autre fait.
+fait lui-même (son identité : ``identite_du_refus`` pour un refus, ou un nom fermé : ``fermeture``, ``remise:<ref>``) : un fait qui change (un autre montant manquant) est un autre fait.
+Jamais le texte d'une suggestion : un texte qui change d'un tour à l'autre ne remet pas le compteur à zéro.
 Deux usages, lus ici seulement :
 * ``une_fois`` : dit une fois par appel, jamais redit (fermeture, règle d'un article, remise) ;
 * ``fait_redit`` : un refus ou un fait bloquant que la personne retombe : la première fois, la phrase entière par le code ; la deuxième, le code
@@ -15,9 +16,11 @@ Deux usages, lus ici seulement :
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes import resultat as R
 
 CLE = "journal_du_dit"
 FERMETURE = "fermeture"
@@ -25,6 +28,16 @@ A_FAIRE_ISSUE = "elle a déjà entendu ce refus : ne le redis pas mot pour mot ;
 A_FAIRE_SORTIE = "elle revient sur la même chose sans issue : propose-lui de laisser un message à l'équipe"  # B4 (M8) : passage vers le service
 
 PREMIERE, ISSUE, SORTIE, DEJA_DANS_CE_TOUR = "premiere", "issue", "sortie", "deja_dans_ce_tour"
+
+
+_FAITS_DE_TENUE = (R.CLE_NUMERO_RETENU, R.CLE_SECOND_NUMERO_RETENU, R.CLE_NUMERO_AFFICHE, R.CLE_NUMERO_S_AFFICHE)  # ce qui change d'un tour à l'autre sans changer le refus
+
+
+def identite_du_refus(refus: Any) -> str:
+    """La clé du journal pour un refus d'un module : son statut, son manque et son objet (les faits qui sont une valeur, jamais une liste de propositions ni la
+    suggestion), si bien qu'un texte de suggestion qui change ne remet jamais le compteur à zéro."""
+    objet = {k: v for k, v in sorted((refus.faits or {}).items()) if k not in _FAITS_DE_TENUE and isinstance(v, (str, int)) and not isinstance(v, bool)}
+    return f"refus {json.dumps([refus.statut, refus.manque, objet], ensure_ascii=False)}"
 
 
 def _journal(dossier: dict[str, Any]) -> dict[str, Any]:
