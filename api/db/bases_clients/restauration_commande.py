@@ -29,7 +29,7 @@ from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
-from api.services.mots_dits import heure_en_lettres, montant_en_lettres
+from api.services.mots_dits import heure_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.article_simple import brique_art1_chiffrer
 from api.services.commande.briques import conditions_de_vente, supplement_de_formule, menu_a_taille_liee, lot_a_prix_fixe, choix_entre_deux_contenus, inclus_par_rubrique, a_volonte, livraison_offerte, quota_inclus_puis_payant, option_conditionnelle, prix_par_mode, consigne_et_emballage, produit_au_poids, supplement_selon_la_taille, changer_d_accompagnement, retrait_d_ingredient
@@ -446,12 +446,9 @@ async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: in
     Rend ``(zone, frais, None)`` ou ``(None, 0, Resultat)`` : ``HORS_ZONE`` ou ``MINIMUM_NON_ATTEINT``."""
     zone = await zone_de_l_etablissement(connexion, etablissement_id, zone_id)
     if zone is None:
-        return None, 0, _refus("HORS_ZONE", "Nous ne livrons pas à cette adresse.")
+        return None, 0, _refus_de_secours("HORS_ZONE", TSC.hors_zone)
     if sous_total < zone["minimum"]:
-        return None, 0, _refus(
-            "MINIMUM_NON_ATTEINT", f"Le minimum de commande est de {montant_en_lettres(zone['minimum'])}.",
-            minimum=zone["minimum"], sous_total=sous_total,
-        )
+        return None, 0, _refus_de_secours("MINIMUM_NON_ATTEINT", TSC.minimum_non_atteint, minimum=zone["minimum"], sous_total=sous_total)
     return zone, livraison_offerte.brique_off4_frais_retires(zone, sous_total)["frais"], None  # lot 14 (OFF4) : la règle nommée
 
 
@@ -495,7 +492,7 @@ async def chiffrer_panier(
     fermé du premier défaut : ``RUPTURE``, ``HORS_CARTE``, ``CHOIX_OBLIGATOIRE``, ``MAXIMUM_ATTEINT``, ``MINIMUM_NON_ATTEINT``…
     Hors des 17 fonctions du contrat : lecture seule, ce n'est pas un enregistrement."""
     if mode not in MODES:
-        return _refus("ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", "mode")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.mode_non_compris, "mode")
     moment = moment or await maintenant(connexion)
     carte = await carte_du_restaurant(connexion, etablissement_id, servi_le or moment)  # lot 12 (PRX1) : la carte à l'heure voulue d'une précommande
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
@@ -686,30 +683,29 @@ async def creneau_refuse(
     reglage = await connexion.fetchrow("SELECT * FROM mark.resto_reglage_type WHERE site_id = $1 AND type = $2", etablissement_id, mode)
     if plus_tard:
         if reglage is None or not reglage["planifiee_permise"]:
-            return _refus("ARGUMENT_INVALIDE", "Je ne prends pas de commande pour plus tard.", "heure_voulue")
+            return _refus_de_secours("ARGUMENT_INVALIDE", TSC.pas_de_commande_pour_plus_tard, "heure_voulue", plus_tard_refuse=True)
         # M91 (appel 2577, 00 h 50) : « J+1 » compte en JOURS du lieu (jusqu'à la fin de demain), comme la réservation (``capacite``), jamais en
         # 24 heures glissantes ; le refus dit jusqu'à quand.
         limite = (maintenant_.astimezone(fuseau) + timedelta(days=reglage["jours_a_l_avance"])).date() if reglage["jours_a_l_avance"] else None
         if limite is not None and heure_voulue.astimezone(fuseau).date() > limite:
             jusqu_a = "aujourd'hui" if limite == maintenant_.astimezone(fuseau).date() else jour_dit(limite)
-            return _refus("ARGUMENT_INVALIDE", f"Je prends les commandes jusqu'à {jusqu_a} : pour quand la voulez-vous ?", "heure_voulue")
+            return _refus_de_secours("ARGUMENT_INVALIDE", TSC.commandes_jusqu_a, "heure_voulue", jusqu_a=jusqu_a)
         if heure_voulue < maintenant_ + timedelta(minutes=reglage["delai_minimal"]):
-            return _refus("ARGUMENT_INVALIDE", "C'est trop tôt pour moi.", "heure_voulue")
+            return _refus_de_secours("ARGUMENT_INVALIDE", TSC.trop_tot, "heure_voulue", trop_tot=True, delai_minimal=reglage["delai_minimal"])
     etat = await etat_combine(connexion, etablissement_id, mode, heure_voulue or maintenant_)
     if not etat["ouvert"]:
         raison = etat["raison"]
         quand = etat["reprise"] or etat["prochaine_ouverture"]
+        faits = {"raison": raison, "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"]}
         if plus_tard and isinstance(quand, datetime):
-            phrase = f"À cette heure nous sommes fermés. Nous rouvrons {_quand_dit(quand, maintenant_, fuseau)} : pour quelle heure à partir de là ?"
-        else:
-            phrase = "Nous ne prenons pas de commande en ce moment."
-        return _refus(statut_de_fermeture(raison), phrase, "heure_voulue" if plus_tard else None, raison=raison, reprise=etat["reprise"], prochaine_ouverture=etat["prochaine_ouverture"])
+            faits["rouvre_dit"] = _quand_dit(quand, maintenant_, fuseau)
+        return _refus_de_secours(statut_de_fermeture(raison), TSC.ferme_a_cette_heure, "heure_voulue" if plus_tard else None, **faits)
     if plus_tard:
         libre = await creneau_complet(connexion, etablissement_id, mode, heure_voulue)
         if libre is not None:
-            return _refus(
-                "ARGUMENT_INVALIDE", f"Ce créneau est complet, je peux vous proposer {_quand_dit(libre, maintenant_, fuseau)}.", "heure_voulue",
-                raison="creneau_plein", proposition=libre,
+            return _refus_de_secours(
+                "ARGUMENT_INVALIDE", TSC.creneau_complet, "heure_voulue",
+                raison="creneau_plein", proposition=libre, proposition_dite=_quand_dit(libre, maintenant_, fuseau),
             )
     return None
 
@@ -721,7 +717,7 @@ def _manques_de_la_demande(brouillon: dict, jeton_relecture: str | None, mainten
     heure_voulue = brouillon.get("heure_voulue")
     cree_par = brouillon.get("cree_par", "agent")
     if mode not in MODES:
-        return _refus("ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", "mode")
+        return _refus_de_secours("ARGUMENT_INVALIDE", TSC.mode_non_compris, "mode")
     if not brouillon.get("lignes"):
         return _refus("INCOMPLETE", "Qu'est-ce que je vous mets ?", "lignes")
     if not isinstance(client.get("telephone"), str) or not E164.match(client["telephone"]):

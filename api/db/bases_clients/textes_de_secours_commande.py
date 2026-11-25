@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from api.services.mots_dits import montant_en_lettres
+
 Faits = Mapping[str, Any]
 
 
@@ -135,3 +137,43 @@ def produit_hors_carte(faits: Faits) -> str:
 
 def prix_different(faits: Faits) -> str:
     return "Le prix ne correspond pas à la carte."
+
+
+# --------------------------------------------------------------------------- #
+# La zone, le mode et le créneau voulu
+# --------------------------------------------------------------------------- #
+
+
+def hors_zone(faits: Faits) -> str:
+    return "Nous ne livrons pas à cette adresse."
+
+
+def minimum_non_atteint(faits: Faits) -> str:
+    return f"Le minimum de commande est de {montant_en_lettres(faits['minimum'])}."
+
+
+def mode_non_compris(faits: Faits) -> str:
+    return "Je n'ai pas compris le mode de la commande."
+
+
+def pas_de_commande_pour_plus_tard(faits: Faits) -> str:
+    return "Je ne prends pas de commande pour plus tard."
+
+
+def commandes_jusqu_a(faits: Faits) -> str:
+    return f"Je prends les commandes jusqu'à {faits['jusqu_a']} : pour quand la voulez-vous ?"
+
+
+def trop_tot(faits: Faits) -> str:
+    return "C'est trop tôt pour moi."
+
+
+def ferme_a_cette_heure(faits: Faits) -> str:
+    """Fermé à l'heure voulue : ``rouvre_dit`` (le moment où l'on rouvre, dit) seulement quand on le connaît, sinon la phrase du moment."""
+    if faits.get("rouvre_dit"):
+        return f"À cette heure nous sommes fermés. Nous rouvrons {faits['rouvre_dit']} : pour quelle heure à partir de là ?"
+    return "Nous ne prenons pas de commande en ce moment."
+
+
+def creneau_complet(faits: Faits) -> str:
+    return f"Ce créneau est complet, je peux vous proposer {faits['proposition_dite']}."
