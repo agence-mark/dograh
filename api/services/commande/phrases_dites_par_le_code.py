@@ -36,6 +36,14 @@ PHRASES = {
     "enregistree_retrouvee": PhraseDuCode("Votre commande est enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
     "deja_enregistree_pour": PhraseDuCode("Votre commande est déjà enregistrée pour {quand}.", EXCEPTION_FAIT_ACCOMPLI),  # le panier (ou l'anti-doublon) retombe sur une commande déjà prise : le fait accompli qui engage
     "deja_enregistree": PhraseDuCode("Votre commande est déjà enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
+    "quel_numero_je_note": PhraseDuCode("Quel numéro je note ?", EXCEPTION_NUMERO),  # DC10 : après un refus du numéro proposé, une seule fois ; le numéro est une valeur que le code porte
+    "numero_affiche_propose": PhraseDuCode("Je note le numéro qui s'affiche, c'est bon ?", EXCEPTION_NUMERO),  # défaut de la question du registre ``numero_affiche`` (le réglage ``question_numero_affiche`` passe avant)
+    "relecture_complete": PhraseDuCode("Je vous relis : {corps}. Cela fait {total}. C'est bon ?", EXCEPTION_RELECTURE),  # LA relecture, la première fois : tout est relu, avec le total
+    "relecture_apres_changement": PhraseDuCode("{changes}Cela fait maintenant {total}. C'est bon ?", EXCEPTION_RELECTURE),  # une correction : seulement ce qui a changé, avec le total
+    "ligne_passe_a": PhraseDuCode("{nom} passe à {quantite}", EXCEPTION_RELECTURE),  # un morceau de ce qui a changé, relu
+    "rendu_de_monnaie": PhraseDuCode("Sur votre billet de {billet}, on vous rendra {monnaie}.", EXCEPTION_CONFIRMATION),  # dit mot pour mot dans la confirmation (C11)
+    "note_de_moitie": PhraseDuCode("sans {ingredient} sur la moitié {moitie}", EXCEPTION_RELECTURE),  # écrite sur la ligne, relue par le code dans la relecture, imprimée au ticket
+    "prix_au_poids": PhraseDuCode("{arrondi}{fois}{grammes} grammes de {nom} : {prix}.", EXCEPTION_TOTAL),  # D33 : le prix d'un article au poids est un total dit par le code (jamais montré au modèle)
 }
 
 TEXTE_ANNULATION_CONFIRMEE = PHRASES["annulation_confirmee"].texte
@@ -63,3 +71,40 @@ def deja_enregistree(quand_dit: str | None) -> str:
 
 def enregistree_retrouvee(quand_dit: str | None) -> str:
     return PHRASES["enregistree_retrouvee_quand"].texte.format(quand=quand_dit) if quand_dit else PHRASES["enregistree_retrouvee"].texte
+
+
+def prix_au_poids(*, arrondi: bool, fois: str | None, grammes: str, nom: str, prix: str) -> str:
+    """Le prix d'un article au poids (QTE1), le total de la ligne : ``fois`` est le nombre de portions dit en lettres (``None`` pour une seule), ``prix`` le montant dit en lettres."""
+    return PHRASES["prix_au_poids"].texte.format(arrondi="Arrondi à " if arrondi else "", fois=f"{fois} fois " if fois else "", grammes=grammes, nom=nom, prix=prix)
+
+
+def note_de_moitie(*, ingredient: str, moitie: str) -> str:
+    """Le retrait d'un ingrédient sur une seule moitié : la note de la ligne, relue à la personne dans la relecture."""
+    return PHRASES["note_de_moitie"].texte.format(ingredient=ingredient, moitie=moitie)
+
+
+def quel_numero_je_note() -> str:
+    return PHRASES["quel_numero_je_note"].texte
+
+
+def numero_affiche_propose(reglee: str | None = None) -> str:
+    """La question du numéro qui s'affiche : celle que le restaurant a réglée (``question_numero_affiche``), sinon la phrase de base."""
+    return (reglee or "").strip() or PHRASES["numero_affiche_propose"].texte
+
+
+def relecture_complete(*, corps: str, total: str) -> str:
+    """La relecture entière : ``corps`` les lignes, le mode, l'heure et ce qui est offert, déjà dits ; ``total`` le montant en lettres."""
+    return PHRASES["relecture_complete"].texte.format(corps=corps, total=total)
+
+
+def relecture_apres_changement(*, changes: str, total: str) -> str:
+    """La relecture après une correction : ``changes`` ce qui a changé (déjà dit, avec son point et son espace, ou vide), puis le total."""
+    return PHRASES["relecture_apres_changement"].texte.format(changes=changes, total=total)
+
+
+def ligne_passe_a(*, nom: str, quantite: str) -> str:
+    return PHRASES["ligne_passe_a"].texte.format(nom=nom, quantite=quantite)
+
+
+def rendu_de_monnaie(*, billet: str, monnaie: str) -> str:
+    return PHRASES["rendu_de_monnaie"].texte.format(billet=billet, monnaie=monnaie)

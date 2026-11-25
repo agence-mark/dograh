@@ -42,8 +42,8 @@ FICHIERS_DU_LOT = (
 # Un catalogue de secours n'est lu que par le repli (le texte que le code dit quand le modèle se tait deux fois sur un refus, jamais donné au modèle) : ses phrases sont permises.
 # Il s'exempte par son nom, jamais par une liste de phrases : ranger une phrase au catalogue ailleurs ne la rend pas permise (I-7).
 CATALOGUES_DE_SECOURS = (
-    "db/bases_clients/textes_de_secours_commande.py", "services/commande/phrases_du_manque.py", "services/reservation/phrases_du_manque.py",
-    "services/reservation/textes_de_secours.py", "services/restauration/carte_et_allergenes/textes_de_secours.py",
+    "db/bases_clients/textes_de_secours_commande.py", "services/commande/phrases_du_manque.py", "services/commande/textes_de_secours.py",
+    "services/reservation/phrases_du_manque.py", "services/reservation/textes_de_secours.py", "services/restauration/carte_et_allergenes/textes_de_secours.py",
 )
 NOM_D_UN_CATALOGUE_DE_SECOURS = re.compile(r"(?:^|/)(?:textes_de_secours[^/]*|phrases_du_manque)\.py$")
 
@@ -58,16 +58,7 @@ _SQL = re.compile(r"\s*(?:SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER)\s")
 # quel, et c'est lui qui garde qu'une phrase n'y entre pas.
 
 # C1 commande : ``services/commande/*``
-A_RENDRE_C1 = frozenset({
-    "services/commande/moteur/articles.py",
-    "services/commande/moteur/changement.py",
-    "services/commande/moteur/enregistrement.py",
-    "services/commande/moteur/lecture.py",
-    "services/commande/moteur/mode_et_adresse.py",
-    "services/commande/moteur/prealables.py",
-    "services/commande/moteur/reglement.py",
-    "services/commande/porte.py",
-})
+A_RENDRE_C1: frozenset[str] = frozenset()
 
 # C2 base et source de la commande : ``db/bases_clients/restauration_commande.py`` et ``restauration/source_commande.py``
 A_RENDRE_C2: frozenset[str] = frozenset()  # rendu par la 7b-C2 : la base et la source de la commande ne disent plus rien en dur

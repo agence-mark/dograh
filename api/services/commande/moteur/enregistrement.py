@@ -11,22 +11,22 @@ from typing import Any
 
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES, textes_de_secours as TS
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande.etat_pour_le_modele import manque_de_l_identite
-from api.services.commande.phrases_du_manque import Manque
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
-from api.services.commande.moteur.articles import _phrase_de_la_question, _reprendre_les_dits
+from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
 CLE_CONFIRMATION = "confirmation_sans_question"  # le fait accompli que le code dit, sans la question qui le suit ; gardé avec le résultat, jamais montré au modèle
 from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, poser_la_relecture, regler
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
 
-# Le journal du dit pour le numéro (n° 44) : les refus de la personne, les « Quel numéro je note ? » dits, les propositions du numéro affiché
+# Le journal du dit pour le numéro (n° 44) : les refus de la personne, les demandes de nouveau numéro dites, les propositions du numéro affiché
 CLE_NUMERO_REFUSE, CLE_NUMERO_DEMANDE, CLE_NUMERO_PROPOSE = "numero_refuse", "numero_demande", "numero_propose"
 TYPE_DE_LA_QUESTION_DU_NUMERO = "numero_affiche"  # C7 : la question « je note le numéro qui s'affiche ? », numérotée comme les autres (règle 4 des cases)
 
@@ -54,7 +54,8 @@ def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | N
         client["prenom"] = " ".join(prenom.split())[:60]
     numero = _numero_dit(telephone) if telephone else None
     if telephone and numero is None:
-        return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
+        faits = {"numero_illisible": True}
+        return _avec(_r("ARGUMENT_INVALIDE", faits, TS.numero_pas_compris(faits), "telephone"), p)
     if numero:
         client["telephone"] = numero
     return None
@@ -74,17 +75,16 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
     manque = manque_de_l_identite(p)  # G4 : le même manque que l'état montre au modèle ; ``identifier`` lui donne les faits, il ne décide pas à sa place
     if manque is Manque.TELEPHONE:
         if J.fois(p, CLE_NUMERO_REFUSE) > J.fois(p, CLE_NUMERO_DEMANDE):
-            J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, une seule fois « Quel numéro je note ? » ; si elle ne dicte rien, le numéro affiché lui est reproposé
-            return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
+            J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, la demande d'un nouveau numéro, une seule fois ; si elle ne dicte rien, le numéro affiché lui est reproposé
+            return _avec(_r("INCOMPLETE", {}, PHRASES_DITES.quel_numero_je_note(), "telephone"), p)
         if appelant.telephone_affiche:
             if J.fois(p, CLE_NUMERO_PROPOSE) <= J.fois(p, CLE_NUMERO_REFUSE):
                 J.noter(p, CLE_NUMERO_PROPOSE)  # une proposition « en cours » de plus que de refus : la question du registre est ouverte
-            question = (regles.question_numero_affiche or "").strip() or "Je note le numéro qui s'affiche, c'est bon ?"
-            return _avec(_r("INCOMPLETE", {}, question, "confirmer_numero"), p)
+            return _avec(_r("INCOMPLETE", {}, PHRASES_DITES.numero_affiche_propose(regles.question_numero_affiche), "confirmer_numero"), p)
     if manque is Manque.TELEPHONE:
-        return _avec(_r("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone"), p)
+        return _avec(_r("INCOMPLETE", {}, phrase_du_manque(Manque.TELEPHONE), "telephone"), p)
     if manque is Manque.PRENOM:
-        return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
+        return _avec(_r("INCOMPLETE", {}, phrase_du_manque(Manque.PRENOM), "prenom"), p)
     return _relire_le_numero_dicte(p, regles, appelant)
 
 
@@ -100,7 +100,7 @@ def _relire_le_numero_dicte(p: dict[str, Any], regles: Reglages, appelant: Appel
     return _avec(_r("INCOMPLETE", {}, question.replace("{numero}", numero_en_lettres(tel)), "confirmer_numero_dicte"), p)
 
 
-def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: "Appelant | None" = None) -> Resultat:
+def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: Appelant | None = None) -> Resultat:
     """DC10 : la réponse à la relecture du numéro dicté : « accepte » le garde (``numero_dicte_accepte``), « refuse » l'efface de la commande et de ce qui a été
     dit pour la fin (il se redemande, ``numero_refuse``), « autre » laisse la question posée. La réponse écrit son effet dans la commande (n° 44)."""
     if sens == "accepte":
@@ -200,7 +200,7 @@ def question_de_la_ligne_en_attente(p: dict[str, Any]) -> Resultat | None:
     if not en_attente:
         return None
     q = en_attente[0]["attente"]
-    return _avec(_r("CHOIX_OBLIGATOIRE", {"article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"]), p)
+    return _avec(choix_obligatoire({"article": en_attente[0]["nom"], "article_de_la_carte": en_attente[0]["article_nom"], "question": q}), p)
 
 
 async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, **gestes: Any) -> Resultat:
@@ -214,7 +214,8 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
         # être dit par le code, tel que retenu, avec la suite ; jamais attendu de l'étape où l'on demande le numéro.
         dicte = _numero_dit(gestes["telephone"])
         if dicte is None:
-            return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
+            faits = {"numero_illisible": True}
+            return _avec(_r("ARGUMENT_INVALIDE", faits, TS.numero_pas_compris(faits), "telephone"), p)
         if not p.get("enregistree"):
             p.setdefault("client", {})["telephone"] = dicte
     r = await _finaliser(source, p, regles, appelant, **gestes)
@@ -270,10 +271,10 @@ async def _finaliser(
             if isinstance(prochaine, datetime) and dire is not None:
                 # Lot 19, aparté d'Evan (20/11) : « le plus naturel, c'est de proposer une commande pour le prochain service qui commence à telle heure,
                 # et de faire confirmer par le client » : l'heure de la réouverture est proposée, la personne la confirme (question ``heure_proposee``).
-                phrase = f"{annoncer_la_fermeture(p, etat)} Je vous la prépare pour {await dire(prochaine)} ?".strip()
-                return _avec(_r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True, "heure_proposee": prochaine.isoformat()}, phrase, "heure_proposee"), p)
-            phrase = f"{annoncer_la_fermeture(p, etat)} Pour quel jour et à quelle heure ?".strip()
-            return _avec(_r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True}, phrase, "heure_voulue"), p)
+                faits = {**faits_fermes, "a_planifier": True, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
+                return _avec(_r("FERME_PLANIFIABLE", faits, f"{annoncer_la_fermeture(p, etat)} {TS.je_vous_la_prepare_pour(faits)}".strip(), "heure_proposee"), p)
+            faits = {**faits_fermes, "a_planifier": True}
+            return _avec(_r("FERME_PLANIFIABLE", faits, f"{annoncer_la_fermeture(p, etat)} {TS.quel_jour_et_quelle_heure(faits)}".strip(), "heure_voulue"), p)
         return _avec(_r(etat["statut"], faits_fermes, annoncer_la_fermeture(p, etat)), p)
     refus = await verifier_le_creneau(source, p)
     if refus is not None:

@@ -10,8 +10,8 @@ from datetime import datetime
 from typing import Any
 
 from api.db.bases_clients import dates_futures
-from api.services.commande import lecture, panier as P
-from api.services.mots_dits import liste_dite, montant_en_lettres
+from api.services.commande import lecture, panier as P, textes_de_secours as TS
+from api.services.mots_dits import liste_dite
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -38,7 +38,7 @@ async def question_du_mode(source: Source, p: dict[str, Any], statut: str) -> Re
         etats = [await source.etat(m) for m in source.modes]
         if etats and not any(e["ouvert"] for e in etats):
             ferme = etats[0]
-            faits.update({k: ferme.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")})
+            faits.update({k: ferme.get(k) for k in CLES_DE_L_ETAT})
             phrase = annoncer_la_fermeture(p, ferme)
             if not any(e.get("planifiee_permise") for e in etats):
                 return _r(ferme.get("statut") or "FERME", faits, phrase)
@@ -222,7 +222,9 @@ async def garder_l_heure(source: Source, p: dict[str, Any], texte: str | None) -
 # Lot 6 : l'ouverture, l'heure annoncée, l'adresse, la date
 # --------------------------------------------------------------------------- #
 
-CLES_DE_L_ETAT = ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")
+# Ce que le modèle reçoit de l'état d'un mode fermé (``reprise_dite`` : l'heure de reprise déjà dite, posée par la source). La phrase de fermeture de la source n'en fait PAS partie :
+# elle est le texte de secours du repli, jamais une valeur donnée au modèle.
+CLES_DE_L_ETAT = ("raison", "reprise", "reprise_dite", "prochaine_ouverture", "planifiee_permise")
 
 
 async def lire_l_ouverture(source: Source, mode: str | None = None) -> dict[str, Any]:
@@ -254,10 +256,10 @@ async def etat_ouverture(source: Source, p: dict[str, Any], regles: Reglages, mo
     lignes = []
     for m in modes:
         etat = await source.etat(m)
-        lignes.append({"mode": m, "libelle": source.libelles_des_modes.get(m, m), "ouvert": etat["ouvert"], **{k: etat.get(k) for k in CLES_DE_L_ETAT}, "phrase": etat.get("phrase") or ""})
+        lignes.append({"mode": m, "libelle": source.libelles_des_modes.get(m, m), "ouvert": etat["ouvert"], **{k: etat.get(k) for k in CLES_DE_L_ETAT}})
     if mode and not lignes[0]["ouvert"]:
         etat = await source.etat(modes[0])
-        return _r(etat["statut"], {"modes": lignes}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment.")
+        return _r(etat["statut"], {"modes": lignes}, etat.get("phrase") or TS.pas_de_commande_en_ce_moment({}))
     ouverts = [l["libelle"] for l in lignes if l["ouvert"]]
     return _r("OK", {"modes": lignes, "ouverts": ouverts}, "")
 
@@ -272,11 +274,12 @@ async def heure_annoncee(source: Source, p: dict[str, Any], regles: Reglages, mo
         return _avec(_r("INCOMPLETE", {"mode": choisi}, source.question_de_la_zone, "zone"), p)
     etat = await source.etat(choisi)
     if not etat["ouvert"]:
-        return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."), p)
+        return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, etat.get("phrase") or TS.pas_de_commande_en_ce_moment({})), p)
     annonce = await source.annonce(choisi, _zone_id(p))
     if annonce is None:
         return _r("INDISPONIBLE", {"mode": choisi}, "")
-    return _r("OK", {"mode": choisi, "heure_annoncee": annonce["prete"], "texte": annonce["texte"], "minutes": annonce.get("minutes")}, f"Ce sera prêt {annonce['texte']}.")
+    faits = {"mode": choisi, "heure_annoncee": annonce["prete"], "texte": annonce["texte"], "minutes": annonce.get("minutes")}
+    return _r("OK", faits, TS.ce_sera_pret(faits))
 
 
 def voie_de_l_adresse(texte: str, commune: str, code_postal: str | None) -> str:
@@ -343,7 +346,7 @@ def _minimum_de_l_adresse(faits: dict[str, Any], p: dict[str, Any]) -> str:
     minimum = ((faits.get("zone") or {}).get("minimum")) or 0
     if minimum <= 0 or not _rien_n_est_pris(p):
         return ""
-    return f"Le minimum de commande pour cette adresse est de {montant_en_lettres(minimum)}."
+    return TS.minimum_de_l_adresse(faits)
 
 
 async def resoudre_une_date(source: Source, p: dict[str, Any], regles: Reglages, texte: str | None, heure: str | None = None) -> Resultat:
@@ -376,4 +379,4 @@ def annoncer_la_fermeture(p: dict[str, Any], etat: dict[str, Any]) -> str:
     """Lot 4 (M07, appel 2649) : la phrase de la fermeture, dite UNE fois par appel (un drapeau du panier, lu partout) ; ensuite, rien."""
     if not J.une_fois(p, J.FERMETURE):  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part
         return ""
-    return etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."
+    return etat.get("phrase") or TS.pas_de_commande_en_ce_moment({})

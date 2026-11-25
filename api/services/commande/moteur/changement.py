@@ -11,7 +11,8 @@ from typing import Any
 from loguru import logger
 
 from api.services.commande import etape as ETAPE
-from api.services.commande import panier as P
+from api.services.commande import panier as P, textes_de_secours as TS
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _r, commande_de_l_appel
@@ -47,12 +48,12 @@ async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles
     return _avec(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
 
 
-def _manque_pour_remplacer(source: Source, p: dict[str, Any]) -> tuple[str, str] | None:
-    """Ce qui manque au panier changé pour être enregistré à la place de l'autre (les manques que ``enregistrer_commande`` refuserait), ou ``None``."""
+def _manque_pour_remplacer(source: Source, p: dict[str, Any]) -> str | None:
+    """Ce qui manque au panier changé pour être enregistré à la place de l'autre (les manques que ``enregistrer_commande`` refuserait) : ``articles`` ou ``adresse``, ou ``None``."""
     if not P.lignes_pretes(p) and not P.a_completer(p):
-        return "articles", "Pour tout retirer, c'est une annulation."
+        return "articles"
     if p.get("mode") in ("livraison",) and (not p.get("adresse") or not p.get("zone")):
-        return "adresse", "Quelle est l'adresse de livraison ?"
+        return "adresse"
     return None
 
 
@@ -73,7 +74,8 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
     if manque is not None:
         # Clôture, lot B4 (M2) : ce qui manque à la nouvelle commande se constate AVANT de toucher à la caisse ; avant, l'ancienne était annulée,
         # la nouvelle refusée (« incomplète ») et la commande perdue (passer en livraison sans adresse, retirer la seule ligne)
-        return remettre(_r("INCOMPLETE", {"raison": "changement_incomplet", "manque": manque[0], "numero_court": commande.get("numero_court")}, manque[1], manque[0]))
+        faits = {"raison": "changement_incomplet", "manque": manque, "numero_court": commande.get("numero_court")}
+        return remettre(_r("INCOMPLETE", faits, TS.tout_retirer_c_est_annuler(faits) if manque == "articles" else phrase_du_manque(Manque.ADRESSE_ET_COMMUNE), manque))
     if P.a_completer(p):
         return _avec(await etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part à la prise
     chiffre = await chiffrer_le_panier(source, p, regles)

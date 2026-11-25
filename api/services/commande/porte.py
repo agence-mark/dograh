@@ -41,11 +41,13 @@ from api.services.actions_communes.resultat import avec_le_fait_du_numero_affich
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
+from api.services.commande.moteur.socle import STATUTS_PERDUS
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
+from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
@@ -100,6 +102,8 @@ A_FAIRE_DE_L_HEURE = "demande-lui avec tes mots ce qui manque de l'heure voulue 
 A_FAIRE_DE_LA_REGLE = "dis-lui avec tes mots la règle de la ligne ou de l'article (faits.regle_de_la_ligne, faits.regles_a_dire)"
 A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus de la fiche, avec leurs chiffres et leurs lieux (faits.refus_de_la_fiche)"
 A_FAIRE_DE_L_ANNULATION = "demande-lui avec tes mots si elle est sûre de vouloir annuler sa commande, en disant le montant (faits.annulation_a_confirmer) ; rien n'est annulé avant son « oui »"
+A_FAIRE_DE_LA_COMMANDE_PERDUE = ("sa commande n'a pas été confirmée par la cuisine : dis-le-lui, et propose-lui de laisser un message à l'équipe pour qu'elle la rappelle ; "
+                                 "si elle dit oui, laisser_un_message avec l'objet")
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
@@ -265,6 +269,11 @@ def _faits_publics(r: Resultat) -> dict[str, Any]:
     return PC.faits_publics(r, _faits_gardes())
 
 
+def faits_vus_par_le_modele(r: Resultat) -> dict[str, Any]:
+    """Les faits d'un refus tels que le modèle les reçoit : ce que doit suffire à dire un texte de secours (``textes_de_secours``)."""
+    return _faits_publics(r)
+
+
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
     return PC.resultat_public(operation, r, _faits_gardes())
 
@@ -381,7 +390,8 @@ async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles
     if not heure and sens == "autre":
         return Resultat("OK", {"rien_ajoute": True}, "")  # file d'attente : « autre » (elle dit ses pizzas) garde la question posée
     if not heure:
-        return Resultat("INCOMPLETE", {}, "Pour quel jour et à quelle heure, alors ?", "heure_voulue")
+        faits = {"heure_manquante": True}
+        return Resultat("INCOMPLETE", faits, TS.pour_quel_jour_alors(faits), "heure_voulue")
     r = await moteur.poser_l_heure(source, p, str(heure))
     if r is not None:
         return r
@@ -1315,6 +1325,24 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     return Resultat("OK", {"annulee": True}, PHRASES_DITES.TEXTE_ANNULEE_EN_COURS)
 
 
+def _laisser_un_message(message: Any, fiche: dict[str, Any], ctx: Any, resultats: list[dict], refus: list[dict]) -> None:
+    """Le message à l'équipe, UNE fois par appel (E30) : la demande est écrite, l'issue de l'appel et sa mesure posées (lot 6, C10 ; sens repris de
+    test_message_et_redites_m102_m113 et test_restauration_service_client, comme l'ancienne action ``laisser_un_message``). Un second message est refusé."""
+    from api.services.service_client.action import _ecrire_la_demande
+
+    if not (isinstance(message, dict) and str(message.get("objet") or "").strip()):
+        return
+    if fiche.get(CLE_MESSAGE_LAISSE):
+        refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], reste="un seul message par appel"))
+    elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
+        fiche[CLE_MESSAGE_LAISSE] = True
+        resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})
+        poser_l_issue(ctx, "message_a_transmettre")
+        from api.services.integrations.connectors import mesures as mesures_des_connecteurs
+
+        mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
+
+
 async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any) -> dict[str, Any]:
     """La fiche du service (lot 3, étape 9) : retrouver une commande d'un appel précédent (par le numéro qui appelle, ou par un numéro dit ;
     un téléphone dicté seulement avec le numéro de la commande, D60 ; jamais un numéro qu'elle n'a pas dit, B7 point 8) et laisser un message à
@@ -1322,7 +1350,6 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     from api.services.integrations.connectors.actions.service import (
         retrouver_par_telephone_dicte_exige_le_numero,
     )
-    from api.services.service_client.action import _ecrire_la_demande
 
     entier = B.fiche_illisible(fiche_du_modele)
     if entier is not None:
@@ -1334,6 +1361,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     refus: list[dict] = []
     a_preciser: dict[str, str] = {}
     introuvable = ""
+    perdue = ""  # une commande refusée ou en échec : l'offre du message, tenue par le modèle
     demande = fiche_du_modele.get("retrouver_une_commande_enregistree")
     if isinstance(demande, dict):
         numero_dit = str(demande.get("numero_de_commande") or "").strip() or None
@@ -1362,27 +1390,17 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
             if r.statut == "OK" and r.faits.get("statut"):
                 fiche[CLE_COMMANDE_RETROUVEE] = r.faits["statut"]
+                if r.faits["statut"] in STATUTS_PERDUS:
+                    perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
             if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
                 a_preciser = {"manque": r.manque or "reference", "texte_a_dire": r.suggestion}
             elif r.statut == "INTROUVABLE":
                 # P4 : le numéro de l'appel est connu et rien n'y est trouvé : le dire, puis chercher autrement ; jamais redemander ce numéro
                 introuvable = "dis-lui qu'il n'y a pas de commande à ce numéro ; propose de chercher autrement (le numéro de la commande, ou un autre numéro) ; ne redemande pas le numéro de l'appel"
-    message = fiche_du_modele.get("laisser_un_message")
-    if isinstance(message, dict) and str(message.get("objet") or "").strip():
-        if fiche.get(CLE_MESSAGE_LAISSE):
-            refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], reste="un seul message par appel"))
-        elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
-            fiche[CLE_MESSAGE_LAISSE] = True
-            resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})
-            # Lot 6 (C10 ; sens repris de test_message_et_redites_m102_m113 et test_restauration_service_client) : l'issue de l'appel posée par
-            # le message laissé, et sa mesure pour le tableau de bord, comme l'ancienne action ``laisser_un_message``.
-            poser_l_issue(ctx, "message_a_transmettre")
-            from api.services.integrations.connectors import mesures as mesures_des_connecteurs
-
-            mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
+    _laisser_un_message(fiche_du_modele.get("laisser_un_message"), fiche, ctx, resultats, refus)
     statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else ("A_PRECISER" if a_preciser else ("INTROUVABLE" if introuvable else "FAIT")))
     premier = refus[0] if refus else None
-    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or None),
+    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or perdue or None),
                      plus={**({"refus": refus} if refus else {}), **a_preciser}).vers_json()
 
 
@@ -1556,9 +1574,11 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
 
 
-# Repli quand le modèle n'a pas la main : le § 2 ne le nomme pas, ces deux phrases sont dans ``outils/phrases-a-rendre-au-modele.md`` (à trancher).
-PHRASE_PANNE_COMMANDE_JOINTE = "Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle."
-PHRASE_PANNE_SANS_COMMANDE = "Je n'arrive pas à faire cela pour le moment."
+# La panne pendant la fiche : le modèle la dit avec ses mots (la consigne ``a_faire``, le fait ``transmise_a_l_equipe``) ; s'il se tait deux fois, le repli dit le texte de secours
+# (``textes_de_secours.panne_de_la_porte``, posé en fait bloquant du tour). Le code ne la dit jamais seul.
+A_FAIRE_DE_LA_PANNE_TRANSMISE = ("le moteur est en panne : dis-lui avec tes mots que tu n'arrives pas à enregistrer sa commande pour le moment, "
+                                 "qu'elle est transmise à l'équipe et que l'équipe la rappelle")
+A_FAIRE_DE_LA_PANNE = "le moteur est en panne : dis-lui avec tes mots que tu n'arrives pas à faire cela pour le moment, sans promettre de rappel ni de transmission à l'équipe"
 
 
 async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
@@ -1615,12 +1635,16 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
         if transmise:
             poser_l_issue(ctx, "message_a_transmettre")
+        faits_de_la_panne = {"indisponible": True, "transmise_a_l_equipe": transmise}
+        a_faire = None
         if action.nom == "fiche" and isinstance(ctx.fiche, dict):
-            # V10 (lot 19 bis) : la panne est dite par le CODE (jamais une phrase improvisée au second passage) ; elle ne promet un rappel que si la commande a bien été jointe à l'équipe
-            ctx.fiche[CLE_TEXTES_DU_CODE] = {"avant": PHRASE_PANNE_COMMANDE_JOINTE if transmise else PHRASE_PANNE_SANS_COMMANDE}
+            # R = A : le modèle dit la panne avec ses mots ; le texte de secours (``TS.panne_de_la_porte``) n'est dit que par le repli, s'il se tait deux fois. Il ne promet un rappel que si
+            # la commande a bien été jointe à l'équipe (le fait ``transmise_a_l_equipe``, la même consigne).
+            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne))
+            a_faire = A_FAIRE_DE_LA_PANNE_TRANSMISE if transmise else A_FAIRE_DE_LA_PANNE
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
         faites = getattr(erreur, "cases_executees", None) if action.nom == "fiche" else None
         # RC13 : une case a lâché après d'autres : le panier a pu changer, le retour dit lesquelles sont faites (jamais un panier à moitié changé que personne ne décrit)
         plus = {"fiche_appliquee": bool(faites), "cases_executees": faites} if faites else {}
-        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}, plus=plus).vers_json()
+        return Enveloppe("REJETEE", raison="rien_a_faire", faits=faits_de_la_panne, a_faire=a_faire, plus=plus).vers_json()
     return Enveloppe("REJETEE", raison="operation_inconnue").vers_json()

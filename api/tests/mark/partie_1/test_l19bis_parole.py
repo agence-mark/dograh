@@ -455,11 +455,14 @@ async def test_plafond_titres_dit_et_partage_possible(essai_de):
     assert e.p.get("enregistree"), e.retours[-1]
 
 
-async def test_panne_a_l_enregistrement_phrase_du_code(essai_de, monkeypatch):
-    """V10 : panne en pleine commande : le retour est ``REJETEE / indisponible`` ET le code DIT sa phrase (la commande part à l'équipe, qui rappelle) ; avant, aucune phrase : le modèle improvisait au
-    second passage. Sans commande à joindre, une phrase qui ne promet aucun rappel."""
+async def test_panne_a_l_enregistrement_le_modele_la_dit_et_le_code_garde_son_secours(essai_de, monkeypatch):
+    """V10, repris en R = A (plan § 2 : le repli de panne n'est pas une exception, ``test_p1f_lot1_une_source.py:197`` ; refus 3, « phrase de panne ») : panne en pleine commande : le retour est
+    ``REJETEE / indisponible`` avec les faits et une consigne ; le code ne dit plus sa phrase seul (le modèle parle). Le texte de secours est posé en fait bloquant du tour : le repli le dit si le
+    modèle se tait deux fois. La consigne ne promet la transmission que si ``transmise_a_l_equipe``."""
     from api.services.actions_communes import parole as PAROLE
+    from api.services.actions_communes.repli import phrase_du_fait_bloquant
     from api.services.commande import porte
+    from api.services.commande import textes_de_secours as TS
     from api.services.workflow import parole_de_la_fiche as PF
 
     e = await brique(essai_de, "INF1")
@@ -471,13 +474,17 @@ async def test_panne_a_l_enregistrement_phrase_du_code(essai_de, monkeypatch):
     monkeypatch.setattr(porte, "executer_la_fiche", panne)
     r = await e.tour("et une salade", ajouter=[{"article": "salade verte", "quantite": 1}])
     assert r["faits"] == {"indisponible": True, "transmise_a_l_equipe": True}, r
+    assert r["a_faire"] == porte.A_FAIRE_DE_LA_PANNE_TRANSMISE and "transmise à l'équipe" in r["a_faire"], r
+    assert phrase_du_fait_bloquant(e.fiche_de_l_appel) == TS.panne_avec_la_commande_transmise({}) and "rappelle" in TS.panne_avec_la_commande_transmise({})
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est noté."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == porte.PHRASE_PANNE_COMMANDE_JOINTE, d
-    assert "équipe" in d.a_dire and "rappelle" in d.a_dire
+    assert d.mode != PAROLE.A_DIRE_SEUL, d  # le modèle parle : le code ne dit pas la panne seul
     vide = await brique(essai_de, "INF1")
     r = await vide.tour("la carte ?", ajouter=[{"article": "salade verte", "quantite": 1}])
+    assert r["faits"] == {"indisponible": True, "transmise_a_l_equipe": False}, r
+    assert r["a_faire"] == porte.A_FAIRE_DE_LA_PANNE and "transmi" not in r["a_faire"].replace("sans promettre de rappel ni de transmission", ""), r
+    assert phrase_du_fait_bloquant(vide.fiche_de_l_appel) == TS.panne_sans_commande({}) and "rappel" not in TS.panne_sans_commande({})
     d = PF.decider_apres_la_fiche(vide.fiche_de_l_appel, r, {"a_dire": "C'est noté."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == porte.PHRASE_PANNE_SANS_COMMANDE and "rappel" not in d.a_dire, d
+    assert d.mode != PAROLE.A_DIRE_SEUL, d
 
 
 async def test_oui_ecrit_en_texte_ne_cherche_pas_un_article(essai_de):

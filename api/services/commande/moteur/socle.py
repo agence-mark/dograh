@@ -151,7 +151,7 @@ def _racines(texte: str) -> set[str]:
 # retrouver_commande : où en est une commande déjà passée (lot 7, E-15, E-36)
 # --------------------------------------------------------------------------- #
 
-_PERDUES = frozenset({"refusee", "echec"})
+STATUTS_PERDUS = frozenset({"refusee", "echec"})  # la commande n'est jamais passée à la préparation : lue par le suivi (``lecture``) et par la porte
 
 
 # --------------------------------------------------------------------------- #

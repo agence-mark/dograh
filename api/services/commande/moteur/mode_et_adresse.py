@@ -7,11 +7,12 @@ import copy
 from datetime import datetime
 from typing import Any
 
-from api.services.commande import panier as P
+from api.services.commande import panier as P, textes_de_secours as TS
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.articles import _reprendre_les_dits
 from api.services.commande.moteur.prealables import (
+    CLES_DE_L_ETAT,
     _minimum_de_l_adresse,
     _mode_dit,
     _rien_n_est_pris,
@@ -40,7 +41,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     a_planifier = not etat["ouvert"] and bool(etat.get("planifiee_permise"))
     if not etat["ouvert"] and not a_planifier:
         return _avec(
-            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}}, annoncer_la_fermeture(p, etat)),
+            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, annoncer_la_fermeture(p, etat)),
             p,
         )
     await garder_l_heure(source, p, heure_voulue)
@@ -50,20 +51,23 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     # Fermé mais planifiable : le résultat dit la fermeture et propose le créneau ; la question en cours (zone, articles) suit, sinon l'heure.
     # Appel 2610 : la fermeture déjà dite avec la question du mode ne se redit pas.
     fermeture = annoncer_la_fermeture(p, etat)
+    heure_voulue_dite = None
     dire = getattr(source, "quand_dit", None)
     if p.get("heure_voulue") and dire:
         # Appel 2566 : l'heure est déjà dite et gardée, c'est déjà l'accord pour plus tard ; la proposition de « plus tard » n'est pas refaite (le modèle la
         # tournait en « est-ce que cela vous convient ? »). Le résultat dit pour quand la commande est prise ; le créneau se vérifie à ``finaliser``.
-        fermeture = f"Commande pour {await dire(datetime.fromisoformat(p['heure_voulue']))}."
-    faits = {**r.faits, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, "a_planifier": True, "fermeture": fermeture}
+        heure_voulue_dite = await dire(datetime.fromisoformat(p["heure_voulue"]))
+    faits = {**r.faits, **{k: etat.get(k) for k in CLES_DE_L_ETAT}, "a_planifier": True, **({"heure_voulue_dite": heure_voulue_dite} if heure_voulue_dite else {})}
+    if heure_voulue_dite:
+        fermeture = TS.commande_pour(faits)
     prochaine = etat.get("prochaine_ouverture")
     if not p.get("heure_voulue") and not p.get("heure_proposee_faite") and isinstance(prochaine, datetime) and dire is not None:
         # Evan, 21/11 : « il faut lui indiquer dès le début de l'appel que le magasin est fermé et lui demander si elle veut planifier une commande pour
         # l'ouverture à 18 h ». La proposition est LA question du début (``heure_proposee``) ; ce qui manque ensuite (les articles, l'adresse) suit sa réponse.
         p["heure_proposee_faite"] = True
-        phrase = f"{fermeture} Voulez-vous que je prépare votre commande pour {await dire(prochaine)} ?".strip()
-        return _avec(_r("FERME_PLANIFIABLE", {**faits, "heure_proposee": prochaine.isoformat()}, phrase, "heure_proposee"), p)
-    suite = r.suggestion if r.manque else ("" if p.get("heure_voulue") else "Pour quel jour et à quelle heure ?")
+        faits = {**faits, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
+        return _avec(_r("FERME_PLANIFIABLE", faits, f"{fermeture} {TS.preparer_pour_l_ouverture(faits)}".strip(), "heure_proposee"), p)
+    suite = r.suggestion if r.manque else ("" if p.get("heure_voulue") else TS.quel_jour_et_quelle_heure(faits))
     phrase = fermeture + (f" {suite}" if suite else "")
     return _avec(_r("FERME_PLANIFIABLE", faits, phrase.strip(), r.manque), p)
 

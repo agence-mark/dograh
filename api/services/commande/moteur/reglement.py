@@ -11,7 +11,8 @@ from typing import Any
 
 from api.schemas.apres_appel import numero_e164
 from api.services.commande import etape as ETAPE
-from api.services.commande import lecture, panier as P
+from api.services.commande import lecture, panier as P, phrases_dites_par_le_code as PHRASES_DITES, textes_de_secours as TS
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.mots_dits import liste_dite_et, montant_en_lettres, nombre_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
@@ -70,7 +71,7 @@ def _ce_qui_a_change(avant: list[dict[str, Any]], apres: list[dict[str, Any]]) -
             elif _cle_lue(a) != _cle_lue(n):
                 dits.append(f"c'est changé : {n['nom']}")
             elif a["quantite"] != n["quantite"]:
-                dits.append(f"{n['nom']} passe à {nombre_en_lettres(n['quantite'])}")
+                dits.append(PHRASES_DITES.ligne_passe_a(nom=n["nom"], quantite=nombre_en_lettres(n["quantite"])))
         nouveaux_n = {n["n"] for n in apres}
         dits += [f"on retire {a['nom']}" for a in avant if a["n"] not in nouveaux_n]
         return dits
@@ -82,7 +83,7 @@ def _ce_qui_a_change(avant: list[dict[str, Any]], apres: list[dict[str, Any]]) -
         if a is None:
             dits.append(f"on ajoute {_ligne_dite(n)}")
         elif a["quantite"] != n["quantite"]:
-            dits.append(f"{n['nom']} passe à {nombre_en_lettres(n['quantite'])}")
+            dits.append(PHRASES_DITES.ligne_passe_a(nom=n["nom"], quantite=nombre_en_lettres(n["quantite"])))
     for cle, a in anciens.items():
         if cle not in nouveaux:
             dits.append(f"on retire {a['nom']}")
@@ -111,21 +112,21 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
     moyen, moyen_reste = le_seul_moyen_de_sa_famille(brut.get("moyen"), acceptes), le_seul_moyen_de_sa_famille(brut.get("moyen_reste"), acceptes)
     if not moyen:
         return None, _r(
-            "INCOMPLETE", {"moyens": [source.libelles_des_moyens.get(m, m) for m in acceptes], "acceptes": list(acceptes)}, "Vous réglez comment ?", "paiement"
+            "INCOMPLETE", {"moyens": [source.libelles_des_moyens.get(m, m) for m in acceptes], "acceptes": list(acceptes)}, phrase_du_manque(Manque.PAIEMENT), "paiement"
         )
     for m in (moyen, moyen_reste):
         if m and m not in acceptes:
-            return None, _r(
-                "MOYEN_NON_ACCEPTE", {"moyen": m, "acceptes": list(acceptes)},
-                "Ce moyen de paiement n'est pas accepté. On prend : " + liste_dite_et([source.libelles_des_moyens.get(a, a) for a in acceptes]) + ".",
-            )
+            faits = {"moyen": m, "acceptes": list(acceptes), "acceptes_dits": [source.libelles_des_moyens.get(a, a) for a in acceptes]}
+            return None, _r("MOYEN_NON_ACCEPTE", faits, TS.moyen_non_accepte(faits))
     part = brut.get("part")
     if part is None or part >= total:
         moyens = [{"moyen": moyen, "montant": total}]
     elif part <= 0:
-        return None, _r("ARGUMENT_INVALIDE", {}, "Quel montant exactement ?", "paiement")
+        faits = {"montant_illisible": True}
+        return None, _r("ARGUMENT_INVALIDE", faits, TS.quel_montant(faits), "paiement")
     elif not moyen_reste:
-        return None, _r("INCOMPLETE", {"reste": total - part}, "Et le reste, vous le réglez comment ?", "paiement_reste")
+        faits = {"reste": total - part}
+        return None, _r("INCOMPLETE", faits, TS.et_le_reste(faits), "paiement_reste")
     else:
         moyens = [{"moyen": moyen, "montant": part}, {"moyen": moyen_reste, "montant": total - part}]
     paiement: dict[str, Any] = {"moyens": moyens, "rendu_sur": None, "monnaie": 0}
@@ -134,9 +135,11 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
         # Un billet n'a de sens que pour le règlement qui se paie en main ; la monnaie est calculée sur ce qui est payé avec lui.
         cible = next((m for m in moyens if m["moyen"] == brut.get("moyen_du_billet", "especes")), None)
         if cible is None:
-            return None, _r("ARGUMENT_INVALIDE", {"moyen_du_billet": brut.get("moyen_du_billet", "especes")}, "Sur quel règlement le billet ?", "paiement")
+            faits = {"moyen_du_billet": brut.get("moyen_du_billet", "especes")}
+            return None, _r("ARGUMENT_INVALIDE", faits, TS.sur_quel_reglement(faits), "paiement")
         if rendu_sur < cible["montant"]:
-            return None, _r("ARGUMENT_INVALIDE", {"montant": cible["montant"], "billet": rendu_sur}, "Le billet ne couvre pas ce règlement.", "paiement")
+            faits = {"montant": cible["montant"], "billet": rendu_sur}
+            return None, _r("ARGUMENT_INVALIDE", faits, TS.billet_insuffisant(faits), "paiement")
         paiement["rendu_sur"], paiement["monnaie"] = rendu_sur, rendu_sur - cible["montant"]
     return paiement, None
 
@@ -146,7 +149,7 @@ def dire_le_rendu_de_monnaie(paiement: dict[str, Any]) -> str:
     monnaie = int(paiement.get("monnaie") or 0)
     if monnaie <= 0 or not paiement.get("rendu_sur"):
         return ""
-    return f"Sur votre billet de {montant_en_lettres(paiement['rendu_sur'])}, on vous rendra {montant_en_lettres(monnaie)}."
+    return PHRASES_DITES.rendu_de_monnaie(billet=montant_en_lettres(paiement["rendu_sur"]), monnaie=montant_en_lettres(monnaie))
 
 
 def _relecture_deja_dite(p: dict[str, Any], total: int) -> Resultat:
@@ -167,22 +170,22 @@ def poser_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat) -> 
         changes = _ce_qui_a_change(avant, maintenant)
         if p.get("heure_voulue_dite") and p.get("heure_voulue_dite") != p.get("derniere_lecture_heure"):
             changes.append(f"c'est pour {p['heure_voulue_dite']}")  # B3 (RC10) : l'heure fait partie de la relecture ; changée, elle se redit
-        phrase = (_majuscule(liste_dite_et(changes)) + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
+        phrase = PHRASES_DITES.relecture_apres_changement(changes=_majuscule(liste_dite_et(changes)) + ". " if changes else "", total=montant_en_lettres(total))
     else:
         lignes = P.lignes_pretes(p)
         if not any(r.get("mecanisme") == "x_achetes_y_offert" for r in chiffre.faits.get("remises") or []):
             # la ligne née de l'offre n'est « offerte » que tant que l'offre vaut (une pizza retirée : elle redevient payante, et se relit ainsi)
             lignes = [{**l, "offerte_dite": False} for l in lignes]
-        phrase = f"Je vous relis : {_phrase_des_lignes(lignes)}"
+        corps = _phrase_des_lignes(lignes)
         if p["mode"]:
-            phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
+            corps += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
         if p.get("heure_voulue_dite"):
-            phrase += f", pour {p['heure_voulue_dite']}"
+            corps += f", pour {p['heure_voulue_dite']}"
         offerts = [] if p.get("presse") else chiffre.faits.get("offerts") or []
         if offerts:
-            phrase += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
+            corps += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
         # L06-41 (``banc-b2/guichet_candidat.py`` ``recap``) : la relecture ne nomme pas la remise ; le total la compte, la ligne offerte le dit.
-        phrase += f". Cela fait {montant_en_lettres(total)}. C'est bon ?"
+        phrase = PHRASES_DITES.relecture_complete(corps=corps, total=montant_en_lettres(total))
     ancienne = p.get("relecture") or {}
     # B3 (M5, C3 b, RC10) : un accord vaut pour la relecture que la personne a entendue ; une relecture qui repart (l'heure, un article changés
     # après le « oui ») se pose et se dit, jamais validée en silence par le « oui » suivant
@@ -207,7 +210,8 @@ async def regler(
         brut = {"moyen": moyen, "part": _centimes(part) if part is not None else None, "moyen_reste": moyen_reste,
                 "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
         if (part is not None and brut["part"] is None) or (rendu_sur is not None and brut["rendu_sur"] is None):
-            return None, _avec(_r("ARGUMENT_INVALIDE", {}, "Quel montant exactement ?", "paiement"), p)
+            faits = {"montant_illisible": True}
+            return None, _avec(_r("ARGUMENT_INVALIDE", faits, TS.quel_montant(faits), "paiement"), p)
         p["paiement"] = {**(p.get("paiement") or {}), **{k: v for k, v in brut.items() if v is not None}}
     paiement, refus = await _le_reglement(source, p, total, p.get("paiement") or {})
     if refus is not None:
