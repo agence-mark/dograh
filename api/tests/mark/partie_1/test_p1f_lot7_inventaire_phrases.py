@@ -71,7 +71,6 @@ A_RENDRE_C1 = frozenset({
 # C2 base et source de la commande : ``db/bases_clients/restauration_commande.py`` et ``restauration/source_commande.py``
 A_RENDRE_C2 = frozenset({
     "db/bases_clients/restauration_commande.py",
-    "services/restauration/source_commande.py",
 })
 
 # C3 réservation et allergie : ``services/reservation/*``, ``db/bases_clients/restauration_reservation.py``, ``restauration/carte_et_allergenes/*``

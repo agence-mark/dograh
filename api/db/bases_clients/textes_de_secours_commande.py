@@ -64,3 +64,16 @@ def fermeture(etat: Faits) -> str:
     if etat["statut"] == "PAUSE_TYPE":
         return "Nous sommes en pause pour le moment." + reprise + propose
     return "Nous sommes fermés pour le moment." + reprise + propose
+
+
+# --------------------------------------------------------------------------- #
+# Un message demandé par l'appelant (``SourceClasseur.envoyer``)
+# --------------------------------------------------------------------------- #
+
+
+def envoi_indisponible(faits: Faits) -> str:
+    return "Je ne peux pas envoyer de message pour le moment."
+
+
+def envoye(faits: Faits) -> str:
+    return "C'est envoyé."

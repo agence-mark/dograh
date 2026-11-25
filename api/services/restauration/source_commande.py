@@ -54,6 +54,7 @@ from api.db.bases_clients.restauration_zone import (
 from api.services.actions_communes.moyens_de_paiement import LIBELLES_DITS, MOYEN_DE_BASE_SELON_LA_FICHE, RESERVES_AU_MODE
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande, voir_un_article  # noqa: F401  # branchent l'allergie et la lecture d'un article sur le moteur commun (``moteur.socle.METIER``)
 from api.services.commande.parole import heure_en_lettres
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
 from api.services.restauration.envois_et_sms import envois
@@ -196,7 +197,7 @@ class SourceClasseur:
     champs_du_greffier = {"note": ("allergie", "consigne_livreur")}  # Evan (18/11) : la consigne pour le livreur part dans la note de la commande
     modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
-    question_de_la_zone = "Quelle est l'adresse de livraison ?"
+    question_de_la_zone = phrase_du_manque(Manque.ADRESSE_ET_COMMUNE)
     moyens_reserves_au_mode = RESERVES_AU_MODE  # M90 : le TPE à la porte n'existe qu'en livraison
     libelles_des_moyens = LIBELLES_DITS
 
@@ -412,15 +413,16 @@ class SourceClasseur:
 
     async def envoyer(self, quoi: str, telephone: str | None, cle_unique: str, organisation: int | None) -> Resultat:
         """Un message demandé par l'appelant (la carte, le lien d'avis) : ``OK`` s'il est parti, ``DEJA_FAIT`` s'il l'a déjà été dans cet appel, ``REFUSEE`` s'il ne peut
-        pas partir (numéro sans SMS, pas de compte), ``INDISPONIBLE`` s'il est éteint (le défaut), sans mobile ou si le fournisseur est en panne (``panne``)."""
+        pas partir (numéro sans SMS, pas de compte), ``INDISPONIBLE`` s'il est éteint (le défaut) ou sans mobile ou si le fournisseur est en panne (``panne``)."""
         if quoi not in envois.A_LA_DEMANDE:
             return Resultat("ARGUMENT_INVALIDE", {"possibles": list(envois.A_LA_DEMANDE)}, "", "quoi")
         envoi_allume = await envois.liaison_db.envoi_actif(self.c, self.lieu.etablissement_id, "sms", quoi)
         if envoi_allume is None or not telephone:
-            return Resultat("INDISPONIBLE", {}, "Je ne peux pas envoyer de message pour le moment.")
+            return Resultat("INDISPONIBLE", {}, TSC.envoi_indisponible({}))
         envoi = await envois.envoyer_et_dire_pourquoi(self.c, organisation, self.lieu.etablissement_id, quoi, telephone, {}, cle_unique)
         if envoi is Envoi.PARTI:
-            return Resultat("OK", {"envoye": True}, "C'est envoyé.")
+            faits = {"envoye": True}
+            return Resultat("OK", faits, TSC.envoye(faits))
         # trois raisons que le modèle ne doit pas confondre : la personne l'a déjà reçu, le message ne peut pas lui parvenir (pas de mobile, pas de compte),
         # ou le fournisseur est en panne (on pourra réessayer)
         if envoi is Envoi.PANNE:
