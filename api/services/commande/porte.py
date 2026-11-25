@@ -1149,8 +1149,8 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     attente = moteur.question_de_la_ligne_en_attente(p)
     posee = RQ.choisir(p, tour, [_question_de(attente, 0, tour, p)] if attente is not None else [])
     avant = f.question_avant
-    # née dans ce tour : posée maintenant pour la première fois, ou reposée avec un autre texte (une relecture qui repart) ; dite par le code si c'est sa forme
-    return posee if posee is not None and (not avant or posee["id"] != avant.get("id") or posee.get("texte") != avant.get("texte") or posee.get("nee_au_tour") == tour) else None
+    # née dans ce tour : posée maintenant pour la première fois, ou reposée avec un autre objet (une relecture qui repart) ; dite par le code si c'est sa forme
+    return posee if posee is not None and (not avant or CONV.identite_de_la_question(posee) != CONV.identite_de_la_question(avant) or posee.get("nee_au_tour") == tour) else None
 
 
 def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[int, str]]:

@@ -142,14 +142,14 @@ def faits_du_refus(retour: Any) -> list[Any]:
 
 
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
-    """L'état du dossier tel que la personne le vit (sans la tenue interne), et la question posée (numéro, texte) : deux valeurs égales avant et
+    """L'état du dossier tel que la personne le vit (sans la tenue interne), et la question posée (son identité par la structure, jamais son texte) : deux valeurs égales avant et
     après une fiche = elle n'a rien changé."""
     q = CONV.question_de(dossier) or {}
     vue = {k: v for k, v in dossier.items() if k not in COMPTEURS_DE_LA_COMMANDE and k != CONV.CLE}
     vue[J.CLE] = (dossier.get(CONV.CLE) or {}).get(J.CLE) or {}  # ce qui est dit compte : une recherche vaine de plus est un effet, même rangé sous la conversation (R1)
     if isinstance(vue.get("lignes"), list):
         vue["lignes"] = [{k: v for k, v in l.items() if k != "n"} if isinstance(l, dict) else l for l in vue["lignes"]]  # le numéro d'une ligne est de la tenue : vider puis redire la même ne change rien
-    return copy.deepcopy({**vue, "question": (q.get("id"), q.get("texte"))})
+    return copy.deepcopy({**vue, "question": CONV.identite_de_la_question(q)})
 
 
 def _articles_par_ref(lignes: Any) -> dict[str, int]:
@@ -176,7 +176,7 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], va
             posees.append((C.RIEN_CHANGE, A_FAIRE_RIEN_CHANGE))
         q = CONV.question_de(dossier) or {}
         bloquant = (retour.get("faits") or {}).get("fait_bloquant")
-        signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
+        signature = [json.dumps(CONV.identite_de_la_question(q), default=str), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
         memes_lignes = _articles_par_ref((vu_avant or {}).get("lignes")) == _articles_par_ref(ce_qui_se_voit(dossier).get("lignes"))  # la commande n'avance pas : mêmes articles, mêmes quantités
         sortie = J.boucle(dossier, signature, memes_lignes, seuil_de_sortie)  # RC6 : la même chose ``seuil_de_sortie`` fois sans issue : la sortie, dite par ``une_consigne`` d'après ``Du.boucle``
     except Exception:  # noqa: BLE001

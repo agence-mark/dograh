@@ -407,3 +407,35 @@ def test_c9_le_manque_du_constat_est_une_valeur_fermee_jamais_une_phrase():
     fiche = _fiche()
     P.du_dossier(fiche)["mode"] = "emporter"
     assert valeur_du_manque(P.du_dossier(fiche)) == "les articles"
+
+
+# --------------------------------------------------------------------------- commit 10 : l'identité d'une question est sa structure, plus son texte
+
+
+def _variante(objet: str, texte: str = QUESTION_DU_CODE) -> dict:
+    return {"id": "Q-1", "type": "variante", "texte": texte, "article_en_question": objet}
+
+
+def test_c10_meme_texte_autre_objet_deux_questions():
+    """Même numéro, même texte de secours, autre article : ce sont deux questions (avant : une seule, le texte les confondait)."""
+    assert CONV.identite_de_la_question(_variante("Regina")) != CONV.identite_de_la_question(_variante("Margherita"))
+
+
+def test_c10_texte_change_meme_objet_meme_question():
+    """Le texte de secours disparaît en C7 : le changer ne crée pas une autre question."""
+    assert CONV.identite_de_la_question(_variante("Regina")) == CONV.identite_de_la_question(_variante("Regina", "Une taille pour la Regina ?"))
+
+
+def test_c10_ce_que_la_personne_vit_se_lit_sur_la_structure_de_la_question():
+    from api.services.actions_communes import du as DU
+
+    def vu(q):
+        return DU.ce_qui_se_voit({"lignes": [], CONV.CLE: {CONV.CLE_QUESTION: q}})["question"]
+
+    assert vu(_variante("Regina")) == vu(_variante("Regina", "Autre texte ?")) and vu(_variante("Regina")) != vu(_variante("Margherita"))
+
+
+def test_c10_une_relecture_reposee_avec_un_autre_texte_reste_une_autre_question():
+    """Exception jusqu'à C6 : la relecture est dite par le code, son texte est son objet."""
+    relecture = {"id": "Q-2", "type": "relecture", "texte": "Je vous relis : une Regina. C'est bon ?"}
+    assert CONV.identite_de_la_question(relecture) != CONV.identite_de_la_question({**relecture, "texte": "Je vous relis : deux Regina. C'est bon ?"})
