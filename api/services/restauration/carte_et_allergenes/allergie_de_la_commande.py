@@ -289,7 +289,7 @@ async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -
         etiquetes = regime_d_un_article.articles_etiquetes((await lire(p.get("mode") or source.modes[0])).get("articles") or [], code)
     restaurant = code == halal.CODE and bool(info.get("halal_restaurant"))
     if etiquetes:
-        faits = {**faits, "renseigne": True, "articles": etiquetes, **({"restaurant": True} if restaurant else {})}
+        faits = {**faits, "renseigne": True, "articles": etiquetes, "autres_a_confirmer": True, **({"restaurant": True} if restaurant else {})}  # F8 : le reste de la carte n'est pas étiqueté
         return _r("OK", faits, TS.regime_du_catalogue(faits))
     if restaurant:
         faits = {**faits, "renseigne": True, "restaurant": True}
@@ -403,7 +403,7 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
         return _r("OK", faits, TS.signalement_dit(faits))
     if inconnues:
-        faits = {**faits, "signalement": "inconnu"}
+        faits = {**faits, "signalement": "inconnu", "options_a_confirmer": True}  # F7 : « ça dépend du choix » (le texte de secours le disait seul)
     else:
         faits = {**faits, "signalement": "absent_de_la_fiche", "libelle": libelle}
     return _r("OK", faits, TS.signalement_dit(faits))

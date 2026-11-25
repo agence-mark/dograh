@@ -405,7 +405,7 @@ CAS_PURS: list[Cas] = [
         pareilles("halal"), "restaurant"),
     Cas("regime_du_catalogue", TSA.regime_du_catalogue, _regime_du_catalogue, "L",
         [("Margherita", "Margherita"), ("Veggie", "Veggie"), ("autres_a_confirmer", "Pour les autres")], "renseigne",
-        manque="F8 : « pour les autres, je ne peux pas le garantir » n'est dit nulle part dans les faits"),
+        ),
 ]
 
 CAS_DE_LA_SOURCE: list[Cas] = [
@@ -467,7 +467,7 @@ CAS_DE_L_ALLERGIE: list[Cas] = [
     Cas("hors_liste", TSA.signalement_dit, _allergie(signalements=["lait"], mot="kiwi"), "L", [], "hors_liste"),
     Cas("sans_fiche", TSA.signalement_dit, _allergie(signalements=None), "L", [], "sans_fiche"),
     Cas("inconnu_selon_le_choix", TSA.signalement_dit, _allergie(signalements=[], options=[option("sauce maison", None)]), "L", [("options_a_confirmer", "Ça dépend du choix")], "inconnu",
-        manque="F7 : « ça dépend du choix » n'est dit nulle part dans les faits"),
+        ),
     Cas("selon_option", TSA.signalement_dit, _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce maison", None)]), "L",
         [("sauce blanche", "sauce blanche"), ("autres_a_confirmer", "Pour les autres")], "selon_option"),
     Cas("liste_des_allergenes", TSA.signalement_dit, _allergie(signalements=["lait", "gluten"], mot="allergènes"), "L", [("du lait", "du lait"), ("du gluten", "du gluten")], "liste"),
