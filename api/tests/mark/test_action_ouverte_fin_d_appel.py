@@ -79,3 +79,43 @@ def test_l_interrupteur_de_l_agent_eteint_la_fin_passe():
 def test_aucun_mot_de_metier_dans_le_mecanisme_de_l_action_ouverte():
     corps = (Path(fin.__file__)).read_text(encoding="utf-8")
     assert not re.search(r"commande|panier|r[ée]servation|restaura|pizza|caisse", corps, re.IGNORECASE)
+
+
+# --------------------------------------------------------------------------- G36 (lot 7b) : le mode seul est ouvert pour le retour d'un détour, pas pour la fin
+
+def _moteur_a_porte(fiche: dict):
+    """Un moteur dont l'étape a une sortie de fin réglée ``fermee_si_action_ouverte``."""
+    porte = SimpleNamespace(data=SimpleNamespace(fermee_si_action_ouverte=True), get_function_name=lambda: "fin")
+    moteur = _moteur(fiche)
+    moteur.active_agent.current_node = SimpleNamespace(out_edges=[porte])
+    return moteur
+
+
+def test_un_mode_choisi_sans_article_ne_retient_ni_la_porte_de_fin_ni_la_fin():
+    """G36, option B : « à emporter » puis « au revoir » : la sortie de fin reste ouverte et la fin passe, comme avant (rien d'autre ne change à l'oreille)."""
+    from api.services.workflow import portes_fermees
+
+    p = panier.nouveau()
+    p["mode"] = "emporter"
+    moteur = _moteur_a_porte({panier.CLE: p})
+    assert portes_fermees.portes_fermees(moteur) == set()
+    assert fin.verifier_la_fin(moteur) is None
+
+
+def test_un_panier_avec_un_article_ferme_toujours_la_porte_de_fin():
+    from api.services.workflow import portes_fermees
+
+    p = _panier()
+    p["mode"] = "emporter"
+    assert portes_fermees.portes_fermees(_moteur_a_porte({panier.CLE: p})) == {"fin"}
+
+
+def test_une_action_sans_la_cle_a_finir_reste_a_finir_la_reservation_ferme_la_porte():
+    """Une clé absente vaut « à finir » : la réservation (qui ne déclare pas ``a_finir``) retient toujours la porte et la fin."""
+    from api.services.actions_communes import conversation as CONV
+    from api.services.reservation.moteur import CLE
+    from api.services.workflow import portes_fermees
+
+    fiche = {CLE: {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}}}}
+    assert portes_fermees.portes_fermees(_moteur_a_porte(fiche)) == {"fin"}
+    assert fin.actions_ouvertes(_moteur(fiche))[0].get("a_finir") is not False

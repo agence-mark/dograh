@@ -194,6 +194,44 @@ def test_les_connecteurs_lisent_l_etape_et_gardent_la_forme_de_leurs_retours():
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is False
 
 
+def test_un_mode_choisi_sans_article_est_une_commande_ouverte_sans_rien_a_perdre():
+    """G36 : « à emporter », puis un détour : l'appel doit revenir à la commande. Le connecteur la déclare ouverte dès le mode, et dit
+    (``a_finir``, un fait brut) qu'elle n'a encore aucune ligne à perdre : la porte de fin et le refus de fin ne la retiennent pas."""
+    from api.services.integrations.connectors.actions import commande as A
+
+    p = P.nouveau()
+    p["mode"] = "emporter"
+    ouverte = A._action_ouverte({P.CLE: p})
+    assert ouverte is not None and ouverte["outil"] == "fiche" and ouverte["a_finir"] is False, ouverte
+    p["lignes"] = [{"nom": "Regina", "quantite": 1}]
+    assert A._action_ouverte({P.CLE: p})["a_finir"] is True  # une ligne : il y a de quoi perdre
+
+
+def test_une_commande_finie_garde_son_mode_sans_etre_ouverte():
+    """Voisin : enregistrée ou annulée, la commande garde son mode (``repartir_de_zero`` le reprend aussi) et n'est plus une action ouverte."""
+    from api.services.integrations.connectors.actions import commande as A
+
+    for fin in (lambda p: E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e"),
+                lambda p: E.transition(p, E.ANNULEE_EN_COURS)):
+        p = P.nouveau()
+        p["mode"] = "emporter"
+        fin(p)
+        assert p["mode"] == "emporter" and A._action_ouverte({P.CLE: p}) is None
+
+
+def test_un_appelant_connu_n_ouvre_pas_la_commande_au_bonjour():
+    """Piège G36 : ce que la source sait de l'appelant (``connu``, ``client``) est rangé à part, jamais dans ``mode`` : appel neuf, ``mode`` vide, rien d'ouvert."""
+    from api.services.commande.etat_pour_le_modele import CLE_CONNU
+    from api.services.integrations.connectors.actions import commande as A
+
+    fiche: dict = {}
+    p = P.du_dossier(fiche)
+    p["client"] = {"nom": "Marie", "telephone": "0600000000"}
+    p[CLE_CONNU] = {"modes": {"emporter": "à emporter"}, "modes_a_adresse": [], "ouverture": {}, "minimums": {}}
+    assert p["mode"] is None
+    assert A._action_ouverte(fiche) is None
+
+
 # --------------------------------------------------------------------------- la fin du lot 2 (reprise de l'audit) : une source par fait, plus de drapeau déduit
 
 def _sources_de(dossier: str) -> dict[str, str]:
