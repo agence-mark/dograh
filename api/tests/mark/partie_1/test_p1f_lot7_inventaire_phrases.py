@@ -43,7 +43,7 @@ FICHIERS_DU_LOT = (
 # Il s'exempte par son nom, jamais par une liste de phrases : ranger une phrase au catalogue ailleurs ne la rend pas permise (I-7).
 CATALOGUES_DE_SECOURS = (
     "db/bases_clients/textes_de_secours_commande.py", "services/commande/phrases_du_manque.py", "services/reservation/phrases_du_manque.py",
-    "services/reservation/textes_de_secours.py",
+    "services/reservation/textes_de_secours.py", "services/restauration/carte_et_allergenes/textes_de_secours.py",
 )
 NOM_D_UN_CATALOGUE_DE_SECOURS = re.compile(r"(?:^|/)(?:textes_de_secours[^/]*|phrases_du_manque)\.py$")
 
@@ -78,7 +78,6 @@ A_RENDRE_C3 = frozenset({
     "services/reservation/lire.py",
     "services/reservation/moteur.py",
     "services/reservation/porte.py",
-    "services/restauration/carte_et_allergenes/allergie_de_la_commande.py",
     "services/restauration/carte_et_allergenes/voir_un_article.py",
 })
 
