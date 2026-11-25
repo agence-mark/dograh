@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "2f0639f00aaa748c5b2891a0c8c6695885a42e34",
+ "commit_teste": "33ac3a6cb785ef05049cc8c6580a0d125c2103f3",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa13",
  "vert": true,
@@ -10,6 +10,10 @@
    "vert": true,
    "ecarts": [],
    "fichiers_de_la_zone": 44
+  },
+  "noqa": {
+   "vert": true,
+   "ajoutes": []
   },
   "linter": {
    "vert": true,
@@ -26,11 +30,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 16.52s ========================"
-  },
-  "noqa": {
-   "vert": true,
-   "ajoutes": []
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.11s ========================"
   },
   "donnes": {
    "vert": true,
@@ -61,7 +61,7 @@
     "tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py",
     "tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c9_le_manque_du_constat_est_une_valeur_fermee_jamais_une_phrase\nPASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c10_meme_texte_autre_objet_deux_questions\nPASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c10_texte_change_meme_objet_meme_question\nPASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c10_ce_que_la_personne_vit_se_lit_sur_la_structure_de_la_question\nPASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c10_une_relecture_reposee_avec_un_autre_texte_reste_une_autre_question\n=========== 531 passed, 10 xfailed, 6 warnings in 717.07s (0:11:57) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c9_le_manque_du_constat_est_une_valeur_fermee_jamais_une_phrase\nPASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c10_meme_texte_autre_objet_deux_questions\nPASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c10_texte_change_meme_objet_meme_question\nPASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c10_ce_que_la_personne_vit_se_lit_sur_la_structure_de_la_question\nPASSED tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py::test_c10_une_relecture_reposee_avec_un_autre_texte_reste_une_autre_question\n=========== 535 passed, 10 xfailed, 6 warnings in 439.83s (0:07:19) ==========="
   }
  }
 }
