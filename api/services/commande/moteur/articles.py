@@ -20,7 +20,7 @@ from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_e
 from api.services.commande.resultat import Resultat
 from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, _dit, phrase_d_une_remise_appliquee, _r, _sans_accent
+from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, phrase_d_une_remise_appliquee, _r, _sans_accent
 from api.services.commande.moteur.prealables import _article_de_la_carte, chiffrer_le_panier, _prealables, _servi_le, _valider
 
 
@@ -297,9 +297,11 @@ def a_la_taille_de_la_formule(article: dict, ligne: dict) -> Resultat | None:
         if refus is None:
             apres, refus = choix_entre_deux_contenus.brique_for12_une_alternative(g, apres)
         if refus is not None and refus["raison"] == choix_entre_deux_contenus.RAISON:
-            return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, choix_entre_deux_contenus.phrase_du_refus(ligne["nom"], refus["choix"]))
+            faits = {"article": ligne["nom"], **refus}
+            return _r("HORS_CARTE", faits, TS.melange_refuse(faits))
         if refus is not None:
-            return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, f"{refus.get('valeur') or ligne['nom']} : {liste_dite(refus.get('choix') or [])} ?")
+            faits = {"article": ligne["nom"], **refus}
+            return _r("HORS_CARTE", faits, TS.valeur_parmi_les_choix(faits))
         apres = a_volonte.brique_for15_a_volonte(g, apres)
         ligne["choix"] = [c for c in ligne["choix"] if c not in dans] + apres
     return None
@@ -347,12 +349,11 @@ def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) ->
     for _, morceau, _brut in lecture.morceaux_d_options(texte):
         ingredient, moitie = _retrait_et_moitie(morceau, moities)
         if not ingredient:
-            return _r("INCOMPLETE", {"raison": "retrait_sans_ingredient"}, "Qu'est-ce qu'il faut retirer ?")
+            faits = {"raison": "retrait_sans_ingredient"}
+            return _r("INCOMPLETE", faits, TS.quoi_retirer(faits))
         if moitie is None:
-            return _r(
-                "AMBIGU", {"candidats": list(moities), "dit": ingredient},
-                f"Sans {ingredient} sur quelle moitié : " + liste_dite(list(dict.fromkeys(moities))) + " ?",
-            )
+            faits = {"candidats": list(moities), "dit": ingredient}
+            return _r("AMBIGU", faits, TS.sur_quelle_moitie(faits))
         notes.append(f"sans {ingredient} sur la moitié {moitie}")
     for note in notes:
         if note not in (ligne.get("note") or ""):
@@ -386,12 +387,11 @@ def _appliquer_les_retraits(article: dict, ligne: dict, texte: str) -> Resultat 
         trouve = _chercher_dans([Element(nom, nom) for nom in retirables], morceau)
         if trouve["statut"] == "AMBIGU":
             noms = [c["libelle"] for c in trouve["candidats"]]
-            return _r("AMBIGU", {"candidats": noms, "dit": morceau}, "Vous voulez retirer : " + liste_dite(noms) + " ?")
+            faits = {"candidats": noms, "dit": morceau}
+            return _r("AMBIGU", faits, TS.vous_voulez_retirer(faits))
         if trouve["statut"] != "RETENU":
-            return _r(
-                "HORS_CARTE", {"article": ligne["nom"], "dit": morceau, "retirables": list(retirables)},
-                f"On ne peut pas retirer « {morceau} » de {ligne['nom']}. On peut retirer : {liste_dite_et(list(retirables))}.",
-            )
+            faits = {"article": ligne["nom"], "dit": morceau, "retirables": list(retirables)}
+            return _r("HORS_CARTE", faits, TS.ne_se_retire_pas(faits))
         if trouve["retenu"] not in ligne["retires"]:
             ligne["retires"].append(trouve["retenu"])
     return None
@@ -402,7 +402,8 @@ def _noter(ligne: dict, note: str, regles: Reglages) -> Resultat | None:
     if not note:
         return None
     if not regles.notes_libres:
-        return _r("HORS_CARTE", {"raison": "notes_non_acceptees"}, "Je ne peux pas noter cette demande.")
+        faits = {"raison": "notes_non_acceptees"}
+        return _r("HORS_CARTE", faits, TS.notes_non_acceptees(faits))
     ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]
     return None
 
@@ -414,7 +415,8 @@ def noter_la_commande(p: dict[str, Any], regles: Reglages, texte: str | None) ->
     if not note:
         return None
     if not regles.notes_libres:
-        return _avec(_r("HORS_CARTE", {"raison": "notes_non_acceptees"}, "Je ne peux pas noter cette demande."), p)
+        faits = {"raison": "notes_non_acceptees"}
+        return _avec(_r("HORS_CARTE", faits, TS.notes_non_acceptees(faits)), p)
     p["note"] = note[:LONGUEUR_NOTE]
     return None
 
@@ -433,7 +435,8 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
         return _avec(_r("OK", {"reduction_annoncee": True}, "", "code_de_remise"), p) if reduction_annoncee else None
     verdict = code_de_remise.brique_off3_verifier_le_code(dit, await lecture())
     if "raison" in verdict:
-        return _avec(_r("HORS_CARTE", {"raison": code_de_remise.RAISON, "dit": verdict["dit"]}, "Je ne connais pas ce code."), p)
+        faits = {"raison": code_de_remise.RAISON, "dit": verdict["dit"]}
+        return _avec(_r("HORS_CARTE", faits, TS.code_inconnu(faits)), p)
     if verdict["code"] not in p.setdefault("codes_dits", []):
         p["codes_dits"].append(verdict["code"])
     if verdict["ref"] not in p.setdefault("remises_du_code", []):
@@ -442,7 +445,7 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
     appliquee = next((r for r in (chiffre.faits.get("remises") or []) if r["ref"] == verdict["ref"]), None) if chiffre is not None and chiffre.statut == "OK" else None
     faits = {"code": verdict["code"], "remise": verdict["nom"], "appliquee": appliquee is not None}
     if appliquee is None:
-        return _avec(_r("OK", faits, f"Le code {verdict['code']} est bon, {_dit(verdict['nom'])} s'appliquera dès que votre commande y donne droit."), p)
+        return _avec(_r("OK", faits, TS.code_de_remise_bon(faits)), p)
     return _avec(_r("OK", {**faits, "reduction": appliquee["montant"]}, phrase_d_une_remise_appliquee(appliquee)), p)
 
 

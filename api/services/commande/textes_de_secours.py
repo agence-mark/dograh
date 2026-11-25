@@ -13,7 +13,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from api.services.mots_dits import liste_dite, nombre_en_lettres
+from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, nombre_en_lettres, phrase_nette
 
 Faits = Mapping[str, Any]
 
@@ -96,3 +96,49 @@ def pas_dans_la_formule(faits: Faits) -> str:
 
 def sur_lequel(faits: Faits) -> str:
     return "Sur lequel : " + liste_dite(list(faits["candidats"])) + " ?"
+
+
+def melange_refuse(faits: Faits) -> str:
+    """Un menu à alternatives : l'appelant a mélangé deux contenus. Faits : ``article`` et ``choix`` (les alternatives, chacune dite en entier)."""
+    return f"{faits['article']} : soit " + ", soit ".join(faits["choix"]) + "."
+
+
+def valeur_parmi_les_choix(faits: Faits) -> str:
+    """Une étape à taille liée : la valeur dite n'est pas admise ; ``choix`` dit ce qui l'est. Faits : ``valeur`` (sinon ``article``) et ``choix``."""
+    return f"{faits.get('valeur') or faits['article']} : {liste_dite(list(faits.get('choix') or []))} ?"
+
+
+# --------------------------------------------------------------------------- #
+# articles.py : retraits, notes, code de remise
+# --------------------------------------------------------------------------- #
+
+
+def quoi_retirer(faits: Faits) -> str:
+    return "Qu'est-ce qu'il faut retirer ?"
+
+
+def sur_quelle_moitie(faits: Faits) -> str:
+    """Faits : ``dit`` (l'ingrédient) et ``candidats`` (les moitiés, sans doublon dans le texte)."""
+    return f"Sans {faits['dit']} sur quelle moitié : " + liste_dite(list(dict.fromkeys(faits["candidats"]))) + " ?"
+
+
+def vous_voulez_retirer(faits: Faits) -> str:
+    return "Vous voulez retirer : " + liste_dite(list(faits["candidats"])) + " ?"
+
+
+def ne_se_retire_pas(faits: Faits) -> str:
+    """Faits : ``dit``, ``article`` et ``retirables``."""
+    return f"On ne peut pas retirer « {faits['dit']} » de {faits['article']}. On peut retirer : {liste_dite_et(list(faits['retirables']))}."
+
+
+def notes_non_acceptees(faits: Faits) -> str:
+    return "Je ne peux pas noter cette demande."
+
+
+def code_inconnu(faits: Faits) -> str:
+    return "Je ne connais pas ce code."
+
+
+def code_de_remise_bon(faits: Faits) -> str:
+    """Le code est bon mais la remise ne s'applique pas encore. Faits : ``code`` et ``remise`` (le nom de l'offre tel qu'écrit : le texte le dit)."""
+    return f"Le code {faits['code']} est bon, {phrase_nette(chiffres_en_lettres(faits['remise']))} s'appliquera dès que votre commande y donne droit."

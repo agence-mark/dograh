@@ -50,11 +50,6 @@ def alternatives_dites(etape: dict[str, Any]) -> list[str]:
             for k, a in enumerate(etape["alternatives"])]
 
 
-def phrase_du_refus(nom: str, choix: list[str]) -> str:
-    """La phrase du module pour un mélange refusé : « Menu partage : soit un Coca Bouteille, soit trois Coca Canette ou Fanta. »"""
-    return f"{nom} : soit " + ", soit ".join(choix) + "."
-
-
 def minimum_de_l_etape(etape: dict[str, Any], choix: list[dict[str, Any]]) -> int:
     """Le nombre de choix qui remplit l'étape : à alternatives, la quantité de l'alternative prise (« une bouteille » remplit une étape de trois canettes,
     conversation FOR12-A du lot 11) ; sinon, ou rien de pris, son minimum."""

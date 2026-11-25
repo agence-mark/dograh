@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from api.services.commande import porte, textes_de_secours as TS
+from api.services.commande import panier as P, porte, textes_de_secours as TS
 from api.services.commande import moteur
 from api.services.commande.briques import formule as FO
 from api.services.commande.moteur import articles
@@ -138,3 +138,98 @@ def test_un_retrait_sur_deux_plats_demande_lequel():
     r = articles.retirer_sur_le_plat(article, ligne, "olives")
     assert r.statut == "AMBIGU"
     le_texte_de_secours_suffit(r, TS.sur_lequel, "Sur lequel : Pizza ou Pâtes ?")
+
+
+# ── commit 2 : retraits, notes, code de remise (articles.py) ────────────────────────────────────────────────────────────
+from api.services.commande.moteur.socle import Reglages  # noqa: E402
+
+
+def _etape_de_boissons(**en_plus):
+    option = lambda code, nom, alt=None, decl=(): {"code": code, "nom": nom, "produit": nom, "alternative": alt, "declinaisons_du_produit": list(decl)}  # noqa: E731
+    return {"id": "e1", "nom": "Boisson", "role": FO.ROLE_ETAPE, "options": [option("B", "Coca Bouteille", 0), option("C", "Coca Canette", 1), option("F", "Fanta", 1)],
+            "alternatives": [{"quantite": 1, "codes": ["B"]}, {"quantite": 3, "codes": ["C", "F"]}], **en_plus}
+
+
+def _formule(etape, taille=None):
+    article = {"formule": True, "groupes": [etape], "declinaisons": [{"code": "M", "taille": taille}]}
+    ligne = {"nom": "Menu partage", "code": "M", "choix": [{"option_code": c, "nom": c, "quantite": 1, "choix": [], "etape": etape["id"]} for c in ("B", "C")]}
+    return article, ligne
+
+
+def test_un_melange_d_alternatives_dit_les_alternatives():
+    article, ligne = _formule(_etape_de_boissons())
+    r = articles.a_la_taille_de_la_formule(article, ligne)
+    assert r.faits["raison"] == "alternatives_melangees"
+    le_texte_de_secours_suffit(r, TS.melange_refuse, "Menu partage : soit un Coca Bouteille, soit trois Coca Canette ou Fanta.")
+
+
+def test_une_valeur_sans_la_taille_dit_ce_qui_l_a():
+    etape = _etape_de_boissons(alternatives=None)
+    etape["options"][0]["declinaisons_du_produit"] = [{"nom": "Maxi", "vendable": True, "rupture": False, "code": "BM"}]
+    article, ligne = _formule(etape, {"nom": "Maxi", "declinaisons": {"Boisson": "Maxi"}})
+    r = articles.a_la_taille_de_la_formule(article, ligne)
+    assert r.faits["raison"] == "choix_sans_la_taille"
+    le_texte_de_secours_suffit(r, TS.valeur_parmi_les_choix, "C : Coca Bouteille ?")
+
+
+def test_une_note_refusee_quand_les_notes_libres_sont_eteintes():
+    r = articles._noter({}, "sans stress", Reglages(notes_libres=False))
+    assert r.faits["raison"] == "notes_non_acceptees"
+    le_texte_de_secours_suffit(r, TS.notes_non_acceptees, "Je ne peux pas noter cette demande.")
+    r = articles.noter_la_commande(P.nouveau(), Reglages(notes_libres=False), "pour Léa")
+    le_texte_de_secours_suffit(r, TS.notes_non_acceptees, "Je ne peux pas noter cette demande.")
+
+
+def test_un_retrait_sans_ingredient_demande_quoi():
+    r = articles._noter_un_retrait_par_moitie({}, "sur la Reine", ["Reine", "4 fromages"])
+    le_texte_de_secours_suffit(r, TS.quoi_retirer, "Qu'est-ce qu'il faut retirer ?")
+
+
+def test_un_retrait_sans_moitie_demande_laquelle_sans_doublon():
+    r = articles._noter_un_retrait_par_moitie({}, "olives", ["Reine", "Reine", "4 fromages"])
+    assert r.statut == "AMBIGU"
+    le_texte_de_secours_suffit(r, TS.sur_quelle_moitie, "Sans olives sur quelle moitié : Reine ou 4 fromages ?")
+
+
+def test_un_retrait_ambigu_ou_hors_carte_dit_les_retirables():
+    article = {"retirables": ["Olives noires", "Olives vertes", "Oignons"], "declinaisons": [], "groupes": []}
+    r = articles._appliquer_les_retraits(article, {"nom": "Reine", "retires": [], "choix": []}, "olives")
+    assert r.statut == "AMBIGU"
+    le_texte_de_secours_suffit(r, TS.vous_voulez_retirer, "Vous voulez retirer : Olives noires ou Olives vertes ?")
+    r = articles._appliquer_les_retraits(article, {"nom": "Reine", "retires": [], "choix": []}, "oignons")
+    assert r is None
+
+
+def test_un_ingredient_decrit_mais_non_retirable_dit_ce_qu_on_peut_retirer():
+    article = {"declinaisons": [], "groupes": [], "retirables": ["Oignons", "Olives"], "ingredients": ["Tomate", "Oignons", "Olives"]}
+    r = articles._appliquer_les_retraits(article, {"nom": "Reine", "retires": [], "choix": []}, "tomate")
+    assert r.statut == "HORS_CARTE" and r.faits["retirables"] == ["Oignons", "Olives"]
+    le_texte_de_secours_suffit(r, TS.ne_se_retire_pas, "On ne peut pas retirer « tomate » de Reine. On peut retirer : Oignons et Olives.")
+
+
+class _SourceDeCodes:
+    def __init__(self, codes):
+        self.codes_de_remise = _lire(codes)
+
+
+def _lire(codes):
+    async def lire():
+        return codes
+    return lire
+
+
+CODES = [{"code": "BIENVENUE", "ref": "R1", "nom": "Bienvenue 10 %", "phrase": None}]
+
+
+async def test_un_code_inconnu_est_refuse_en_une_phrase():
+    p = P.nouveau()
+    r = await articles.poser_le_code_de_remise(_SourceDeCodes(CODES), p, Reglages(), "FAUX", False)
+    assert r.faits["raison"] == "code_inconnu"
+    le_texte_de_secours_suffit(r, TS.code_inconnu, "Je ne connais pas ce code.")
+
+
+async def test_un_code_bon_sans_remise_encore_applicable_dit_le_code_et_l_offre():
+    p = P.nouveau()
+    r = await articles.poser_le_code_de_remise(_SourceDeCodes(CODES), p, Reglages(), "BIENVENUE", False)
+    assert r.statut == "OK" and r.faits["appliquee"] is False
+    le_texte_de_secours_suffit(r, TS.code_de_remise_bon, "Le code BIENVENUE est bon, Bienvenue dix pour cent s'appliquera dès que votre commande y donne droit.")
