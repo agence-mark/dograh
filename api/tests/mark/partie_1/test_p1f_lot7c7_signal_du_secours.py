@@ -532,3 +532,38 @@ def test_la_table_de_la_source_est_fidele_au_texte(cas):
 @pytest.mark.parametrize("cas", CAS_DE_LA_COMMANDE, ids=lambda c: c.nom)
 async def test_la_table_de_la_commande_est_fidele_au_texte(cas, appel, monkeypatch):
     _fidele(cas, await _jouer(cas.scenario, appel, monkeypatch))
+
+
+# ── R1 : « l'équipe pourra le confirmer » (la fin de INFO.NON_GARANTI) est un fait, pas seulement le statut `inconnu` ───────────────────
+
+def _inconnu_avec_option():
+    return _allergie(signalements=[], option_=option("sauce maison", None))
+
+
+CAS_NON_GARANTIS: list[tuple[str, Callable]] = [
+    ("hors_liste", _allergie(signalements=["lait"], mot="kiwi")),
+    ("option_sans_donnee", _inconnu_avec_option()),
+    ("liste_avec_option_sans_donnee", _allergie(signalements=["lait"], mot="allergènes", options=[option("sauce maison", None)])),
+    ("selon_option_avec_des_inconnues", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce maison", None)])),
+    ("inconnu_selon_le_choix", _allergie(signalements=[], options=[option("sauce maison", None)])),
+]
+
+CAS_GARANTIS: list[tuple[str, Callable]] = [
+    ("present", _allergie(signalements=["lait"])),
+    ("absent_de_la_fiche", _allergie(signalements=["gluten"])),
+    ("liste_sans_inconnue", _allergie(signalements=["lait"], mot="allergènes", options=[option("sauce blanche", ["lait"])])),
+    ("selon_option_sans_inconnue", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce rouge", ["gluten"])])),
+]
+
+
+@pytest.mark.parametrize("scenario", [c[1] for c in CAS_NON_GARANTIS], ids=[c[0] for c in CAS_NON_GARANTIS])
+async def test_r1_le_non_garanti_dit_que_l_equipe_peut_confirmer(scenario, monkeypatch):
+    """Client « Il y a des fruits à coque dans le tiramisu ? » : le modèle sait dire « je ne peux pas le garantir, l'équipe pourra vous le confirmer »."""
+    r = await _jouer(scenario, monkeypatch)
+    assert r.faits["a_confirmer_par_l_equipe"] is True, r.faits
+
+
+@pytest.mark.parametrize("scenario", [c[1] for c in CAS_GARANTIS], ids=[c[0] for c in CAS_GARANTIS])
+async def test_r1_une_reponse_sure_ne_renvoie_pas_a_l_equipe(scenario, monkeypatch):
+    r = await _jouer(scenario, monkeypatch)
+    assert not r.faits.get("a_confirmer_par_l_equipe"), r.faits

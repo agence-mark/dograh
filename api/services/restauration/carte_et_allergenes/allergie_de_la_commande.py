@@ -368,7 +368,7 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
     code = source.signalement_dit(signale)
     if code is None and not _est_la_liste_demandee(signale):
         # A4 : une chose hors des quatorze (ail, kiwi, fraise) n'est jamais déclarée : « n'en déclare aucun » sonnerait comme un non
-        faits = {**faits, "signalement": "inconnu", "hors_liste": True}
+        faits = {**faits, "signalement": "inconnu", "hors_liste": True, "a_confirmer_par_l_equipe": True}
         return _r("OK", faits, "")
     if code is None:
         if signalements is None:
@@ -380,7 +380,7 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         presents = [libelles.get(c, c) for c in codes]
         faits = {**faits, "signalement": "liste", "presents": presents}
         if any(o.get("signalements") is None for o in options):
-            faits["options_a_confirmer"] = True
+            faits["options_a_confirmer"] = faits["a_confirmer_par_l_equipe"] = True
         return _r("OK", faits, "")
     faits["code"] = code
     libelle = libelles.get(code, code)
@@ -392,17 +392,26 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         option_vue = {"allergenes": None if option.get("signalements") is None else [s["code"] for s in option["signalements"]], "signalements_du_nom": option.get("signalements_du_nom")}
         etat = allergenes_d_une_option.brique_inf2_produit_et_options(None if signalements is None else [s["code"] for s in signalements], [option_vue], code)
         faits = {**faits, "signalement": etat if etat in ("present", "absent_de_la_fiche") else "inconnu", **({"libelle": libelle} if etat in ("present", "absent_de_la_fiche") else {})}
+        if faits["signalement"] == "inconnu":
+            faits["a_confirmer_par_l_equipe"] = True
         return _r("OK", faits, "")
+    return _signalement_selon_les_options(faits, options, signalements, code, libelle)
+
+
+def _signalement_selon_les_options(faits: dict[str, Any], options: list[dict], signalements: list[dict] | None, code: str, libelle: str) -> Resultat:
+    """Le signalement dit n'est pas sur la fiche de l'article : il se lit option par option (``selon_option``), ou reste à confirmer par l'équipe (``inconnu``), ou absent de la fiche."""
     contiennent = [o["nom"] for o in options if _option_signale(o, code)]
     inconnues = [o for o in options if _option_signale(o, code) is None]
     if contiennent:
         faits = {**faits, "signalement": "selon_option", "options_qui_contiennent": contiennent, "autres_a_confirmer": bool(inconnues or signalements is None)}
+        if faits["autres_a_confirmer"]:
+            faits["a_confirmer_par_l_equipe"] = True
         return _r("OK", faits, "")
     if signalements is None:
         faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
         return _r("OK", faits, "")
     if inconnues:
-        faits = {**faits, "signalement": "inconnu", "options_a_confirmer": True}  # F7 : « ça dépend du choix » (le texte de secours le disait seul)
+        faits = {**faits, "signalement": "inconnu", "options_a_confirmer": True, "a_confirmer_par_l_equipe": True}  # F7 : « ça dépend du choix » (le texte de secours le disait seul)
     else:
         faits = {**faits, "signalement": "absent_de_la_fiche", "libelle": libelle}
     return _r("OK", faits, "")
