@@ -35,6 +35,9 @@ ORIGINE_ECRITURE_PERDUE = "ecriture_perdue"
 # [.mark] Module Restauration, lot 5 (W24) : une panne a coupé l'appelant PENDANT sa commande ; le contenu de la commande en cours est joint au message laissé
 # à l'équipe, pour qu'elle la prenne au rappel sans rien redemander.
 ORIGINE_COMMANDE = "commande"
+# [.mark] Lot 7b-B (reprise 2 de l'audit, ligne 67) : une seule réservation par appel ; la nouvelle demande, faite après l'annulation de celle de l'appel, est transmise à l'équipe
+# par cette même liste (une entrée par appel, remplacée si la personne change sa demande).
+ORIGINE_RESERVATION = "reservation"
 
 
 def origine(entree: dict) -> str:
@@ -91,6 +94,13 @@ def resume_du_rappel(entree: dict) -> str:
         if entree.get("objet"):
             morceaux.append(f"commande en cours : {entree['objet']}")
         morceaux.append("la reprendre avec lui, rien ne lui a été confirmé")
+        return " ; ".join(morceaux) + "."
+    if origine(entree) == ORIGINE_RESERVATION:
+        morceaux = ["Rappel à faire : l'appelant veut une nouvelle réservation après avoir annulé celle de cet appel (une seule réservation par appel)"]
+        if entree.get("numero"):
+            morceaux.append(f"numéro de l'appelant : {entree['numero']}")
+        if entree.get("objet"):
+            morceaux.append(f"demande : {entree['objet']}")
         return " ; ".join(morceaux) + "."
     if origine(entree) == ORIGINE_ECRITURE_PERDUE:
         return resume_de_l_ecriture_perdue(entree.get("actions") or [], entree.get("numero"))

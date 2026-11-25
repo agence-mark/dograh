@@ -20,8 +20,10 @@ from typing import Any
 from loguru import logger
 
 from api.services.actions_communes import journal_du_dit as J
+from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes import issues as ISSUES
+from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_RESERVATION
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes.consignes import en_une_phrase
@@ -334,6 +336,26 @@ def _accord_avec_une_valeur_nouvelle(e: dict[str, Any], question: dict | None, r
     return False
 
 
+def _transmettre_la_demande_a_l_equipe(ctx: Any, demande: Any) -> bool:
+    """Lot 7b-B (reprise 2, ligne 67) : la nouvelle réservation demandée après l'annulation de celle de l'appel est écrite pour l'équipe dans la liste des rappels de l'appel (la même que la
+    commande en panne), une seule entrée par appel, remplacée si la demande change. ``True`` si elle est écrite."""
+    if not isinstance(ctx.fiche, dict):
+        return False
+    d = demande if isinstance(demande, dict) else {}
+    objet = ", ".join(str(x) for x in (f"{d['personnes']} personnes" if d.get("personnes") else None, d.get("jour"), d.get("heure"), d.get("prenom")) if x) or None
+    entree = {"origine": ORIGINE_RESERVATION, "mode": "rappel", "numero": numero_e164((ctx.appel or {}).get("caller_number")) or None, "objet": objet, "souhait": None,
+              "le": horloge(getattr(ctx, "organization_id", None)).maintenant().isoformat()}
+    liste = ctx.fiche.get(CLE_RAPPEL)
+    if not isinstance(liste, list):
+        liste = ctx.fiche[CLE_RAPPEL] = []
+    for i, ancienne in enumerate(liste):
+        if isinstance(ancienne, dict) and ancienne.get("origine") == ORIGINE_RESERVATION:
+            liste[i] = entree
+            return True
+    liste.append(entree)
+    return True
+
+
 def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: list[dict], ecartees: set[str], dernier: Resultat | None, operation: str | None,
                question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
     e = ctx.etat
@@ -351,8 +373,10 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         elif op == "reponse" and "reservation_choisie" in faits:
             etat_pour_le_modele.retenir_la_reservation_visee(e, faits["reservation_choisie"])
     metier = []
+    transmise = False
     if dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel":
         if (dernier.faits or {}).get("deja_annulee"):  # Pierre F : la réservation de l'appel est annulée ; une nouvelle ne se prend pas ici, l'équipe la prend
+            transmise = _transmettre_la_demande_a_l_equipe(ctx, dernier.faits.get("demande"))
             metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "dis-lui que tu ne prends qu'une réservation par appel et passe-la à l'équipe pour la nouvelle"})
         else:
             metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "un changement passe par les cases personnes, jour, heure"})
@@ -368,6 +392,8 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     faits: dict[str, Any] = {}
     if dernier is not None:
         faits = en_json({k: v for k, v in (dernier.faits or {}).items() if k not in ("candidats", "reservations", "tables", "debut", "fin", "numero", "a_faire", "detail")})
+        if transmise:
+            faits["transmise_a_l_equipe"] = True  # la promesse est tenue : le modèle peut dire que la demande est transmise
         faits = {k: v for k, v in faits.items() if k != "raison"}
         if isinstance((dernier.faits or {}).get("propositions"), list):
             faits["horaires_libres"] = [p.get("heure_dite") or p.get("quand_dit") for p in dernier.faits["propositions"]]  # B4 (M9), Pierre 14 : la base rend ``quand_dit``, le moteur ``heure_dite`` (avant : null)

@@ -23,6 +23,16 @@ from api.tests.mark.test_restauration_reservation import demande
 base_essai, base_prete, salle = _BASE.base_essai, _BASE.base_prete, _RESA.salle  # les fixtures du classeur, reprises sans import inutile
 
 
+def _la_demande_est_transmise(essai, r) -> None:
+    """Reprise 2 de l'audit : la promesse est tenue. La demande de la nouvelle réservation est écrite pour l'équipe (la liste des rappels de l'appel, comme la commande en panne) et le fait est posé."""
+    from api.services.apres_appel import rappels
+
+    assert r["faits"].get("transmise_a_l_equipe") is True, r["faits"]
+    demandes = [x for x in essai.fiche_de_l_appel.get(rappels.CLE_RAPPEL) or [] if rappels.origine(x) == rappels.ORIGINE_RESERVATION]
+    assert len(demandes) == 1 and "dimanche" in demandes[0]["objet"] and "Bob" in demandes[0]["objet"], demandes
+    assert "dimanche" in rappels.resume_du_rappel(demandes[0]), rappels.resume_du_rappel(demandes[0])
+
+
 async def test_26_complet_le_modele_dit_le_refus_et_propose_les_horaires_libres(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch)
     r = await essai.tour(MOTS, personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
@@ -49,6 +59,7 @@ async def test_67_une_seule_reservation_par_appel_le_modele_dit_le_refus_et_pass
     r = await essai.tour("et plutôt dimanche à vingt heures pour deux au nom de Bob", personnes=2, jour="dimanche", heure="vingt heures", nom="Bob")
     assert await essai.nombre_de_reservations() == 1  # la règle reste : pas de seconde réservation
     assert not (essai.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("avant"), essai.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE)  # le code ne dit rien
-    assert "équipe" in str(r.get("a_faire")) and "une réservation par appel" in str(r.get("a_faire")), r  # la consigne : le dire, puis passer à l'équipe
+    assert "équipe" in str(r.get("a_faire")) and "une réservation par appel" in str(r.get("a_faire")), r  # la consigne : le dire, puis la demande est transmise
+    _la_demande_est_transmise(essai, r)
     d = PF.decider_apres_la_fiche(essai.fiche_de_l_appel, r, {"a_dire": "Je ne prends qu'une réservation par appel ; je vous passe l'équipe pour dimanche."})
     assert d.mode != PAROLE.A_DIRE_SEUL, d  # le modèle a la parole, donc c'est lui qui appelle le transfert

@@ -121,3 +121,6 @@ async def test_f_e30_une_nouvelle_reservation_apres_une_annulation_est_dite_et_v
     # lot 7b, ligne 67 (fiche relue, Q1) : c'est un refus et une promesse, pas un fait accompli : le code ne le dit plus, le modèle le dit et passe à l'équipe
     assert not essai.fiche_de_l_appel[CLE_TEXTES_DU_CODE].get("avant"), essai.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE)
     assert "équipe" in str(r.get("a_faire")), r
+    from api.services.apres_appel import rappels  # reprise 2 de l'audit (lot 7b) : la promesse est tenue, la demande est transmise à l'équipe
+
+    assert r["faits"].get("transmise_a_l_equipe") is True and any(rappels.origine(x) == rappels.ORIGINE_RESERVATION for x in essai.fiche_de_l_appel.get(rappels.CLE_RAPPEL) or []), r["faits"]
