@@ -32,12 +32,14 @@ PREMIERE, ISSUE, SORTIE, DEJA_DANS_CE_TOUR = "premiere", "issue", "sortie", "dej
 
 _FAITS_DE_TENUE = (R.CLE_NUMERO_RETENU, R.CLE_SECOND_NUMERO_RETENU, R.CLE_NUMERO_AFFICHE, R.CLE_NUMERO_S_AFFICHE)  # ce qui change d'un tour à l'autre sans changer le refus
 
+_VALEURS_DITES = {"quantite": ("quantite",)}  # 7b-C4 : manque -> faits qui ne sont que la valeur dite par la personne (150, puis 200 : le même refus « trop de pièces », pas trois)
+
 
 def identite_du_refus(refus: Any) -> str:
     """La clé du journal pour un refus d'un module : son statut, son manque et ses faits. Une valeur simple (texte, nombre, vrai/faux) entre avec sa valeur ; une liste ou un
     dictionnaire (des propositions qui changent d'un tour à l'autre) entre par son seul NOM : deux refus qui n'ont pas les mêmes faits ne se confondent jamais, et un texte
     de suggestion qui change ne remet jamais le compteur à zéro."""
-    objet = {k: (v if isinstance(v, (str, int, float)) else None) for k, v in sorted((refus.faits or {}).items()) if k not in _FAITS_DE_TENUE}
+    objet = {k: (v if isinstance(v, (str, int, float)) else None) for k, v in sorted((refus.faits or {}).items()) if k not in _FAITS_DE_TENUE and k not in _VALEURS_DITES.get(refus.manque, ())}
     return f"refus {json.dumps([refus.statut, refus.manque, objet], ensure_ascii=False)}"
 
 
