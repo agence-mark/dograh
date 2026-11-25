@@ -18,6 +18,7 @@ from api.services.actions_communes.enveloppe_legere import pour_le_modele
 
 from api.services.commande import etat_pour_le_modele as ETAT_COMMANDE
 from api.services.commande import moteur, porte
+from api.services.commande.moteur import articles
 from api.services.commande.phrases_dites_par_le_code import PHRASES as PHRASES_DU_PLAN
 from api.services.commande.moteur import socle as _socle
 from api.services.commande.resultat import Resultat
@@ -30,6 +31,7 @@ base_essai, base_prete, salle = _BASE.base_essai, _BASE.base_prete, _RESA.salle 
 
 SEUIL_DE_LETTRES = 12
 FERME = "Nous sommes fermés pour le moment, nous rouvrons à dix-huit heures. Pour quel jour et à quelle heure ?"
+INTROUVABLE = "Je ne trouve pas de pizza au homard dans notre carte."
 
 
 def _lettres(texte: str) -> int:
@@ -87,8 +89,11 @@ def _fuites_de_l_etat(etat: str | None, du_tour: list[str]) -> list[str]:
     return _qui_figurent(du_tour, (etat or "").splitlines())
 
 
-async def _explication(essai_de, suggestions):
-    """Client « Une pizza au homard. » : l'article n'existe pas, le module refuse (introuvable) et donne sa phrase."""
+async def _explication(essai_de, suggestions, monkeypatch):
+    """Client « Une pizza au homard. » : l'article n'existe pas, le module refuse (introuvable) et donne sa phrase. Depuis C7a le module n'écrit plus cette phrase : le scénario la lui
+    fait écrire (comme ``_heure_a_dire`` avec ``FERME``), sinon G1 ne pourrait plus échouer et ne prouverait rien."""
+    origine = articles._r
+    monkeypatch.setattr(articles, "_r", lambda statut, faits, suggestion, *reste: origine(statut, faits, suggestion or (INTROUVABLE if statut == "INTROUVABLE" else ""), *reste))
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     suggestions.clear()
@@ -129,10 +134,10 @@ async def _texte_a_dire(salle, monkeypatch, suggestions):
 
 # ── le scénario atteint le canal (vert) ─────────────────────────────────────────────────────────────────────────────────
 
-async def test_scenario_explication_atteint_le_canal(essai_de, suggestions):
-    """Le refus est bien dans ``refus_de_la_fiche`` (ses faits, sans phrase) et le module a bien écrit sa suggestion : le canal est fermé, pas absent."""
-    r, valeurs, du_tour, _ = await _explication(essai_de, suggestions)
-    assert r["faits"]["refus_de_la_fiche"] and du_tour and not valeurs, (r["faits"], du_tour)
+async def test_scenario_explication_atteint_le_canal(essai_de, suggestions, monkeypatch):
+    """Le refus est bien dans ``refus_de_la_fiche`` (ses faits, sans phrase) et le module a écrit une suggestion dans le tour (le scénario la lui fait écrire : le canal n'est creux que si elle existe)."""
+    r, valeurs, du_tour, _ = await _explication(essai_de, suggestions, monkeypatch)
+    assert r["faits"]["refus_de_la_fiche"] and INTROUVABLE in du_tour and not valeurs, (r["faits"], du_tour)
 
 
 async def test_scenario_heure_a_dire_atteint_le_canal(essai_de, suggestions, monkeypatch):
@@ -152,9 +157,9 @@ async def test_scenario_texte_a_dire_atteint_le_canal(salle, monkeypatch, sugges
 
 # ── G1 : aucune suggestion du tour dans le canal (échec attendu strict, un par canal) ───────────────────────────────────
 
-async def test_g1_canal_explication(essai_de, suggestions):
+async def test_g1_canal_explication(essai_de, suggestions, monkeypatch):
     """Client « Une pizza au homard. » : le retour ne dit ni la phrase du module ni « pas de pizza » ; le modèle dit le refus avec ses mots, d'après les faits."""
-    r, _, du_tour, etat = await _explication(essai_de, suggestions)
+    r, _, du_tour, etat = await _explication(essai_de, suggestions, monkeypatch)
     assert not _fuites(r, du_tour), _fuites(r, du_tour)
     assert not _fuites_de_l_etat(etat, du_tour), _fuites_de_l_etat(etat, du_tour)
     assert not [v for v in _valeurs(r) if "pas de pizza" in v], r

@@ -707,7 +707,7 @@ async def test_conv_le_refus_du_melange_dit_chaque_alternative_a_sa_quantite(ess
     e = await brique(essai_de, "FOR12")
     r = await _ajouter(e, "un menu partage bouteille de coca canette de fanta", article="menu partage", quantite=1, composition=["bouteille de coca", "canette de fanta"])
     faits = r["resultats"][0]["faits"]
-    assert faits["raison"] == "alternatives_melangees" and faits["choix"] == ["un Coca Bouteille", "trois Coca Canette ou Fanta"], fait(r)
+    assert faits["raison"] == "alternatives_melangees" and faits["alternatives"] == [{"quantite": 1, "options": ["Coca Bouteille"]}, {"quantite": 3, "options": ["Coca Canette", "Fanta"]}], fait(r)
 
 
 async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):

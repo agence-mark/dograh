@@ -200,8 +200,8 @@ async def test_fermeture_dite_une_fois(essai_de):
     r1 = await moteur.choisir_mode(e.source, p, regles, "emporter")
     r2 = await moteur.choisir_mode(e.source, p, regles, "livraison")
     r3 = await moteur.question_du_mode(e.source, p, "INCOMPLETE")
-    dites = [r.suggestion for r in (r1, r2, r3) if "fermés" in r.suggestion]
-    assert r1.statut != "OK" and len(dites) == 1 and J.deja_dit(p, J.FERMETURE), [r1, r2, r3]
+    # Lot 7b-C7a : le code n'écrit plus la phrase ; la fermeture est marquée dite au premier retour et la question du mode ne redonne plus ses faits
+    assert r1.statut != "OK" and J.deja_dit(p, J.FERMETURE) and "raison" not in r3.faits and not any(r.suggestion for r in (r1, r2)), [r1, r2, r3]
 
 
 async def test_pause_de_la_caisse_au_decroche(essai_de):
@@ -410,9 +410,9 @@ async def test_sans_oignons_par_ingredient(essai_de):
     retour = await e.lecture(sujet="article", article="quelles pizzas sans oignons")
     assert "Regina" in _faits(retour), retour
     r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "chorizo", contient=True)
-    assert r.faits["articles"] and r.faits["inconnus"] > 0 and "je ne peux pas vous le confirmer" in r.suggestion, r  # donnée absente = inconnu (E21)
+    assert r.faits["articles"] and r.faits["inconnus"] > 0, r  # donnée absente = inconnu (E21)
     r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "sardines", contient=True)
-    assert not r.faits["articles"] and "il n'y en a pas" not in r.suggestion and r.suggestion == moteur.NON_CONFIRMABLE, r
+    assert not r.faits["articles"] and r.faits["inconnus"] > 0 and r.suggestion == "", r  # le catalogue ne dit pas tout : « il n'y en a pas » ne se dit pas
 
 
 async def test_choisir_mode_2641_t2(essai_de):

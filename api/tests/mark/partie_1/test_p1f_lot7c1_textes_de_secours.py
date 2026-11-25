@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import panier as P, porte, textes_de_secours as TS
 from api.services.commande import moteur
 from api.services.commande.briques import formule as FO
@@ -38,14 +39,29 @@ async def appel(commerce):
     return a
 
 
+# Lot 7b-C7a : les textes de secours vidés du retour du module (les faits suffisent, ``test_p1f_lot7c7_signal_du_secours``). Restent pleins les textes de QUESTION (voix Q),
+# que ``avec_la_question`` recolle jusqu'à C6 n° 5, et ceux des groupes que C7a n'a pas encore vidés.
+VIDES = {TS.n_est_plus_disponible, TS.maximum_atteint, TS.ne_se_prend_pas_avec_des_choix, TS.option_hors_carte, TS.pour_quelle_etape, TS.pas_dans_la_formule, TS.melange_refuse,
+         TS.valeur_parmi_les_choix, TS.quoi_retirer, TS.ne_se_retire_pas, TS.notes_non_acceptees, TS.code_inconnu, TS.code_de_remise_bon, TS.quel_rangement, TS.article_introuvable,
+         TS.pas_servi_maintenant, TS.beaucoup_combien_exactement, TS.taille_en_rupture, TS.combien_exactement, TS.plus_au_catalogue, TS.commande_vide, TS.pas_de_ligne, TS.quelle_ligne,
+         TS.pas_dans_la_commande, TS.que_change_t_on, TS.pas_de_commande_en_ce_moment, TS.ce_sera_pret, TS.commande_vide_a_lire, TS.pas_d_offre, TS.tout_retirer_c_est_annuler,
+         TS.offre_presque_atteinte, TS.seuil_presque_atteint}
+
+
 def le_texte_de_secours_suffit(r, texte_de_secours, attendu: str | None = None) -> None:
-    """Le texte du module est celui que fait la fonction de secours des faits publics du refus (et, s'il est donné, celui d'avant)."""
-    assert r.suggestion, r
-    assert r.suggestion == texte_de_secours(porte.faits_vus_par_le_modele(r)), (r.suggestion, r.faits)
+    """Un texte vidé : le retour n'en porte plus (``suggestion`` vide) et la fonction de secours refait le texte d'avant des seuls faits publics du refus. Un texte de question :
+    le retour le porte encore, égal à celui que fait la fonction de secours des faits publics."""
+    faits_publics = porte.faits_vus_par_le_modele(r)
+    if texte_de_secours in VIDES:
+        assert r.suggestion == "", r
+        refait = texte_de_secours(faits_publics)
+        assert refait, (r.statut, faits_publics)
+    else:
+        assert r.suggestion, r
+        refait = r.suggestion
+        assert r.suggestion == texte_de_secours(faits_publics), (r.suggestion, r.faits)
     if attendu is not None:
-        assert r.suggestion == attendu
-
-
+        assert refait == attendu
 # ── commit 1 : choisir, ajouter, retirer (articles.py) ──────────────────────────────────────────────────────────────────
 
 async def test_question_d_un_choix_de_taille(appel):
@@ -106,7 +122,7 @@ async def test_une_option_hors_carte_dit_la_plus_proche(appel):
     r = await appel.ajouter(A("margherita", 1, "Normale", supplements=["mozza"]))
     assert r.statut == "HORS_CARTE" and r.faits["plus_proches"] and "choix_possibles" not in r.faits
     le_texte_de_secours_suffit(r, TS.option_hors_carte)
-    assert "Le plus proche" in r.suggestion
+    assert "Le plus proche" in TS.option_hors_carte(porte.faits_vus_par_le_modele(r))
 
 
 async def test_une_option_hors_carte_sans_proche_dit_ce_qui_se_choisit(appel):
@@ -114,7 +130,7 @@ async def test_une_option_hors_carte_sans_proche_dit_ce_qui_se_choisit(appel):
     assert r.statut == "HORS_CARTE" and not r.faits["plus_proches"]
     assert 0 < len(r.faits["choix_possibles"]) <= 4
     le_texte_de_secours_suffit(r, TS.option_hors_carte)
-    assert "Ce qui se choisit" in r.suggestion
+    assert "Ce qui se choisit" in TS.option_hors_carte(porte.faits_vus_par_le_modele(r))
 
 
 async def test_une_option_ambigue_est_une_question_des_candidats(appel):
@@ -360,13 +376,14 @@ async def test_une_fermeture_sans_phrase_de_la_source_dit_le_secours_de_la_comma
     le_texte_de_secours_suffit(r, TS.pas_de_commande_en_ce_moment)
 
 
-async def test_la_phrase_de_fermeture_de_la_source_reste_le_secours(appel, monkeypatch):
-    """La source écrit sa phrase (C2) : elle passe avant le texte du moteur ; elle n'est plus une valeur des faits (commit 5), le secours n'est lu que par le repli."""
+async def test_la_fermeture_n_est_plus_dite_par_le_code_meme_quand_la_source_a_une_phrase(appel, monkeypatch):
+    """Lot 7b-C7a : le code n'écrit plus la phrase de fermeture (ni celle de la source, ni le secours du moteur) : le modèle la dit du statut et des faits de l'état ; elle est marquée dite une fois."""
     monkeypatch.setattr(appel.source, "etat", _etat_ferme("Les livraisons sont terminées."))
     r = await moteur.heure_annoncee(appel.source, appel.p, appel.regles, "emporter")
-    assert r.suggestion == "Les livraisons sont terminées."
+    assert r.suggestion == ""
     from api.services.commande.moteur import prealables
-    assert prealables.annoncer_la_fermeture({}, {"phrase": None}) == TS.pas_de_commande_en_ce_moment({})
+    p = {}
+    assert prealables.annoncer_la_fermeture(p, {"phrase": "Les livraisons sont terminées."}) == "" and J.deja_dit(p, J.FERMETURE)
 
 
 async def test_l_heure_annoncee_dit_ce_sera_pret(appel, monkeypatch):
@@ -382,8 +399,9 @@ def test_le_minimum_de_l_adresse_se_lit_de_la_zone_quand_rien_n_est_pris():
     from api.services.commande.moteur import prealables
 
     faits = {"zone": {"nom": "Senlis", "minimum": 1500}}
-    assert prealables._minimum_de_l_adresse(faits, P.nouveau()) == TS.minimum_de_l_adresse(faits) == "Le minimum de commande pour cette adresse est de quinze euros."
-    assert prealables._minimum_de_l_adresse({"zone": {"minimum": 0}}, P.nouveau()) == ""
+    assert prealables._minimum_de_l_adresse(faits, P.nouveau()) == "quinze euros"  # F2 : la valeur dite, posée en fait ``minimum_dit``
+    assert TS.minimum_de_l_adresse(faits) == "Le minimum de commande pour cette adresse est de quinze euros."
+    assert prealables._minimum_de_l_adresse({"zone": {"minimum": 0}}, P.nouveau()) is None
 
 
 # ── commit 5 (comportement) : les phrases de fermeture sortent des faits, les clés de l'état n'ont plus qu'une liste ────
@@ -416,7 +434,7 @@ async def test_la_phrase_de_fermeture_n_est_dans_aucun_fait_de_l_ouverture(appel
     for mode in faits["modes"]:
         assert "phrase" not in mode and mode["reprise_dite"] == "dix-huit heures" and {"ouvert", "raison", "reprise"} <= set(mode), mode
     r = await moteur.etat_ouverture(appel.source, appel.p, appel.regles, "emporter")
-    assert r.suggestion == PHRASE_DE_FERMETURE  # le secours reste la phrase de la source
+    assert r.suggestion == ""  # le code n'écrit plus la fermeture
     assert not [v for v in _valeurs(porte.faits_vus_par_le_modele(r)) if isinstance(v, str) and "reprenons" in v]
 
 
@@ -427,7 +445,7 @@ async def test_un_mode_ferme_planifiable_ne_met_pas_la_phrase_dans_les_faits_et_
     faits = porte.faits_vus_par_le_modele(r)
     assert "fermeture" not in faits and not [v for v in _valeurs(faits) if isinstance(v, str) and "reprenons" in v], faits
     assert faits["reprise_dite"] == "dix-huit heures" and faits["raison"] == "ferme"
-    assert PHRASE_DE_FERMETURE in r.suggestion  # le texte de secours est celui d'avant
+    assert r.suggestion == ""  # le code n'écrit plus la fermeture
 
 
 async def test_une_heure_gardee_se_dit_en_fait(appel, monkeypatch):
@@ -440,7 +458,7 @@ async def test_une_heure_gardee_se_dit_en_fait(appel, monkeypatch):
     assert r.statut == "FERME_PLANIFIABLE"
     faits = porte.faits_vus_par_le_modele(r)
     assert faits["heure_voulue_dite"] == "demain à dix-neuf heures" and "fermeture" not in faits
-    assert r.suggestion.startswith(TS.commande_pour(faits)) and "Commande pour demain à dix-neuf heures." in r.suggestion
+    assert r.suggestion == "" and TS.commande_pour(faits) == "Commande pour demain à dix-neuf heures."
 
 
 def test_les_cles_de_l_etat_sont_posees_a_un_seul_endroit():
@@ -464,7 +482,7 @@ async def test_la_proposition_du_debut_dit_l_ouverture_en_fait(appel, monkeypatc
     assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_proposee")
     faits = porte.faits_vus_par_le_modele(r)
     assert faits["heure_proposee_dite"] == "dix-huit heures"
-    assert r.suggestion == f"{PHRASE_DE_FERMETURE} {TS.preparer_pour_l_ouverture(faits)}" == f"{PHRASE_DE_FERMETURE} Voulez-vous que je prépare votre commande pour dix-huit heures ?"
+    assert r.suggestion == TS.preparer_pour_l_ouverture(faits) == f"Voulez-vous que je prépare votre commande pour dix-huit heures ?"
 
 
 async def test_sans_ouverture_connue_le_jour_et_l_heure_se_demandent(appel, monkeypatch):
@@ -472,7 +490,7 @@ async def test_sans_ouverture_connue_le_jour_et_l_heure_se_demandent(appel, monk
     monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True))
     r = await moteur.choisir_mode(appel.source, appel.p, appel.regles, "emporter")
     assert r.statut == "FERME_PLANIFIABLE" and r.manque is None
-    assert r.suggestion == f"{PHRASE_DE_FERMETURE} {TS.quel_jour_et_quelle_heure(porte.faits_vus_par_le_modele(r))}" == f"{PHRASE_DE_FERMETURE} Pour quel jour et à quelle heure ?"
+    assert r.suggestion == "" and TS.quel_jour_et_quelle_heure(porte.faits_vus_par_le_modele(r)) == "Pour quel jour et à quelle heure ?"
 
 
 # ── commit 7 : le numéro, le prénom, la fin à une heure fermée (enregistrement.py) ──────────────────────────────────────
@@ -524,7 +542,7 @@ async def test_la_fin_a_une_heure_fermee_propose_l_ouverture_puis_demande_le_jou
     assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_proposee")
     faits = porte.faits_vus_par_le_modele(r)
     assert faits["heure_proposee_dite"] == "dix-huit heures" and "reprenons" not in str(faits)
-    assert r.suggestion == f"{PHRASE_DE_FERMETURE} Je vous la prépare pour dix-huit heures ?"
+    assert r.suggestion == "Je vous la prépare pour dix-huit heures ?"
     monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True))
     r = await enregistrement.finaliser(appel.source, appel.p, appel.regles, Appelant(telephone_affiche="+33612345678"))
     assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_voulue")
@@ -615,7 +633,7 @@ async def test_la_commande_se_lit_avec_ses_lignes_dites_et_son_total(appel):
     await appel.mode()
     r = await appel.voir()
     assert "lignes_dites" not in r.faits  # R3 : la phrase des lignes n'est pas un fait ; le module la passe à part au texte de secours
-    assert r.suggestion == "Vous avez un Coca-Cola. Cela fait deux euros."
+    assert r.suggestion == "" and TS.la_commande_se_lit({**r.faits, "lignes_dites": "un Coca-Cola"}) == "Vous avez un Coca-Cola. Cela fait deux euros."
 
 
 def test_la_lecture_dit_le_minimum_les_remises_et_la_livraison_offerte():
@@ -633,7 +651,7 @@ async def test_les_offres_en_cours_se_disent_par_leur_secours(appel, monkeypatch
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles, demande=True)
     faits = porte.faits_vus_par_le_modele(r)
     assert faits["remises"] == [{"nom": "Dix pour cent", "phrase": "Dix pour cent sur tout."}, {"nom": "Boisson offerte", "phrase": None}]
-    assert r.suggestion == TS.offres_en_ce_moment(faits) == "En ce moment : Dix pour cent sur tout et Boisson offerte."
+    assert r.suggestion == "" and TS.offres_en_ce_moment(faits) == "En ce moment : Dix pour cent sur tout et Boisson offerte."
     monkeypatch.setattr(appel.source, "remises_en_cours", lambda: _vide())
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles, demande=True)
     le_texte_de_secours_suffit(r, TS.pas_d_offre, "Pas d'offre en ce moment.")
@@ -653,7 +671,7 @@ async def test_une_offre_atteinte_porte_sa_phrase_et_ses_choix(appel, monkeypatc
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
     faits = porte.faits_vus_par_le_modele(r)
     assert faits["moment"] == "offre_atteinte" and faits["remise"]["phrase"] is None
-    assert r.suggestion == TS.offre_atteinte(faits) == "Burger offert : vous y avez droit. Qu'est-ce qui vous ferait plaisir : Cheese ou Bacon ?"
+    assert r.suggestion == "" and TS.offre_atteinte(faits) == "Burger offert : vous y avez droit. Qu'est-ce qui vous ferait plaisir : Cheese ou Bacon ?"
 
 
 async def test_une_offre_presque_atteinte_et_un_seuil_se_disent_par_leur_secours(appel, monkeypatch):

@@ -1,6 +1,6 @@
 """[.mark] Clôture de la Partie 1, lot B5 (inventaire C6, audit des textes § 2.4) : le retour d'une fiche, allégé au moment où il part vers le modèle.
 
-Le retour portait des clés que le modèle n'utilise jamais : le code INSEE, le code postal et le département de la commune, l'identifiant d'une zone ou
+Le retour portait des clés que le modèle n'utilise jamais : le code INSEE et le code postal de la commune, l'identifiant d'une zone ou
 d'un article, les montants en centimes (``total``, ``sous_total``, ``frais``, ``minimum``), le délai en minutes, ``numero_s_affiche``, la liste des
 cases liées non exécutées. Elles grossissaient l'historique et mettaient des chiffres sous ses yeux, qu'il recopiait (« a_dire : jamais un prix »).
 Ce que la personne doit entendre de chiffré, le code le dit lui-même (relecture, total, prix, minimum, délai).
@@ -16,7 +16,7 @@ from typing import Any
 
 # Jamais utiles au modèle, où qu'elles soient.
 CLES_RETIREES = frozenset({
-    "insee", "code_postal", "departement", "sous_total", "frais", "gratuite_des", "numero_s_affiche", "cases_non_executees_car_liees", "etoile",
+    "insee", "code_postal", "sous_total", "frais", "gratuite_des", "numero_s_affiche", "cases_non_executees_car_liees", "etoile",
     "plusieurs_tailles",
 })
 # Retirées quand elles portent un nombre (un montant en centimes, des minutes, un identifiant) : leur texte, s'il y en a un, reste.

@@ -16,7 +16,7 @@ from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande.moteur.socle import NON_CONFIRMABLE, Reglages, STATUTS_PERDUS, _avec, phrase_d_une_remise_appliquee, _r, cle_de_la_remise
 from api.services.commande.moteur.prealables import chiffrer_le_panier
-from api.services.commande.moteur.articles import _minimum_non_atteint, _phrase_des_lignes
+from api.services.commande.moteur.articles import _minimum_non_atteint
 from api.services.commande.moteur.socle import Appelant
 
 
@@ -34,7 +34,7 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
     """Le panier tel que le code le tient : lignes numérotées, prix, frais, total. Rien d'autre n'est jamais « le total »."""
     if not p["lignes"]:
         faits = {"lignes": [], "total": 0, "vide": True}
-        return _avec(_r("OK", faits, TS.commande_vide_a_lire(faits)), p)
+        return _avec(_r("OK", faits, ""), p)
     chiffre = await chiffrer_le_panier(source, p, regles)
     minimum = _minimum_non_atteint(chiffre)  # M27 : sous le minimum de la zone, le panier se lit quand même ; on dit ce qui manque
     if minimum is not None:
@@ -64,7 +64,7 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
         "offerts": chiffre.faits.get("offerts") or [], **({"livraison_offerte": True} if offerte else {}),
         **({"minimum_non_atteint": minimum} if minimum is not None else {}),
     }
-    return _avec(_r("OK", faits, TS.la_commande_se_lit({**faits, "lignes_dites": _phrase_des_lignes(P.lignes_pretes(p))})), p, total=total)
+    return _avec(_r("OK", faits, ""), p, total=total)
 
 
 async def _noter_dite(source: Source, ref: str, appel_id: str | None) -> None:
@@ -97,12 +97,12 @@ async def remises_disponibles(
     if demande:
         if not en_cours:
             faits = {"a_dire": False, "raison": "aucune", "remises": []}
-            return _avec(_r("OK", faits, TS.pas_d_offre(faits)), p)
+            return _avec(_r("OK", faits, ""), p)
         dites = [{"nom": r["nom"], "phrase": r["phrase"]} for r in en_cours]
         for r in en_cours:
             await _noter_dite(source, r["ref"], appel_id)
         faits = {"a_dire": True, "remises": dites, "appliquees": [r["nom"] for r in appliquees]}
-        return _avec(_r("OK", faits, TS.offres_en_ce_moment(faits)), p)
+        return _avec(_r("OK", faits, ""), p)
     if p.get("remise_refusee"):
         return _avec(_r("OK", {"a_dire": False, "raison": "refusee"}), p)
     if presse:
@@ -127,13 +127,13 @@ async def remises_disponibles(
             J.noter(p, cle_de_la_remise(o["ref"]))
             await _noter_dite(source, o["ref"], appel_id)
             faits = {"a_dire": True, "moment": "offre_atteinte", "remise": {"nom": o["nom"], "phrase": o.get("phrase"), "choix": o["choix"], "prix": o["proposition"]["prix"]}}
-            return _avec(_r("OK", faits, TS.offre_atteinte(faits)), p)
+            return _avec(_r("OK", faits, ""), p)
         if o["etat"] == "presque":
             p["mentions_de_remise"] += 1
             J.noter(p, cle_de_la_remise(o["ref"]))
             await _noter_dite(source, o["ref"], appel_id)
             faits = {"a_dire": True, "moment": "offre_presque_atteinte", "remise": {"nom": o["nom"], "manque_articles": o["manque"]}}
-            return _avec(_r("OK", faits, TS.offre_presque_atteinte(faits)), p)
+            return _avec(_r("OK", faits, ""), p)
     sous_total = chiffre.faits["sous_total"] if chiffre is not None and chiffre.statut == "OK" else 0
     for r in en_cours:
         minimum = r.get("minimum")
@@ -143,7 +143,7 @@ async def remises_disponibles(
             await _noter_dite(source, r["ref"], appel_id)
             reste = minimum - sous_total
             faits = {"a_dire": True, "moment": "seuil_presque_atteint", "remise": {"nom": r["nom"], "manque": reste}}
-            return _avec(_r("OK", faits, TS.seuil_presque_atteint(faits)), p)
+            return _avec(_r("OK", faits, ""), p)
     return _avec(_r("OK", {"a_dire": False, "raison": "rien_a_dire"}), p)
 
 

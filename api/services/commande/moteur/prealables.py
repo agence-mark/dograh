@@ -10,8 +10,8 @@ from datetime import datetime
 from typing import Any
 
 from api.db.bases_clients import dates_futures
-from api.services.commande import lecture, panier as P, textes_de_secours as TS
-from api.services.mots_dits import liste_dite
+from api.services.commande import lecture, panier as P
+from api.services.mots_dits import liste_dite, montant_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -222,15 +222,15 @@ async def garder_l_heure(source: Source, p: dict[str, Any], texte: str | None) -
 # Lot 6 : l'ouverture, l'heure annoncée, l'adresse, la date
 # --------------------------------------------------------------------------- #
 
-# Ce que le modèle reçoit de l'état d'un mode fermé (``reprise_dite`` : l'heure de reprise déjà dite, posée par la source). La phrase de fermeture de la source n'en fait PAS partie :
-# elle est le texte de secours du repli, jamais une valeur donnée au modèle.
+# Ce que le modèle reçoit de l'état d'un mode fermé (``reprise_dite`` : l'heure de reprise déjà dite, posée par la source). La source n'écrit plus de phrase de fermeture (lot 7b-C7a) :
+# le modèle dit la fermeture d'après ces faits et le statut.
 CLES_DE_L_ETAT = ("raison", "reprise", "reprise_dite", "prochaine_ouverture", "planifiee_permise")
 
 
 async def lire_l_ouverture(source: Source, mode: str | None = None) -> dict[str, Any]:
     """Lot 4 (Q10, audit § 3.3, appel 2648) : LA lecture de l'ouverture, une seule, pour le décroché, l'état et les outils : les horaires, l'état
     du lieu (pause, débordé) et le forçage de l'organisation, lus par la source (``etat`` ; ``en_pause`` : une pause, dont la reprise seule compte).
-    Rend ``{ouvert, etat (OUVERT, PAUSE, FERME), reprise, phrase, modes}``. Une pause sans fin connue n'a AUCUNE reprise (jamais inventée)."""
+    Rend ``{ouvert, etat (OUVERT, PAUSE, FERME), reprise, phrase, modes}`` (``phrase`` est toujours vide : la source n'écrit plus la phrase de fermeture, lot 7b-C7a ; la clé part avec ses lecteurs en C7). Une pause sans fin connue n'a AUCUNE reprise (jamais inventée)."""
     modes = [mode] if mode else list(source.modes)
     etats = {m: await source.etat(m) for m in modes}
     ouverts = [m for m, e in etats.items() if e["ouvert"]]
@@ -259,7 +259,7 @@ async def etat_ouverture(source: Source, p: dict[str, Any], regles: Reglages, mo
         lignes.append({"mode": m, "libelle": source.libelles_des_modes.get(m, m), "ouvert": etat["ouvert"], **{k: etat.get(k) for k in CLES_DE_L_ETAT}})
     if mode and not lignes[0]["ouvert"]:
         etat = await source.etat(modes[0])
-        return _r(etat["statut"], {"modes": lignes}, etat.get("phrase") or TS.pas_de_commande_en_ce_moment({}))
+        return _r(etat["statut"], {"modes": lignes}, "")
     ouverts = [l["libelle"] for l in lignes if l["ouvert"]]
     return _r("OK", {"modes": lignes, "ouverts": ouverts}, "")
 
@@ -274,12 +274,12 @@ async def heure_annoncee(source: Source, p: dict[str, Any], regles: Reglages, mo
         return _avec(_r("INCOMPLETE", {"mode": choisi}, source.question_de_la_zone, "zone"), p)
     etat = await source.etat(choisi)
     if not etat["ouvert"]:
-        return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, etat.get("phrase") or TS.pas_de_commande_en_ce_moment({})), p)
+        return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""), p)
     annonce = await source.annonce(choisi, _zone_id(p))
     if annonce is None:
         return _r("INDISPONIBLE", {"mode": choisi}, "")
     faits = {"mode": choisi, "heure_annoncee": annonce["prete"], "texte": annonce["texte"], "minutes": annonce.get("minutes")}
-    return _r("OK", faits, TS.ce_sera_pret(faits))
+    return _r("OK", faits, "")
 
 
 def voie_de_l_adresse(texte: str, commune: str, code_postal: str | None) -> str:
@@ -340,13 +340,14 @@ def proposer_un_autre_mode_hors_zone(source: Source, r: Resultat) -> Resultat:
     return Resultat(r.statut, {**r.faits, "autres_modes": choix}, r.suggestion, r.manque)
 
 
-def _minimum_de_l_adresse(faits: dict[str, Any], p: dict[str, Any]) -> str:
+def _minimum_de_l_adresse(faits: dict[str, Any], p: dict[str, Any]) -> str | None:
     """Agent fiable (Evan, 17/11) : le minimum de la zone est dit dès que l'adresse est retenue et que rien n'est encore pris, pour que la
-    personne le sache tout de suite. Un panier déjà commencé sous le minimum le dit par le chiffrage (``a_revoir``) ; un panier vide, ici."""
+    personne le sache tout de suite. Un panier déjà commencé sous le minimum le dit par le chiffrage (``a_revoir``) ; un panier vide, ici.
+    Rend le minimum en lettres, le fait ``minimum_dit`` (le montant en centimes de la zone n'est jamais donné au modèle), ou ``None``."""
     minimum = ((faits.get("zone") or {}).get("minimum")) or 0
     if minimum <= 0 or not _rien_n_est_pris(p):
-        return ""
-    return TS.minimum_de_l_adresse(faits)
+        return None
+    return montant_en_lettres(minimum)
 
 
 async def resoudre_une_date(source: Source, p: dict[str, Any], regles: Reglages, texte: str | None, heure: str | None = None) -> Resultat:
@@ -376,7 +377,7 @@ async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | N
 
 
 def annoncer_la_fermeture(p: dict[str, Any], etat: dict[str, Any]) -> str:
-    """Lot 4 (M07, appel 2649) : la phrase de la fermeture, dite UNE fois par appel (un drapeau du panier, lu partout) ; ensuite, rien."""
-    if not J.une_fois(p, J.FERMETURE):  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part
-        return ""
-    return etat.get("phrase") or TS.pas_de_commande_en_ce_moment({})
+    """Lot 4 (M07, appel 2649) : la fermeture est marquée dite UNE fois par appel (``J.FERMETURE``, lu par la porte et par la question du mode). Lot 7b-C7a : le code n'écrit plus
+    la phrase (la source non plus) : la fermeture est dite par le modèle d'après le statut et les faits de l'état (``CLES_DE_L_ETAT``) ; la valeur rendue est donc toujours vide."""
+    J.une_fois(p, J.FERMETURE)  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part
+    return ""
