@@ -330,7 +330,7 @@ class TestFOR3:
         e = await brique(essai_de, "FOR3")
         r = await _ajouter(e, "la formule complète avec un tiramisu", article="formule complète", quantite=1, composition=["tacos", "tiramisu"])
         assert "hors_sous_ensemble" in fait(r) and not e.p["lignes"], fait(r)
-        assert r["faits"]["regle_de_la_ligne"] == "Dans la formule complète, le dessert se choisit parmi ceux à deux euros." and not _prefixe(e), fait(r)
+        assert r["faits"]["regle_de_la_ligne"]["prix_max"] == 200 and set(r["faits"]["regle_de_la_ligne"]) == {"formule", "etape", "prix_max"} and not _prefixe(e), fait(r)
 
     async def test_for3_menu_bambino_mega_refusee(self, essai_de):
         """Lusitalia, Menu Bambino : la Méga écartée de la ligne (donnée posée en mémoire, la vraie au formulaire de démo du lot 18) ; la Sénior acceptée."""
@@ -602,8 +602,8 @@ def _prefixe(e) -> str:
     return str((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("prefixe") or "")
 
 
-def _regles(r: dict) -> list[str]:
-    """Les règles de l'article que le retour donne au modèle (lot 7b, Q1)."""
+def _regles(r: dict) -> list[dict]:
+    """Les règles de l'article que le retour donne au modèle, en faits bruts (lot 7b, Q1 ; reprise de l'audit : § 2, le modèle parle, jamais une phrase finie)."""
     return list((r.get("faits") or {}).get("regles_a_dire") or [])
 
 
@@ -644,17 +644,17 @@ async def test_conv_la_condition_le_justificatif_et_le_servi_avec_sont_dits_par_
     modèle, une fois par appel ; lot 7b (Q1) : le retour les donne au modèle (``regles_a_dire``), le code ne les dit plus."""
     e = await brique(essai_de, "FOR13")
     r = await _ajouter(e, "des brochettes yakitori", article="brochettes yakitori", quantite=1)
-    assert _regles(r) == ["C'est servi avec 1 soupe, 1 salade et 1 riz."] and not _prefixe(e), fait(r)
+    assert _regles(r) == [{"servi_avec": ["1 soupe", "1 salade", "1 riz"]}] and not _prefixe(e), fait(r)
     assert r["resultats"][0]["faits"]["servi_avec"] == ["1 soupe", "1 salade", "1 riz"] and "regle_a_dire" not in r["resultats"][0]["faits"], fait(r)
     r = await _ajouter(e, "et encore une", article="brochettes yakitori", quantite=1)
     assert not _regles(r), fait(r)  # une seule fois par appel
     e9 = await brique(essai_de, "FOR9")
     r9 = await _ajouter(e9, "un menu étudiant panini coca", article="menu étudiant", quantite=1, composition=["panini", "coca"])
-    assert _regles(r9) == ["C'est sur présentation de la carte étudiante ou d'identité."], fait(r9)
+    assert _regles(r9) == [{"justificatif": "présentation de la carte étudiante ou d'identité"}], fait(r9)
     e7 = await brique(essai_de, "FOR7")
     await e7.tour("sur place", mode_de_retrait="sur_place")
     r = await _ajouter(e7, "un menu enfant", article="menu enfant", quantite=1, composition=["ailes de poulet", "jus de fruit"])
-    assert e7.p["lignes"] and _regles(r) == ["C'est pour les enfants de dix ans au plus."], fait(r)
+    assert e7.p["lignes"] and _regles(r) == [{"condition": {"age_max": 10}}], fait(r)
 
 
 async def test_conv_un_choix_decline_se_dit_declinaison_d_abord(essai_de):
@@ -698,7 +698,7 @@ async def test_conv_une_formule_et_un_choix_hors_de_sa_ligne_dans_le_nom(essai_d
     e = await brique(essai_de, "FOR3")
     r = await _ajouter(e, "une formule complète avec un tiramisu", article="formule complète avec un tiramisu", quantite=1)
     assert not e.p["lignes"] and "hors_sous_ensemble" in fait(r), fait(r)
-    assert r["faits"]["regle_de_la_ligne"] == "Dans la formule complète, le dessert se choisit parmi ceux à deux euros." and not _prefixe(e), fait(r)
+    assert r["faits"]["regle_de_la_ligne"]["prix_max"] == 200 and set(r["faits"]["regle_de_la_ligne"]) == {"formule", "etape", "prix_max"} and not _prefixe(e), fait(r)
 
 
 async def test_conv_le_refus_du_melange_dit_chaque_alternative_a_sa_quantite(essai_de):

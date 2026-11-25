@@ -549,7 +549,7 @@ def poser_les_regles_de_l_article(resultats: list[dict[str, Any]], retour: dict[
     dit avec ses mots, une seule fois par appel (le journal de ce qui est dit). ⛔ Ne lève jamais."""
     try:
         a_dire = [regle for r in resultats if isinstance(f := r.get("faits"), dict) and f.get("regle_a_dire") for regle in f.pop("regle_a_dire")]
-        nouvelles = [x["texte"] for x in {r["id"]: r for r in a_dire}.values() if J.une_fois(p, f"regle:{x['id']}")]  # B3 (M5) : une fois par appel, au journal, par identifiant
+        nouvelles = [x["fait"] for x in {r["id"]: r for r in a_dire}.values() if J.une_fois(p, f"regle:{x['id']}")]  # B3 (M5) : une fois par appel, au journal, par identifiant
         if not nouvelles or not isinstance(retour.get("faits"), dict):
             return None
         retour["faits"]["regles_a_dire"] = nouvelles
@@ -567,7 +567,7 @@ def poser_la_regle_de_la_ligne(resultats: list[dict[str, Any]], retour: dict[str
             faits = r.get("faits") or {}
             if faits.get("raison") == ligne_de_formule_limitee.RAISON and faits.get("regle_prix_max") and isinstance(retour.get("faits"), dict):
                 formule = str(faits.get("article") or "")
-                retour["faits"]["regle_de_la_ligne"] = ligne_de_formule_limitee.phrase_de_la_regle(formule, str(faits.get("etape") or ""), int(faits["regle_prix_max"]))
+                retour["faits"]["regle_de_la_ligne"] = ligne_de_formule_limitee.fait_de_la_regle(formule, str(faits.get("etape") or ""), int(faits["regle_prix_max"]))
                 faits.pop("regle_prix_max", None)
                 return DU.Du(consignes=((C.REFUS_A_DIRE, A_FAIRE_DE_LA_REGLE),))
     except Exception:  # noqa: BLE001

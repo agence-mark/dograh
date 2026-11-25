@@ -48,12 +48,10 @@ def hors_de_la_ligne(etapes: list[dict[str, Any]], mot: str) -> dict[str, Any] |
     return None
 
 
-def phrase_de_la_regle(formule: str, etape: str, prix_max: int) -> str:
-    """La règle chiffrée, dite par le code, dans la forme prouvée en B11 (« Dans la formule complète, le dessert se choisit parmi ceux à deux euros. ») ; le nom de
-    la formule et celui de l'étape sont ceux de la carte (D72 et la consigne du 19/11 : le texte prouvé ne change pas, ses mots viennent de la donnée)."""
-    from api.services.mots_dits import montant_en_lettres
-
-    return f"Dans la {formule.lower()}, le {etape.lower()} se choisit parmi ceux à {montant_en_lettres(int(prix_max))}."
+def fait_de_la_regle(formule: str, etape: str, prix_max: int) -> dict[str, Any]:
+    """La règle chiffrée de la ligne, en fait brut que le modèle dit avec ses mots (« dans la formule complète, le dessert se choisit parmi ceux à deux euros ») : le nom de la formule
+    et celui de l'étape sont ceux de la carte, ``prix_max`` en centimes (lot 7b : jamais une phrase finie)."""
+    return {"formule": formule, "etape": etape, "prix_max": int(prix_max)}
 
 
 def _sans(carte: dict) -> dict:

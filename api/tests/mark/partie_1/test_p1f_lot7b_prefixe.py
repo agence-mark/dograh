@@ -59,7 +59,7 @@ async def test_regle_d_une_ligne_limitee_par_un_prix_est_donnee_au_modele(essai_
     r = await e.tour("la formule complète avec un tiramisu", ajouter=[{"article": "formule complète", "quantite": 1, "composition": ["tacos", "tiramisu"]}])
     assert "hors_sous_ensemble" in fait(r) and not e.p["lignes"], fait(r)
     _rien_dit_avant(e, r)
-    assert r["faits"]["regle_de_la_ligne"] == "Dans la formule complète, le dessert se choisit parmi ceux à deux euros.", r["faits"]
+    assert r["faits"]["regle_de_la_ligne"]["prix_max"] == 200, r["faits"]  # fait brut (reprise 7b-B, § 2) : le modèle écrit la phrase
     assert not chiffre_dans_la_phrase("Le dessert se choisit parmi ceux à deux euros.", faits=faits_du_refus(r))
 
 
@@ -68,7 +68,7 @@ async def test_regle_d_un_article_est_donnee_une_fois_par_appel_au_modele(essai_
     e = await brique(essai_de, "FOR13")
     r = await e.tour("des brochettes yakitori", ajouter=[{"article": "brochettes yakitori", "quantite": 1}])
     _rien_dit_avant(e, r)
-    assert r["faits"]["regles_a_dire"] == ["C'est servi avec 1 soupe, 1 salade et 1 riz."], r["faits"]
+    assert r["faits"]["regles_a_dire"] == [{"servi_avec": ["1 soupe", "1 salade", "1 riz"]}], r["faits"]
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est noté."})
     assert d.mode == PAROLE.SECOND_PASSAGE, d
     r2 = await e.tour("et encore une", ajouter=[{"article": "brochettes yakitori", "quantite": 1}])
