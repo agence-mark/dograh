@@ -118,7 +118,9 @@ def test_une_action_sans_la_cle_a_finir_reste_a_finir_la_reservation_ferme_la_po
 
     fiche = {CLE: {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}}}}
     assert portes_fermees.portes_fermees(_moteur_a_porte(fiche)) == {"fin"}
-    assert fin.actions_ouvertes(_moteur(fiche))[0].get("a_finir") is not False
+    from api.services.integrations.connectors.actions import reservation
+
+    assert "a_finir" not in reservation._action_ouverte(fiche)  # la déclaration de la réservation ne dit rien : une clé absente vaut « à finir »
 
 
 def _deux_actions(agent: int) -> SimpleNamespace:

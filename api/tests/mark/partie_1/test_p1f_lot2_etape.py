@@ -220,7 +220,7 @@ def test_une_commande_finie_garde_son_mode_sans_etre_ouverte():
 
 
 def test_un_appelant_connu_n_ouvre_pas_la_commande_au_bonjour():
-    """Piège G36 : ce que la source sait de l'appelant (``connu``, ``client``) est rangé à part, jamais dans ``mode`` : appel neuf, ``mode`` vide, rien d'ouvert."""
+    """Piège G36 : ce que la source sait de l'appelant (``connu``, ``client``) est rangé à part : sans mode dit dans l'appel, rien d'ouvert."""
     from api.services.commande.etat_pour_le_modele import CLE_CONNU
     from api.services.integrations.connectors.actions import commande as A
 
@@ -228,8 +228,21 @@ def test_un_appelant_connu_n_ouvre_pas_la_commande_au_bonjour():
     p = P.du_dossier(fiche)
     p["client"] = {"nom": "Marie", "telephone": "0600000000"}
     p[CLE_CONNU] = {"modes": {"emporter": "à emporter"}, "modes_a_adresse": [], "ouverture": {}, "minimums": {}}
-    assert p["mode"] is None
     assert A._action_ouverte(fiche) is None
+
+
+def test_seuls_le_choix_du_mode_et_le_panier_neuf_ecrivent_le_mode():
+    """Le mode n'est jamais écrit par le chargement de l'appelant connu : dans ``services/commande``, seuls le choix du mode (``mode_et_adresse``) et
+    ``repartir_de_zero`` (``panier``) écrivent ``["mode"] =``. Un troisième écrivain ouvrirait la commande dès le bonjour d'un habitué."""
+    import re
+
+    ecrivains = sorted(
+        p.relative_to(API / "services" / "commande").as_posix()
+        for p in (API / "services" / "commande").rglob("*.py")
+        if re.search(r"""\[['"]mode['"]\]\s*=(?!=)|setdefault\(['"]mode['"]|update\([^)]*mode\s*=""", p.read_text(encoding="utf-8"))
+    )
+    assert ecrivains == ["moteur/mode_et_adresse.py", "panier.py"], ecrivains
+
 
 
 # --------------------------------------------------------------------------- la fin du lot 2 (reprise de l'audit) : une source par fait, plus de drapeau déduit
