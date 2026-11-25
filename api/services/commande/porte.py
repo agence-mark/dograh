@@ -1325,6 +1325,24 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     return Resultat("OK", {"annulee": True}, PHRASES_DITES.TEXTE_ANNULEE_EN_COURS)
 
 
+def _laisser_un_message(message: Any, fiche: dict[str, Any], ctx: Any, resultats: list[dict], refus: list[dict]) -> None:
+    """Le message à l'équipe, UNE fois par appel (E30) : la demande est écrite, l'issue de l'appel et sa mesure posées (lot 6, C10 ; sens repris de
+    test_message_et_redites_m102_m113 et test_restauration_service_client, comme l'ancienne action ``laisser_un_message``). Un second message est refusé."""
+    from api.services.service_client.action import _ecrire_la_demande
+
+    if not (isinstance(message, dict) and str(message.get("objet") or "").strip()):
+        return
+    if fiche.get(CLE_MESSAGE_LAISSE):
+        refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], reste="un seul message par appel"))
+    elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
+        fiche[CLE_MESSAGE_LAISSE] = True
+        resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})
+        poser_l_issue(ctx, "message_a_transmettre")
+        from api.services.integrations.connectors import mesures as mesures_des_connecteurs
+
+        mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
+
+
 async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any) -> dict[str, Any]:
     """La fiche du service (lot 3, étape 9) : retrouver une commande d'un appel précédent (par le numéro qui appelle, ou par un numéro dit ;
     un téléphone dicté seulement avec le numéro de la commande, D60 ; jamais un numéro qu'elle n'a pas dit, B7 point 8) et laisser un message à
@@ -1332,7 +1350,6 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     from api.services.integrations.connectors.actions.service import (
         retrouver_par_telephone_dicte_exige_le_numero,
     )
-    from api.services.service_client.action import _ecrire_la_demande
 
     entier = B.fiche_illisible(fiche_du_modele)
     if entier is not None:
@@ -1380,19 +1397,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             elif r.statut == "INTROUVABLE":
                 # P4 : le numéro de l'appel est connu et rien n'y est trouvé : le dire, puis chercher autrement ; jamais redemander ce numéro
                 introuvable = "dis-lui qu'il n'y a pas de commande à ce numéro ; propose de chercher autrement (le numéro de la commande, ou un autre numéro) ; ne redemande pas le numéro de l'appel"
-    message = fiche_du_modele.get("laisser_un_message")
-    if isinstance(message, dict) and str(message.get("objet") or "").strip():
-        if fiche.get(CLE_MESSAGE_LAISSE):
-            refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], reste="un seul message par appel"))
-        elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
-            fiche[CLE_MESSAGE_LAISSE] = True
-            resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})
-            # Lot 6 (C10 ; sens repris de test_message_et_redites_m102_m113 et test_restauration_service_client) : l'issue de l'appel posée par
-            # le message laissé, et sa mesure pour le tableau de bord, comme l'ancienne action ``laisser_un_message``.
-            poser_l_issue(ctx, "message_a_transmettre")
-            from api.services.integrations.connectors import mesures as mesures_des_connecteurs
-
-            mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
+    _laisser_un_message(fiche_du_modele.get("laisser_un_message"), fiche, ctx, resultats, refus)
     statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else ("A_PRECISER" if a_preciser else ("INTROUVABLE" if introuvable else "FAIT")))
     premier = refus[0] if refus else None
     return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or perdue or None),
