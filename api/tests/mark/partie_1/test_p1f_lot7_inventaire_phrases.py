@@ -22,7 +22,6 @@ FICHIERS_DU_LOT = (
     "db/bases_clients/restauration_reservation.py",
     "services/actions_communes/parole.py",
     "services/actions_communes/repli.py",
-    "services/commande/moteur/articles.py",
     "services/commande/moteur/changement.py",
     "services/commande/moteur/enregistrement.py",
     "services/commande/moteur/lecture.py",
@@ -46,7 +45,7 @@ NOM_D_UN_CATALOGUE_DE_SECOURS = re.compile(r"(?:^|/)(?:textes_de_secours[^/]*|ph
 
 # Textes écrits pour l'équipe du restaurant (ticket, SMS au gérant), jamais dits à la personne au téléphone : un morceau passé à l'un de ces envois est permis (liste blanche,
 # chaque envoi nommé). Un envoi à l'équipe de plus entre ici avec sa raison, jamais par une phrase écrite autrement.
-ENVOIS_POUR_L_EQUIPE = frozenset({"secours_par_defaut", "secours_de_la_commande"})  # source_commande.py : le ticket et le SMS « risque de doublon en cuisine »
+ENVOIS_POUR_L_EQUIPE = frozenset({"secours_par_defaut", "secours_de_la_commande", "note_pour_la_cuisine"})  # source_commande.py : le ticket et le SMS « risque de doublon en cuisine » ; articles.py : la note « sans X sur la moitié Y » écrite sur la ligne, lue en cuisine
 _SQL = re.compile(r"\s*(?:SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER)\s")
 
 # Les fichiers qui portent encore des phrases du code à rendre au modèle (``outils/phrases-a-rendre-au-modele.md``), en trois blocs, un par sous-tranche de la 7b-C : chaque agent
@@ -56,7 +55,6 @@ _SQL = re.compile(r"\s*(?:SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER)\s")
 
 # C1 commande : ``services/commande/*``
 A_RENDRE_C1 = frozenset({
-    "services/commande/moteur/articles.py",
     "services/commande/moteur/changement.py",
     "services/commande/moteur/enregistrement.py",
     "services/commande/moteur/lecture.py",

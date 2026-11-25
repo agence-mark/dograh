@@ -233,3 +233,99 @@ async def test_un_code_bon_sans_remise_encore_applicable_dit_le_code_et_l_offre(
     r = await articles.poser_le_code_de_remise(_SourceDeCodes(CODES), p, Reglages(), "BIENVENUE", False)
     assert r.statut == "OK" and r.faits["appliquee"] is False
     le_texte_de_secours_suffit(r, TS.code_de_remise_bon, "Le code BIENVENUE est bon, Bienvenue dix pour cent s'appliquera dès que votre commande y donne droit.")
+
+
+# ── commit 3 : trouver l'article, la ligne, la quantité (articles.py) ───────────────────────────────────────────────────
+@pytest.mark.parametrize("dit, attendu", [
+    ("pizza au homard", "Je ne trouve pas « pizza au homard »."),
+    ("quatre fromagez", "Je ne trouve pas « quatre fromagez ». Le plus proche : 4 Formaggi ou Formaggio."),
+])
+async def test_un_article_introuvable_dit_les_plus_proches_quand_il_y_en_a(appel, dit, attendu):
+    r = await appel.ajouter(A(dit, 1, "Normale"))
+    assert r.statut == "INTROUVABLE"
+    le_texte_de_secours_suffit(r, TS.article_introuvable, attendu)
+
+
+async def test_un_mot_de_rangement_demande_lequel(appel):
+    r = await appel.ajouter(A("pizzas", 1))
+    assert r.statut == "INCOMPLETE" and r.faits["rangements"]
+    le_texte_de_secours_suffit(r, TS.quel_rangement, "Nous avons Pizzas base tomate, Pizzas base crème et Pizzas Eccellenza : qu'est-ce que je vous mets ?")
+
+
+def test_un_seul_rangement_dit_ses_premiers_elements_entre_autres():
+    r = articles._question_de_rangement("pizzas", [{"nom": "Pizzas", "exemples": ["Reine", "Margherita"]}])
+    assert r.faits["exemples"] == ["Reine", "Margherita"]
+    le_texte_de_secours_suffit(r, TS.quel_rangement, "Nous avons Reine et Margherita, entre autres : qu'est-ce que je vous mets ?")
+
+
+async def test_un_article_pas_servi_maintenant_se_distingue_d_un_introuvable_sans_proches(appel, monkeypatch):
+    async def rien(*_a, **_k):
+        return None
+    monkeypatch.setattr(articles, "_article_de_la_carte", rien)
+    r = await appel.ajouter(A("margherita", 1, "Normale"))
+    assert r.statut == "INTROUVABLE" and r.faits["pas_servi_maintenant"] is True
+    le_texte_de_secours_suffit(r, TS.pas_servi_maintenant, "« margherita » n'est pas disponible en ce moment.")
+
+
+async def test_une_quantite_trop_haute_dit_le_plafond(appel):
+    r = await appel.ajouter(A("margherita", 99999, "Normale"))
+    assert r.statut == "ARGUMENT_INVALIDE" and r.faits["quantite_max"] == articles.lecture.QUANTITE_MAX
+    le_texte_de_secours_suffit(r, TS.beaucoup_combien_exactement, "99999, c'est beaucoup : je vous mets combien exactement ?")
+
+
+async def test_une_taille_en_rupture_dit_celles_qui_restent(appel, monkeypatch):
+    vrai = articles._article_de_la_carte
+
+    async def mega_en_rupture(*a, **k):
+        article = await vrai(*a, **k)
+        for d in article["declinaisons"]:
+            d["rupture"] = d["nom"] == "Mega"
+        return article
+    monkeypatch.setattr(articles, "_article_de_la_carte", mega_en_rupture)
+    r = await appel.ajouter(A("margherita", 1, "Mega"))
+    assert r.statut == "RUPTURE" and r.faits["autres_tailles"] == ["Normale"]
+    le_texte_de_secours_suffit(r, TS.taille_en_rupture, "Margherita Mega n'est plus disponible. Il reste : Normale.")
+
+
+async def test_une_ligne_qui_n_est_plus_au_catalogue_le_dit(appel, monkeypatch):
+    await appel.ajouter(A("margherita", 1, "Normale"))
+
+    async def rien(*_a, **_k):
+        return None
+    monkeypatch.setattr(articles, "_article_de_la_carte", rien)
+    r = await appel.modifier(ligne="1", quantite=2)
+    assert r.statut == "INTROUVABLE"
+    le_texte_de_secours_suffit(r, TS.plus_au_catalogue, "Margherita Normale n'est plus au catalogue.")
+
+
+async def test_changer_une_ligne_d_une_commande_vide(appel):
+    r = await appel.modifier(ligne="1", quantite=2)
+    assert r.statut == "INTROUVABLE" and r.faits["panier_vide"] is True
+    le_texte_de_secours_suffit(r, TS.commande_vide, "Il n'y a encore rien dans la commande.")
+
+
+async def test_une_ligne_qui_n_existe_pas_et_une_ligne_non_dite_et_un_nom_inconnu(appel):
+    await appel.ajouter(A("margherita", 1, "Normale"))
+    await appel.ajouter(A("margherita", 1, "Mega"))
+    r = await appel.modifier(ligne="9", quantite=2)
+    le_texte_de_secours_suffit(r, TS.pas_de_ligne, "Il n'y a pas de ligne 9.")
+    r = await appel.modifier(quantite=2)
+    assert r.statut == "INCOMPLETE" and r.manque == "ligne"
+    le_texte_de_secours_suffit(r, TS.quelle_ligne, "Laquelle voulez-vous changer ?")
+    r = await appel.modifier(ligne="margherita", quantite=2)
+    assert r.statut == "AMBIGU"
+    le_texte_de_secours_suffit(r, TS.laquelle)
+    r = await appel.modifier(ligne="xylophone", quantite=2)
+    le_texte_de_secours_suffit(r, TS.pas_dans_la_commande, "Je ne trouve pas « xylophone » dans la commande.")
+
+
+async def test_une_quantite_invalide_et_rien_a_changer(appel):
+    await appel.ajouter(A("margherita", 1, "Normale"))
+    r = await appel.modifier(ligne="1", quantite=-1)
+    le_texte_de_secours_suffit(r, TS.combien_exactement, "Combien exactement ?")
+    r = await appel.modifier(ligne="1", quantite=99999)
+    assert r.faits["quantite_max"] == articles.lecture.QUANTITE_MAX
+    le_texte_de_secours_suffit(r, TS.combien_exactement)
+    r = await appel.modifier(ligne="1")
+    assert r.manque == "modification"
+    le_texte_de_secours_suffit(r, TS.que_change_t_on, "Qu'est-ce que je change ?")

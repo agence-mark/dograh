@@ -142,3 +142,68 @@ def code_inconnu(faits: Faits) -> str:
 def code_de_remise_bon(faits: Faits) -> str:
     """Le code est bon mais la remise ne s'applique pas encore. Faits : ``code`` et ``remise`` (le nom de l'offre tel qu'écrit : le texte le dit)."""
     return f"Le code {faits['code']} est bon, {phrase_nette(chiffres_en_lettres(faits['remise']))} s'appliquera dès que votre commande y donne droit."
+
+
+# --------------------------------------------------------------------------- #
+# articles.py : trouver l'article, la ligne, la quantité
+# --------------------------------------------------------------------------- #
+
+
+def quel_rangement(faits: Faits) -> str:
+    """Un mot de rangement dit seul : ``rangements`` (plusieurs) ou ``exemples`` (un seul, ses premiers éléments)."""
+    noms = list(faits.get("rangements") or faits["exemples"])
+    return f"Nous avons {liste_dite_et(noms)}" + (", entre autres" if not faits.get("rangements") else "") + " : qu'est-ce que je vous mets ?"
+
+
+def article_introuvable(faits: Faits) -> str:
+    """Faits : ``dit`` et ``plus_proches`` (sans doublon)."""
+    proches = _noms(faits.get("plus_proches") or [])
+    return f"Je ne trouve pas « {faits['dit']} »." + (f" Le plus proche : {liste_dite(proches)}." if proches else "")
+
+
+def pas_servi_maintenant(faits: Faits) -> str:
+    """L'article existe mais n'est pas servi en ce moment (fait ``pas_servi_maintenant``)."""
+    return f"« {faits['dit']} » n'est pas disponible en ce moment."
+
+
+def beaucoup_combien_exactement(faits: Faits) -> str:
+    """Faits : ``quantite`` (celle qui a été dite) et ``quantite_max`` (le plafond d'une ligne)."""
+    return f"{faits['quantite']}, c'est beaucoup : je vous mets combien exactement ?"
+
+
+def combien_exactement(faits: Faits) -> str:
+    return "Combien exactement ?"
+
+
+def taille_en_rupture(faits: Faits) -> str:
+    """Une taille en rupture à l'ajout : ce qui reste (``autres_tailles``) se dit avec."""
+    reste = list(faits.get("autres_tailles") or [])
+    return f"{faits['nom']} n'est plus disponible." + (f" Il reste : {liste_dite(reste)}." if reste else "")
+
+
+def plus_au_catalogue(faits: Faits) -> str:
+    return f"{faits['article']} n'est plus au catalogue."
+
+
+def commande_vide(faits: Faits) -> str:
+    return "Il n'y a encore rien dans la commande."
+
+
+def pas_de_ligne(faits: Faits) -> str:
+    return f"Il n'y a pas de ligne {faits['ligne']}."
+
+
+def quelle_ligne(faits: Faits) -> str:
+    return "Laquelle voulez-vous changer ?"
+
+
+def laquelle(faits: Faits) -> str:
+    return "Laquelle : " + liste_dite(list(faits["candidats"])) + " ?"
+
+
+def pas_dans_la_commande(faits: Faits) -> str:
+    return f"Je ne trouve pas « {faits['dit']} » dans la commande."
+
+
+def que_change_t_on(faits: Faits) -> str:
+    return "Qu'est-ce que je change ?"

@@ -13,10 +13,10 @@ from loguru import logger
 from api.db.bases_clients import recherche_liste
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
-from api.services.commande import lecture, panier as P, tailles, textes_de_secours as TS
+from api.services.commande import lecture, panier as P, phrases_dites_par_le_code as PHRASES_DITES, tailles, textes_de_secours as TS
 from api.services.commande.briques import conditions_de_vente, declinaison_nommee, taille_fixant_le_nombre, menu_a_composition_fixe, formule_a_etapes, menu_a_taille_liee, menu_pour_n_personnes, choix_entre_deux_contenus, a_volonte, inconnue, code_de_remise, choix_unique_obligatoire, option_conditionnelle, hors_jours_feries, produit_alcoolise, produit_au_poids, lot_de_vente, taille
 from api.services.commande.briques import formule as FO
-from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres
+from api.services.mots_dits import chiffres_en_lettres, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
@@ -341,6 +341,11 @@ def _retrait_et_moitie(morceau: str, moities: list[str]) -> tuple[str, str | Non
     return f"{morceau[:coupe]} {morceau[m.end():]}".strip(" ,;."), nom
 
 
+def note_pour_la_cuisine(note: str) -> str:
+    """Une note écrite par le code sur la ligne, lue par l'équipe (ticket, caisse), jamais dite à la personne : un envoi pour l'équipe (``ENVOIS_POUR_L_EQUIPE`` du test L2)."""
+    return note
+
+
 def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) -> Resultat | None:
     """Une ligne en deux moitiés : le code n'essaie pas de retirer un ingrédient d'une moitié (le catalogue ne le sait pas). Il l'ACCEPTE et
     l'écrit en note sur la ligne (« sans X sur la moitié A »), que la source reçoit avec la ligne. Quelle moitié :
@@ -354,7 +359,7 @@ def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) ->
         if moitie is None:
             faits = {"candidats": list(moities), "dit": ingredient}
             return _r("AMBIGU", faits, TS.sur_quelle_moitie(faits))
-        notes.append(f"sans {ingredient} sur la moitié {moitie}")
+        notes.append(note_pour_la_cuisine(f"sans {ingredient} sur la moitié {moitie}"))
     for note in notes:
         if note not in (ligne.get("note") or ""):
             ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]
@@ -551,8 +556,8 @@ def _question_de_rangement(dit: str, rangements: list[dict]) -> Resultat:
         noms, quoi = [r["nom"] for r in rangements], "rangements"
     else:
         noms, quoi = list(rangements[0]["exemples"]), "exemples"
-    phrase = f"Nous avons {liste_dite_et(noms)}" + (", entre autres" if quoi == "exemples" else "") + " : qu'est-ce que je vous mets ?"
-    return _r("INCOMPLETE", {"dit": dit, quoi: noms}, phrase, "articles")
+    faits = {"dit": dit, quoi: noms}
+    return _r("INCOMPLETE", faits, TS.quel_rangement(faits), "articles")
 
 
 async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: Resultat, textes: list[str | None], regles: Reglages) -> Resultat | None:
@@ -576,7 +581,8 @@ def _ambigu_de_la_carte(texte: str, trouve: Any) -> Resultat:
     identifiant (deux articles peuvent porter le même libellé) ; le modèle ne voit que les libellés."""
     noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
     retenus = [{"libelle": c["libelle"], "id": c["id"]} for c in trouve.faits.get("candidats", []) if c.get("id")]
-    return _r("AMBIGU", {"candidats": noms, "dit": texte, CLE_CANDIDATS: retenus}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
+    faits = {"candidats": noms, "dit": texte, CLE_CANDIDATS: retenus}
+    return _r("AMBIGU", faits, trouve.suggestion or TS.vous_voulez_dire(faits))
 
 
 async def _un_article(
@@ -634,13 +640,12 @@ async def _un_article(
         return _question_de_rangement(texte, trouve.faits["rangements"])
     if trouve.statut != "RETENU":
         proches = list(dict.fromkeys(c["libelle"] for c in trouve.faits.get("candidats", [])))[:3]  # deux entrées de la carte au même libellé : un seul nom proposé
-        return _r(
-            "INTROUVABLE", {"dit": texte, "plus_proches": proches},
-            f"Je ne trouve pas « {texte} »." + (f" Le plus proche : {liste_dite(proches)}." if proches else ""),
-        )
+        faits = {"dit": texte, "plus_proches": proches}
+        return _r("INTROUVABLE", faits, TS.article_introuvable(faits))
     article = await _article_de_la_carte(source, p, trouve.faits["retenu"], p["mode"])
     if article is None:
-        return _r("INTROUVABLE", {"dit": texte}, f"« {texte} » n'est pas disponible en ce moment.")
+        faits = {"dit": texte, "pas_servi_maintenant": True}
+        return _r("INTROUVABLE", faits, TS.pas_servi_maintenant(faits))
     # Lot 12 (PRX1, PRX3, PRX8) : hors de sa plage à ce moment, d'un autre mode, au-delà du maximum par commande : refusé dès l'ajout, avec les faits (jamais une phrase)
     deja_pris = sum(int(l["quantite"]) for l in p["lignes"] if l.get("ref") == article["id"])
     refus_de_la_carte = conditions_de_vente.refus_de_la_ligne(article, None, p.get("mode"), quantite, deja_pris, None, None)
@@ -652,7 +657,8 @@ async def _un_article(
         return _r("INTERDIT", lot, "")
     quantite = lot.get("lots", quantite)
     if quantite > lecture.QUANTITE_MAX:  # C4 : le plafond s'applique aux lignes comptées (des lots), jamais aux pièces dites
-        return _r("ARGUMENT_INVALIDE", {"quantite": lot.get("pieces", quantite)}, f"{lot.get('pieces', quantite)}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
+        faits = {"quantite": lot.get("pieces", quantite), "quantite_max": lecture.QUANTITE_MAX}
+        return _r("ARGUMENT_INVALIDE", faits, TS.beaucoup_combien_exactement(faits), "quantite")
     au_poids = produit_au_poids.brique_qte1_chiffrer_au_poids(article, poids, quantite)
     if au_poids.get("raison"):
         return _r("INTERDIT", au_poids, "")
@@ -677,10 +683,8 @@ async def _un_article(
     if declinaison is not None:
         if not declinaison["vendable"] or declinaison["rupture"]:
             autres = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"] and d is not declinaison]
-            return _r(
-                "RUPTURE", {"nom": f"{article['nom']} {declinaison['nom']}", "autres_tailles": autres},
-                f"{article['nom']} {declinaison['nom']} n'est plus disponible." + (f" Il reste : {liste_dite(autres)}." if autres else ""),
-            )
+            faits = {"nom": f"{article['nom']} {declinaison['nom']}", "autres_tailles": autres}
+            return _r("RUPTURE", faits, TS.taille_en_rupture(faits))
         ligne["code"] = declinaison["code"]
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {declinaison['nom']}"
@@ -738,10 +742,11 @@ def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any],
         faits["grammes"] = au_poids["grammes"]
         if "arrondi_a" in au_poids:
             faits["arrondi_a"] = au_poids["arrondi_a"]
-        debut = "Arrondi à " if "arrondi_a" in au_poids else ""
         # Pierre 12 : plusieurs portions : « deux fois trois cents grammes de houmous : dix euros quatre-vingts » (le total de la ligne, jamais le prix d'une portion)
-        fois = f"{nombre_en_lettres(quantite)} fois " if quantite > 1 else ""
-        faits["prix_a_dire"] = f"{debut}{fois}{chiffres_en_lettres(str(au_poids['grammes']))} grammes de {article['nom'].lower()} : {montant_en_lettres(au_poids['prix'] * quantite)}."
+        faits["prix_a_dire"] = PHRASES_DITES.prix_au_poids(
+            arrondi="arrondi_a" in au_poids, fois=nombre_en_lettres(quantite) if quantite > 1 else None, grammes=chiffres_en_lettres(str(au_poids["grammes"])),
+            nom=article["nom"].lower(), prix=montant_en_lettres(au_poids["prix"] * quantite),
+        )
     if lot:
         faits.update(lots=lot["lots"], pieces=lot["pieces"])
     return faits
@@ -793,7 +798,8 @@ async def ajouter_un_article(source: Source, p: dict[str, Any], regles: Reglages
     (``mettre_en_attente_du_prealable``) et pris dès qu'ils sont posés ; sinon il est pris tout de suite."""
     dit = _article_de_la_fiche(article)
     if dit["quantite"] < 1:
-        return _r("ARGUMENT_INVALIDE", {"raison": RAISON_QUANTITE_INFERIEURE_A_UN, "quantite": dit["quantite"]}, "Combien exactement ?", "quantite")
+        faits = {"raison": RAISON_QUANTITE_INFERIEURE_A_UN, "quantite": dit["quantite"]}
+        return _r("ARGUMENT_INVALIDE", faits, TS.combien_exactement(faits), "quantite")
     if await _prealables(source, p, regles, pour_prendre=True) is not None:
         mettre_en_attente_du_prealable(p, dit)
         return _r("OK", {"garde": " ".join(x for x in (dit["texte"], dit["variante"]) if x), "quantite": dit["quantite"]}, "")
@@ -918,7 +924,8 @@ def changer_la_taille(article: dict, ligne: dict, variante: str, regles: Reglage
         return _r("RIEN_A_CHANGER", {"ligne": ligne["n"], "article": ligne["nom"], "variante": dite["nom"]}, "")
     if not dite["vendable"] or dite["rupture"]:
         autres = [n for n in vendables if n != dite["nom"]]
-        return _r("RUPTURE", {"nom": f"{article['nom']} {dite['nom']}", "autres_tailles": autres}, f"{article['nom']} {dite['nom']} n'est plus disponible.")
+        faits = {"nom": f"{article['nom']} {dite['nom']}", "autres_tailles": autres}
+        return _r("RUPTURE", faits, TS.n_est_plus_disponible(faits))
     ligne["code"] = dite["code"]
     if len(article["declinaisons"]) > 1:
         ligne["nom"] = f"{article['nom']} {dite['nom']}"
@@ -935,7 +942,8 @@ async def _travailler_une_ligne(
     ligne = next(l for l in essai["lignes"] if l["n"] == cible["n"])
     article = await _article_de_la_carte(source, essai, ligne["ref"], essai["mode"])
     if article is None:
-        return _avec(_r("INTROUVABLE", {"article": ligne["nom"]}, f"{ligne['nom']} n'est plus au catalogue."), p)
+        faits = {"article": ligne["nom"]}
+        return _avec(_r("INTROUVABLE", faits, TS.plus_au_catalogue(faits)), p)
     attente = ligne.get("attente")
     if variante and not (attente and attente["type"] == "declinaison"):
         refus = changer_la_taille(article, ligne, variante, regles)
@@ -950,7 +958,8 @@ async def _travailler_une_ligne(
         if trouve is None:
             return _avec(choix_obligatoire({"article": ligne["nom"], "article_de_la_carte": article["nom"], "question": attente}), p)
         if not trouve["vendable"] or trouve["rupture"]:
-            return _avec(_r("RUPTURE", {"nom": f"{article['nom']} {trouve['nom']}"}, f"{article['nom']} {trouve['nom']} n'est plus disponible."), p)
+            faits = {"nom": f"{article['nom']} {trouve['nom']}"}
+            return _avec(_r("RUPTURE", faits, TS.n_est_plus_disponible(faits)), p)
         ligne["code"] = trouve["code"]
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {trouve['nom']}"
@@ -1004,16 +1013,20 @@ async def _travailler_une_ligne(
 async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | None, Resultat | None]:
     """La ligne que l'appelant désigne : son numéro (« la deuxième »), sinon son nom parmi les lignes du panier. ``(ligne, None)`` ou ``(None, refus)``."""
     if not p["lignes"]:
-        return None, _r("INTROUVABLE", {}, "Il n'y a encore rien dans la commande.")
+        faits = {"panier_vide": True}
+        return None, _r("INTROUVABLE", faits, TS.commande_vide(faits))
     texte = lecture.en_chiffres(str(dit or "")).strip()
     if not texte and len(p["lignes"]) == 1:
         return p["lignes"][0], None
     if texte.isdigit():
         n = int(texte)
         ligne = next((l for l in p["lignes"] if l["n"] == n), None)
-        return (ligne, None) if ligne else (None, _r("INTROUVABLE", {"lignes": len(p["lignes"]), "ligne": n}, f"Il n'y a pas de ligne {n}."))
+        if ligne:
+            return ligne, None
+        faits = {"lignes": len(p["lignes"]), "ligne": n}
+        return None, _r("INTROUVABLE", faits, TS.pas_de_ligne(faits))
     if not texte:
-        return None, _r("INCOMPLETE", {}, "Laquelle voulez-vous changer ?", "ligne")
+        return None, _r("INCOMPLETE", {}, TS.quelle_ligne({}), "ligne")
     # SA-52 (appel 2604) : « X deux couleurs » désigne la ligne « X 2 couleurs » (les nombres lus des deux côtés).
     voulus = {m for m in norme_de_recherche(texte).split() if m not in RENVOI_A_UNE_LIGNE}
     correspond = [
@@ -1024,11 +1037,13 @@ async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | 
         return correspond[0], None
     noms = [l["nom"] for l in (correspond or p["lignes"])]
     if len(correspond) > 1:
-        return None, _r("AMBIGU", {"candidats": noms, "lignes": [l["n"] for l in correspond]}, "Laquelle : " + liste_dite(noms) + " ?")
+        faits = {"candidats": noms, "lignes": [l["n"] for l in correspond]}
+        return None, _r("AMBIGU", faits, TS.laquelle(faits))
     trouve = _chercher_dans([Element(str(l["n"]), l["nom"]) for l in p["lignes"]], texte)  # une faute de transcription : le moteur, à zéro faux sûr
     if trouve["statut"] == "RETENU":
         return next(l for l in p["lignes"] if str(l["n"]) == trouve["retenu"]), None
-    return None, _r("INTROUVABLE", {"lignes": noms, "dit": texte}, f"Je ne trouve pas « {texte} » dans la commande.")
+    faits = {"lignes": noms, "dit": texte}
+    return None, _r("INTROUVABLE", faits, TS.pas_dans_la_commande(faits))
 
 
 async def lots_des_quantites_hautes(source: Source, p: dict[str, Any], regles: Reglages, fiche: dict[str, Any]) -> dict[int, int]:
@@ -1063,18 +1078,19 @@ async def modifier(
     if refus is not None:
         return _avec(refus, p)
     if quantite is not None and (not isinstance(quantite, int) or isinstance(quantite, bool) or quantite < 0):
-        return _avec(_r("ARGUMENT_INVALIDE", {}, "Combien exactement ?", "quantite"), p)
+        return _avec(_r("ARGUMENT_INVALIDE", {}, TS.combien_exactement({}), "quantite"), p)
     if quantite and cible.get("lot_de_vente"):  # C4 : une ligne vendue par lot se corrige en PIÈCES, comme à l'ajout (QTE2) ; la ligne compte des lots
         lot = lot_de_vente.brique_qte2_multiple_du_lot({"nom": cible["nom"], "lot_de_vente": cible["lot_de_vente"]}, quantite)
         if lot.get("raison"):
             return _avec(_r("INTERDIT", lot, ""), p)
         quantite = lot["lots"]
     if quantite is not None and quantite > lecture.QUANTITE_MAX:
-        return _avec(_r("ARGUMENT_INVALIDE", {}, "Combien exactement ?", "quantite"), p)
+        faits = {"quantite": quantite, "quantite_max": lecture.QUANTITE_MAX}
+        return _avec(_r("ARGUMENT_INVALIDE", faits, TS.combien_exactement(faits), "quantite"), p)
     if quantite == 0:
         return await retirer(source, p, regles, ligne=str(cible["n"]))
     if quantite is None and not (choix or sans or note or moities or variante):
-        return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je change ?", "modification"), p)
+        return _avec(_r("INCOMPLETE", {}, TS.que_change_t_on({}), "modification"), p)
     return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities, quantite=quantite, variante=variante)
 
 
