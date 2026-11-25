@@ -41,7 +41,7 @@ SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refu
 CE_QUE_LE_CODE_DIT = "dit_ce_que_le_code_dit"
 CHIFFRES_EXIGES = "chiffres_exiges"  # C6 n° 5 : la phrase du modèle ne dit pas les valeurs exigées du fait accompli (l'heure) : relancée une fois, puis le code redit le fait accompli
 SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le modèle est relancé avec le fait (C5)
-SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
+SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie de la phrase réglée du code (le total, le rendu, M108)
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
 QUESTION_DEJA_DONNEE = "question_deja_donnee"  # motif : la question née dans le tour, déjà donnée au modèle, posée par la phrase de sa fiche (lot 19)
 FORMULE_AJOUTEE = "formule_ajoutee"  # motif : une ligne de formule ajoutée, dont le retour porte la composition (lot 11)
@@ -61,7 +61,7 @@ class EtatDuTour:
     retenues: list[str] = field(default_factory=list)
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     faits_du_refus: list[Any] = field(default_factory=list)  # les faits que les retours de ce tour donnent au modèle pour dire un refus, ou une lecture (C6 n° 11) : leurs valeurs passent la barrière des chiffres
-    suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
+    suffixe: str | None = None  # la phrase réglée que le code dit juste après la prochaine phrase du modèle (le total, le rendu, M108 ; C6)
     suffixe_lu: str | None = None  # C6 n° 11 : plus posé (le prix lu est dit par le modèle) ; gardé vide pour les états du tour déjà écrits. Avant : le prix d'une LECTURE de ce tour (PRX5), dit après la phrase qui suit, que ce soit un texte, ou la phrase d'une fiche (même tour)
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
@@ -192,7 +192,7 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
 
     textes = textes if isinstance(textes, dict) else {}
     etat.fiches += 1
-    suffixe_avant = etat.suffixe  # le prix que le code dit après la phrase du modèle, posé au passage précédent (D33)
+    suffixe_avant = etat.suffixe  # la phrase réglée que le code dit après la phrase du modèle, posée au passage précédent (C6)
     etat.suffixe = None
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
@@ -217,7 +217,8 @@ MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du mod�
 
 
 def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
-    """La phrase du modèle suivie du prix que le code dit après elle (D33) ; ``None`` sans prix en attente. Le prix n'est dit qu'une fois. ``p`` : le dossier, pour noter la phrase du total dite (C6)."""
+    """La phrase du modèle suivie de la phrase réglée que le code dit après elle (le total, le rendu, M108 ; C6) ; ``None`` sans rien en attente. Elle n'est dite qu'une fois.
+    ``p`` : le dossier, pour noter la phrase du total dite."""
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)

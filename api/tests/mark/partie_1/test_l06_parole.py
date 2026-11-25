@@ -226,13 +226,13 @@ async def test_recapitulatif_dit_par_le_code(essai_de):
 
 
 def test_prix_dit_apres_la_question_du_modele():
-    """L06-29 (D33, T3) : une proposition née dans ce tour : le modèle la pose sans chiffre, le code dit le prix juste après sa phrase, une fois."""
+    """L06-29 (T3) : une question née dans ce tour : la phrase réglée que le code dit après elle suit la phrase du modèle, une fois. C6 n° 11 (décision d'Evan 25/11 9 h 30) :
+    plus aucun prix (celui d'une proposition est un fait que le modèle dit) ; il reste le total de la relecture."""
     etat = PAROLE.EtatDuTour(tour=3)
-    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "nee_au_tour": 3}}}
-    d = PAROLE.parole_du_tour({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True}, "Je vous ajoute un Coca ?", etat, [], p, {},
-                              {"suffixe": "Il est à deux euros."})
-    assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Il est à deux euros."
-    assert PAROLE.avec_le_suffixe("Avec ça, un Coca-Cola bien frais ?", etat) == "Avec ça, un Coca-Cola bien frais ? Il est à deux euros."
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "relecture", "nee_au_tour": 3}}}
+    d = PAROLE.parole_du_tour({"statut": "FAIT"}, "Alors une Regina.", etat, [], p, {}, {"suffixe": "Cela fait douze euros, c'est bon ?"})
+    assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Cela fait douze euros, c'est bon ?"
+    assert PAROLE.avec_le_suffixe("Alors une Regina, sans oignons.", etat) == "Alors une Regina, sans oignons. Cela fait douze euros, c'est bon ?"
     assert PAROLE.avec_le_suffixe("Autre chose ?", etat) is None  # dit une fois
     # passe vide après la naissance de la proposition : lot 7b-C5, le modèle est relancé avec la proposition en faits, le code ne dit plus la phrase de B8
     b8 = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"

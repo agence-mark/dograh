@@ -42,7 +42,7 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
         return Decision(SECOND_PASSAGE, motif=P.FAITS_A_DIRE)
     question_deja_donnee = bool(
         P.question_nee_dans_ce_tour(p, etat.tour) and (q_dossier or {}).get("id") == etat.question_donnee and etat.question_donnee
-        and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and phrase and not chiffre_dans_la_phrase(phrase, etat.executees, paroles))
+        and phrase and not chiffre_dans_la_phrase(phrase, etat.executees, paroles))  # C6 n° 11 (décision d'Evan 25/11 9 h 30) : plus de prix dit par le code après la phrase
     if retour.get(RIEN_CHANGE) and not question_deja_donnee:
         etat.fiches -= 1
         if not etat.rattrapage_a_joue and (objet_en_cours or isinstance(q_dossier, dict)):
@@ -64,9 +64,9 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
         return Decision(SECOND_PASSAGE, motif="fait_bloquant")
     if retour.get(CLE_FAITS_A_DIRE):
         return Decision(SECOND_PASSAGE, motif=P.FAITS_A_DIRE)
-    if P.question_nee_dans_ce_tour(p, etat.tour) or retour.get("prix_dit_par_le_code_apres_ta_phrase"):
+    if P.question_nee_dans_ce_tour(p, etat.tour):
         question_id = (q_dossier or {}).get("id")
-        if (question_id and question_id == etat.question_donnee and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and phrase
+        if (question_id and question_id == etat.question_donnee and phrase
                 and not chiffre_dans_la_phrase(phrase, etat.executees, paroles)):
             if not P.pose_une_question(phrase) and not etat.relance_du_fait:  # lot 7b-C5 : le modèle repasse une fois au lieu que le code complète sa phrase
                 etat.relance_du_fait = True
@@ -98,7 +98,6 @@ RETOURS = {
     "rien_faits": {RIEN_CHANGE: True, CLE_FAITS_A_DIRE: True},
     "faits": {CLE_FAITS_A_DIRE: True},
     "manque": {CLE_DU: {"manque": "Quelle taille ?"}},
-    "prix": {"prix_dit_par_le_code_apres_ta_phrase": True},
     "question": {"question": QUESTION},
     "ambiguite": {"question": {**QUESTION, "type": "ambiguite"}},
     "maximum": {"resultats": [{"statut_du_module": "MAXIMUM_ATTEINT"}]},

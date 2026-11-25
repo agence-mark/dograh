@@ -37,7 +37,7 @@ class Entrees:
     fait: str | None  # C6 n° 7 : le fait accompli de ce tour que le code redit si la phrase du modèle manque (``None`` : une question, rien à redire)
     question_nee: bool  # elle est née dans CE tour
     question_id: Any
-    suffixe_avant: str | None  # le prix que le code dit après la phrase, posé au passage précédent
+    suffixe_avant: str | None  # la phrase réglée que le code dit après la phrase (le total de la relecture), posée au passage précédent
     chiffre: bool
     objet_en_cours: bool
     en_attente: bool  # une question attend dans le dossier
@@ -47,17 +47,12 @@ class Entrees:
 
     @property
     def question_deja_donnee(self) -> bool:
-        return bool(self.question_nee and self.question_id == self.etat.question_donnee and self.etat.question_donnee and self._prix_deja_dit
-                    and self.phrase and not self.chiffre)
-
-    @property
-    def _prix_deja_dit(self) -> bool:
-        return not self.du.prix_apres or bool(self.suffixe_avant)
+        return bool(self.question_nee and self.question_id == self.etat.question_donnee and self.etat.question_donnee and self.phrase and not self.chiffre)
 
     @property
     def question_donnee_dite(self) -> bool:
         """La question du dossier (née ou non dans ce tour) a déjà été donnée au modèle, et sa phrase peut être dite."""
-        return bool(self.question_id and self.question_id == self.etat.question_donnee and self._prix_deja_dit and self.phrase and not self.chiffre)
+        return bool(self.question_id and self.question_id == self.etat.question_donnee and self.phrase and not self.chiffre)
 
 
 def _texte(e: Entrees) -> Decision:
@@ -113,8 +108,8 @@ def _rien_change(e: Entrees) -> Decision:
 
 
 def _question(e: Entrees) -> Decision:
-    """Une question née dans ce tour, ou un prix à dire après la phrase. Déjà donnée au modèle : sa phrase est dite (puis le prix dû) ; si elle oublie la question, le modèle repasse une
-    fois (C5) ; sinon le modèle repasse avec elle."""
+    """Une question née dans ce tour. Déjà donnée au modèle : sa phrase est dite (puis la phrase réglée du code, le total de la relecture) ; si elle oublie la question, le modèle
+    repasse une fois (C5) ; sinon le modèle repasse avec elle."""
     etat, phrase = e.etat, e.phrase
     if e.question_donnee_dite:
         e.etat.jetee = None
@@ -161,7 +156,7 @@ LIGNES: tuple[tuple[str, Callable[[Entrees], bool], Callable[[Entrees], Decision
     ("rien n'a changé", lambda e: e.du.rien_change and not e.question_deja_donnee, _rien_change),
     ("fait bloquant", lambda e: "fait_bloquant" in e.du.faits_au_modele, _second("fait_bloquant")),
     ("faits à dire", lambda e: "faits_a_dire" in e.du.faits_au_modele, _second(FAITS_A_DIRE)),
-    ("question née ou prix à dire", lambda e: e.question_nee or e.du.prix_apres, _question),
+    ("question née", lambda e: e.question_nee, _question),
     ("ligne retirée", lambda e: RETRAIT_D_UNE_LIGNE in e.du.faits_qui_engagent, _second("retrait")),
     ("formule ajoutée", lambda e: "formule_ajoutee" in e.du.faits_qui_engagent, _formule),
     ("phrase vide", lambda e: not e.phrase, _second("sans_phrase")),

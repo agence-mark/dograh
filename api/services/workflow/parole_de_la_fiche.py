@@ -104,7 +104,7 @@ class VerificateurDeLaFiche:
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.CHIFFRES_EXIGES, texte[:80], consigne or "", a_dire=a_dire)
         if raison is None:
-            # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33), ou le rendu et la question après la confirmation (C6)
+            # la phrase est dite ; la phrase réglée du code la suit (le total de la relecture, ou le rendu et la question après la confirmation : C6)
             etat.exiges = None
             dit = PAROLE.avec_le_suffixe(texte, etat, p)
             if not dit and PAROLE.question_oubliee(texte, etat, p) and (consigne := consigne_de_relance(p, fiche, etat, connecteur)):

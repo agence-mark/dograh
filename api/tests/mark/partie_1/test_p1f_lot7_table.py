@@ -33,7 +33,7 @@ CAS = [
     ("rien n'a changé", {RIEN_CHANGE: True}, "Oui.", {}, {"lignes": [{}]}, {}, SECOND_PASSAGE),
     ("fait bloquant", {"statut": "PARTIEL"}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("faits à dire", {CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
-    ("question née ou prix à dire", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
+    ("question née", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
     ("ligne retirée", {CLE_DU: {"faits_qui_engagent": [RETRAIT_D_UNE_LIGNE]}}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("formule ajoutée", {"resultats": [{"operation": "ajouter", "faits": {"composition": ["x"]}}]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("phrase vide", {}, "", {}, None, {}, SECOND_PASSAGE),

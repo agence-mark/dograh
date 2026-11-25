@@ -259,8 +259,9 @@ def test_enveloppe_unique():
 
 
 def test_retour_sans_phrase_du_code():
-    EN.verifier({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True})
-    for faux in ({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": "Le Coca-Cola est à deux euros."},
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le drapeau du prix dit par le code n'existe plus, même à ``true`` (les prix sont des faits que le modèle dit)
+    for faux in ({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True},
+                 {"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": "Le Coca-Cola est à deux euros."},
                  {"statut": "FAIT", "faits": {"phrase_du_code": "Le minimum est de quinze euros."}}):
         with pytest.raises(EN.EnveloppeInvalide):
             EN.verifier(faux)

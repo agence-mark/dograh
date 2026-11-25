@@ -208,7 +208,6 @@ GLOSSAIRE: dict[str, tuple[frozenset[str], str]] = {
     'prenom': (frozenset(['case', 'champ_greffier', 'cle_retour']), "Le prénom qu'elle donne."),
     'presse': (frozenset(['case']), 'Production.'),
     'pret': (frozenset(['cle_retour']), 'Quand elle sera prête.'),
-    'prix_dit_par_le_code_apres_ta_phrase': (frozenset(['cle_retour']), "Vrai : le code dit le prix de la proposition juste après la phrase du modèle ; la phrase du prix n'est pas montrée (B10)."),
     'produit': (frozenset(['case', 'valeur']), "Production : l'article."),
     'proposition': (frozenset(['type_question']), 'Question : un article en plus proposé par le code.'),
     'proposition_close': (frozenset(['cle_retour']), 'La proposition est close.'),

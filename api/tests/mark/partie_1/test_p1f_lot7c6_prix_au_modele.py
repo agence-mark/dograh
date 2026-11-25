@@ -49,3 +49,22 @@ async def test_un_autre_prix_que_celui_lu_est_retenu(essai_de):
     retour = await e.fiche(a_dire=phrase)
     retenue = _second_passage(e, retour, phrase)
     assert retenue is not None and retenue.raison == PAROLE.CHIFFRE, retenue
+
+
+def test_plus_aucun_prix_n_est_dit_par_le_code_apres_la_phrase_du_modele():
+    """Fin du n° 11 : les prix D33 sont des faits que le modèle dit (lu, remise, proposition, poids). ``Du`` n'a plus de prix à dire après la phrase, et le drapeau
+    ``prix_dit_par_le_code_apres_ta_phrase`` n'existe plus : un retour qui le porte sort de l'enveloppe ; aucune source ne l'écrit."""
+    import dataclasses
+
+    import pytest
+
+    from api.outils import inventaire_rustines as I
+    from api.services.actions_communes import du as DU
+    from api.services.actions_communes import enveloppe as EN
+
+    assert "prix_apres" not in {f.name for f in dataclasses.fields(DU.Du)}
+    with pytest.raises(EN.EnveloppeInvalide):
+        EN.verifier({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True})
+    ecrits = [f"{p.relative_to(I.RACINE_API).as_posix()}" for p in sorted((I.RACINE_API / "services").rglob("*.py"))
+              if "__pycache__" not in p.parts and "prix_dit_par_le_code_apres_ta_phrase" in p.read_text(encoding="utf-8")]
+    assert ecrits == [], ecrits

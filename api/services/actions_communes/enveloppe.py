@@ -1,8 +1,8 @@
 """[.mark] L'enveloppe de retour unique d'une fiche (chantier Partie 1, lot 2, étape 7 ; méthode § 3, « le retour du code au modèle »).
 
 Toujours la même forme : un statut en liste fermée, les résultats (un par opération), les faits, la prochaine question numérotée (``Q-n``), la raison,
-les choix et ``a_faire`` en cas de refus. Le code ne montre JAMAIS au modèle une phrase qu'il dit lui-même : il dit seulement qu'il la dit
-(``prix_dit_par_le_code_apres_ta_phrase`` à ``true`` ; B10 § 1 point 4).
+les choix et ``a_faire`` en cas de refus. Le code ne montre JAMAIS au modèle une phrase qu'il dit lui-même (B10 § 1 point 4) ; C6 n° 11 : les prix sont des faits que le
+modèle dit, le drapeau du prix dit par le code après la phrase n'existe plus (un retour qui le porte sort de l'enveloppe).
 
 Chaque raison de refus est rangée « fiche » (``REFUS_DE_LA_FICHE`` : la forme de la fiche, ou une valeur qui ne vient pas d'elle ; B12 § 2,
 décision 1) ou « métier » (``RAISONS_DU_METIER`` : hors zone, rupture, horaire plein, minimum…). Ce que la parole fait d'un refus de la fiche est
@@ -59,8 +59,6 @@ assert not REFUS_DE_LA_FICHE & RAISONS_DU_METIER, "une raison est rangée « fic
 
 FORMAT_QUESTION = re.compile(r"^Q-[1-9]\d*$")
 REPONSES_FERMEES = ("accepte", "refuse", "autre")
-# Les phrases que le code dit lui-même et que le retour ne montre jamais (seulement le drapeau qui dit qu'il les dit).
-DRAPEAUX_DE_PAROLE_DU_CODE = ("prix_dit_par_le_code_apres_ta_phrase",)
 CLES_INTERDITES = ("phrase_du_code", "texte_du_prix", "phrase_de_la_regle", "chiffre_dit")
 
 
@@ -131,15 +129,12 @@ def verifier(retour: dict[str, Any]) -> None:
     phrase du code montrée au modèle."""
     if retour.get("statut") not in STATUTS:
         raise EnveloppeInvalide(f"statut {retour.get('statut')!r} hors de {STATUTS}")
-    inconnues = set(retour) - set(CLES) - set(DRAPEAUX_DE_PAROLE_DU_CODE)
+    inconnues = set(retour) - set(CLES)
     if inconnues:
         raise EnveloppeInvalide(f"clés hors de l'enveloppe : {sorted(inconnues)}")
     q = retour.get("question")
     if q is not None:
         Question(**{k: (tuple(v) if k == "reponses" else v) for k, v in q.items()})
-    for drapeau in DRAPEAUX_DE_PAROLE_DU_CODE:
-        if drapeau in retour and retour[drapeau] is not True:
-            raise EnveloppeInvalide(f"{drapeau} vaut true ou n'est pas là : la phrase elle-même n'est jamais dans le retour")
     _sans_phrase_du_code(retour)
     for raison in _raisons(retour):
         if rangee(raison) is None:

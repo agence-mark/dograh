@@ -1,8 +1,8 @@
 """[.mark] Brique PRX5 : le prix « à partir de » (inventaire, famille 6 ; la plupart des fiches de commande en ligne).
 
 Le prix affiché d'un article à tailles ou à choix obligatoires payants est un prix de départ : le total se fait avec les choix. La lecture d'un article rend le fait ``prix``
-(``montant`` : le plus bas total possible, ``a_partir_de`` : vrai dès qu'un autre total est possible) ; le chiffre est dit par le code (D33), jamais le prix de départ comme prix
-final. Fonction pure : aucune requête, la carte chargée suffit.
+(``montant`` : le plus bas total possible, ``a_partir_de`` : vrai dès qu'un autre total est possible) ; le modèle dit ce fait, admis par la barrière des chiffres (C6 n° 11), jamais le prix de départ
+comme prix final. Fonction pure : aucune requête, la carte chargée suffit.
 """
 
 from __future__ import annotations

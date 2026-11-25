@@ -1,6 +1,6 @@
 """[.mark] Chantier Partie 1, lot 6 : la barrière des chiffres sur toute phrase libre du modèle (B10 point 3, B11 point 4, B12 décision 1).
 
-Les chiffres sont dits par le code (D5, D33). Une phrase du modèle (``a_dire`` comprise) qui porte un chiffre n'est jamais dite : elle est retenue et
+Les chiffres sont dits par le code (D5, D33), sauf les valeurs des faits que le code donne au modèle (les prix D33, C6 n° 11). Une phrase du modèle (``a_dire`` comprise) qui porte un chiffre n'est jamais dite : elle est retenue et
 le modèle repasse, avec dans l'état « Ta réponse précédente portait un chiffre : elle n'a pas été dite, et rien n'est changé. Les chiffres sont dits
 par le code. » Règle de VALEUR, jamais de sens. Trois exemptions, chacune une règle nommée :
 

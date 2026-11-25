@@ -79,9 +79,10 @@ async def test_le_minimum_et_le_poids_arrivent_dans_le_meme_du(essai_de):
     from api.services.actions_communes import du as DU
 
     retour: dict = {"statut": "FAIT"}
-    DU.assembler(retour, DU.Du(faits_qui_engagent=("x",)), DU.Du(prix_apres=True), None)
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le prix au poids est une consigne et un fait, plus un ``prix_apres``
+    DU.assembler(retour, DU.Du(faits_qui_engagent=("x",)), DU.Du(consignes=((C.REFUS_A_DIRE, "dis le prix"),)), None)
     du = DU.du_du_retour(retour)
-    assert du.faits_qui_engagent == ("x",) and du.prix_apres, du
+    assert du.faits_qui_engagent == ("x",) and (C.REFUS_A_DIRE, "dis le prix") in du.consignes, du
 
 
 def test_r6_chaque_constante_du_constat_a_une_seule_source_et_un_seul_sens():
