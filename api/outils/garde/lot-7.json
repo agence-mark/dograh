@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "11c3bc55f5a08bfc1c8b48a087ec4b9d368ca92c",
+ "commit_teste": "edb48e12bd32bcc4038c5c6a8eadb7ad6ccbddf8",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa13",
  "vert": true,
@@ -9,14 +9,14 @@
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 31
+   "fichiers_de_la_zone": 35
   },
   "linter": {
    "vert": true,
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1121 files, 3384 dependencies.",
+    "Analyzed 1121 files, 3387 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 10.96s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.01s ========================"
   },
   "noqa": {
    "vert": true,
@@ -35,31 +35,12 @@
   "donnes": {
    "vert": true,
    "tests": [
-    "tests/mark/partie_1/test_cloture_b2_du.py",
-    "tests/mark/partie_1/test_cloture_b6_controle_long.py",
-    "tests/mark/partie_1/test_l07_point_de_controle.py",
-    "tests/mark/partie_1/test_l07_reservation.py",
-    "tests/mark/partie_1/test_l08_briques.py",
-    "tests/mark/partie_1/test_l09_briques.py",
-    "tests/mark/partie_1/test_l11_briques.py",
-    "tests/mark/partie_1/test_l20_laquelle_dit_les_reservations.py",
-    "tests/mark/partie_1/test_p1f_lot3_execution.py",
-    "tests/mark/partie_1/test_p1f_lot7_inventaire_phrases.py",
-    "tests/mark/partie_1/test_p1f_lot7_table.py",
-    "tests/mark/partie_1/test_p1f_lot7_table_egale_cascade.py",
-    "tests/mark/partie_1/test_p1f_lot7b_heure_avant_la_relecture.py",
-    "tests/mark/partie_1/test_p1f_lot7c1_reprises.py",
-    "tests/mark/partie_1/test_p1f_lot7c1_secours_lu_par_le_repli.py",
-    "tests/mark/partie_1/test_p1f_lot7c2_creneau_et_zone.py",
-    "tests/mark/partie_1/test_p1f_lot7c4_manque_sans_phrase.py",
-    "tests/mark/partie_1/test_p1f_lot7c4_question_sans_phrase.py",
-    "tests/mark/partie_1/test_p1f_lot7c4_zone_et_une_seule_source.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py",
     "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
-    "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
-    "tests/mark/partie_1/test_l03_porte.py",
-    "tests/mark/partie_1/test_l06_parole.py"
+    "tests/mark/partie_1/test_l06_parole.py",
+    "tests/mark/partie_1/test_l03_porte.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_l06_parole.py::test_une_requete_lancee_directement_au_cerveau_a_la_forme_d_une_requete_ordinaire\nPASSED tests/mark/partie_1/test_l06_parole.py::test_la_lecture_garde_ses_cases_quand_la_fiche_suit_l_etat\nPASSED tests/mark/partie_1/test_l06_parole.py::test_la_question_deja_donnee_est_posee_par_la_phrase_de_la_fiche\nPASSED tests/mark/partie_1/test_l06_parole.py::test_commande_sans_caisse_jouee_pour_de_vrai_au_labo_seulement\nPASSED tests/mark/partie_1/test_l06_parole.py::test_allergie_en_tete_de_la_note_jamais_coupee\n=========== 482 passed, 10 xfailed, 6 warnings in 377.11s (0:06:17) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_l03_porte.py::test_banc_a_passe_par_la_fiche\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv1-livraison-refus]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv6-recommencer-annuler]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv7-heure]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv8-apres-enregistrement]\n=========== 127 passed, 10 xfailed, 1 warning in 102.58s (0:01:42) ============"
   }
  }
 }
