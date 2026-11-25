@@ -3,7 +3,7 @@ ou au lieu, un maximum atteint, est un fait que le modèle dit ; la cascade de r
 modèle avec ses candidats ; la cascade de référence a perdu le troisième cas, la question d'ambiguïté dite mot pour mot.
 
 Sur une grille de retours, de phrases, de textes du code, de dossiers et d'états du tour : même mode, même motif, même phrase dite, et mêmes mouvements de
-l'état du tour (fiches, rattrapage, retenues, question donnée, prix). La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
+l'état du tour (fiches, rattrapage, retenues, question donnée, prix). Lot 7b-C5 (décision d'Evan 25/11 8 h 45) : la référence ne complète plus la phrase par la question ou le manque, elle relance le modèle une fois. La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import itertools
 import pytest
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as P
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, sans_balisage
 from api.services.actions_communes.du import BLOQUANTS, CLE_DU, CLES_DES_FAITS_DU_REFUS, CLE_FAITS_A_DIRE, RETRAIT_D_UNE_LIGNE, RIEN_CHANGE
@@ -50,7 +51,12 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
             return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE)
         if not phrase or chiffre_dans_la_phrase(phrase, etat.executees, paroles):
             return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre")
-        reprise = P.reprise_apres_la_phrase(phrase, etat, p, rien_change=True) or (None if P.pose_une_question(phrase) else sans_balisage(str((retour.get(CLE_DU) or {}).get("manque") or "")) or None)
+        due = not P.pose_une_question(phrase) and (isinstance(q_dossier, dict) or bool((retour.get(CLE_DU) or {}).get("manque")))
+        if due and not etat.relance_du_fait:  # lot 7b-C5 (décision d'Evan 25/11 8 h 45) : le modèle repasse une fois au lieu que le code complète sa phrase
+            etat.relance_du_fait = True
+            etat.suffixe = suffixe_avant
+            return Decision(SECOND_PASSAGE, motif=P.MANQUE)
+        reprise = None if due or P.pose_une_question(phrase) or not isinstance(p, dict) else J.fait_accompli(p)
         if reprise:
             return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=P.REPRISE)
         return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
@@ -62,10 +68,10 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
         question_id = (q_dossier or {}).get("id")
         if (question_id and question_id == etat.question_donnee and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and phrase
                 and not chiffre_dans_la_phrase(phrase, etat.executees, paroles)):
-            if not P.pose_une_question(phrase):
-                suite = P.repli_sans_le_fait_bloquant_de(p)
-                if suite:
-                    return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {suite}", motif=P.QUESTION_DEJA_DONNEE)
+            if not P.pose_une_question(phrase) and not etat.relance_du_fait:  # lot 7b-C5 : le modèle repasse une fois au lieu que le code complète sa phrase
+                etat.relance_du_fait = True
+                etat.suffixe = suffixe_avant
+                return Decision(SECOND_PASSAGE, motif=P.QUESTION_DEJA_DONNEE)
             return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suffixe_avant) if x), motif=P.QUESTION_DEJA_DONNEE)
         etat.question_donnee = question_id
         etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or None
@@ -103,7 +109,7 @@ RETOURS = {
 PHRASES = ["", "Très bien.", "Très bien. Autre chose ?", "Cela fait 12 euros."]
 TEXTES = [{}, {"avant": "Je vous relis la commande."}, {"suffixe": "Prix : 8 euros."}]
 DOSSIERS = ["aucun", "objet", "question_nee"]
-ETATS = [{}, {"rattrapage_a_joue": True}, {"question_donnee": "Q-1"}, {"question_donnee": "Q-1", "suffixe": "Prix : 8 euros."}]
+ETATS = [{}, {"rattrapage_a_joue": True}, {"question_donnee": "Q-1"}, {"question_donnee": "Q-1", "suffixe": "Prix : 8 euros."}, {"rattrapage_a_joue": True, "relance_du_fait": True}]
 
 
 def _dossier(nom):
@@ -116,7 +122,7 @@ def _dossier(nom):
 
 
 def _cle(d, e):
-    return (d.mode, d.motif, d.a_dire), (e.fiches, e.rattrapage_a_joue, tuple(e.retenues), e.question_donnee, e.suffixe)
+    return (d.mode, d.motif, d.a_dire), (e.fiches, e.rattrapage_a_joue, tuple(e.retenues), e.question_donnee, e.suffixe, e.relance_du_fait)
 
 
 @pytest.mark.parametrize("nom", list(RETOURS))

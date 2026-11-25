@@ -101,14 +101,12 @@ def _entrees(fiche: dict, phrase: str, *, question_donnee: bool = False):
     return TABLE.entrees_du_retour(retour, phrase, etat, [], p, {}, True, None)
 
 
-@G2
 def test_e2a_rien_n_a_change_ne_complete_pas_la_phrase_par_la_question_du_code():
     """Client « Et un coca. », la fiche ne change rien, une question attend : le modèle repasse ; le code n'ajoute pas « Quelle taille pour la Regina ? »."""
     decision = TABLE.decider(_entrees(_fiche(question=_question()), "C'est noté."))
     assert decision.a_dire in (None, "C'est noté."), decision
 
 
-@G2
 def test_e2b_une_question_deja_donnee_ne_complete_pas_la_phrase_par_la_question_du_code():
     decision = TABLE.decider(_entrees(_fiche(question=_question()), "C'est noté.", question_donnee=True))
     assert decision.a_dire in (None, "C'est noté."), decision
@@ -333,3 +331,35 @@ def test_s4_des_cases_illisibles_disent_le_fait_accompli_s_il_y_en_a_un():
     moteur = SimpleNamespace(_gathered_context=_avec_fait_accompli(_fiche(fait_bloquant=HOMARD)))
     llm = SimpleNamespace(**{ATTRIBUT_PHRASE_DE_REPLI: lambda: REGLEE})
     assert AR.phrase_si_les_cases_sont_illisibles(moteur, llm) == "Votre commande est enregistrée."
+
+
+# --------------------------------------------------------------------------- commit 7 : E2a et E2b, la table relance au lieu de compléter
+
+
+def _entrees_du_manque(fiche: dict, phrase: str):
+    from api.services.actions_communes import du as DU
+
+    etat = PAROLE.etat_du_tour(fiche)
+    etat.rattrapage_a_joue = True
+    retour = {"statut": "FAIT", "resultats": [], "faits": {}, "rien_change": True, DU.CLE_DU: {"manque": "les articles"}}
+    return TABLE.entrees_du_retour(retour, phrase, etat, [], P.du_dossier(fiche), {}, True, None)
+
+
+def test_e2a_un_manque_du_donne_un_second_passage_une_fois_puis_la_phrase_seule():
+    """Client « Et un coca. » / avant : modèle « C'est noté. » + code « Qu'est-ce que je vous mets ? » / après : le modèle repasse (« Un coca, c'est noté ; autre chose ? »), une fois ; ensuite sa phrase seule."""
+    e = _entrees_du_manque(_fiche(), "C'est noté.")
+    assert TABLE.decider(e).mode == PAROLE.SECOND_PASSAGE and e.etat.relance_du_fait
+    decision = TABLE.decider(e)
+    assert decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire == "C'est noté.", decision
+
+
+def test_e2a_une_phrase_qui_pose_une_question_est_dite_seule():
+    e = _entrees_du_manque(_fiche(), "C'est noté ; autre chose ?")
+    decision = TABLE.decider(e)
+    assert decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire == "C'est noté ; autre chose ?" and not e.etat.relance_du_fait, decision
+
+
+def test_e2b_le_prix_a_dire_apres_la_phrase_survit_au_second_passage():
+    e = _entrees(_fiche(question=_question()), "C'est noté.", question_donnee=True)
+    e.suffixe_avant = "Cela fait deux euros."
+    assert TABLE.decider(e).mode == PAROLE.SECOND_PASSAGE and e.etat.suffixe == "Cela fait deux euros."

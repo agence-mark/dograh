@@ -218,7 +218,7 @@ async def test_hesitation_sur_une_option_range_l_option(essai_de):
 
 
 async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
-    """P8 : cases du tour illisibles : la requête ne part pas, mais le code DIT sa phrase (la question en attente, sinon ce qui manque, sinon « pas compris ») : avant, une ligne au journal et plus aucune
+    """P8 : cases du tour illisibles : la requête ne part pas, mais le code DIT sa phrase (le fait accompli, sinon « pas compris » : lot 7b-C5) : avant, une ligne au journal et plus aucune
     réponse jusqu'au raccrochage."""
     from types import SimpleNamespace
 
@@ -234,10 +234,8 @@ async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
     q = await _jusqu_a_la_relecture(e)
     moteur = SimpleNamespace(_gathered_context=e.fiche_de_l_appel)
     phrase = AR.phrase_si_les_cases_sont_illisibles(moteur)
-    assert phrase == q["texte"].strip(), (phrase, q)  # la question en attente (la relecture), dite telle que le code la tient
-    monkeypatch.setattr("api.services.actions_communes.repli.repli_dit_par_le_code", lambda *a, **k: None)
-    assert AR.phrase_si_les_cases_sont_illisibles(moteur) == phrase_de_repli_par_defaut()  # rien à redire : « pas compris »
-    monkeypatch.undo()
+    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : aucune requête n'est possible ; le code ne redit pas la question en attente, il dit la phrase réglée (le fait accompli, s'il y en a un)
+    assert phrase == phrase_de_repli_par_defaut() and q["texte"].strip() not in phrase, (phrase, q)
     monkeypatch.setattr(AR, "preparer_la_requete", None, raising=False)
 
     async def illisible(*_a, **_k):

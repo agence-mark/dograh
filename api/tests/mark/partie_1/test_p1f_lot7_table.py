@@ -56,12 +56,14 @@ def test_ce_qui_manque_est_du_quand_la_phrase_ne_pose_pas_de_question():
     assert d.mode == A_DIRE_SEUL
 
 
-def test_une_fiche_vide_est_retenue_une_fois_puis_dite_avec_la_question_en_attente():
+def test_une_fiche_vide_est_retenue_une_fois_puis_relancee_une_fois_puis_dite_seule():
     p = {"lignes": [{}], **QUESTION_NEE}
     _, premiere, e = _joue({RIEN_CHANGE: True}, "D'accord.", p=p)
     assert premiere.motif == RIEN_CHANGE and e.rattrapage_a_joue
     _, seconde, _ = _joue({RIEN_CHANGE: True}, "D'accord.", p=p, rattrapage_a_joue=True)
-    assert seconde.mode == A_DIRE_SEUL and seconde.a_dire.startswith("D'accord.")
+    assert seconde.mode == SECOND_PASSAGE  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le modèle repasse avec la question en attente, le code ne la redit pas
+    _, troisieme, _ = _joue({RIEN_CHANGE: True}, "D'accord.", p=p, rattrapage_a_joue=True, relance_du_fait=True)
+    assert troisieme.mode == A_DIRE_SEUL and troisieme.a_dire == "D'accord."
 
 
 def test_la_question_deja_donnee_est_dite_au_passage_suivant():
