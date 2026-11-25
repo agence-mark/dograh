@@ -36,6 +36,8 @@ PHRASES = {
     "enregistree_retrouvee": PhraseDuCode("Votre commande est enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
     "deja_enregistree_pour": PhraseDuCode("Votre commande est déjà enregistrée pour {quand}.", EXCEPTION_FAIT_ACCOMPLI),  # le panier (ou l'anti-doublon) retombe sur une commande déjà prise : le fait accompli qui engage
     "deja_enregistree": PhraseDuCode("Votre commande est déjà enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
+    "quel_numero_je_note": PhraseDuCode("Quel numéro je note ?", EXCEPTION_NUMERO),  # DC10 : après un refus du numéro proposé, une seule fois ; le numéro est une valeur que le code porte
+    "numero_affiche_propose": PhraseDuCode("Je note le numéro qui s'affiche, c'est bon ?", EXCEPTION_NUMERO),  # défaut de la question du registre ``numero_affiche`` (le réglage ``question_numero_affiche`` passe avant)
     "prix_au_poids": PhraseDuCode("{arrondi}{fois}{grammes} grammes de {nom} : {prix}.", EXCEPTION_TOTAL),  # D33 : le prix d'un article au poids est un total dit par le code (jamais montré au modèle)
 }
 
@@ -69,3 +71,12 @@ def enregistree_retrouvee(quand_dit: str | None) -> str:
 def prix_au_poids(*, arrondi: bool, fois: str | None, grammes: str, nom: str, prix: str) -> str:
     """Le prix d'un article au poids (QTE1), le total de la ligne : ``fois`` est le nombre de portions dit en lettres (``None`` pour une seule), ``prix`` le montant dit en lettres."""
     return PHRASES["prix_au_poids"].texte.format(arrondi="Arrondi à " if arrondi else "", fois=f"{fois} fois " if fois else "", grammes=grammes, nom=nom, prix=prix)
+
+
+def quel_numero_je_note() -> str:
+    return PHRASES["quel_numero_je_note"].texte
+
+
+def numero_affiche_propose(reglee: str | None = None) -> str:
+    """La question du numéro qui s'affiche : celle que le restaurant a réglée (``question_numero_affiche``), sinon la phrase de base."""
+    return (reglee or "").strip() or PHRASES["numero_affiche_propose"].texte

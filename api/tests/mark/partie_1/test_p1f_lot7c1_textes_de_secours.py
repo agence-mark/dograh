@@ -461,3 +461,63 @@ async def test_sans_ouverture_connue_le_jour_et_l_heure_se_demandent(appel, monk
     r = await moteur.choisir_mode(appel.source, appel.p, appel.regles, "emporter")
     assert r.statut == "FERME_PLANIFIABLE" and r.manque is None
     assert r.suggestion == f"{PHRASE_DE_FERMETURE} {TS.quel_jour_et_quelle_heure(porte.faits_vus_par_le_modele(r))}" == f"{PHRASE_DE_FERMETURE} Pour quel jour et à quelle heure ?"
+
+
+# ── commit 7 : le numéro, le prénom, la fin à une heure fermée (enregistrement.py) ──────────────────────────────────────
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES  # noqa: E402
+from api.services.commande.moteur import enregistrement  # noqa: E402
+from api.services.commande.moteur.socle import Appelant  # noqa: E402
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque  # noqa: E402
+
+
+async def test_un_numero_illisible_dit_le_secours_et_porte_son_fait(appel):
+    r = await enregistrement.identifier(appel.source, appel.p, appel.regles, Appelant(), telephone="abc", prenom=None)
+    assert (r.statut, r.manque) == ("ARGUMENT_INVALIDE", "telephone")
+    assert porte.faits_vus_par_le_modele(r)["numero_illisible"] is True
+    le_texte_de_secours_suffit(r, TS.numero_pas_compris, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?")
+
+
+async def test_a_la_fin_un_numero_illisible_dit_le_meme_secours(appel):
+    await appel.ajouter("coca")
+    await appel.mode()
+    r = await enregistrement.finaliser(appel.source, appel.p, appel.regles, Appelant(), telephone="abc")
+    assert r.statut == "ARGUMENT_INVALIDE"
+    le_texte_de_secours_suffit(r, TS.numero_pas_compris)
+
+
+async def test_le_numero_qui_manque_se_demande_par_la_phrase_du_manque(appel):
+    r = await enregistrement.identifier(appel.source, appel.p, appel.regles, Appelant(), telephone=None, prenom="Paul")
+    assert r.manque == "telephone" and r.suggestion == phrase_du_manque(Manque.TELEPHONE) == "Quel est votre numéro de téléphone ?"
+
+
+async def test_le_prenom_qui_manque_se_demande_par_la_phrase_du_manque(appel):
+    appel.p["client"]["telephone"] = "0612345678"
+    r = await enregistrement.identifier(appel.source, appel.p, appel.regles, Appelant(), telephone=None, prenom=None)
+    assert r.manque == "prenom" and r.suggestion == phrase_du_manque(Manque.PRENOM) == "À quel nom je mets la commande ?"
+
+
+async def test_le_numero_affiche_se_propose_avec_la_phrase_du_code_ou_le_reglage(appel):
+    from dataclasses import replace
+    regles = replace(appel.regles, question_numero_affiche=None)
+    r = await enregistrement.identifier(appel.source, appel.p, regles, Appelant(telephone_affiche="+33612345678"), telephone=None, prenom="Paul")
+    assert r.manque == "confirmer_numero" and r.suggestion == PHRASES_DITES.numero_affiche_propose() == "Je note le numéro qui s'affiche, c'est bon ?"
+    assert PHRASES_DITES.numero_affiche_propose("Je note le 06, ça vous va ?") == "Je note le 06, ça vous va ?"
+    assert PHRASES_DITES.quel_numero_je_note() == "Quel numéro je note ?"
+
+
+async def test_la_fin_a_une_heure_fermee_propose_l_ouverture_puis_demande_le_jour(appel, monkeypatch):
+    async def quand_dit(_h):
+        return "dix-huit heures"
+    await appel.ajouter("coca")
+    await appel.mode()
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True, prochaine_ouverture=datetime(2026, 11, 25, 17, tzinfo=timezone.utc)))
+    monkeypatch.setattr(appel.source, "quand_dit", quand_dit, raising=False)
+    r = await enregistrement.finaliser(appel.source, appel.p, appel.regles, Appelant(telephone_affiche="+33612345678"))
+    assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_proposee")
+    faits = porte.faits_vus_par_le_modele(r)
+    assert faits["heure_proposee_dite"] == "dix-huit heures" and "reprenons" not in str(faits)
+    assert r.suggestion == f"{PHRASE_DE_FERMETURE} Je vous la prépare pour dix-huit heures ?"
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True))
+    r = await enregistrement.finaliser(appel.source, appel.p, appel.regles, Appelant(telephone_affiche="+33612345678"))
+    assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_voulue")
+    assert r.suggestion.endswith("Pour quel jour et à quelle heure ?")  # la fermeture déjà dite au premier passage ne se redit pas

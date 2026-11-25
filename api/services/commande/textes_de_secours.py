@@ -246,3 +246,18 @@ def preparer_pour_l_ouverture(faits: Faits) -> str:
 
 def quel_jour_et_quelle_heure(faits: Faits) -> str:
     return "Pour quel jour et à quelle heure ?"
+
+
+# --------------------------------------------------------------------------- #
+# enregistrement.py : le numéro, la fin
+# --------------------------------------------------------------------------- #
+
+
+def numero_pas_compris(faits: Faits) -> str:
+    """Le numéro dicté ne se lit pas (fait ``numero_illisible``) : le même texte que les autres modules qui prennent un numéro, jamais une phrase du registre."""
+    return "Je n'ai pas bien compris le numéro : vous pouvez le redire ?"
+
+
+def je_vous_la_prepare_pour(faits: Faits) -> str:
+    """La proposition de l'ouverture à la fin : fait ``heure_proposee_dite``."""
+    return f"Je vous la prépare pour {faits['heure_proposee_dite']} ?"
