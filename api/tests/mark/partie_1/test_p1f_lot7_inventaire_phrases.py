@@ -77,8 +77,6 @@ A_RENDRE_C3 = frozenset({
     "db/bases_clients/restauration_reservation.py",
     "services/reservation/lire.py",
     "services/reservation/moteur.py",
-    "services/reservation/porte.py",
-    "services/restauration/carte_et_allergenes/voir_un_article.py",
 })
 
 A_RENDRE = A_RENDRE_C1 | A_RENDRE_C2 | A_RENDRE_C3

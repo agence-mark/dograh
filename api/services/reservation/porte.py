@@ -36,6 +36,7 @@ from api.services.actions_communes.idempotence import cle_d_idempotence, deja_ex
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
 from api.services.actions_communes.resultat import Resultat, avec_le_fait_du_numero_affiche, question_du_numero_affiche
 from api.services.reservation import etat_pour_le_modele, moteur
+from api.services.reservation import textes_de_secours as TS
 from api.services.reservation import source as registre_des_sources
 from api.services.reservation.lire import lire
 from api.services.actions_communes import du as DU
@@ -77,7 +78,6 @@ def _numerotee(q: dict[str, Any], e: dict[str, Any]) -> dict[str, Any]:
     return {**q, "id": RC.numero(e, RC.nommer(TABLE, q, e)), "objet": q["objet"]}
 MANQUES_DU_MODELE = {"prenom": "nom", "reference": "nom_et_jour_de_la_reservation"}   # les mots du classeur sont traduits à la source
 RAISONS_DE_REFUS = {"complet": "complet_a_cette_heure"}  # le reste : le détail du classeur, tel quel (rangé « métier »)
-TEXTE_DU_CHOIX = "Laquelle ?"
 GESTES_DE_LA_SOURCE = {"reserver": "reserver", "modifier": "modifier_reservation", "annuler": "annuler_reservation"}
 STATUTS_ENREGISTRES = ("ENREGISTREE",)
 
@@ -112,7 +112,7 @@ def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> d
         # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
         candidats = en_json(r.faits["candidats"])
         # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
-        return _numerotee({"type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
+        return _numerotee({"type": "choix", "texte": (r.suggestion or TS.laquelle({})), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation") and r.suggestion:
         return _numerotee({"type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}, e)
     return None

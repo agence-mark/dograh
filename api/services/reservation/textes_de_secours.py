@@ -208,3 +208,8 @@ def plusieurs_a_choisir(faits: Faits) -> str:
 
 def rien_ne_change(faits: Faits) -> str:
     return f"Rien ne change : votre réservation reste {faits['quand_dit']} pour {personnes_dites(faits['personnes'])}."
+
+
+def laquelle(faits: Faits) -> str:
+    """La question du choix quand le moteur n'a rien dit (``porte``) ; le choix lui-même se dit par ``plusieurs_a_choisir``."""
+    return "Laquelle ?"

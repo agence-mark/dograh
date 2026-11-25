@@ -7,6 +7,8 @@ garantir ») restent ceux du module d'information (``phrases_d_information``), j
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from collections.abc import Mapping
 from typing import Any
 
@@ -76,3 +78,66 @@ def signalement_dit(faits: Faits) -> str:
         return f"{INFO.SOURCE_FICHE}, {_nom_dit(faits)} ne contient pas {faits['libelle']}."
     suite = " Pour les autres, " + INFO.NON_GARANTI if faits.get("autres_a_confirmer") else " Pour les autres, d'après la fiche, non."  # ``selon_option``
     return f"Ça dépend : avec {liste_dite(faits['options_qui_contiennent'])}, oui." + suite
+
+
+# --------------------------------------------------------------------------- #
+# Lire un article, chercher ce que la carte a « sans » une chose, ou « avec » un ingrédient (``voir_un_article``)
+# --------------------------------------------------------------------------- #
+
+
+def sans_article(libelle: str) -> str:
+    """« le gluten » devient « gluten », « les œufs » devient « œufs »."""
+    return re.sub(r"^(?:le|la|les|l['’])\s*", "", libelle.strip(), flags=re.IGNORECASE)
+
+
+def de(mot: str) -> str:
+    return ("d'" if _sans_accent(mot[:1]) in "aeiouyh" or mot[:1].casefold() == "œ" else "de ") + mot
+
+
+def _sans_accent(texte: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", texte.casefold()) if unicodedata.category(c) != "Mn")  # la même règle que ``socle._sans_accent``
+
+
+def article_sans_une_chose(faits: Faits) -> str:
+    """Les articles que la fiche dit « sans » (``sans``, cinq dits au plus), ce qui dépend du choix (``selon_le_choix``), ce qui reste inconnu (``inconnus``) ; ``mot`` : la chose évitée."""
+    surs, selon = faits["sans"], faits.get("selon_le_choix") or []
+    dits = surs[:PLUS_DE_NOMS]
+    entre_autres = ", entre autres," if len(surs) > len(dits) else ""
+    verbe = "ne contient pas" if len(surs) == 1 else "ne contiennent pas"
+    phrase = f"{INFO.SOURCE_FICHE}, {liste_dite_et(dits)}{entre_autres} {verbe} {de(faits['mot'])}."
+    if selon:
+        phrase += f" Pour {liste_dite_et(selon[:PLUS_DE_NOMS])}, {INFO.CA_DEPEND_DU_CHOIX_NON_GARANTI}"
+    if faits.get("inconnus"):
+        phrase += f" {INFO.POUR_LES_AUTRES_NON_GARANTI}"
+    return phrase
+
+
+def articles_par_ingredient(faits: Faits) -> str:
+    """La recherche par ingrédient : les articles trouvés (``articles``), ``contient`` (avec ou sans la ``chose``), et ce qui reste inconnu (``inconnus``)."""
+    trouves, chose = faits["articles"], sans_article(faits["chose"])
+    if trouves:
+        dits = trouves[:PLUS_DE_NOMS]
+        entre_autres = ", entre autres," if len(trouves) > len(dits) else ""
+        un = len(trouves) == 1
+        verbe = ("contient" if un else "contiennent") if faits["contient"] else ("ne contient pas" if un else "ne contiennent pas")
+        phrase = f"{INFO.SOURCE_ARTICLES}, {liste_dite_et(dits)}{entre_autres} {verbe} {de(chose)}."
+        return phrase + f" {INFO.POUR_LES_AUTRES_NON_CONFIRMABLE}" if faits.get("inconnus") else phrase
+    if faits.get("inconnus"):
+        return INFO.NON_CONFIRMABLE
+    return f"{INFO.SOURCE_ARTICLES}, aucun ne contient {de(chose)}." if faits["contient"] else f"{INFO.SOURCE_ARTICLES}, tous en contiennent."
+
+
+def composition_d_un_article(faits: Faits) -> str:
+    return f"Dans {faits['article']}, il y a {liste_dite_et(faits['ingredients'])}."
+
+
+def de_quel_article(faits: Faits) -> str:
+    return "De quel article parlez-vous ?"
+
+
+def article_introuvable(faits: Faits) -> str:
+    return "Je ne trouve pas cet article."
+
+
+def l_equipe_le_confirme(faits: Faits) -> str:
+    return "L'équipe vous le confirme."
