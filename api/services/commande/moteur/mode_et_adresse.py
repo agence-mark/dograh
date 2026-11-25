@@ -49,8 +49,8 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     r = await _poser_le_mode(source, p, regles, choisi, a_planifier)
     if not a_planifier or r.statut != "OK":
         return r
-    # Fermé mais planifiable : le résultat dit la fermeture et propose le créneau ; la question en cours (zone, articles) suit, sinon l'heure.
-    # Appel 2610 : la fermeture déjà dite avec la question du mode ne se redit pas.
+    # Fermé mais planifiable : le résultat porte la fermeture et le créneau en faits (le modèle les dit) ; la question en cours (zone, articles) suit, sinon l'heure.
+    # Appel 2610 : la fermeture est marquée dite avec la question du mode (le code ne la redit plus, elle n'est plus qu'un fait).
     annoncer_la_fermeture(p, etat)
     heure_voulue_dite = None
     dire = getattr(source, "quand_dit", None)
