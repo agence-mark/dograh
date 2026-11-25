@@ -24,6 +24,7 @@ PERMIS = {
     ("services/commande/phrases_du_manque.py", "services/actions_communes/repli.py", "texte_a_dire"),  # le repli : ce qui manque ensuite
     ("services/commande/phrases_du_manque.py", "services/commande/porte.py", "phrase_du_manque"),  # le chemin du fait bloquant (``phrase_du_fait_bloquant_de``)
     ("services/commande/phrases_du_manque.py", "services/commande/moteur/enregistrement.py", "phrase_du_manque"),  # le module qui refuse écrit le manque (téléphone, prénom) : la phrase du catalogue, mot pour mot
+    ("services/commande/phrases_du_manque.py", "services/commande/moteur/reglement.py", "phrase_du_manque"),  # idem : le moyen de paiement qui manque
     *{("services/commande/textes_de_secours.py", f"services/commande/moteur/{m}.py", TOUS)
       for m in ("articles", "changement", "enregistrement", "lecture", "mode_et_adresse", "prealables", "reglement")},
 }

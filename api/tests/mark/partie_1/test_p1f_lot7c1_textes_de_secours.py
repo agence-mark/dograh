@@ -521,3 +521,74 @@ async def test_la_fin_a_une_heure_fermee_propose_l_ouverture_puis_demande_le_jou
     r = await enregistrement.finaliser(appel.source, appel.p, appel.regles, Appelant(telephone_affiche="+33612345678"))
     assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_voulue")
     assert r.suggestion.endswith("Pour quel jour et à quelle heure ?")  # la fermeture déjà dite au premier passage ne se redit pas
+
+
+# ── commit 8 : le règlement (reglement.py) ──────────────────────────────────────────────────────────────────────────────
+from api.services.commande.moteur import prealables, reglement  # noqa: E402
+
+
+async def test_un_moyen_non_accepte_dit_les_moyens_pris_et_les_porte_en_fait(appel):
+    paiement, r = await reglement.regler(appel.source, appel.p, 2000, moyen="bitcoin")
+    assert paiement is None and r.statut == "MOYEN_NON_ACCEPTE", r
+    faits = porte.faits_vus_par_le_modele(r)
+    assert faits["acceptes_dits"] and r.suggestion == TS.moyen_non_accepte(faits)
+    assert r.suggestion.startswith("Ce moyen de paiement n'est pas accepté. On prend : ") and r.suggestion.endswith(".")
+
+
+async def test_le_moyen_qui_manque_se_demande_par_la_phrase_du_manque(appel):
+    paiement, r = await reglement.regler(appel.source, appel.p, 2000)
+    assert paiement is None and r.manque == "paiement"
+    assert r.suggestion == phrase_du_manque(Manque.PAIEMENT) == "Vous réglez comment ?"
+
+
+async def test_une_part_illisible_demande_le_montant_avec_son_fait(appel):
+    paiement, r = await reglement.regler(appel.source, appel.p, 2000, moyen="especes", part="beaucoup")
+    assert paiement is None and r.statut == "ARGUMENT_INVALIDE"
+    assert porte.faits_vus_par_le_modele(r)["montant_illisible"] is True
+    le_texte_de_secours_suffit(r, TS.quel_montant, "Quel montant exactement ?")
+
+
+async def test_une_part_nulle_demande_aussi_le_montant(appel):
+    paiement, r = await reglement._le_reglement(appel.source, appel.p, 2000, {"moyen": "especes", "part": 0})
+    assert paiement is None
+    assert porte.faits_vus_par_le_modele(r)["montant_illisible"] is True
+    le_texte_de_secours_suffit(r, TS.quel_montant)
+
+
+async def test_une_part_et_pas_de_moyen_pour_le_reste_redemande_le_reste(appel):
+    paiement, r = await reglement.regler(appel.source, appel.p, 2000, moyen="especes", part=5)
+    assert paiement is None and r.manque == "paiement_reste"
+    assert porte.faits_vus_par_le_modele(r)["reste"] == 1500
+    le_texte_de_secours_suffit(r, TS.et_le_reste, "Et le reste, vous le réglez comment ?")
+
+
+async def test_un_billet_trop_petit_se_refuse_avec_ses_faits(appel):
+    paiement, r = await reglement.regler(appel.source, appel.p, 2000, moyen="especes", rendu_sur=10)
+    assert paiement is None and r.statut == "ARGUMENT_INVALIDE"
+    assert porte.faits_vus_par_le_modele(r) == {"montant": 2000, "billet": 1000}
+    le_texte_de_secours_suffit(r, TS.billet_insuffisant, "Le billet ne couvre pas ce règlement.")
+
+
+async def test_un_billet_sans_reglement_en_main_demande_lequel(appel):
+    paiement, r = await reglement._le_reglement(appel.source, appel.p, 2000, {"moyen": "especes", "rendu_sur": 3000, "moyen_du_billet": "carte"})
+    assert paiement is None and porte.faits_vus_par_le_modele(r)["moyen_du_billet"] == "carte"
+    le_texte_de_secours_suffit(r, TS.sur_quel_reglement, "Sur quel règlement le billet ?")
+
+
+def test_le_rendu_de_monnaie_et_les_relectures_se_disent_par_les_phrases_du_code():
+    assert moteur.dire_le_rendu_de_monnaie({"monnaie": 500, "rendu_sur": 2500}) == PHRASES_DITES.rendu_de_monnaie(billet="vingt-cinq euros", monnaie="cinq euros") == "Sur votre billet de vingt-cinq euros, on vous rendra cinq euros."
+    assert PHRASES_DITES.relecture_complete(corps="une Reine, à emporter", total="douze euros") == "Je vous relis : une Reine, à emporter. Cela fait douze euros. C'est bon ?"
+    assert PHRASES_DITES.relecture_apres_changement(changes="On retire la Reine. ", total="dix euros") == "On retire la Reine. Cela fait maintenant dix euros. C'est bon ?"
+    assert PHRASES_DITES.relecture_apres_changement(changes="", total="dix euros") == "Cela fait maintenant dix euros. C'est bon ?"
+    assert PHRASES_DITES.ligne_passe_a(nom="Reine", quantite="deux") == "Reine passe à deux"
+
+
+async def test_la_relecture_entiere_puis_apres_changement_gardent_leur_texte(appel):
+    await appel.ajouter("coca")
+    await appel.mode()
+    appel.p["heure_voulue_dite"] = "demain à vingt heures"
+    r = reglement.poser_la_relecture(appel.source, appel.p, await prealables.chiffrer_le_panier(appel.source, appel.p, appel.regles))
+    assert r.suggestion.startswith("Je vous relis : un Coca-Cola, à emporter, pour demain à vingt heures. Cela fait deux euros. C'est bon ?")
+    await appel.ajouter("coca")
+    r = reglement.poser_la_relecture(appel.source, appel.p, await prealables.chiffrer_le_panier(appel.source, appel.p, appel.regles))
+    assert r.suggestion.startswith("Coca-Cola passe à deux. Cela fait maintenant ") and r.suggestion.endswith(". C'est bon ?")

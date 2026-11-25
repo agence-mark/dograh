@@ -261,3 +261,32 @@ def numero_pas_compris(faits: Faits) -> str:
 def je_vous_la_prepare_pour(faits: Faits) -> str:
     """La proposition de l'ouverture à la fin : fait ``heure_proposee_dite``."""
     return f"Je vous la prépare pour {faits['heure_proposee_dite']} ?"
+
+
+# --------------------------------------------------------------------------- #
+# reglement.py : le moyen de paiement, le montant, le billet
+# --------------------------------------------------------------------------- #
+
+
+def moyen_non_accepte(faits: Faits) -> str:
+    """Faits : ``acceptes_dits`` (les libellés des moyens pris, dits)."""
+    return "Ce moyen de paiement n'est pas accepté. On prend : " + liste_dite_et(list(faits["acceptes_dits"])) + "."
+
+
+def quel_montant(faits: Faits) -> str:
+    """Le montant dit n'est pas un montant (fait ``montant_illisible``) ou une part nulle ou négative."""
+    return "Quel montant exactement ?"
+
+
+def et_le_reste(faits: Faits) -> str:
+    return "Et le reste, vous le réglez comment ?"
+
+
+def sur_quel_reglement(faits: Faits) -> str:
+    """Le billet ne vise aucun des règlements (fait ``moyen_du_billet``)."""
+    return "Sur quel règlement le billet ?"
+
+
+def billet_insuffisant(faits: Faits) -> str:
+    """Faits : ``montant`` (à payer avec le billet) et ``billet``."""
+    return "Le billet ne couvre pas ce règlement."
