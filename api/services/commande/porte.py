@@ -103,6 +103,7 @@ MANQUES_REFUSES_DE_QUESTION = {"heure_voulue": "heure_proposee"}  # lot 7b, lign
 STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "dis-lui avec tes mots le minimum de la livraison et ce qui manque (faits.minimum_de_la_commande), puis demande-lui ce qu'elle veut faire"
 A_FAIRE_DE_L_HEURE = "demande-lui avec tes mots ce qui manque de l'heure voulue (faits.heure_a_dire : le jour et l'heure, ou l'heure de la réouverture)"
+A_FAIRE_DE_LA_REMISE = "dis-lui avec tes mots la remise que son code lui donne, avec son montant (faits.remises_a_dire)"  # C6 n° 11 (OFF3)
 A_FAIRE_DE_LA_REGLE = "dis-lui avec tes mots la règle de la ligne ou de l'article (faits.regle_de_la_ligne, faits.regles_a_dire)"
 A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus de la fiche, avec leurs chiffres et leurs lieux (faits.refus_de_la_fiche)"
 A_FAIRE_DE_L_ANNULATION = "demande-lui avec tes mots si elle est sûre de vouloir annuler sa commande, en disant le montant (faits.annulation_a_confirmer) ; rien n'est annulé avant son « oui »"
@@ -575,12 +576,12 @@ def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]]) -> DU.Du |
     return du
 
 
-async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any) -> DU.Du | None:
-    """OFF3 (conversation OFF3-A, D33) : la remise à laquelle un code dit donne droit est dite PAR LE CODE, une fois, au moment où elle s'applique au panier (le code dit d'abord, ou les
-    articles d'abord), après la phrase du modèle ; rend l'élément de ``Du`` (un prix à dire après), jamais la phrase. Sans cela la personne qui a dit son code n'entendait jamais que la remise était prise.
-    ⛔ Ne lève jamais."""
+async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any, retour: dict[str, Any]) -> DU.Du | None:
+    """OFF3 (conversation OFF3-A, D33) : la remise à laquelle un code dit donne droit est dite une fois, au moment où elle s'applique au panier (le code dit d'abord, ou les articles
+    d'abord). Sans cela la personne qui a dit son code n'entendait jamais que la remise était prise. C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : c'est un FAIT du retour
+    (``remises_a_dire`` : nom, montant, texte de l'offre) que le modèle dit avec ses mots, vérifié par la barrière des chiffres ; rend l'élément de ``Du`` (sa consigne). ⛔ Ne lève jamais."""
     try:
-        if not p.get("remises_du_code") or p.get("enregistree") or p.get("annulee") or not isinstance(getattr(ctx, "fiche", None), dict):
+        if not p.get("remises_du_code") or p.get("enregistree") or p.get("annulee") or not isinstance(retour.get("faits"), dict):
             return None
         if not (p["lignes"] and p["mode"]) or P.a_completer(p):
             return None
@@ -590,9 +591,8 @@ async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regl
         nouvelles = [r for r in chiffre.faits.get("remises") or [] if r["ref"] in p["remises_du_code"] and J.une_fois(p, moteur.cle_de_la_remise(r["ref"]))]
         if not nouvelles:
             return None
-        textes = ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})
-        textes["suffixe"] = " ".join(x for x in (textes.get("suffixe"), *(moteur.phrase_d_une_remise_appliquee(r) for r in nouvelles)) if x)
-        return DU.Du(prix_apres=True)
+        retour["faits"]["remises_a_dire"] = [{"nom": r["nom"], "montant": r["montant"], **({"texte_de_l_offre": r["phrase"]} if r.get("phrase") else {})} for r in nouvelles]
+        return DU.Du(consignes=((C.REFUS_A_DIRE, A_FAIRE_DE_LA_REMISE),))
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la remise du code n'a pas pu être posée")
     return None
@@ -1681,7 +1681,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 etat_pour_le_modele.retenir(p, source)
                 DU.assembler(retour, poser_le_minimum(ctx, p, retour), await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour),
                              poser_la_regle_de_la_ligne(retour.get("resultats") or [], retour), poser_les_regles_de_l_article(retour.get("resultats") or [], retour, p),
-                             poser_le_prix_du_poids(ctx, retour.get("resultats") or []), await poser_la_remise_du_code(ctx, source, p, regles), poser_la_ligne_retiree(retour))
+                             poser_le_prix_du_poids(ctx, retour.get("resultats") or []), await poser_la_remise_du_code(ctx, source, p, regles, retour), poser_la_ligne_retiree(retour))
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))
