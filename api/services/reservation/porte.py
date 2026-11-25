@@ -433,7 +433,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
         refus_a_dire = TS.du_refus(dernier, transmise) if dernier is not None else ""
         if refus_a_dire:  # R = A : le modèle se tait deux fois, le code dit le refus
-            poser_le_fait_bloquant(ctx.fiche, tour, refus_a_dire, METIER_DU_FAIT_BLOQUANT)
+            poser_le_fait_bloquant(ctx.fiche, tour, refus_a_dire, METIER_DU_FAIT_BLOQUANT, [{"statut_du_module": dernier.statut, "manque": dernier.manque, "faits": faits}])
         elif operation in OPERATIONS_QUI_ECRIVENT:  # une écriture sans refus remplace le refus posé plus tôt dans ce tour ; une lecture ou une question ne touche à rien (même fiche, même clé que la commande)
             poser_le_fait_bloquant(ctx.fiche, tour, None, METIER_DU_FAIT_BLOQUANT)
     retour = Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None, a_faire=a_faire, plus=plus).vers_json()

@@ -123,3 +123,33 @@ def test_e2c_une_reprise_ne_compose_pas_la_question_du_code():
     """Client « Pardon ? » : le modèle dit « Pas de souci. » sans question ; le code relance avec la question en attente, il ne la redit pas de sa voix."""
     retenue = _verificateur(_fiche(question=_question(), rattrapage=True)).controler("Pas de souci.")
     assert retenue is not None and retenue.a_dire is None
+
+
+# --------------------------------------------------------------------------- commit 2 : le fait bloquant porte ses faits à côté du texte
+
+
+async def test_c2_le_fait_bloquant_de_la_commande_range_ses_faits_a_cote_du_texte(essai_de):
+    """Client « Deux reines livrées à Compiègne. » (hors zone) : les faits rangés sont ceux que le modèle reçoit (``refus_de_la_fiche``), le texte reste (comportement égal)."""
+    from api.services.actions_communes.repli import CLE_FAIT_BLOQUANT, faits_du_fait_bloquant, phrase_du_fait_bloquant
+
+    e = await essai_de("casa-italia")
+    r = await e.tour("Deux reines normales, livrées au 8 rue Solférino à Compiègne", ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}],
+                     mode_de_retrait="livraison", adresse="8 Rue Solférino", commune="Compiègne")
+    assert r["faits"]["refus_de_la_fiche"], r
+    assert faits_du_fait_bloquant(e.fiche_de_l_appel) == r["faits"]["refus_de_la_fiche"]
+    assert phrase_du_fait_bloquant(e.fiche_de_l_appel) and "commande" in e.fiche_de_l_appel[CLE_FAIT_BLOQUANT]["faits"]
+
+
+async def test_c2_une_suggestion_vide_garde_la_consigne_du_refus(essai_de, monkeypatch):
+    """Sans texte de secours (``suggestion`` vide), la consigne « dis les refus » reste : elle se lit sur les refusants, plus sur le texte."""
+    import dataclasses
+
+    from api.services.commande import porte
+    from api.services.commande.porte import A_FAIRE_DES_REFUS_A_DIRE
+
+    avant = porte.refusants_de_la_fiche
+    monkeypatch.setattr(porte, "refusants_de_la_fiche", lambda f: [dataclasses.replace(r, suggestion="") for r in avant(f)])
+    e = await essai_de("casa-italia")
+    r = await e.tour("Deux reines normales, livrées au 8 rue Solférino à Compiègne", ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}],
+                     mode_de_retrait="livraison", adresse="8 Rue Solférino", commune="Compiègne")
+    assert A_FAIRE_DES_REFUS_A_DIRE in str(r.get("a_faire")), r

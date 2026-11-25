@@ -1162,13 +1162,12 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None))
     refusants = refusants_de_la_fiche(f)
-    raison = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x) or None
     consignes: list[tuple[int, str]] = []
     if heures_a_dire(f) and nee is None:
         consignes.append((C.QUESTION, A_FAIRE_DE_L_HEURE))
-    if raison and "avant" not in textes:
+    if refusants and "avant" not in textes:  # C5 : le refus se lit sur les refusants, plus sur le texte de secours (une suggestion vide garde sa consigne)
         # Le refus se dit une fois comme un fait (B3, M5, C7, DF7) ; redit, le journal donne l'issue, puis la sortie. Une question née avec le refus se dit d'une seule voix avec lui.
-        etape = J.fait_redit(p, " ".join(J.identite_du_refus(r) for r in refusants if raison_du_fait_bloquant(r)), tour, _seuil_de_sortie(ctx))
+        etape = J.fait_redit(p, " ".join(J.identite_du_refus(r) for r in refusants), tour, _seuil_de_sortie(ctx))
         if etape in (J.ISSUE, J.SORTIE) or (etape != J.PREMIERE and nee is None):
             consignes.append(_consigne_du_journal(etape))  # déjà dit : l'issue, puis la sortie (rien de plus dans le même tour)
         else:
@@ -1178,7 +1177,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
         J.dire_le_fait(p, textes["avant"], tour)  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
-    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r) for r in refusants) if x) or None, METIER_DU_FAIT_BLOQUANT)
+    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r) for r in refusants) if x) or None, METIER_DU_FAIT_BLOQUANT,
+                           [_refus_pour_le_modele(r) for r in refusants])
     return consignes
 
 
@@ -1645,7 +1645,8 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         if action.nom == "fiche" and isinstance(ctx.fiche, dict):
             # R = A : le modèle dit la panne avec ses mots ; le texte de secours (``TS.panne_de_la_porte``) n'est dit que par le repli, s'il se tait deux fois. Il ne promet un rappel que si
             # la commande a bien été jointe à l'équipe (le fait ``transmise_a_l_equipe``, la même consigne).
-            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne), METIER_DU_FAIT_BLOQUANT)
+            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne), METIER_DU_FAIT_BLOQUANT,
+                                   [{"statut_du_module": "INDISPONIBLE", "manque": None, "faits": faits_de_la_panne}])
             a_faire = A_FAIRE_DE_LA_PANNE_TRANSMISE if transmise else A_FAIRE_DE_LA_PANNE
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
         faites = getattr(erreur, "cases_executees", None) if action.nom == "fiche" else None

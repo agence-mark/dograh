@@ -83,24 +83,40 @@ CLE_FAIT_BLOQUANT = "phrase_du_fait_bloquant"
 CLE_DU_TOUR = "tour_de_la_personne"  # la même clé que la porte (contrat.CLE_DU_TOUR)
 
 
-def poser_le_fait_bloquant(fiche: Any, tour: Any, texte: str | None, de: str) -> None:
+def poser_le_fait_bloquant(fiche: Any, tour: Any, texte: str | None, de: str, faits: list[Any] | None = None) -> None:
     """La porte du métier ``de`` range la phrase de son fait bloquant (``None`` : le sien est retiré, jamais celui d'un autre métier ; la case d'un autre tour est
-    jetée). Ce que le journal de ce qui est dit a déjà donné en préfixe (la raison) n'y est pas : la porte ne range que ce qui reste à dire."""
+    jetée), et à côté d'elle ses ``faits`` : les refus tels que le modèle les reçoit (C5 : la relance du modèle les lit, jamais la phrase). Ce que le journal de ce qui est dit a déjà
+    donné en préfixe (la raison) n'y est pas : la porte ne range que ce qui reste à dire."""
     if not isinstance(fiche, dict):
         return
     case = fiche.get(CLE_FAIT_BLOQUANT)
-    textes = dict(case["textes"]) if isinstance(case, dict) and isinstance(case.get("textes"), dict) else {}
-    tour_de_la_case = case.get("tour") if isinstance(case, dict) else None
+    valide = isinstance(case, dict)
+    textes = dict(case["textes"]) if valide and isinstance(case.get("textes"), dict) else {}
+    rangs = dict(case["faits"]) if valide and isinstance(case.get("faits"), dict) else {}
+    tour_de_la_case = case.get("tour") if valide else None
     if tour is not None and tour_de_la_case != tour:
-        textes = {}
+        textes, rangs = {}, {}
     textes.pop(de, None)
+    rangs.pop(de, None)
     if texte and texte.strip():
         textes[de] = texte.strip()
+        if faits:
+            rangs[de] = list(faits)
         tour_de_la_case = tour
     if textes:
-        fiche[CLE_FAIT_BLOQUANT] = {"tour": tour_de_la_case, "textes": textes}
+        fiche[CLE_FAIT_BLOQUANT] = {"tour": tour_de_la_case, "textes": textes, "faits": rangs}
     else:
         fiche.pop(CLE_FAIT_BLOQUANT, None)
+
+
+def faits_du_fait_bloquant(fiche: Any) -> list[Any]:
+    """Les faits des faits bloquants posés dans CE tour de la personne (un groupe par métier, dans l'ordre où les portes les ont écrits), à plat ; vide sans fait bloquant."""
+    if not isinstance(fiche, dict):
+        return []
+    f = fiche.get(CLE_FAIT_BLOQUANT)
+    if not isinstance(f, dict) or f.get("tour") != fiche.get(CLE_DU_TOUR):
+        return []
+    return [x for groupe in (f.get("faits") or {}).values() for x in groupe]
 
 
 def phrase_du_fait_bloquant(fiche: Any) -> str | None:
