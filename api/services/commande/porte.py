@@ -20,6 +20,7 @@ from loguru import logger
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
+from api.schemas.workflow_configurations import DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE
 from api.services.actions_communes import issues as ISSUES
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.moyens_de_paiement import MOYEN_DE_BASE_SELON_LA_FICHE
@@ -102,9 +103,9 @@ A_FAIRE_DE_L_ANNULATION = "demande-lui avec tes mots si elle est sûre de vouloi
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
-def _seuil_de_sortie(ctx: Any) -> int | None:
-    """M6 : le nombre de fois avant la sortie, réglé par le restaurant (les réglages de la commande de l'appel) ; ``None`` : le défaut du journal."""
-    return getattr(getattr(ctx, "regles", None), "fois_avant_la_sortie", None)
+def _seuil_de_sortie(ctx: Any) -> int:
+    """M6 : le nombre de fois avant la sortie, réglé par le restaurant (les réglages de la commande de l'appel) ; sans réglages : le défaut du schéma."""
+    return getattr(getattr(ctx, "regles", None), "fois_avant_la_sortie", None) or DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE
 
 
 def _consigne_du_journal(etape: str) -> tuple[int, str]:

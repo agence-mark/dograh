@@ -125,23 +125,22 @@ def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:
     return True
 
 
-def fait_redit(dossier: dict[str, Any], cle: str, tour: Any, seuil: int | None = None) -> str:
+def fait_redit(dossier: dict[str, Any], cle: str, tour: Any, seuil: int) -> str:
     """Un refus ou un fait bloquant de plus sur la même clé : ``PREMIERE`` (le code le dit en entier), ``ISSUE`` (déjà dit : le modèle propose une
-    issue), ``SORTIE`` (au ``seuil``, ``FOIS_AVANT_LA_SORTIE`` par défaut, le même que ``boucle`` : proposer un message à l'équipe), ``DEJA_DANS_CE_TOUR`` (une seconde fiche du même tour : rien de plus)."""
+    issue), ``SORTIE`` (au ``seuil`` : le réglage du restaurant, que l'appelant donne ; proposer un message à l'équipe), ``DEJA_DANS_CE_TOUR`` (une seconde fiche du même tour : rien de plus)."""
     e = _lu(dossier).get(cle)
     if isinstance(e, dict) and tour is not None and e.get("tour") == tour:
         return DEJA_DANS_CE_TOUR
     n = noter(dossier, cle, tour)
-    return PREMIERE if n == 1 else (ISSUE if n < (seuil or FOIS_AVANT_LA_SORTIE) else SORTIE)
+    return PREMIERE if n == 1 else (ISSUE if n < seuil else SORTIE)
 
 
 CLE_BOUCLE = "boucle"
-FOIS_AVANT_LA_SORTIE = 3
 
 
-def boucle(dossier: dict[str, Any], signature: Any, lignes_inchangees: bool, seuil: int | None = None) -> bool:
-    """RC6 (contrôle long, lot 3) : la MÊME chose (la même question posée, le même fait bloquant, le même refus) rendue ``seuil`` fois de suite (``FOIS_AVANT_LA_SORTIE`` par défaut ; le réglage du restaurant le donne) sans que la
-    commande avance : vrai à la troisième, et ensuite tant que ça dure : la sortie (proposer un message à l'équipe, ``A_FAIRE_SORTIE``). Une signature vide (rien de répété),
+def boucle(dossier: dict[str, Any], signature: Any, lignes_inchangees: bool, seuil: int) -> bool:
+    """RC6 (contrôle long, lot 3) : la MÊME chose (la même question posée, le même fait bloquant, le même refus) rendue ``seuil`` fois de suite (le réglage du restaurant, que l'appelant donne) sans que la
+    commande avance : vrai au ``seuil``, et ensuite tant que ça dure : la sortie (proposer un message à l'équipe, ``A_FAIRE_SORTIE``). Une signature vide (rien de répété),
     une autre signature ou une commande qui avance remet le compte à zéro. Le compte vit dans le dossier, comme le journal."""
     if not isinstance(dossier, dict):
         return False
@@ -153,7 +152,7 @@ def boucle(dossier: dict[str, Any], signature: Any, lignes_inchangees: bool, seu
         e["fois"] = int(e.get("fois") or 0) + 1
     else:
         e = CONV.de(dossier)[CLE_BOUCLE] = {"signature": signature, "fois": 1}
-    return int(e["fois"]) >= (seuil or FOIS_AVANT_LA_SORTIE)
+    return int(e["fois"]) >= seuil
 
 
 def consigne(etape: str) -> str | None:

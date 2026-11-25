@@ -42,3 +42,23 @@ def test_la_commande_sort_a_trois_pour_le_refus_redit_et_la_boucle():
     assert [J.fait_redit(d, "x", t, 3) for t in (1, 2, 3)] == [J.PREMIERE, J.ISSUE, J.SORTIE]
     d = {}
     assert [J.boucle(d, ["a"], True, 3) for _ in range(3)] == [False, False, True]
+
+
+def test_le_seuil_est_obligatoire_et_aucune_constante_ne_le_double():
+    """Reprise 3 de l'audit : le journal ne garde aucun 3 en dur, chaque appelant passe le réglage (défaut = celui du schéma)."""
+    import pytest
+
+    assert not hasattr(J, "FOIS_AVANT_LA_SORTIE")
+    with pytest.raises(TypeError):
+        J.fait_redit({}, "x", 1)
+    with pytest.raises(TypeError):
+        J.boucle({}, ["a"], True)
+
+
+def test_la_commande_sans_reglages_de_l_appel_lit_le_defaut_du_schema():
+    from types import SimpleNamespace
+
+    from api.services.commande import porte as PORTE_COMMANDE
+
+    assert PORTE_COMMANDE._seuil_de_sortie(SimpleNamespace()) == W.model_fields[CLE_FOIS_AVANT_LA_SORTIE].default == 3
+    assert PORTE_COMMANDE._seuil_de_sortie(SimpleNamespace(regles=SimpleNamespace(fois_avant_la_sortie=4))) == 4

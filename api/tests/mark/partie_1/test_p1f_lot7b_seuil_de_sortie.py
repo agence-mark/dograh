@@ -32,15 +32,15 @@ def test_le_reglage_se_lit_par_metier_avec_le_defaut_du_schema_et_ignore_ce_qui_
         assert seuil_de_sortie({CLE_FOIS_AVANT_LA_SORTIE: faux}, CLE_FOIS_AVANT_LA_SORTIE, 3) == 3, faux
 
 
-def test_le_journal_lit_le_seuil_qu_on_lui_donne_et_garde_trois_par_defaut():
+def test_le_journal_lit_le_seuil_qu_on_lui_donne():
     dossier: dict = {}
-    assert [J.fait_redit(dossier, "x", t) for t in (1, 2, 3)] == [J.PREMIERE, J.ISSUE, J.SORTIE]
+    assert [J.fait_redit(dossier, "x", t, 3) for t in (1, 2, 3)] == [J.PREMIERE, J.ISSUE, J.SORTIE]
     dossier = {}
     assert [J.fait_redit(dossier, "x", t, seuil=2) for t in (1, 2)] == [J.PREMIERE, J.SORTIE]
     dossier = {}
     assert [J.boucle(dossier, ["a"], True, seuil=2) for _ in range(2)] == [False, True]
     dossier = {}
-    assert [J.boucle(dossier, ["a"], True) for _ in range(3)] == [False, False, True]
+    assert [J.boucle(dossier, ["a"], True, 3) for _ in range(3)] == [False, False, True]
 
 
 async def test_commande_au_seuil_regle_a_deux_la_sortie_vient_au_second_refus(essai_de):

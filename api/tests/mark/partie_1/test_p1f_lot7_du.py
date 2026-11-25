@@ -104,5 +104,5 @@ def test_un_constat_qui_ne_peut_pas_se_poser_ne_leve_pas_le_retour_reste_tel_que
 
     monkeypatch.setattr(DU, "du_du_retour", casse)
     retour = {"statut": "FAIT"}
-    sortie = DU.constater(retour, None, {}, lambda _d: None)
+    sortie = DU.constater(retour, None, {}, lambda _d: None, 3)
     assert sortie["statut"] == "FAIT" and DU.CLE_DU not in sortie
