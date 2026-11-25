@@ -34,7 +34,7 @@ from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes import parole as PAROLE
-from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
+from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
@@ -53,7 +53,7 @@ from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
-from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, CLE_DU_SUFFIXE, lecture_sur_une_copie, lire
+from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, lecture_sur_une_copie, lire
 from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.phrases_du_manque import valeur_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
@@ -1666,9 +1666,8 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 return await _outil_de_l_accueil(action.nom, source, p, regles, dict(arguments or {}), ctx)
             if action.nom == "lire":
                 retour = await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
-                suffixe = retour.pop(CLE_DU_SUFFIXE, None)  # PRX5 : le prix lu est dit par le code après la phrase du modèle (D33)
-                if suffixe:
-                    poser_le_suffixe_lu(getattr(ctx, "fiche", None), suffixe)
+                # PRX5, C6 n° 11 : les valeurs que la lecture donne au modèle (le prix lu) passent la barrière des chiffres dans ce tour ; le code ne les dit plus
+                PAROLE.admettre_les_valeurs(getattr(ctx, "fiche", None), retour.get("faits"))
                 return retour
             if action.nom == "fiche":
                 _prendre_les_notes_du_greffier(p, source, ctx.fiche)

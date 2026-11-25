@@ -17,7 +17,6 @@ from api.services.commande import moteur
 from api.services.commande.resultat import Resultat
 
 CLE_DU_PRIX_A_DIRE = "prix_a_dire"
-CLE_DU_SUFFIXE = "suffixe_du_code"  # retirée par la porte avant le retour : jamais vue du modèle
 SUJETS_DU_PANIER = ("panier", "frais")
 SUJETS_DE_LA_CARTE = ("carte", "article", "allergenes")
 SUJETS_PRATIQUES = ("horaires", "paiement", "acces")
@@ -70,9 +69,5 @@ async def lire(source: Any, p: dict[str, Any], regles: Any, arguments: dict[str,
     consigne = faits.pop("a_faire", None)  # ce que le module propose au modèle (une information que la fiche ne donne pas) : une consigne, pas un fait
     statut = "LU" if r.statut in ("OK", "RETENU", "TROUVE", "LU") else ("INTROUVABLE" if r.statut == "INTROUVABLE" else "LU")
     retour = Enveloppe(statut, resultats=[{"operation": "lire", "sujet": sujet, "statut_du_module": r.statut}], faits=faits, a_faire=consigne).vers_json()
-    prix_a_dire = (r.faits or {}).get(CLE_DU_PRIX_A_DIRE)
-    if prix_a_dire:
-        # PRX5 (D33) : le prix de l'article est dit par le code après la phrase du modèle ; la phrase n'est jamais montrée au modèle, la porte la range dans les textes du code
-        retour[CLE_DU_SUFFIXE] = prix_a_dire
-        retour["prix_dit_par_le_code_apres_ta_phrase"] = True
+    # PRX5, C6 n° 11 (décision d'Evan 25/11 9 h 30) : le prix lu est un fait (``prix``) que le modèle dit avec ses mots ; la barrière des chiffres le laisse passer, un autre est retenu
     return retour

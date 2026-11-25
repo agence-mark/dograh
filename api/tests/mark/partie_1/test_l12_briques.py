@@ -315,22 +315,22 @@ class TestPRX5:
         assert brique_prx5(await e.source.article("P-BOWL", "emporter")) == {"montant": 900, "a_partir_de": False}
 
     async def test_prx5_la_lecture_rend_le_prix_et_le_code_le_dit(self, essai_de):
-        """« C'est combien le tacos ? » : la lecture rend le fait ``prix`` (jamais la phrase) ; le code dit le chiffre après la phrase du modèle (D33)."""
-        from api.services.commande import porte
-
+        """« C'est combien le tacos ? » : la lecture rend le fait ``prix`` (jamais la phrase). C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : le modèle dit le prix avec ses
+        mots ; le code ne le dit plus après sa phrase, la barrière des chiffres le laisse passer dans ce tour."""
         e = await brique(essai_de, "PRX5")
         r = await e.lecture(sujet="article", article="tacos")
         assert r["faits"]["prix"] == {"montant": 700, "a_partir_de": True}, r
-        assert "suffixe_du_code" not in r and "prix_a_dire" not in fait(r) and r["prix_dit_par_le_code_apres_ta_phrase"] is True
-        assert PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe_lu == "Pour Tacos, c'est à partir de sept euros."
+        assert "suffixe_du_code" not in r and "prix_a_dire" not in fait(r) and "prix_dit_par_le_code_apres_ta_phrase" not in r
+        assert not PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe
         r = await e.lecture(sujet="article", article="frites")
         assert r["faits"]["prix"] == {"montant": 300, "a_partir_de": False}
-        assert PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe_lu == "Pour Frites, c'est à trois euros."
+        assert not PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe
 
     async def test_prx5_le_prix_lu_est_dit_meme_quand_le_modele_repond_par_une_fiche(self, essai_de):
-        """Conversation du lot 12 (PRX5-A) : après la lecture, le modèle répond par la phrase d'une fiche (``a_dire``), chiffre compris : la phrase au chiffre est retenue et le
-        prix lu n'était jamais dit (le repli « Qu'est-ce que je vous mets ? »). Le prix lu tient jusqu'à être dit : après la phrase du second passage, ou ajouté à la phrase
-        dite seule quand elle n'a pas de chiffre."""
+        """Conversation du lot 12 (PRX5-A) : après la lecture, le modèle répond par la phrase d'une fiche (``a_dire``), chiffre compris : la phrase au chiffre était retenue et le
+        prix lu jamais dit (le repli « Qu'est-ce que je vous mets ? »).
+        C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis ; T5 du registre, rouge depuis C5 : ``_au_bout`` relance le modèle avec le manque au lieu de redire le prix lu) : le prix lu
+        est un fait que la barrière laisse passer dans ce tour ; la phrase du modèle qui le dit part telle quelle, un autre prix est retenu, et le code n'ajoute plus rien."""
         from api.services.workflow import parole_de_la_fiche as PF
 
         e = await brique(essai_de, "PRX5")
@@ -341,23 +341,18 @@ class TestPRX5:
         decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, {"a_dire": a_dire})
         assert decision.mode == PAROLE.SECOND_PASSAGE and decision.motif == DU.RIEN_CHANGE  # B2 : la fiche vide vaut une phrase sans outil, retenue
         v = PF.VerificateurDeLaFiche(type("M", (), {"_gathered_context": e.fiche_de_l_appel})())
-        dite = v.controler("Vous le voulez en quelle taille ?")
-        assert dite is not None and dite.a_dire == "Vous le voulez en quelle taille ? Pour Tacos, c'est à partir de sept euros."
-        assert v.controler("Autre chose ?") is None  # le prix n'est dit qu'une fois
+        assert v.controler(a_dire) is None  # au second passage, la phrase qui dit le prix lu part telle quelle
         e.dit("C'est combien le tacos déjà ?")
         await e.lecture(sujet="article", article="tacos")
-        assert v.controler("Il est à sept euros.") is not None  # la phrase au chiffre est retenue : le modèle repasse
-        repli = v.controler_la_relance("Il coûte sept euros.")  # il le redit : le repli du code, qui ne perd pas le prix lu
-        assert repli is not None and repli.a_dire.startswith("Pour Tacos, c'est à partir de sept euros.") and "sept euros" not in repli.a_dire.split("sept euros.", 1)[1]
+        assert v.controler("Il est à neuf euros.") is not None  # un prix qui n'est pas celui lu est retenu : le modèle repasse
         e.dit("Et les frites ?")
         await e.lecture(sujet="article", article="frites")
         sans_chiffre = "Elles sont en portion unique."
         retour = await e.fiche(a_dire=sans_chiffre)
         decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, {"a_dire": sans_chiffre})
-        # B2 (règle 2) : la fiche vide vaut une phrase sans outil, retenue une fois (une commande est en cours) ; le prix lu n'est pas perdu : il suit la phrase d'après
+        # B2 (règle 2) : la fiche vide vaut une phrase sans outil, retenue une fois (une commande est en cours)
         assert decision.mode == PAROLE.SECOND_PASSAGE and decision.motif == DU.RIEN_CHANGE, decision
-        dite = v.controler(sans_chiffre)
-        assert dite is not None and dite.a_dire.startswith(sans_chiffre) and "trois euros" in dite.a_dire, dite
+        assert v.controler("Les frites sont à trois euros, en portion unique.") is None  # le prix lu dit par le modèle
 
     async def test_prx5_aller_retour_caisse(self, essai_de):
         """Le prix de départ n'est jamais celui de la commande : le tacos XL avec steak se chiffre à sa taille et à son choix, et la caisse retrouve ce total."""
