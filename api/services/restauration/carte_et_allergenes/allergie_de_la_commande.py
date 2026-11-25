@@ -402,7 +402,10 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
     if signalements is None:
         faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
         return _r("OK", faits, TS.signalement_dit(faits))
-    faits = {**faits, "signalement": "inconnu", **({} if inconnues else {"libelle": libelle})} if inconnues else {**faits, "signalement": "absent_de_la_fiche", "libelle": libelle}
+    if inconnues:
+        faits = {**faits, "signalement": "inconnu"}
+    else:
+        faits = {**faits, "signalement": "absent_de_la_fiche", "libelle": libelle}
     return _r("OK", faits, TS.signalement_dit(faits))
 
 
