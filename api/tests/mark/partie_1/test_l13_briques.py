@@ -112,14 +112,15 @@ class TestQTE1:
         assert lire_poids("deux cents") is None and lire_poids("") is None and lire_poids("beaucoup") is None
 
     async def test_qte1_chiffrer_au_poids(self, essai_de):
-        """« Trois cents grammes de houmous » (A33) : 1,8 € les cent grammes au kilo, soit 5,40 € ; le code dit le prix ; un demi-kilo : 9 € ; la quantité reste 1."""
+        """« Trois cents grammes de houmous » (A33) : 1,8 € les cent grammes au kilo, soit 5,40 € ; le prix est un fait que le modèle dit (C6 n° 11) ; un demi-kilo : 9 € ; la quantité reste 1."""
         e = await brique(essai_de, "QTE1")
         await _objets_charges(e)
         r = await _ajouter(e, "trois cents grammes de houmous", article="houmous", quantite=1, poids="trois cents grammes")
         ligne = e.p["lignes"][-1]
         assert ligne["poids_g"] == 300 and ligne["quantite"] == 1, fait(r)
-        assert '"grammes": 300' in fait(r) and "prix_a_dire" not in fait(r) and r["prix_dit_par_le_code_apres_ta_phrase"] is True
-        assert _suffixe(e) == "trois cents grammes de houmous : cinq euros quarante.", _suffixe(e)
+        # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le prix est un fait du retour que le modèle dit, plus une phrase que le code dit après la sienne
+        assert '"grammes": 300' in fait(r) and "prix_a_dire" not in fait(r) and "prix_dit_par_le_code_apres_ta_phrase" not in r and not _suffixe(e), (r, _suffixe(e))
+        assert [x["prix"] for x in r["faits"]["prix_au_poids"]] == [540], r["faits"]
         chiffre = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-HOUMOUS-UNIQUE", "quantite": 1, "poids_g": 300}])
         assert chiffre.faits["lignes"][0]["prix_unitaire"] == 540
         r = await _ajouter(e, "un demi-kilo de houmous", article="houmous", quantite=1, poids="un demi-kilo")
@@ -131,7 +132,7 @@ class TestQTE1:
         await _objets_charges(e)
         r = await _ajouter(e, "deux cent trente grammes de taboulé", article="taboulé", quantite=1, poids="deux cent trente grammes")
         assert e.p["lignes"][-1]["poids_g"] == 250 and '"arrondi_a": 250' in fait(r), fait(r)
-        assert _suffixe(e) == "Arrondi à deux cent cinquante grammes de taboulé : six euros vingt-cinq.", _suffixe(e)
+        assert [(x.get("arrondi_a"), x["prix"]) for x in r["faits"]["prix_au_poids"]] == [(250, 625)], r["faits"]  # l'arrondi et le prix : des faits que le modèle dit (C6 n° 11)
 
     async def test_qte1_refus_avec_la_raison(self, essai_de):
         """« Deux cents » sans unité, un poids sur un article à la pièce, un article au poids sans poids : refusés avec leur raison, jamais devinés."""

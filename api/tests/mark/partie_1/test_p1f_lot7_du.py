@@ -63,15 +63,15 @@ def test_le_prix_du_poids_et_la_regle_de_la_ligne_rendent_chacun_un_element_de_d
     from api.services.commande import porte
     from api.services.commande.briques import ligne_de_formule_limitee
 
-    ctx = _contexte()
-    prix = porte.poser_le_prix_du_poids(ctx, [{"faits": {"prix_a_dire": "Le prix suit."}}])
-    assert prix == DU.Du(prix_apres=True)
     retour: dict = {"statut": "FAIT", "faits": {}}
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le prix au poids est un fait du retour que le modèle dit, plus un prix que le code dit après sa phrase
+    prix = porte.poser_le_prix_du_poids([{"faits": {"ajoute": "x", "grammes": 300, "quantite": 1, "prix_de_la_ligne": 540}}], retour)
+    assert prix == DU.Du(consignes=((C.REFUS_A_DIRE, porte.A_FAIRE_DU_PRIX_AU_POIDS),)) and retour["faits"]["prix_au_poids"][0]["prix"] == 540, retour
     regle = porte.poser_la_regle_de_la_ligne([{"faits": {"raison": ligne_de_formule_limitee.RAISON, "regle_prix_max": 300, "article": "x", "etape": "y"}}], retour)
     assert regle == DU.Du(consignes=((C.REFUS_A_DIRE, porte.A_FAIRE_DE_LA_REGLE),)) and retour["faits"]["regle_de_la_ligne"]  # la règle est un fait du retour, que le modèle dit
     DU.assembler(retour, prix, regle)
-    assert DU.du_du_retour(retour).prix_apres and retour["prix_dit_par_le_code_apres_ta_phrase"] and "regle_dite_par_le_code" not in retour and "dit_avant_ta_phrase" not in retour
-    assert porte.A_FAIRE_DE_LA_REGLE in retour["a_faire"] and DU.faits_du_refus(retour), retour
+    assert "prix_dit_par_le_code_apres_ta_phrase" not in retour and "regle_dite_par_le_code" not in retour and "dit_avant_ta_phrase" not in retour
+    assert porte.A_FAIRE_DE_LA_REGLE in retour["a_faire"] and porte.A_FAIRE_DU_PRIX_AU_POIDS in retour["a_faire"] and len(DU.faits_du_refus(retour)) == 2, retour
 
 
 async def test_le_minimum_et_le_poids_arrivent_dans_le_meme_du(essai_de):

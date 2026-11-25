@@ -229,6 +229,8 @@ GLOSSAIRE: dict[str, tuple[frozenset[str], str]] = {
     'minimum_de_la_commande': (frozenset(['cle_retour']), "Le minimum de la livraison et ce qui manque, en centimes : un fait que le modèle dit avec ses mots (lot 7b, Q1)."),
     'regle_de_la_ligne': (frozenset(['cle_retour']), "La règle d'une ligne de formule limitée par un prix : un fait que le modèle dit avec ses mots (lot 7b, Q1)."),
     'regles_a_dire': (frozenset(['cle_retour']), "Les règles de l'article ajouté (condition, justificatif, ce qui est servi avec), une fois par appel : un fait que le modèle dit avec ses mots (lot 7b, Q1)."),
+    'prix_au_poids': (frozenset(['cle_retour']), "Les lignes au poids ajoutées dans ce tour : article, grammes, arrondi, portions et prix de la ligne (en centimes), des faits que le modèle dit, admis par la barrière (C6 n° 11, QTE1)."),
+    'prix_de_la_ligne': (frozenset(['cle_retour']), "Le prix d'une ligne au poids (en centimes, toutes portions), rendu par l'ajout ; la porte le range dans ``prix_au_poids`` (C6 n° 11)."),
     'proposition_a_poser': (frozenset(['cle_retour']), "La proposition née dans ce tour : l'article et son prix (en centimes), un fait que le modèle dit dans sa question, exigé par la barrière (C6 n° 11)."),
     'remises_a_dire': (frozenset(['cle_retour']), "La remise qu'un code dit donne, au moment où elle s'applique, une fois : un fait (nom, montant) que le modèle dit avec ses mots (C6 n° 11, OFF3)."),
     'refus_de_la_fiche': (frozenset(['regle_du_code']), "Un refus qui s'adresse à la fiche (sa forme, ou une valeur qui ne vient pas d'elle), jamais une règle du métier ; après lui, une phrase du modèle sans outil n'est jamais dite (B12)."),

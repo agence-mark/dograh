@@ -103,6 +103,7 @@ MANQUES_REFUSES_DE_QUESTION = {"heure_voulue": "heure_proposee"}  # lot 7b, lign
 STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "dis-lui avec tes mots le minimum de la livraison et ce qui manque (faits.minimum_de_la_commande), puis demande-lui ce qu'elle veut faire"
 A_FAIRE_DE_L_HEURE = "demande-lui avec tes mots ce qui manque de l'heure voulue (faits.heure_a_dire : le jour et l'heure, ou l'heure de la réouverture)"
+A_FAIRE_DU_PRIX_AU_POIDS = "dis-lui avec tes mots le poids et le prix de la ligne au poids (faits.prix_au_poids), et l'arrondi s'il y en a un"  # C6 n° 11 (QTE1)
 A_FAIRE_DE_LA_REMISE = "dis-lui avec tes mots la remise que son code lui donne, avec son montant (faits.remises_a_dire)"  # C6 n° 11 (OFF3)
 A_FAIRE_DE_LA_REGLE = "dis-lui avec tes mots la règle de la ligne ou de l'article (faits.regle_de_la_ligne, faits.regles_a_dire)"
 A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus de la fiche, avec leurs chiffres et leurs lieux (faits.refus_de_la_fiche)"
@@ -562,19 +563,25 @@ def poser_la_ligne_retiree(retour: dict[str, Any]) -> DU.Du | None:
     return DU.Du(faits_qui_engagent=(DU.RETRAIT_D_UNE_LIGNE,)) if "retirer_article" in (retour.get("cases_executees") or []) else None
 
 
-def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]]) -> DU.Du | None:
-    """QTE1 (D33) : le prix d'un article au poids est dit par le code après la phrase du modèle (suffixe) ; rend l'élément de ``Du`` (un prix à dire après), jamais la phrase. ⛔ Ne lève jamais."""
-    du = None
+def poser_le_prix_du_poids(resultats: list[dict[str, Any]], retour: dict[str, Any]) -> DU.Du | None:
+    """QTE1 (D33) : le prix d'un article au poids, le total de la ligne. C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : c'est un FAIT du retour (``prix_au_poids`` : article,
+    grammes, arrondi, portions, prix en centimes) que le modèle dit avec ses mots, vérifié par la barrière des chiffres ; rend l'élément de ``Du`` (sa consigne). ⛔ Ne lève jamais."""
     try:
+        if not isinstance(retour.get("faits"), dict):
+            return None
+        a_dire = []
         for r in resultats:
-            faits = r.get("faits") or {}
-            phrase = faits.pop("prix_a_dire", None)
-            if phrase and isinstance(getattr(ctx, "fiche", None), dict):
-                ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = phrase
-                du = DU.Du(prix_apres=True)
+            faits = r.get("faits") if isinstance(r, dict) else None
+            if isinstance(faits, dict) and isinstance(faits.get("prix_de_la_ligne"), int):
+                a_dire.append({"article": faits.get("ajoute"), "grammes": faits.get("grammes"), **({"arrondi_a": faits["arrondi_a"]} if "arrondi_a" in faits else {}),
+                               "quantite": faits.get("quantite", 1), "prix": faits.pop("prix_de_la_ligne")})
+        if not a_dire:
+            return None
+        retour["faits"]["prix_au_poids"] = a_dire
+        return DU.Du(consignes=((C.REFUS_A_DIRE, A_FAIRE_DU_PRIX_AU_POIDS),))
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : le prix du poids n'a pas pu être posé")
-    return du
+    return None
 
 
 async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any, retour: dict[str, Any]) -> DU.Du | None:
@@ -1683,7 +1690,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 etat_pour_le_modele.retenir(p, source)
                 DU.assembler(retour, poser_le_minimum(ctx, p, retour), await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour),
                              poser_la_regle_de_la_ligne(retour.get("resultats") or [], retour), poser_les_regles_de_l_article(retour.get("resultats") or [], retour, p),
-                             poser_le_prix_du_poids(ctx, retour.get("resultats") or []), await poser_la_remise_du_code(ctx, source, p, regles, retour), poser_la_ligne_retiree(retour))
+                             poser_le_prix_du_poids(retour.get("resultats") or [], retour), await poser_la_remise_du_code(ctx, source, p, regles, retour), poser_la_ligne_retiree(retour))
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))

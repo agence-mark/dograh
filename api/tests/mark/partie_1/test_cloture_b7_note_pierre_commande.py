@@ -336,14 +336,15 @@ async def test_11_proposition_par_fiche_vide_dite_avec_son_prix(essai_de):
 async def test_12_poids_le_maximum_vaut_pour_le_poids_total(essai_de):
     """Pierre 12 : ``quantite: 20, poids: "5 kg"`` n'est plus accepté (100 kg, 1 800 €) ; le prix dit pour plusieurs portions est le total de la ligne."""
     from api.tests.mark.partie_1.aides_briques import brique
-    from .test_l13_briques import _ajouter, _objets_charges, _suffixe
+    from .test_l13_briques import _ajouter, _objets_charges
 
     e = await brique(essai_de, "QTE1")
     await _objets_charges(e)
     r = await _ajouter(e, "vingt portions de cinq kilos de houmous", article="houmous", quantite=20, poids="5 kg")
     assert "poids_au_dessus_du_maximum" in _faits(r) and not e.p["lignes"], _faits(r)
-    await _ajouter(e, "deux fois trois cents grammes de houmous", article="houmous", quantite=2, poids="trois cents grammes")
-    assert _suffixe(e) == "deux fois trois cents grammes de houmous : dix euros quatre-vingts.", _suffixe(e)  # 2 x 5,40 €
+    r = await _ajouter(e, "deux fois trois cents grammes de houmous", article="houmous", quantite=2, poids="trois cents grammes")
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le total de la ligne est un fait que le modèle dit (2 x 5,40 €), plus une phrase du code
+    assert [(x["quantite"], x["prix"]) for x in r["faits"]["prix_au_poids"]] == [(2, 1080)], r["faits"]
 
 
 def test_12_un_montant_dit_sans_le_mot_euros_est_de_l_argent():

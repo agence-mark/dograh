@@ -63,7 +63,7 @@ def _xfail(famille: str, raison: str):
     _xfail("relectures_de_la_reservation", "les relectures de la réservation passent au modèle (commit 8)"),
     _xfail("reservation_faite", "réservée, modifiée, annulée passent au modèle (commit 9)"),
     _xfail("numero_demande", "« quel numéro je note » et le numéro qui s'affiche passent au modèle (commit 10)"),
-    _xfail("prix_au_poids", "le prix d'un article au poids passe au modèle, vérifié par la barrière (commit 11)"),
+    pytest.param("prix_au_poids", id="prix_au_poids"),  # fermée par le commit 11d
 ])
 def test_plus_aucun_appelant_ne_dit_une_phrase_du_paragraphe_2_avec_les_mots_du_code(famille):
     assert _appelants(FAMILLES[famille]) == []

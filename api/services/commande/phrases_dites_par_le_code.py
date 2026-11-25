@@ -38,13 +38,7 @@ PHRASES = {
     "relecture_apres_changement": PhraseDuCode("{changes}Cela fait maintenant {total}. C'est bon ?", EXCEPTION_RELECTURE),  # une correction : seulement ce qui a changé, avec le total
     "ligne_passe_a": PhraseDuCode("{nom} passe à {quantite}", EXCEPTION_RELECTURE),  # un morceau de ce qui a changé, relu
     "note_de_moitie": PhraseDuCode("sans {ingredient} sur la moitié {moitie}", EXCEPTION_RELECTURE),  # écrite sur la ligne, relue par le code dans la relecture, imprimée au ticket
-    "prix_au_poids": PhraseDuCode("{arrondi}{fois}{grammes} grammes de {nom} : {prix}.", EXCEPTION_TOTAL),  # D33 : le prix d'un article au poids est un total dit par le code (jamais montré au modèle)
 }
-
-def prix_au_poids(*, arrondi: bool, fois: str | None, grammes: str, nom: str, prix: str) -> str:
-    """Le prix d'un article au poids (QTE1), le total de la ligne : ``fois`` est le nombre de portions dit en lettres (``None`` pour une seule), ``prix`` le montant dit en lettres."""
-    return PHRASES["prix_au_poids"].texte.format(arrondi="Arrondi à " if arrondi else "", fois=f"{fois} fois " if fois else "", grammes=grammes, nom=nom, prix=prix)
-
 
 def reservation_enregistree(*, personnes: str, quand: str, prenom: str) -> str:
     """La réservation vient d'être enregistrée : ``personnes`` (« deux personnes ») et ``quand`` sont déjà dits."""
