@@ -68,6 +68,7 @@ async def test_mini_dialogue_complet_le_fait_bloquant_porte_les_faits_du_refus(s
     r = await essai.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     faits = faits_du_fait_bloquant(essai.fiche_de_l_appel)
     assert [f["statut_du_module"] for f in faits] == ["REFUSEE"] and faits[0]["faits"].get("propositions"), faits
+    assert faits[0]["raison"] == "complet_a_cette_heure", faits  # reprise R2 : le statut est générique, la raison dit de quoi il s'agit
     assert _consigne(essai)["a_dire"] == faits  # le modèle muet est relancé avec le refus et les horaires libres, jamais avec « Nous ne pouvons pas… »
 
 
@@ -81,6 +82,7 @@ async def test_mini_dialogue_une_seule_par_appel_dit_la_transmission_faite(salle
     assert r["faits"].get("transmise_a_l_equipe") is True, r["faits"]
     faits = faits_du_fait_bloquant(essai.fiche_de_l_appel)
     assert [f["statut_du_module"] for f in faits] == ["DEJA_FAIT"] and faits[0]["faits"]["transmise_a_l_equipe"] is True, faits
+    assert faits[0]["raison"] == "deja_une_reservation_dans_cet_appel" and _consigne(essai)["a_dire"] == faits, faits  # reprise R2
 
 
 async def test_une_lecture_de_reservation_ne_touche_pas_au_fait_bloquant_d_une_commande_refusee(salle, monkeypatch):

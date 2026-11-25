@@ -34,6 +34,9 @@ def _la_visee(etat: dict[str, Any]) -> str:
     return f"{moteur._personnes_dites(int(v['personnes']))}, {v['quand_dit']}, au nom de {v['prenom']}" if v.get("personnes") and v.get("quand_dit") else ""
 
 
+LE_JOUR = "le jour"  # la valeur fermée de ce qui manque quand le jour n'est pas dit : une seule écriture, lue par la porte
+
+
 def ce_qui_manque_ensuite(etat: dict[str, Any], numero_affiche: bool) -> str | None:
     if etat.get("derniere") or etat.get("cible"):
         return None
@@ -43,7 +46,7 @@ def ce_qui_manque_ensuite(etat: dict[str, Any], numero_affiche: bool) -> str | N
     if not b.get("personnes"):
         return "le nombre de personnes"
     if not b.get("jour"):
-        return "le jour"
+        return LE_JOUR
     if not b.get("heure"):
         return "l'heure"
     if not b.get("prenom"):

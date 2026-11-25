@@ -418,7 +418,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     jour_a_demander = None
     if question is None and not toutes_les_refus and dernier is not None and (dernier.faits or {}).get("precision_gardee") is None:
         manque = MANQUES_DU_MODELE.get(dernier.manque, dernier.manque) if dernier.manque not in (None, "relecture", "confirmation") else None
-        jour_a_demander = "le jour" if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" else None  # C5 : la valeur fermée de ce qui manque (jamais la phrase de ``suggestion``)
+        jour_a_demander = etat_pour_le_modele.LE_JOUR if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" else None  # C5 : la valeur fermée de ce qui manque (jamais la phrase de ``suggestion``)
         if manque:
             plus["manque"] = manque
     a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
@@ -432,7 +432,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     if isinstance(ctx.fiche, dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
         if refuse_a_dire(dernier):  # C5 : le modèle se tait, le code le relance avec le refus (jamais une phrase de secours)
-            poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [{"statut_du_module": dernier.statut, "manque": dernier.manque, "faits": faits}])
+            poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [{"statut_du_module": dernier.statut, "raison": metier[0]["raison"] if metier else None, "manque": dernier.manque, "faits": faits}])  # la raison : le statut est générique (REFUSEE, DEJA_FAIT), elle dit de quoi il s'agit
         elif operation in OPERATIONS_QUI_ECRIVENT:  # une écriture sans refus remplace le refus posé plus tôt dans ce tour ; une lecture ou une question ne touche à rien (même fiche, même clé que la commande)
             poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT)
     retour = Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None, a_faire=a_faire, plus=plus).vers_json()
