@@ -318,7 +318,7 @@ def _objet_de_la_question(q: dict[str, Any]) -> str | None:
     from api.services.commande.moteur import CLE_CANDIDATS  # le moteur importe ce module : l'import ne peut pas être en tête
 
     candidats = [str(c["libelle"]) for c in q.get(CLE_CANDIDATS) or [] if isinstance(c, dict) and c.get("libelle")] or [str(c) for c in q.get("choix") or []]
-    objet = q.get("article_en_question") or q.get("heure") or (" ; ".join(candidats) if candidats else None)
+    objet = q.get("article_en_question") or q.get("heure_dite") or (" ; ".join(candidats) if candidats else None)
     return str(objet) if objet else None
 
 

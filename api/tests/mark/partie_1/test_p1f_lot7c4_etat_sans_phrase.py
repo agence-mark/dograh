@@ -32,7 +32,7 @@ def _etat_de_la_reservation(question: dict) -> str:
 QUESTIONS_DE_LA_COMMANDE = [
     {"type": "variante", "texte": PHRASE, "article_en_question": "Regina"},
     {"type": "ambiguite", "texte": PHRASE, "choix": ["Regina", "Reine"]},
-    {"type": "heure_proposee", "texte": PHRASE, "heure": "18:00"},
+    {"type": "heure_proposee", "texte": PHRASE, "heure": "18:00", "heure_dite": "dix-huit heures"},
     {"type": "etape", "texte": PHRASE, "article_en_question": "Menu midi"},
     {"type": "reprise", "texte": PHRASE},
     {"type": "numero_affiche", "texte": PHRASE},
@@ -65,3 +65,8 @@ def test_reservation_la_phrase_de_secours_du_choix_n_est_pas_dans_l_etat():
 @pytest.mark.parametrize("type_", sorted(QUESTIONS_DITES_PAR_LE_CODE & {"recapitulatif", "annulation"}))
 def test_reservation_une_question_dite_par_le_code_garde_son_texte(type_):
     assert PHRASE in _etat_de_la_reservation({"type": type_, "texte": PHRASE})
+
+
+def test_commande_l_heure_proposee_est_dite_en_mots_jamais_en_format_machine():
+    etat = _etat_de_la_commande({"type": "heure_proposee", "texte": PHRASE, "heure": "2026-11-25T18:00:00+01:00", "heure_dite": "dix-huit heures"})
+    assert "(heure proposée) : dix-huit heures ;" in etat and "2026-11-25" not in etat, etat
