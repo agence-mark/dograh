@@ -11,7 +11,7 @@ from typing import Any
 
 from api.db.bases_clients import dates_futures
 from api.services.commande import lecture, panier as P, textes_de_secours as TS
-from api.services.mots_dits import liste_dite
+from api.services.mots_dits import liste_dite, montant_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -340,13 +340,14 @@ def proposer_un_autre_mode_hors_zone(source: Source, r: Resultat) -> Resultat:
     return Resultat(r.statut, {**r.faits, "autres_modes": choix}, r.suggestion, r.manque)
 
 
-def _minimum_de_l_adresse(faits: dict[str, Any], p: dict[str, Any]) -> str:
+def _minimum_de_l_adresse(faits: dict[str, Any], p: dict[str, Any]) -> str | None:
     """Agent fiable (Evan, 17/11) : le minimum de la zone est dit dès que l'adresse est retenue et que rien n'est encore pris, pour que la
-    personne le sache tout de suite. Un panier déjà commencé sous le minimum le dit par le chiffrage (``a_revoir``) ; un panier vide, ici."""
+    personne le sache tout de suite. Un panier déjà commencé sous le minimum le dit par le chiffrage (``a_revoir``) ; un panier vide, ici.
+    Rend le minimum en lettres, le fait ``minimum_dit`` (le montant en centimes de la zone n'est jamais donné au modèle), ou ``None``."""
     minimum = ((faits.get("zone") or {}).get("minimum")) or 0
     if minimum <= 0 or not _rien_n_est_pris(p):
-        return ""
-    return TS.minimum_de_l_adresse(faits)
+        return None
+    return montant_en_lettres(minimum)
 
 
 async def resoudre_une_date(source: Source, p: dict[str, Any], regles: Reglages, texte: str | None, heure: str | None = None) -> Resultat:

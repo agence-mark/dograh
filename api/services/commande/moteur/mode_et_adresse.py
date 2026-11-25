@@ -102,6 +102,15 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
     return _avec(_r("OK", faits, ""), p)
 
 
+def _avec_le_minimum(r: Resultat, faits: dict[str, Any], p: dict[str, Any], manque: str | None) -> Resultat:
+    """L'adresse retenue, rien de pris : le minimum de la zone est le fait ``minimum_dit`` (la copie du modèle n'a pas le montant en centimes de la zone)."""
+    minimum_dit = _minimum_de_l_adresse(faits, p)
+    if minimum_dit is None:
+        return Resultat(r.statut, faits, r.suggestion, manque)
+    faits = {**faits, "minimum_dit": minimum_dit}
+    return Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, TS.minimum_de_l_adresse(faits)) if t), manque)
+
+
 async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, adresse: str | None, commune: str | None = None) -> Resultat:
     """Situe l'adresse dite dans les zones de la source. ``RETENU`` : la zone et l'adresse sont posées sur la commande (et le panier rechiffré avec les
     frais et le minimum de la zone). Un doute (``AMBIGU``, ``INTROUVABLE``) ne pose rien et rend les candidats à confirmer ; ``HORS_ZONE`` vide la zone
@@ -158,7 +167,7 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
             # M116 (appel 2598) : l'adresse est posée et rien n'est encore pris : le résultat le dit et demande les plats (un manque à la fois),
             # jamais un article cité comme pris sur un panier vide.
             faits["panier_vide"] = True
-            return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p)) if t), "articles"), p)
+            return _avec(_avec_le_minimum(r, faits, p, "articles"), p)
     if r.statut == "RETENU":
-        return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p)) if t), r.manque), p)
+        return _avec(_avec_le_minimum(r, faits, p, r.manque), p)
     return _avec(Resultat(r.statut, faits, r.suggestion, r.manque), p)
