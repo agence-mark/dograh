@@ -74,8 +74,8 @@ async def test_une_lecture_de_reservation_ne_touche_pas_au_fait_bloquant_d_une_c
     essai = EssaiReservation(salle, monkeypatch)
     commande = {"tour": 1, "texte": "Il n'y a plus de pizza."}
     essai.fiche_de_l_appel[CLE_FAIT_BLOQUANT] = dict(commande)
-    r = await essai.tour(MOTS, personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
-    assert r["statut"] != "REFUSEE" and essai.fiche_de_l_appel[CLE_FAIT_BLOQUANT] == commande
+    r = await essai.dit(MOTS).lecture(sujet="places_libres", jour="samedi", personnes=4)  # une lecture ne passe pas par la fiche de réservation
+    assert r["statut"] == "LU" and essai.fiche_de_l_appel[CLE_FAIT_BLOQUANT] == commande
 
 
 async def test_mini_dialogue_groupe_trop_grand_le_repli_offre_un_message_a_l_equipe(salle, monkeypatch):
@@ -96,3 +96,13 @@ async def test_mini_dialogue_capacite_non_reglee_la_consigne_et_le_texte_nomment
     dit = repli_dit_par_le_code(None, None, essai.fiche_de_l_appel)
     assert "message" in consigne and "passer" not in consigne, consigne
     assert dit and "message" in dit and dit.endswith("?"), dit
+
+
+async def test_dans_un_meme_tour_un_refus_puis_une_reservation_enregistree_le_repli_ne_redit_pas_le_refus(salle, monkeypatch):
+    """Le fait bloquant du refus ne survit pas à ce qui le remplace dans le même tour : la réservation est relue sans refus, le repli ne dit plus « groupe trop grand »."""
+    essai = EssaiReservation(salle, monkeypatch)
+    await essai.dit(MOTS).fiche(personnes=25, jour="samedi", heure="vingt heures", nom="Alice")
+    assert phrase_du_fait_bloquant(essai.fiche_de_l_appel), "le refus est bien posé"
+    r = await essai.fiche(personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
+    assert r["statut"] != "REFUSEE" and r["question"]["type"] == "recapitulatif", r
+    assert phrase_du_fait_bloquant(essai.fiche_de_l_appel) is None, phrase_du_fait_bloquant(essai.fiche_de_l_appel)
