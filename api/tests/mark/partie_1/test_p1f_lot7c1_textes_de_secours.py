@@ -11,6 +11,16 @@ import pytest
 from api.services.commande import panier as P, porte, textes_de_secours as TS
 from api.services.commande import moteur
 from api.services.commande.briques import formule as FO
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
+from api.services.commande.moteur import changement
+from api.services.commande.moteur import enregistrement
+from api.services.commande.moteur import prealables, reglement
+from api.services.commande.moteur.socle import Appelant
+from api.services.commande.moteur.socle import Reglages
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
+from api.services.commande.resultat import Resultat
+from datetime import datetime, timezone
+import copy
 from api.services.commande.moteur import articles
 from api.tests.mark.partie_1.aides_briques import brique
 from api.tests.mark import test_restauration_commande_panier as _PANIER
@@ -132,7 +142,9 @@ async def test_un_mot_hors_de_la_ligne_de_la_formule_est_refuse_avec_son_mot(ess
 
 
 def test_un_retrait_sur_deux_plats_demande_lequel():
-    plat = lambda code, nom: {"code": code, "nom": nom, "retirables": ["olives"]}  # noqa: E731
+    def plat(code, nom):
+        return {"code": code, "nom": nom, "retirables": ["olives"]}
+
     article = {"groupes": [{"id": "e1", "nom": "Plat", "role": FO.ROLE_ETAPE, "options": [plat("P1", "Pizza"), plat("P2", "Pâtes")]}]}
     ligne = {"nom": "Formule", "choix": [{"option_code": c, "nom": n, "quantite": 1, "choix": [], "etape": "e1"} for c, n in (("P1", "Pizza"), ("P2", "Pâtes"))]}
     r = articles.retirer_sur_le_plat(article, ligne, "olives")
@@ -141,11 +153,12 @@ def test_un_retrait_sur_deux_plats_demande_lequel():
 
 
 # ── commit 2 : retraits, notes, code de remise (articles.py) ────────────────────────────────────────────────────────────
-from api.services.commande.moteur.socle import Reglages  # noqa: E402
 
 
 def _etape_de_boissons(**en_plus):
-    option = lambda code, nom, alt=None, decl=(): {"code": code, "nom": nom, "produit": nom, "alternative": alt, "declinaisons_du_produit": list(decl)}  # noqa: E731
+    def option(code, nom, alt=None, decl=()):
+        return {"code": code, "nom": nom, "produit": nom, "alternative": alt, "declinaisons_du_produit": list(decl)}
+
     return {"id": "e1", "nom": "Boisson", "role": FO.ROLE_ETAPE, "options": [option("B", "Coca Bouteille", 0), option("C", "Coca Canette", 1), option("F", "Fanta", 1)],
             "alternatives": [{"quantite": 1, "codes": ["B"]}, {"quantite": 3, "codes": ["C", "F"]}], **en_plus}
 
@@ -440,7 +453,6 @@ def test_les_cles_de_l_etat_sont_posees_a_un_seul_endroit():
 
 
 # ── commit 6 : un mode fermé qui se planifie (mode_et_adresse.py) ───────────────────────────────────────────────────────
-from datetime import datetime, timezone  # noqa: E402
 
 
 async def test_la_proposition_du_debut_dit_l_ouverture_en_fait(appel, monkeypatch):
@@ -464,10 +476,6 @@ async def test_sans_ouverture_connue_le_jour_et_l_heure_se_demandent(appel, monk
 
 
 # ── commit 7 : le numéro, le prénom, la fin à une heure fermée (enregistrement.py) ──────────────────────────────────────
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES  # noqa: E402
-from api.services.commande.moteur import enregistrement  # noqa: E402
-from api.services.commande.moteur.socle import Appelant  # noqa: E402
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque  # noqa: E402
 
 
 async def test_un_numero_illisible_dit_le_secours_et_porte_son_fait(appel):
@@ -524,7 +532,6 @@ async def test_la_fin_a_une_heure_fermee_propose_l_ouverture_puis_demande_le_jou
 
 
 # ── commit 8 : le règlement (reglement.py) ──────────────────────────────────────────────────────────────────────────────
-from api.services.commande.moteur import prealables, reglement  # noqa: E402
 
 
 async def test_un_moyen_non_accepte_dit_les_moyens_pris_et_les_porte_en_fait(appel):
@@ -595,7 +602,6 @@ async def test_la_relecture_entiere_puis_apres_changement_gardent_leur_texte(app
 
 
 # ── commit 9 : lire la commande, les offres, retrouver une commande (lecture.py) ─────────────────────────────────────────
-from api.services.commande.resultat import Resultat  # noqa: E402
 
 
 async def test_une_commande_vide_se_lit_par_son_secours(appel):
@@ -706,9 +712,7 @@ async def test_plusieurs_commandes_et_une_commande_annulee_se_disent_par_leur_se
 
 
 # ── commit 10 : changer une commande enregistrée, l'heure proposée refusée (changement.py, porte.py) ────────────────────
-import copy  # noqa: E402
 
-from api.services.commande.moteur import changement  # noqa: E402
 
 
 async def _changer(appel, monkeypatch, *, mode=None):
