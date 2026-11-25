@@ -322,11 +322,11 @@ async def test_11_proposition_par_fiche_vide_dite_avec_son_prix(essai_de):
 
 async def test_12_poids_le_maximum_vaut_pour_le_poids_total(essai_de):
     """Pierre 12 : ``quantite: 20, poids: "5 kg"`` n'est plus accepté (100 kg, 1 800 €) ; le prix dit pour plusieurs portions est le total de la ligne."""
-    from api.tests.mark.partie_1.aides_briques import brique
-    from .test_l13_briques import _ajouter, _objets_charges, _suffixe
+    from api.tests.mark.partie_1.aides_briques import brique, objets_charges
+    from .test_l13_briques import _ajouter, _suffixe
 
     e = await brique(essai_de, "QTE1")
-    await _objets_charges(e)
+    await objets_charges(e)
     r = await _ajouter(e, "vingt portions de cinq kilos de houmous", article="houmous", quantite=20, poids="5 kg")
     assert "poids_au_dessus_du_maximum" in _faits(r) and not e.p["lignes"], _faits(r)
     await _ajouter(e, "deux fois trois cents grammes de houmous", article="houmous", quantite=2, poids="trois cents grammes")
