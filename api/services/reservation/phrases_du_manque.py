@@ -22,14 +22,19 @@ PHRASES_DU_MANQUE: dict[str, str] = {
 }
 
 
+# Liste fermée : les valeurs de ce qui manque que l'état rend (``ce_qui_manque_ensuite``), que la relance du modèle reçoit.
+VALEURS_DU_MANQUE = frozenset({"le nombre de personnes", E.LE_JOUR, "l'heure", "le nom", "le numéro de téléphone", "le nom et le jour de sa réservation d'avant"})
+
+
 def phrase_du_manque(manque: str | None) -> str | None:
     """La phrase de ce qui manque, mot pour mot ; ``None`` : rien ne manque."""
     return PHRASES_DU_MANQUE.get(manque) if manque else None
 
 
 def valeur_du_manque(etat: dict[str, Any], fiche: dict[str, Any] | None = None) -> str | None:
-    """La valeur fermée de ce qui manque ENSUITE pour cette réservation, quand aucune question n'attend (C5 : la relance du modèle la reçoit comme un fait)."""
+    """La valeur fermée de ce qui manque ENSUITE pour cette réservation, quand aucune question n'attend (C5 : la relance du modèle la reçoit comme un fait) : lue dans la liste
+    fermée ``VALEURS_DU_MANQUE``, jamais selon qu'une phrase existe (lot 7b-C7)."""
     if CONV.question_de(etat):
         return None
     manque = E.ce_qui_manque_ensuite(etat, bool(etat.get("numero_affiche")))
-    return manque if manque in PHRASES_DU_MANQUE else None
+    return manque if manque in VALEURS_DU_MANQUE else None

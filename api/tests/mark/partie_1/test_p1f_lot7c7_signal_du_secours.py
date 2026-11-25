@@ -10,9 +10,8 @@ que disait le texte (elle sort avec les textes).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Callable
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -21,24 +20,24 @@ from api.db.bases_clients import restauration_zone as Z
 from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes.forme import norm
-from api.services.commande import moteur, panier as P, porte, textes_de_secours as TS
+from api.services.commande import moteur, panier as P, textes_de_secours as TS
 from api.services.commande.briques import formule as FO
-from api.services.commande.moteur import articles, changement, prealables
+from api.services.commande.moteur import articles, changement
 from api.services.commande.moteur.socle import Appelant, Reglages
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as A_
 from api.services.restauration.carte_et_allergenes import textes_de_secours as TSA
 from api.services.restauration.carte_et_allergenes import voir_un_article as V_
-from api.services.restauration.source_commande import SourceClasseur, resolution_du_jour_et_de_l_heure
+from api.services.restauration.source_commande import resolution_du_jour_et_de_l_heure
 from api.tests.mark import test_base_client as _BASE
 from api.tests.mark import test_restauration_classeur_commande as _CLASSEUR
 from api.tests.mark import test_restauration_commande_panier as _PANIER
 from api.tests.mark import test_restauration_zones as ZONES
 from api.tests.mark.commande_sur_la_fiche import article as ART
 from api.tests.mark.partie_1.aides_briques import brique
-from api.tests.mark.partie_1.aides_signal import etape_de_boissons, feuilles, formule_du_menu, signal, valeurs_absentes
-from api.tests.mark.partie_1.test_p1f_lot7c3_allergie_secours import Source as SourceAllergie, fiche, option
-from api.tests.mark.partie_1.test_p1f_lot7c3_voir_un_article_secours import Carte, article as article_de_carte
+from api.tests.mark.partie_1.aides_signal import (
+    Carte, Cas, SourceAllergie, article_de_carte, controler, etape_de_boissons, feuilles, fiche, fidele, formule_du_menu, jouer, option, pareilles, parametres, signal,
+)
 from api.tests.mark import test_commande_kebab_sa52 as _KEBAB
 
 base_essai, base_prete, commerce = _BASE.base_essai, _BASE.base_prete, _CLASSEUR.commerce  # les fixtures du classeur, reprises sans import inutile
@@ -46,46 +45,6 @@ kebab, ADRESSE, AppelKebab = _KEBAB.kebab, _KEBAB.ADRESSE, _KEBAB.Appel
 PARIS = ZoneInfo("Europe/Paris")
 MATIN = datetime(2026, 11, 17, 10, 50, tzinfo=PARIS)
 SOIR = datetime(2026, 11, 17, 20, 0, tzinfo=PARIS)
-Valeurs = list[tuple[str, str]]
-
-
-def pareilles(*mots: str) -> Valeurs:
-    """Des valeurs dites telles quelles : la forme du signal est celle du texte."""
-    return [(m, m) for m in mots]
-
-
-@dataclass
-class Cas:
-    nom: str
-    texte: Callable[[dict], str] | None  # le texte de secours d'avant, refait des faits publics (``None`` : aucun mot à vérifier)
-    scenario: Callable[..., Any]         # joue le vrai module et rend son retour
-    chemin: str                          # F (fiche), L (lire)
-    valeurs: Valeurs | Callable[[Any], Valeurs]
-    discriminant: str                    # ce qui distingue ce refus d'un autre : statut, raison ou manque
-    manque: str | None = None            # le fait qui manque encore (xfail strict), ou ``None``
-
-
-def _valeurs(cas: Cas, r) -> Valeurs:
-    return cas.valeurs(r) if callable(cas.valeurs) else cas.valeurs
-
-
-def _params(cas_list: list[Cas]):
-    return [pytest.param(c, id=c.nom, marks=[pytest.mark.xfail(strict=True, raises=AssertionError, reason=c.manque)] if c.manque else []) for c in cas_list]
-
-
-def _controle(cas: Cas, r) -> None:
-    absentes = valeurs_absentes(r, cas.chemin, _valeurs(cas, r), cas.discriminant)
-    assert not absentes, f"{cas.nom} : le signal ne porte pas {absentes}"
-
-
-def _fidele(cas: Cas, r) -> None:
-    """La table dit ce que disait le texte : chaque valeur est dans le texte d'avant, refait des faits publics."""
-    if cas.texte is None:
-        return
-    publics = r.faits if cas.chemin == "L" else porte.faits_vus_par_le_modele(r)
-    texte = norm(cas.texte(publics))
-    pas_dites = [d for _, d in _valeurs(cas, r) if norm(d) not in texte]
-    assert not pas_dites, f"{cas.nom} : le texte ne disait pas {pas_dites} : {texte}"
 
 
 # ── les scénarios (le vrai moteur ; ce sont ceux des tests de C1 à C3) ───────────────────────────────────────────────────
@@ -111,7 +70,7 @@ async def _vide():
 
 def _etat_ferme(**en_plus):
     async def etat(_mode):
-        return {"ouvert": False, "statut": "FERME", "phrase": None, "raison": "ferme", "reprise": None, "reprise_dite": "dix-huit heures", "prochaine_ouverture": None,
+        return {"ouvert": False, "statut": "FERME", "raison": "ferme", "reprise": None, "reprise_dite": "dix-huit heures", "prochaine_ouverture": None,
                 "planifiee_permise": False, **en_plus}
     return etat
 
@@ -326,7 +285,8 @@ CAS_DE_LA_COMMANDE: list[Cas] = [
     Cas("combien_exactement", TS.combien_exactement, _quantite_invalide, "F", [], "quantite"),
     Cas("que_change_t_on", TS.que_change_t_on, _rien_a_changer, "F", [], "modification"),
     Cas("commande_vide_a_lire", TS.commande_vide_a_lire, lambda a, m: a.voir(), "L", [], "vide"),
-    Cas("la_commande_se_lit", lambda f: TS.la_commande_se_lit({**f, "lignes_dites": "un Coca-Cola"}), _commande_lue, "L", [("200", "deux euros")], "OK"),
+    Cas("la_commande_se_lit", lambda f: TS.la_commande_se_lit({**f, "lignes_dites": "un Coca-Cola"}), _commande_lue, "L", [("200", "deux euros"), ("Coca-Cola", "Coca-Cola")],
+        "OK"),
     Cas("pas_d_offre", TS.pas_d_offre, _pas_d_offre, "L", [], "aucune"),
     Cas("offres_en_ce_moment", TS.offres_en_ce_moment, _offres_en_cours, "L", pareilles("Dix pour cent", "Boisson offerte"), "OK"),
     Cas("offre_atteinte", TS.offre_atteinte, _offre_atteinte, "L", pareilles("Burger offert", "Cheese", "Bacon"), "offre_atteinte"),
@@ -468,11 +428,6 @@ CAS_DE_L_ALLERGIE: list[Cas] = [
 
 # ── les tests : un par famille de fixtures ──────────────────────────────────────────────────────────────────────────────
 
-async def _jouer(scenario, *args):
-    r = scenario(*args)
-    return await r if hasattr(r, "__await__") else r
-
-
 @pytest.fixture
 async def appel(commerce):
     a = _PANIER.Appel(commerce)
@@ -480,61 +435,61 @@ async def appel(commerce):
     return a
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_LA_COMMANDE))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_LA_COMMANDE))
 async def test_le_signal_porte_ce_que_le_secours_de_la_commande_disait(cas, appel, monkeypatch):
-    _controle(cas, await _jouer(cas.scenario, appel, monkeypatch))
+    controler(cas, await jouer(cas.scenario, appel, monkeypatch))
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_L_ESSAI))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_L_ESSAI))
 async def test_le_signal_porte_ce_que_le_secours_d_une_formule_disait(cas, essai_de):
-    _controle(cas, await _jouer(cas.scenario, essai_de))
+    controler(cas, await jouer(cas.scenario, essai_de))
 
 
-@pytest.mark.parametrize("cas", _params(CAS_PURS))
+@pytest.mark.parametrize("cas", parametres(CAS_PURS))
 async def test_le_signal_porte_ce_que_le_secours_d_un_geste_pur_disait(cas):
-    _controle(cas, await _jouer(cas.scenario))
+    controler(cas, await jouer(cas.scenario))
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_LA_SOURCE))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_LA_SOURCE))
 def test_le_signal_porte_ce_que_le_secours_de_la_source_disait(cas):
-    _controle(cas, cas.scenario())
+    controler(cas, cas.scenario())
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_LA_ZONE))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_LA_ZONE))
 async def test_le_signal_porte_ce_que_le_secours_de_la_zone_disait(cas, commerce):
     await _senlis(commerce)
-    _controle(cas, await _jouer(cas.scenario, commerce))
+    controler(cas, await jouer(cas.scenario, commerce))
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DU_KEBAB))
+@pytest.mark.parametrize("cas", parametres(CAS_DU_KEBAB))
 async def test_le_signal_porte_ce_que_le_secours_du_minimum_disait(cas, kebab):
-    _controle(cas, await _jouer(cas.scenario, kebab))
+    controler(cas, await jouer(cas.scenario, kebab))
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_L_ALLERGIE))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_L_ALLERGIE))
 async def test_le_signal_porte_ce_que_le_secours_d_une_allergie_disait(cas, monkeypatch):
-    _controle(cas, await _jouer(cas.scenario, monkeypatch))
+    controler(cas, await jouer(cas.scenario, monkeypatch))
 
 
 # Commit 0 seulement, retiré avec les textes : la table dit bien ce que disait le texte (les cas sans base ni moteur lourd).
 @pytest.mark.parametrize("cas", CAS_PURS, ids=lambda c: c.nom)
 async def test_la_table_pure_est_fidele_au_texte(cas):
-    _fidele(cas, await _jouer(cas.scenario))
+    fidele(cas, await jouer(cas.scenario))
 
 
 @pytest.mark.parametrize("cas", CAS_DE_L_ALLERGIE, ids=lambda c: c.nom)
 async def test_la_table_de_l_allergie_est_fidele_au_texte(cas, monkeypatch):
-    _fidele(cas, await _jouer(cas.scenario, monkeypatch))
+    fidele(cas, await jouer(cas.scenario, monkeypatch))
 
 
 @pytest.mark.parametrize("cas", CAS_DE_LA_SOURCE, ids=lambda c: c.nom)
 def test_la_table_de_la_source_est_fidele_au_texte(cas):
-    _fidele(cas, cas.scenario())
+    fidele(cas, cas.scenario())
 
 
 @pytest.mark.parametrize("cas", CAS_DE_LA_COMMANDE, ids=lambda c: c.nom)
 async def test_la_table_de_la_commande_est_fidele_au_texte(cas, appel, monkeypatch):
-    _fidele(cas, await _jouer(cas.scenario, appel, monkeypatch))
+    fidele(cas, await jouer(cas.scenario, appel, monkeypatch))
 
 
 # ── R1 : « l'équipe pourra le confirmer » (la fin de INFO.NON_GARANTI) est un fait, pas seulement le statut `inconnu` ───────────────────
@@ -549,6 +504,8 @@ CAS_NON_GARANTIS: list[tuple[str, Callable]] = [
     ("liste_avec_option_sans_donnee", _allergie(signalements=["lait"], mot="allergènes", options=[option("sauce maison", None)])),
     ("selon_option_avec_des_inconnues", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce maison", None)])),
     ("inconnu_selon_le_choix", _allergie(signalements=[], options=[option("sauce maison", None)])),
+    ("plusieurs_dont_une_option_sans_donnee", _allergie(signalements=[], option_=option("sauce maison", None), mot="lait et gluten")),
+    ("plusieurs_avec_un_mot_inconnu", _allergie(signalements=["lait"], mot="lait et kiwi")),
 ]
 
 CAS_GARANTIS: list[tuple[str, Callable]] = [
@@ -556,19 +513,22 @@ CAS_GARANTIS: list[tuple[str, Callable]] = [
     ("absent_de_la_fiche", _allergie(signalements=["gluten"])),
     ("liste_sans_inconnue", _allergie(signalements=["lait"], mot="allergènes", options=[option("sauce blanche", ["lait"])])),
     ("selon_option_sans_inconnue", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce rouge", ["gluten"])])),
+    # A6 : « plusieurs » ne renvoie à l'équipe que si l'une de ses réponses y renvoie ; un sans-fiche dit « je ne peux pas vous le confirmer » (NON_CONFIRMABLE)
+    ("plusieurs_sans_fiche", _allergie(signalements=None, mot="lait et gluten")),
+    ("plusieurs_selon_option_sans_inconnue", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce rouge", ["gluten"])], mot="lait et gluten")),
 ]
 
 
 @pytest.mark.parametrize("scenario", [c[1] for c in CAS_NON_GARANTIS], ids=[c[0] for c in CAS_NON_GARANTIS])
 async def test_r1_le_non_garanti_dit_que_l_equipe_peut_confirmer(scenario, monkeypatch):
     """Client « Il y a des fruits à coque dans le tiramisu ? » : le modèle sait dire « je ne peux pas le garantir, l'équipe pourra vous le confirmer »."""
-    r = await _jouer(scenario, monkeypatch)
+    r = await jouer(scenario, monkeypatch)
     assert r.faits["a_confirmer_par_l_equipe"] is True, r.faits
 
 
 @pytest.mark.parametrize("scenario", [c[1] for c in CAS_GARANTIS], ids=[c[0] for c in CAS_GARANTIS])
 async def test_r1_une_reponse_sure_ne_renvoie_pas_a_l_equipe(scenario, monkeypatch):
-    r = await _jouer(scenario, monkeypatch)
+    r = await jouer(scenario, monkeypatch)
     assert not r.faits.get("a_confirmer_par_l_equipe"), r.faits
 
 
@@ -601,13 +561,13 @@ def _livraison_terminee(appel, mp):
 
 
 async def _fermee_et_planifiable(appel, mp):
-    await _planifiable(appel, mp)
+    await _planifiable(appel, mp, reprise_dite="dix-sept heures")  # la reprise n'est pas l'heure que propose ``quand_dit`` : la valeur vue est bien la reprise
     return await moteur.choisir_mode(appel.source, appel.p, appel.regles, "emporter")
 
 
 CAS_DE_LA_FERMETURE: list[Cas] = [
     Cas("fermeture_planifiable", _en_etat("FERME"), _fermee_et_planifiable, "F",
-        [("dix-huit heures", "dix-huit heures"), ("planifiee_permise", "Je peux prendre votre commande pour plus tard")], "FERME_PLANIFIABLE"),
+        [("dix-sept heures", "dix-sept heures"), ("planifiee_permise", "Je peux prendre votre commande pour plus tard")], "FERME_PLANIFIABLE"),
     Cas("fermeture_en_pause", _en_etat("PAUSE_TYPE"), _pause, "L", [("dix-huit heures", "dix-huit heures")], "PAUSE_TYPE"),
     Cas("fermeture_livraison_terminee", _en_etat("LIVRAISON_TERMINEE"), _livraison_terminee, "L", [], "LIVRAISON_TERMINEE"),
 ]
@@ -656,6 +616,9 @@ CAS_DE_LA_RECHERCHE: list[Cas] = [
     Cas("article_sans_une_chose", TSA.article_sans_une_chose,
         _sans([article_de_carte("Reine", ["lait"]), article_de_carte("Margherita", ["gluten"]), article_de_carte("Veggie", [])]), "L",
         [("Margherita", "Margherita"), ("Veggie", "Veggie"), ("lait", "lait")], "OK"),
+    Cas("article_sans_une_chose_code_opaque", TSA.article_sans_une_chose,
+        lambda: V_._chercher_ce_qui_est_sans(Carte([article_de_carte("Reine", ["ING-12"]), article_de_carte("Veggie", [])], libelles={"ING-12": "le lait"}), {}, REGLES,
+                                             "pizzas sans lait", None), "L", [("Veggie", "Veggie"), ("lait", "lait")], "OK"),
     Cas("article_sans_une_chose_selon_le_choix", TSA.article_sans_une_chose, _sans([article_de_carte("Reine", []), _SELON], "sans gluten"), "L",
         [("Reine", "Reine"), ("Burger", "Burger"), ("gluten", "gluten")], "OK"),
     Cas("article_sans_une_chose_et_des_inconnus", TSA.article_sans_une_chose, _sans([article_de_carte("Reine", []), article_de_carte("Maison", None)], "pizzas sans gluten"), "L",
@@ -678,24 +641,24 @@ CAS_DE_L_ALLERGIE_AVEC_OPTION: list[Cas] = [
 ]
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_LA_FERMETURE))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_LA_FERMETURE))
 async def test_le_signal_porte_ce_que_la_fermeture_disait(cas, appel, monkeypatch):
-    _controle(cas, await _jouer(cas.scenario, appel, monkeypatch))
+    controler(cas, await jouer(cas.scenario, appel, monkeypatch))
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_L_ENVOI))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_L_ENVOI))
 async def test_le_signal_porte_ce_que_l_envoi_disait(cas, monkeypatch):
-    _controle(cas, await _jouer(cas.scenario, monkeypatch))
+    controler(cas, await jouer(cas.scenario, monkeypatch))
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_LA_RECHERCHE))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_LA_RECHERCHE))
 async def test_le_signal_porte_ce_que_la_recherche_d_un_article_disait(cas):
-    _controle(cas, await _jouer(cas.scenario))
+    controler(cas, await jouer(cas.scenario))
 
 
-@pytest.mark.parametrize("cas", _params(CAS_DE_L_ALLERGIE_AVEC_OPTION))
+@pytest.mark.parametrize("cas", parametres(CAS_DE_L_ALLERGIE_AVEC_OPTION))
 async def test_le_signal_porte_ce_que_le_secours_d_une_option_disait(cas, monkeypatch):
-    _controle(cas, await _jouer(cas.scenario, monkeypatch))
+    controler(cas, await jouer(cas.scenario, monkeypatch))
 
 
 async def test_f1_voisin_une_commune_hors_zone_porte_son_departement(commerce):
@@ -708,19 +671,19 @@ async def test_f1_voisin_une_commune_hors_zone_porte_son_departement(commerce):
 # Commit R2, retirés avec les textes (C7) : la table dit bien ce que disaient les textes.
 @pytest.mark.parametrize("cas", CAS_DE_LA_FERMETURE, ids=lambda c: c.nom)
 async def test_la_table_de_la_fermeture_est_fidele_au_texte(cas, appel, monkeypatch):
-    _fidele(cas, await _jouer(cas.scenario, appel, monkeypatch))
+    fidele(cas, await jouer(cas.scenario, appel, monkeypatch))
 
 
 @pytest.mark.parametrize("cas", CAS_DE_L_ENVOI, ids=lambda c: c.nom)
 async def test_la_table_de_l_envoi_est_fidele_au_texte(cas, monkeypatch):
-    _fidele(cas, await _jouer(cas.scenario, monkeypatch))
+    fidele(cas, await jouer(cas.scenario, monkeypatch))
 
 
 @pytest.mark.parametrize("cas", CAS_DE_LA_RECHERCHE, ids=lambda c: c.nom)
 async def test_la_table_de_la_recherche_est_fidele_au_texte(cas):
-    _fidele(cas, await _jouer(cas.scenario))
+    fidele(cas, await jouer(cas.scenario))
 
 
 @pytest.mark.parametrize("cas", CAS_DE_L_ALLERGIE_AVEC_OPTION, ids=lambda c: c.nom)
 async def test_la_table_de_l_option_est_fidele_au_texte(cas, monkeypatch):
-    _fidele(cas, await _jouer(cas.scenario, monkeypatch))
+    fidele(cas, await jouer(cas.scenario, monkeypatch))

@@ -226,7 +226,7 @@ async def test_pause_sans_fin_sans_reprise_inventee(essai_de):
         "INSERT INTO mark.resto_etat_caisse (site_id, mode) VALUES ($1, 'pause') ON CONFLICT (site_id) DO UPDATE SET mode = 'pause'", e.monde.a)
     ouverture = await moteur.lire_l_ouverture(e.source)
     assert ouverture["ouvert"] is False and not ouverture.get("reprise"), ouverture
-    assert "reprenons" not in (ouverture.get("phrase") or ""), ouverture
+    assert "phrase" not in ouverture, ouverture  # lot 7b-C7 : aucune phrase de fermeture, le modèle la dit d'après les faits
 
 
 @pytest.mark.parametrize("faire_monde", [NUIT_DU_18], indirect=True)

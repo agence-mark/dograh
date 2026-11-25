@@ -27,8 +27,8 @@ class Source(Protocol):
     def exige_une_zone(self, mode: str) -> bool: ...
 
     async def etat(self, mode: str) -> dict[str, Any]:
-        """``{ouvert, statut, raison, reprise, prochaine_ouverture, delai_minutes, planifiee_permise}`` ; ``statut`` : le statut fermé
-        à rendre quand ``ouvert`` est faux (``FERME``, ``PAUSE_TYPE``…)."""
+        """``{ouvert, statut, raison, reprise, reprise_dite, prochaine_ouverture, delai_minutes, planifiee_permise, en_pause}`` ; ``statut`` : le statut fermé
+        à rendre quand ``ouvert`` est faux (``FERME``, ``PAUSE_TYPE``…). Aucune phrase : le modèle dit la fermeture d'après ces faits (lot 7b-C7)."""
 
     async def chercher(self, texte: str) -> Resultat:
         """Dans le catalogue : ``RETENU`` (``faits.retenu`` = l'article, ``faits.options`` = taille ou contenant lus), ``AMBIGU``, ``INTROUVABLE``."""

@@ -230,17 +230,16 @@ CLES_DE_L_ETAT = ("raison", "reprise", "reprise_dite", "prochaine_ouverture", "p
 async def lire_l_ouverture(source: Source, mode: str | None = None) -> dict[str, Any]:
     """Lot 4 (Q10, audit § 3.3, appel 2648) : LA lecture de l'ouverture, une seule, pour le décroché, l'état et les outils : les horaires, l'état
     du lieu (pause, débordé) et le forçage de l'organisation, lus par la source (``etat`` ; ``en_pause`` : une pause, dont la reprise seule compte).
-    Rend ``{ouvert, etat (OUVERT, PAUSE, FERME), reprise, phrase, modes}`` (``phrase`` est toujours vide : la source n'écrit plus la phrase de fermeture, lot 7b-C7a ; la clé part avec ses lecteurs en C7). Une pause sans fin connue n'a AUCUNE reprise (jamais inventée)."""
+    Rend ``{ouvert, etat (OUVERT, PAUSE, FERME), reprise, modes}``, sans phrase : le modèle dit l'ouverture d'après ces faits (lot 7b-C7). Une pause sans fin connue n'a AUCUNE reprise (jamais inventée)."""
     modes = [mode] if mode else list(source.modes)
     etats = {m: await source.etat(m) for m in modes}
     ouverts = [m for m, e in etats.items() if e["ouvert"]]
     if ouverts or not etats:
-        return {"ouvert": True, "etat": "OUVERT", "reprise": None, "phrase": "", "modes": {m: e["ouvert"] for m, e in etats.items()}}
+        return {"ouvert": True, "etat": "OUVERT", "reprise": None, "modes": {m: e["ouvert"] for m, e in etats.items()}}
     premier = next(iter(etats.values()))
     pause = bool(premier.get("en_pause"))
     reprise = premier.get("reprise") if pause else (premier.get("reprise") or premier.get("prochaine_ouverture"))
-    return {"ouvert": False, "etat": "PAUSE" if pause else "FERME", "reprise": reprise, "phrase": premier.get("phrase") or "",
-            "modes": {m: e["ouvert"] for m, e in etats.items()}}
+    return {"ouvert": False, "etat": "PAUSE" if pause else "FERME", "reprise": reprise, "modes": {m: e["ouvert"] for m, e in etats.items()}}
 
 
 async def etat_ouverture(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None = None) -> Resultat:

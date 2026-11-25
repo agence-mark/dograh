@@ -80,7 +80,7 @@ async def test_une_heure_hors_service_est_refusee_avant_la_relecture_avec_la_reo
     hors = await jouer("resoudre_une_date", texte="ce soir", heure="15 h")
     refus = await jouer("finaliser", heure=hors["faits"]["heure_voulue"])
     assert refus["manque"] == "heure_voulue" and refus["faits"]["raison"] == "ferme_horaires", refus
-    assert "dix-huit heures" in refus["suggestion"] and "rouvrons" in refus["suggestion"], refus["suggestion"]
+    assert refus["suggestion"] == "" and refus["faits"]["rouvre_dit"] == "dix-huit heures", refus  # lot 7b-C7 (A3) : la réouverture est un fait, le modèle la dit
     assert appel_de_test.fiche[panier.CLE]["heure_voulue"] is None  # l'heure refusée n'est pas gardée
     trop_tot = await jouer("resoudre_une_date", texte="ce soir", heure="12 h 10")
     proche = await jouer("finaliser", heure=trop_tot["faits"]["heure_voulue"])
