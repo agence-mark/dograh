@@ -149,3 +149,20 @@ def une_reservation(faits: Faits) -> str:
 
 def plusieurs_reservations(faits: Faits) -> str:
     return f"Je trouve {len(faits['reservations'])} réservations."
+
+
+# --------------------------------------------------------------------------- #
+# Les questions du moteur (``services.reservation.moteur``) ; les manques déjà posés plus haut (personnes, numéro, nom) y sont repris
+# --------------------------------------------------------------------------- #
+
+
+def quel_jour(faits: Faits) -> str:
+    return JOUR
+
+
+def quelle_heure(faits: Faits) -> str:
+    return HEURE
+
+
+def que_change_je(faits: Faits) -> str:
+    return "Qu'est-ce que je change : l'heure, le nombre de personnes ?"

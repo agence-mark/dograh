@@ -26,6 +26,7 @@ from api.db.bases_clients import dates_futures
 from api.services.actions_communes.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.mots_dits import heure_en_lettres, liste_dite, nombre_en_lettres
 from api.services.phrases.catalogue import MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
+from api.services.reservation import textes_de_secours as TS
 from api.services.reservation.source import Source
 
 CLE = "reservation_etat"
@@ -152,18 +153,18 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
     """Les créneaux libres d'un jour pour un nombre de personnes. Avec ``heure``, les trois plus proches de cette heure ; sans, le premier de chaque heure.
     Rien n'est réservé. Complet : ``faits.complet`` vrai, aucun créneau inventé."""
     if not isinstance(personnes, int) or isinstance(personnes, bool) or personnes < 1:
-        return _r("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes")
+        return _r("INCOMPLETE", {}, TS.combien_de_personnes({}), "personnes")
     if (refus := await _groupe_refuse(source, personnes)) is not None:
         return refus
     if not jour:
-        return _r("INCOMPLETE", {}, "Pour quel jour ?", "jour")
+        return _r("INCOMPLETE", {}, TS.quel_jour({}), "jour")
     dates_futures.retenir_le_moment(etat, jour)
     resolu = await source.resoudre_une_date(jour, dates_futures.heure_avec_le_moment(etat, heure))
     if resolu.statut not in ("RETENU", "INCOMPLETE") or (resolu.statut == "INCOMPLETE" and resolu.manque != "heure"):
         return resolu
     le_jour = _jour_de(resolu)
     if le_jour is None:
-        return _r("INTROUVABLE", {}, "Pour quel jour ?", "jour")
+        return _r("INTROUVABLE", {}, TS.quel_jour({}), "jour")
     libres = await source.disponibilites(le_jour, personnes)
     if libres.statut != "OK":
         return libres
@@ -246,11 +247,11 @@ async def _reserver(
     if telephone:
         b["telephone_dit"] = telephone
     if not isinstance(b.get("personnes"), int) or b["personnes"] < 1:
-        return _r("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes")
+        return _r("INCOMPLETE", {}, TS.combien_de_personnes({}), "personnes")
     if (refus := await _groupe_refuse(source, b["personnes"])) is not None:
         return refus
     if not b.get("jour"):
-        return _r("INCOMPLETE", {}, "Pour quel jour ?", "jour")
+        return _r("INCOMPLETE", {}, TS.quel_jour({}), "jour")
     resolu = await source.resoudre_une_date(b["jour"], dates_futures.heure_avec_le_moment(etat, b.get("heure")))
     if resolu.faits.get("jour_dit"):
         b["jour_dit"] = resolu.faits["jour_dit"]  # l'état le montre sans requête (``etat_pour_le_modele``)
@@ -262,14 +263,14 @@ async def _reserver(
     debut = datetime.fromisoformat(resolu.faits["heure_voulue"])
     quand_dit = f"{resolu.faits['jour_dit']} à {resolu.faits['heure_dite']}"
     if not b.get("prenom"):
-        return _r("INCOMPLETE", {}, "À quel nom je mets la réservation ?", "prenom")
+        return _r("INCOMPLETE", {}, TS.a_quel_nom_je_mets_la_reservation({}), "prenom")
     numero = b.get("telephone_dit") or appelant.telephone_affiche
     if not numero:
-        return _r("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone")
+        return _r("INCOMPLETE", {}, TS.quel_numero({}), "telephone")
     numero_e164 = _vers_e164(numero)
     if numero_e164 is None:
         b.pop("telephone_dit", None)
-        return _r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone")
+        return _r("ARGUMENT_INVALIDE", {"numero_illisible": True}, TS.numero_illisible({}), "telephone")
     # le créneau demandé est-il libre ? sinon les plus proches, jamais un créneau inventé
     libres = await source.disponibilites(debut.date(), b["personnes"])
     if libres.statut != "OK":
@@ -330,7 +331,7 @@ async def _la_reservation(source: Source, etat: dict[str, Any]) -> tuple[dict | 
     numéro attendu du modèle (B08). Aucune visée : on demande laquelle, par le nom et le jour."""
     numero = etat.get("cible")
     if not numero:
-        return None, _r("INCOMPLETE", {}, "Sous quel nom, et pour quel jour ?", "nom_et_jour_de_la_reservation")
+        return None, _r("INCOMPLETE", {}, TS.sous_quel_nom_et_quel_jour({}), "nom_et_jour_de_la_reservation")
     trouve = await source.retrouver(numero=numero)
     liste = (trouve.faits.get("reservations") or []) if trouve.statut == "OK" else []
     if not liste:
@@ -362,7 +363,7 @@ async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appela
                 return resolu
     par_le_nom = bool(nom and (le_jour or jours_possibles))
     if not par_le_nom and not appelant.telephone_affiche:
-        return _r("INCOMPLETE", {"raison": "numero_masque"}, "Sous quel nom, et pour quel jour ?", "nom_et_jour_de_la_reservation")
+        return _r("INCOMPLETE", {"raison": "numero_masque"}, TS.sous_quel_nom_et_quel_jour({}), "nom_et_jour_de_la_reservation")
     liste: list[dict[str, Any]] = []
     for un_jour in (jours_possibles or [le_jour]):
         if par_le_nom:
@@ -463,7 +464,7 @@ async def modifier(
         if _jour_de(voulu) == _jour_de(await source.resoudre_une_date(r["jour_dit"], None)):
             m.pop("jour")  # le jour redit tel qu'il est n'est pas un changement
     if m.get("jour") and not m.get("heure"):
-        return _r("INCOMPLETE", {"reservation": r["quand_dit"]}, "À quelle heure ?", "heure")
+        return _r("INCOMPLETE", {"reservation": r["quand_dit"]}, TS.quelle_heure({}), "heure")
     if m.get("heure"):
         dates_futures.retenir_le_moment(etat, m.get("jour"))
         resolu = await source.resoudre_une_date(m.get("jour") or r["jour_dit"], dates_futures.heure_avec_le_moment(etat, m["heure"]))
@@ -489,7 +490,7 @@ async def modifier(
         etat.pop("modification", None)
         return _r("DEJA_FAIT", {"reservation": r["numero"], "inchangee": True}, f"Rien ne change : votre réservation reste {r['quand_dit']} pour {_personnes_dites(r['personnes'])}.")
     if not changements:
-        return _r("INCOMPLETE", {"reservation": r["quand_dit"]}, "Qu'est-ce que je change : l'heure, le nombre de personnes ?", "changement")
+        return _r("INCOMPLETE", {"reservation": r["quand_dit"]}, TS.que_change_je({}), "changement")
     empreinte = _empreinte(r["numero"], {k: str(v) for k, v in changements.items()})
     relue = etat.get("lecture_modification")
     if not (confirmer and relue and relue.get("empreinte") == empreinte):
