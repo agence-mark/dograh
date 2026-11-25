@@ -1,7 +1,6 @@
 """[.mark] Lot 7b-C2 : les textes de secours de la base et de la source de la commande.
 
-Un texte de secours est la phrase qu'un refus portait déjà dans ``suggestion`` : le modèle ne la reçoit plus (R = A, le repli du code ne la dit que lorsque le
-modèle s'est tu deux fois sur le refus). Chaque fonction est pure et ne lit que les faits du refus (plus les mots dits des nombres, des montants et des heures) :
+Un texte de secours est la phrase qu'un refus portait déjà dans ``suggestion`` : le modèle ne la reçoit plus et le code ne la dit plus (lot 7b-C5 : le modèle muet est relancé avec les faits du refus) ; elle reste jusqu'à C7. Chaque fonction est pure et ne lit que les faits du refus (plus les mots dits des nombres, des montants et des heures) :
 ``refus.suggestion == texte(refus.faits)`` est ce que prouve le test de chaque refus. Un texte qui lit une valeur absente des faits la fait ajouter au refus.
 """
 
