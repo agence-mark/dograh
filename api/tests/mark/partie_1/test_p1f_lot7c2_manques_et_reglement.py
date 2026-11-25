@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import textes_de_secours_commande as TSC
+from api.services.commande import textes_de_secours as TS
 from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.tests.mark import test_base_client as BASE
 from api.tests.mark import test_restauration_classeur_commande as CLASSEUR
@@ -99,7 +100,7 @@ def test_reglement_invalide():
 
 def test_moyen_non_accepte():
     r = _regle([{"moyen": "cheque", "montant": 2000}])
-    _verifie(r, "MOYEN_NON_ACCEPTE", "Ce moyen de paiement n'est pas accepté.", TSC.moyen_non_accepte)
+    _verifie(r, "MOYEN_NON_ACCEPTE", "Ce moyen de paiement n'est pas accepté.", TS.moyen_refuse)
     assert r.faits == {"moyen": "cheque", "acceptes": ["carte", "especes", "titre_restaurant"]}
 
 

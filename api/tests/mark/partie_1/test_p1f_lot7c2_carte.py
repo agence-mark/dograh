@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import textes_de_secours_commande as TSC
+from api.services.commande import textes_de_secours as TS
 
 
 def _option(ref: str, nom: str, prix: int = 100, **plus) -> dict:
@@ -56,7 +57,7 @@ def test_quantite_de_choix_invalide():
 
 def test_choix_en_rupture():
     r = _refus(_carte([GROUPE]), _pizza([{"option_code": "OEUF", "quantite": 1}]), {"OEUF"})
-    _verifie(r, "RUPTURE", "Œuf n'est plus disponible.", TSC.indisponible)
+    _verifie(r, "RUPTURE", "Œuf n'est plus disponible.", TS.n_est_plus_disponible)
     assert r.faits == {"code": "OEUF", "nom": "Œuf"}
 
 
@@ -156,7 +157,7 @@ def test_produit_hors_carte():
 
 def test_produit_en_rupture():
     r = _refus(_carte(), {"code_caisse": "PIZZA", "quantite": 1}, {"PIZZA"})
-    _verifie(r, "RUPTURE", "Pizza n'est plus disponible.", TSC.indisponible)
+    _verifie(r, "RUPTURE", "Pizza n'est plus disponible.", TS.n_est_plus_disponible)
     assert r.faits == {"code": "PIZZA", "nom": "Pizza"}
 
 

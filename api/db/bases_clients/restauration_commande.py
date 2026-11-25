@@ -29,6 +29,7 @@ from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
+from api.services.commande import textes_de_secours as TS
 from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.mots_dits import heure_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
@@ -203,7 +204,7 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         if not isinstance(n, int) or n < 1:
             return 0, _refus_de_secours("ARGUMENT_INVALIDE", TSC.quantite_de_choix_invalide, "quantite", code=code)
         if code in panier.ruptures:
-            return 0, _refus_de_secours("RUPTURE", TSC.indisponible, code=code, nom=o["nom"])
+            return 0, _refus_de_secours("RUPTURE", TS.n_est_plus_disponible, code=code, nom=o["nom"])
         par_groupe[g["id"]] = par_groupe.get(g["id"], 0) + n
         par_option[code] = par_option.get(code, 0) + n
         if par_option[code] > g["max_par_option"]:
@@ -403,7 +404,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
         else:
             return [], 0, _refus_de_secours("HORS_CARTE", TSC.produit_hors_carte, code=code)
         if code in panier.ruptures:
-            return [], 0, _refus_de_secours("RUPTURE", TSC.indisponible, code=code, nom=nom)
+            return [], 0, _refus_de_secours("RUPTURE", TS.n_est_plus_disponible, code=code, nom=nom)
         # Lot 12 (PRX1, PRX3, PRX8, PRX9) : la plage, le mode, le maximum par commande et le délai minimal ; les quantités du même produit s'additionnent d'une ligne à l'autre
         objet = produit if code in panier.decl else formule
         refus = conditions_de_vente.refus_de_la_ligne(objet, d if code in panier.decl else None, panier.mode, n, pris_du_produit.get(objet["id"], 0), panier.maintenant, panier.servi_le)
@@ -752,7 +753,7 @@ def _reglement_lisible(moyens: list, reste: dict, acceptes: set[str]) -> Resulta
         return _refus_de_secours("ARGUMENT_INVALIDE", TSC.reglement_invalide, "paiement")
     for moyen in [m["moyen"] for m in moyens] + list(reste):
         if moyen not in acceptes:
-            return _refus_de_secours("MOYEN_NON_ACCEPTE", TSC.moyen_non_accepte, moyen=moyen, acceptes=sorted(acceptes))
+            return _refus_de_secours("MOYEN_NON_ACCEPTE", TS.moyen_refuse, moyen=moyen, acceptes=sorted(acceptes))
     return None
 
 

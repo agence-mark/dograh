@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from api.services.commande import textes_de_secours as TS
 from api.services.mots_dits import montant_en_lettres
 
 Faits = Mapping[str, Any]
@@ -94,11 +95,6 @@ def quantite_de_choix_invalide(faits: Faits) -> str:
     return "Quantité de choix invalide."
 
 
-def indisponible(faits: Faits) -> str:
-    """Un produit ou un choix en rupture : ``nom`` le dit."""
-    return f"{faits['nom']} n'est plus disponible."
-
-
 def option_trop_de_fois(faits: Faits) -> str:
     return f"{faits['nom']} ne se prend pas plus de {faits['maximum']} fois."
 
@@ -172,7 +168,7 @@ def ferme_a_cette_heure(faits: Faits) -> str:
     """Fermé à l'heure voulue : ``rouvre_dit`` (le moment où l'on rouvre, dit) seulement quand on le connaît, sinon la phrase du moment."""
     if faits.get("rouvre_dit"):
         return f"À cette heure nous sommes fermés. Nous rouvrons {faits['rouvre_dit']} : pour quelle heure à partir de là ?"
-    return "Nous ne prenons pas de commande en ce moment."
+    return TS.pas_de_commande_en_ce_moment(faits)
 
 
 def creneau_complet(faits: Faits) -> str:
@@ -205,8 +201,6 @@ def prenom_trop_long(faits: Faits) -> str:
     return "Prénom trop long."
 
 
-def moyen_non_accepte(faits: Faits) -> str:
-    return "Ce moyen de paiement n'est pas accepté."
 
 
 def reglement_invalide(faits: Faits) -> str:

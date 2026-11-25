@@ -29,6 +29,17 @@ PERMIS = {
     *{("services/commande/textes_de_secours.py", f"services/commande/moteur/{m}.py", TOUS)
       for m in ("articles", "changement", "enregistrement", "lecture", "mode_et_adresse", "prealables", "reglement")},
     ("services/commande/textes_de_secours.py", "services/commande/porte.py", TOUS),  # la porte refuse elle-même une heure proposée sans autre heure (``_repondre_a_l_heure_proposee``)
+    # C2 : la base de la commande et sa source refusent elles-mêmes, avec leurs catalogues de secours
+    ("db/bases_clients/textes_de_secours_commande.py", "db/bases_clients/restauration_commande.py", TOUS),  # la base qui refuse écrit le texte de secours de son refus
+    ("db/bases_clients/textes_de_secours_commande.py", "services/restauration/source_commande.py", TOUS),  # la fermeture de l'état et l'envoi indisponible : texte de secours de la source
+    ("services/commande/phrases_du_manque.py", "db/bases_clients/restauration_commande.py", "phrase_du_manque"),  # le manque que la base relaie, mot pour mot du catalogue
+    ("services/commande/phrases_du_manque.py", "services/restauration/source_commande.py", "phrase_du_manque"),  # idem pour la source
+    ("services/commande/textes_de_secours.py", "db/bases_clients/restauration_commande.py", TOUS),  # une seule source des textes en double (rupture, moyen refusé)
+    ("services/commande/textes_de_secours.py", "db/bases_clients/textes_de_secours_commande.py", TOUS),  # la fermeture sans heure de reprise dit la phrase de la commande
+    # C3 : la réservation et l'allergie refusent elles-mêmes ; la feuille de la réservation est lue par le moteur, la porte, la base et le catalogue du manque
+    *{("services/reservation/textes_de_secours.py", f"services/reservation/{m}.py", TOUS) for m in ("moteur", "porte", "phrases_du_manque")},
+    ("services/reservation/textes_de_secours.py", "db/bases_clients/restauration_reservation.py", TOUS),  # la base qui refuse écrit le texte de secours de son refus
+    *{("services/restauration/carte_et_allergenes/textes_de_secours.py", f"services/restauration/carte_et_allergenes/{m}.py", TOUS) for m in ("allergie_de_la_commande", "voir_un_article")},
 }
 # Les importeurs qui donnent encore le texte au modèle : en échec attendu strict, nommés ; C4 les retire.
 A_RETIRER_EN_C4 = {
