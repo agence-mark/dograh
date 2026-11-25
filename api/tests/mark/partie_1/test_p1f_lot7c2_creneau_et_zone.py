@@ -1,4 +1,4 @@
-"""[.mark] Lot 7b-C2, la zone, le mode et le créneau voulu (``restauration_commande``) : chaque refus fermé rend le texte d'avant, au caractère près, ET ce texte se refait de ses seuls faits
+"""[.mark] Lot 7b-C2, la zone, le mode et le créneau voulu (``restauration_commande``) : chaque refus fermé ne porte plus de texte (lot 7b-C7, A3) ; le texte d'avant se refait toujours de ses seuls faits
 (``textes_de_secours_commande``). Un fait qui distingue deux refus de même statut et même manque est une valeur simple (``plus_tard_refuse``, ``jusqu_a``, ``trop_tot``)."""
 
 from __future__ import annotations
@@ -20,8 +20,9 @@ PARIS = ZoneInfo("Europe/Paris")
 
 
 def _verifie(r, statut: str, texte: str, secours, manque: str | None = None):
-    assert (r.statut, r.suggestion, r.manque) == (statut, texte, manque), r
-    assert r.suggestion == secours(r.faits), r
+    """C7 (A3) : le refus ne porte plus de texte ; le texte d'avant se refait toujours de ses seuls faits (il sort avec le catalogue, lot B)."""
+    assert (r.statut, r.suggestion, r.manque) == (statut, "", manque), r
+    assert secours(r.faits) == texte, r
 
 
 async def _creneau(commerce, voulue, moment=JEUDI_MIDI, mode="emporter"):
@@ -104,7 +105,7 @@ async def test_ferme_a_l_heure_voulue_dit_quand_on_rouvre(commerce):
     await _regler(commerce, planifiee_permise=True)
     r = await _creneau(commerce, JEUDI_MIDI + timedelta(hours=4))  # 16 h : entre le midi et le soir
     assert (r.statut, r.manque) == ("FERME", "heure_voulue")
-    assert r.suggestion == "À cette heure nous sommes fermés. Nous rouvrons dix-huit heures : pour quelle heure à partir de là ?" == TSC.ferme_a_cette_heure(r.faits)
+    assert r.suggestion == "" and TSC.ferme_a_cette_heure(r.faits) == "À cette heure nous sommes fermés. Nous rouvrons dix-huit heures : pour quelle heure à partir de là ?"
     assert r.faits["rouvre_dit"] == "dix-huit heures"
 
 

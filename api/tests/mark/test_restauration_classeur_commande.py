@@ -346,15 +346,14 @@ async def test_commande_planifiee_refusee_par_defaut_puis_permise_et_relevee(com
 
 
 async def test_les_jours_a_l_avance_comptent_en_jours_du_lieu_et_le_refus_dit_jusqu_a_quand(commerce):
-    """M91 (appel 2577) : « J+1 » = jusqu'à la fin de demain, jamais 24 heures glissantes ; le refus dit la limite."""
+    """M91 (appel 2577) : « J+1 » = jusqu'à la fin de demain, jamais 24 heures glissantes ; le refus porte la limite (fait ``jusqu_a``, que le modèle dit : lot 7b-C7, A3)."""
     c, a = commerce.c, commerce.a
     await c.execute("UPDATE mark.resto_reglage_type SET planifiee_permise = true, jours_a_l_avance = 1, delai_minimal = 30 WHERE site_id = $1 AND type = 'emporter'", a)
     demain_soir = (JEUDI_MIDI + timedelta(days=1)).replace(hour=19, minute=30)          # plus de 24 heures après midi, mais demain
     r = await enregistrer(commerce, brouillon(heure_voulue=demain_soir, appel_id="demain-soir"))
     assert r.statut == "ENREGISTREE", r
     loin = await enregistrer(commerce, brouillon(heure_voulue=demain_soir + timedelta(days=1), appel_id="apres-demain"))
-    assert loin.manque == "heure_voulue" and loin.suggestion.startswith("Je prends les commandes jusqu'à "), loin
-    assert "trop loin" not in loin.suggestion
+    assert (loin.manque, loin.suggestion, loin.faits) == ("heure_voulue", "", {"jusqu_a": "vendredi treize novembre"}), loin
 
 
 # --------------------------------------------------------------------------- #

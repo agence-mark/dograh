@@ -558,3 +558,17 @@ async def test_la_table_du_moteur_de_la_commande_est_fidele_au_texte(cas, appel,
 @pytest.mark.parametrize("cas", CAS_DE_LA_SALLE + CAS_DU_MOTEUR_DE_LA_RESERVATION, ids=lambda c: c.nom)
 async def test_la_table_de_la_reservation_est_fidele_au_texte(cas, salle, monkeypatch):
     fidele(cas, await jouer(cas.scenario, salle, monkeypatch))
+
+
+# ── A3 : la base de la commande n'écrit plus aucun texte de secours (le modèle formule d'après le statut, le manque et les faits) ─────────────────────────
+
+@pytest.mark.parametrize("cas", CAS_DE_LA_CARTE + CAS_DE_LA_DEMANDE, ids=lambda c: c.nom)
+async def test_aucun_refus_de_la_base_de_la_commande_n_ecrit_de_texte(cas):
+    r = await jouer(cas.scenario)
+    assert r.suggestion == "", r
+
+
+@pytest.mark.parametrize("cas", CAS_DU_CLASSEUR, ids=lambda c: c.nom)
+async def test_aucun_refus_du_classeur_de_la_commande_n_ecrit_de_texte(cas, commerce, monkeypatch):
+    r = await jouer(cas.scenario, commerce, monkeypatch)
+    assert r.suggestion == "", r
