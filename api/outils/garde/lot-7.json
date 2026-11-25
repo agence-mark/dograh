@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "edb48e12bd32bcc4038c5c6a8eadb7ad6ccbddf8",
+ "commit_teste": "c6e383cb692cc01a538128f4de38806d2e5788c0",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa13",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.01s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.72s ========================"
   },
   "noqa": {
    "vert": true,
@@ -40,7 +40,7 @@
     "tests/mark/partie_1/test_l06_parole.py",
     "tests/mark/partie_1/test_l03_porte.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_l03_porte.py::test_banc_a_passe_par_la_fiche\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv1-livraison-refus]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv6-recommencer-annuler]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv7-heure]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv8-apres-enregistrement]\n=========== 127 passed, 10 xfailed, 1 warning in 102.58s (0:01:42) ============"
+   "sortie": "PASSED tests/mark/partie_1/test_l03_porte.py::test_banc_a_passe_par_la_fiche\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv1-livraison-refus]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv6-recommencer-annuler]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv7-heure]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv8-apres-enregistrement]\n============ 128 passed, 10 xfailed, 1 warning in 92.71s (0:01:32) ============"
   }
  }
 }
