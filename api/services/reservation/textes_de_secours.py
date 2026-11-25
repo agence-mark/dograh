@@ -213,3 +213,25 @@ def rien_ne_change(faits: Faits) -> str:
 def laquelle(faits: Faits) -> str:
     """La question du choix quand le moteur n'a rien dit (``porte``) ; le choix lui-même se dit par ``plusieurs_a_choisir``."""
     return "Laquelle ?"
+
+
+def une_seule_par_appel(faits: Faits) -> str:
+    """La règle « une seule réservation par appel » quand celle de l'appel est annulée ; la promesse de transmission n'y est que si la demande est transmise (``transmise``)."""
+    phrase = "Je ne peux prendre qu'une réservation par appel, et celle de cet appel est annulée."
+    return f"{phrase} Je transmets votre demande à l'équipe, elle vous rappelle." if faits.get("transmise") else phrase
+
+
+def capacite_non_reglee(faits: Faits) -> str:
+    return "Je ne peux pas confirmer une place pour l'instant. Je peux laisser un message à l'équipe."
+
+
+def du_refus(dernier: Any, transmise: bool) -> str:
+    """Le texte que le code dit si le modèle se tait deux fois sur le refus du dernier retour (R = A) ; vide quand ce retour n'est pas un refus."""
+    faits = dict(dernier.faits or {})
+    if dernier.statut in ("REFUSEE", "INTROUVABLE"):
+        return dernier.suggestion or ""
+    if dernier.statut == "DEJA_FAIT" and faits.get("raison") == "deja_une_reservation_dans_cet_appel" and faits.get("deja_annulee"):
+        return une_seule_par_appel({"transmise": transmise})
+    if dernier.statut == "INCOMPLETE" and dernier.manque == "capacite":
+        return capacite_non_reglee(faits)
+    return ""

@@ -34,6 +34,7 @@ from api.services.actions_communes.arguments import en_json, lire_un_entier, lir
 from api.services.actions_communes.enveloppe import Enveloppe, Question
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+from api.services.actions_communes.repli import poser_le_fait_bloquant
 from api.services.actions_communes.resultat import Resultat, avec_le_fait_du_numero_affiche, question_du_numero_affiche
 from api.services.reservation import etat_pour_le_modele, moteur
 from api.services.reservation import textes_de_secours as TS
@@ -425,6 +426,9 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     textes = textes_du_code(e, dernier, operation, nee, deja_enregistree)
     if isinstance(ctx.fiche, dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
+        refus_a_dire = TS.du_refus(dernier, transmise) if dernier is not None else ""
+        if refus_a_dire:  # R = A : le modèle se tait deux fois, le code dit le refus ; sans refus, on ne touche pas au fait bloquant d'une commande (même fiche, même clé)
+            poser_le_fait_bloquant(ctx.fiche, tour, refus_a_dire)
     return Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None, a_faire=a_faire, plus=plus).vers_json()
 
 
