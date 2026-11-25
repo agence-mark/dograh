@@ -1,4 +1,4 @@
-"""[.mark] Lot 7a, ligne 129 : une lecture qui échoue et rend sa valeur de repli laisse une trace structurée (``logger.exception``), sans nom ni numéro dans le message."""
+"""[.mark] Lot 7a, ligne 129 : une lecture qui échoue et rend sa valeur de repli laisse une trace structurée (``logger.exception``), sans nom ni numéro dans la ligne écrite par le code (la pile que le filtre de la production colle après elle, numéros masqués, n'est pas cette ligne)."""
 
 from __future__ import annotations
 
@@ -25,7 +25,10 @@ def test_connecteur_de_l_etape_illisible_est_journalise(monkeypatch, journal):
 
     monkeypatch.setattr("api.services.workflow.cases_selon_l_etat._connecteur_de", casse)
     assert PF._connecteur_de_l_etape(object()) is None
-    assert len(journal) == 1 and "[parole]" in journal[0] and "Paul" not in journal[0] and "0612" not in journal[0], journal
+    # La ligne écrite par le code (la première) ne dit ni nom ni numéro ; le filtre de la production (``enrich_log_record``, posé à l'import de ``api.app`` hors
+    # test) colle ensuite la pile au message, numéros masqués : le texte de l'exception y reste (décision du lot 4), il n'est pas la ligne du code.
+    ligne = journal[0].splitlines()[0] if journal else ""
+    assert len(journal) == 1 and "[parole]" in ligne and "Paul" not in ligne and "0612" not in ligne, journal
 
 
 def test_annonce_non_jugee_est_journalisee(monkeypatch, journal):
