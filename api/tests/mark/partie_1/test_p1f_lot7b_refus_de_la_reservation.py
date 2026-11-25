@@ -3,7 +3,7 @@
 26. Client « Une table pour quatre samedi à vingt heures » (la salle se remplit avant son « oui »). Avant : le code dit « Nous ne pouvons pas à cette heure-là. Je peux vous proposer … » ;
     après : le modèle dit le refus et propose les horaires libres avec ses mots, d'après ``faits.horaires_libres`` (la barrière des chiffres les laisse passer).
 67. Client « Annulez samedi et réservez-moi dimanche ». Avant : le code dit « Je ne peux prendre qu'une réservation par appel… Je vous passe à l'équipe » et le tour s'arrête là,
-    le transfert promis n'est jamais demandé au modèle ; après : le modèle reçoit le fait et la consigne « passe-la à l'équipe », il dit le refus et passe la personne.
+    le transfert promis n'est jamais demandé au modèle ; après : le modèle reçoit le fait et la consigne « ta demande est transmise, l'équipe rappelle » (seulement si la transmission est faite), il dit le refus et la suite.
 """
 
 from __future__ import annotations

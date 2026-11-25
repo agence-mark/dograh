@@ -377,7 +377,9 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     if dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel":
         if (dernier.faits or {}).get("deja_annulee"):  # Pierre F : la réservation de l'appel est annulée ; une nouvelle ne se prend pas ici, l'équipe la prend
             transmise = _transmettre_la_demande_a_l_equipe(ctx, dernier.faits.get("demande"))
-            metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "dis-lui que tu ne prends qu'une réservation par appel et passe-la à l'équipe pour la nouvelle"})
+            une_par_appel = "dis-lui que tu ne prends qu'une réservation par appel"
+            metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [],
+                           "a_faire": f"{une_par_appel}, que sa demande est transmise et que l'équipe le rappelle" if transmise else une_par_appel})  # la transmission n'est dite que si elle est faite
         else:
             metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "un changement passe par les cases personnes, jour, heure"})
     if dernier is not None and dernier.statut == "INCOMPLETE" and dernier.manque == "capacite":
