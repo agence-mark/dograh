@@ -229,7 +229,12 @@ async def test_reglement_mixte_le_code_calcule_le_reste_et_la_monnaie(commerce):
     await a.jusqu_a_la_relecture()
     ok = await a.confirmer(moyen="titre_restaurant", part=20, moyen_reste="especes", rendu_sur=50)
     assert ok.statut == "ENREGISTREE" and ok.faits["monnaie"] == 5000 - 780
-    assert "quarante-deux euros vingt" in ok.suggestion  # le rendu de monnaie dit à la confirmation (C11)
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le rendu n'est plus composé dans le résultat ; il est un fait (``rendu`` : billet, monnaie), dit par le code avec le motif réglé
+    # ``rendu_de_monnaie`` après la confirmation du modèle (porte, ``_phrase_du_rendu``)
+    from api.services.mots_dits import montant_en_lettres
+
+    assert ok.faits["rendu"]["billet"] == 5000 and montant_en_lettres(ok.faits["rendu"]["monnaie"]) == "quarante-deux euros vingt", ok.faits
+    assert "quarante-deux euros vingt" not in ok.suggestion, ok.suggestion
     paiement = a.prise.recues[0]["paiement"]
     assert [(m["moyen"], m["montant"]) for m in paiement["moyens"]] == [("titre_restaurant", 2000), ("especes", 780)]
     assert paiement["rendu_sur"] == 5000

@@ -172,7 +172,9 @@ def test_une_regle_active_exige_une_phrase_sauf_le_texte_de_l_agent():
 
 
 def test_le_catalogue_dit_les_cases_de_chaque_motif():
-    assert len(MOTIFS) == 21  # DC10 : « numero_dicte_relu » ; C6 (décision d'Evan 25/11 9 h 30) : « total_relecture », « total_apres_correction »
+    # DC10 : « numero_dicte_relu » ; C6 (décision d'Evan 25/11 9 h 30, § 8 bis) : « total_relecture », « total_apres_correction » (n° 3a), « rendu_de_monnaie » (n° 5),
+    # « total_apres_changement » (n° 6), « numero_retenu » (n° 10)
+    assert len(MOTIFS) == 24
     # Les problèmes sont déclenchés par un fait : ni délai, ni redite.
     assert set(MOTIFS_DE_PROBLEME) == {REPONSE_PERDUE, OUTIL_ECHOUE, TRAVAIL_ECHOUE, TRANSFERT_ECHOUE, "impasse", "impasse_repetee"}
     for identifiant in MOTIFS_DE_PROBLEME:
