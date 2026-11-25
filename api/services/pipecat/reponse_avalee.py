@@ -741,24 +741,29 @@ class RepliqueVerifiee:
                 async for morceau in self._sans_reponse_de_la_relance(retenue, appel, tenus, usage):
                     yield morceau
                 return
-            reprise = None
-            try:
-                reprise = await self._relancer(retenue)
-            except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
-                logger.warning(f"[cerveau] relance de la réplique retenue en échec : {erreur!r}")
-            outil_du_code = getattr(retenue, "outil", None) if getattr(retenue, "appel_par_le_code", False) else None
-            if outil_du_code and not self._relance_appelle(reprise, outil_du_code):
-                # SA-49 (M115, appel 2599) : la relance avec l'appel obligatoire a encore rendu du texte (le fournisseur ne tient pas
-                # ``tool_choice``) : le code fait l'appel annoncé, jamais l'annonce fausse.
-                logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : l'appel de {outil_du_code} est fait par le code")
-                for morceau in self._appel_du_code(outil_du_code, additionner(usage, getattr(reprise, "usage", None))):
-                    yield morceau
-                return
-            async for morceau in self._rendre_la_relance(retenue, reprise, appel, tenus, usage, du_fait):
+            async for morceau in self._relancer_la_retenue(retenue, appel, tenus, usage, du_fait):
                 yield morceau
             return
         for tenu in tenus:
             yield tenu
+
+    async def _relancer_la_retenue(self, retenue, appel, tenus, usage, du_fait):
+        """La requête de relance de la retenue (consigne ou appel exigé), puis ce qu'elle rend : l'appel fait par le code (SA-49) ou la réponse de la relance. ⛔ Ne lève jamais."""
+        reprise = None
+        try:
+            reprise = await self._relancer(retenue)
+        except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
+            logger.warning(f"[cerveau] relance de la réplique retenue en échec : {erreur!r}")
+        outil_du_code = getattr(retenue, "outil", None) if getattr(retenue, "appel_par_le_code", False) else None
+        if outil_du_code and not self._relance_appelle(reprise, outil_du_code):
+            # SA-49 (M115, appel 2599) : la relance avec l'appel obligatoire a encore rendu du texte (le fournisseur ne tient pas
+            # ``tool_choice``) : le code fait l'appel annoncé, jamais l'annonce fausse.
+            logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : l'appel de {outil_du_code} est fait par le code")
+            for morceau in self._appel_du_code(outil_du_code, additionner(usage, getattr(reprise, "usage", None))):
+                yield morceau
+            return
+        async for morceau in self._rendre_la_relance(retenue, reprise, appel, tenus, usage, du_fait):
+            yield morceau
 
     async def _rendre_la_relance(self, retenue, reprise, appel, tenus, usage, du_fait):
         """La réponse de la relance, dite telle quelle ; retenue à son tour avec le fait à redonner, la méthode de relance est rappelée UNE fois (``du_fait``) ; sans réponse : le fait accompli ou la phrase réglée."""
