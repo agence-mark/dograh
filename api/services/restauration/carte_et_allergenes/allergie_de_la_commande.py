@@ -14,7 +14,6 @@ from loguru import logger
 
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import conversation as CONV
-from api.services.restauration.carte_et_allergenes import textes_de_secours as TS
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import etape as ETAPE
 from api.services.actions_communes.consignes import ALLERGIE as ALLERGIE_RANG
@@ -257,13 +256,13 @@ def _regime_dit(source: Source, fiche: dict[str, Any], regime: str, info: dict[s
         ecrit = halal.brique_inf4_dire_ce_qui_est_ecrit(fiche.get("regimes"), bool(info.get("halal_restaurant")))
         if ecrit["article"]:
             faits = {"article": nom, "regime": regime, "etiquete": True}
-            return _r("OK", faits, TS.regime_d_un_article(faits))
+            return _r("OK", faits, "")
         if ecrit["restaurant"]:
             faits = {"article": nom, "regime": regime, "etiquete": False, "restaurant": True}
-            return _r("OK", faits, TS.regime_d_un_article(faits))
+            return _r("OK", faits, "")
     elif code and regime_d_un_article.brique_inf3_jamais_sans_etiquette(fiche.get("regimes"), code) == "etiquete":
         faits = {"article": nom, "regime": regime, "etiquete": True}
-        return _r("OK", faits, TS.regime_d_un_article(faits))
+        return _r("OK", faits, "")
     return _r("OK", {"article": nom, "regime": regime, "renseigne": False, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
 
 
@@ -290,10 +289,10 @@ async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -
     restaurant = code == halal.CODE and bool(info.get("halal_restaurant"))
     if etiquetes:
         faits = {**faits, "renseigne": True, "articles": etiquetes, "autres_a_confirmer": True, **({"restaurant": True} if restaurant else {})}  # F8 : le reste de la carte n'est pas étiqueté
-        return _r("OK", faits, TS.regime_du_catalogue(faits))
+        return _r("OK", faits, "")
     if restaurant:
         faits = {**faits, "renseigne": True, "restaurant": True}
-        return _r("OK", faits, TS.regime_du_catalogue(faits))
+        return _r("OK", faits, "")
     return _r("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
 
 
@@ -356,7 +355,7 @@ def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: 
                  r.faits.get("signalement") in ("inconnu", "selon_option") for r in reponses)}
     if mot_inconnu:
         faits["mot_inconnu"] = True  # le texte dit « pour le reste de ce que vous citez » seulement quand un mot n'est pas reconnu
-    return _r("OK", faits, TS.signalement_dit(faits))
+    return _r("OK", faits, "")
 
 
 def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
@@ -370,11 +369,11 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
     if code is None and not _est_la_liste_demandee(signale):
         # A4 : une chose hors des quatorze (ail, kiwi, fraise) n'est jamais déclarée : « n'en déclare aucun » sonnerait comme un non
         faits = {**faits, "signalement": "inconnu", "hors_liste": True}
-        return _r("OK", faits, TS.signalement_dit(faits))
+        return _r("OK", faits, "")
     if code is None:
         if signalements is None:
             faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
-            return _r("OK", faits, TS.signalement_dit(faits))
+            return _r("OK", faits, "")
         codes = [s["code"] for s in signalements]
         for o in options if option else []:
             codes += [c for c in (o.get("signalements_du_nom") or []) + [s["code"] for s in (o.get("signalements") or [])] if c not in codes]
@@ -382,31 +381,31 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         faits = {**faits, "signalement": "liste", "presents": presents}
         if any(o.get("signalements") is None for o in options):
             faits["options_a_confirmer"] = True
-        return _r("OK", faits, TS.signalement_dit(faits))
+        return _r("OK", faits, "")
     faits["code"] = code
     libelle = libelles.get(code, code)
     if signalements is not None and any(s["code"] == code for s in signalements):
         faits = {**faits, "signalement": "present", "libelle": libelle}  # le texte dit l'allergène par son libellé
-        return _r("OK", faits, TS.signalement_dit(faits))
+        return _r("OK", faits, "")
     if option is not None:
         # Lot 15 (INF2) : le produit et l'option choisie ensemble
         option_vue = {"allergenes": None if option.get("signalements") is None else [s["code"] for s in option["signalements"]], "signalements_du_nom": option.get("signalements_du_nom")}
         etat = allergenes_d_une_option.brique_inf2_produit_et_options(None if signalements is None else [s["code"] for s in signalements], [option_vue], code)
         faits = {**faits, "signalement": etat if etat in ("present", "absent_de_la_fiche") else "inconnu", **({"libelle": libelle} if etat in ("present", "absent_de_la_fiche") else {})}
-        return _r("OK", faits, TS.signalement_dit(faits))
+        return _r("OK", faits, "")
     contiennent = [o["nom"] for o in options if _option_signale(o, code)]
     inconnues = [o for o in options if _option_signale(o, code) is None]
     if contiennent:
         faits = {**faits, "signalement": "selon_option", "options_qui_contiennent": contiennent, "autres_a_confirmer": bool(inconnues or signalements is None)}
-        return _r("OK", faits, TS.signalement_dit(faits))
+        return _r("OK", faits, "")
     if signalements is None:
         faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
-        return _r("OK", faits, TS.signalement_dit(faits))
+        return _r("OK", faits, "")
     if inconnues:
         faits = {**faits, "signalement": "inconnu", "options_a_confirmer": True}  # F7 : « ça dépend du choix » (le texte de secours le disait seul)
     else:
         faits = {**faits, "signalement": "absent_de_la_fiche", "libelle": libelle}
-    return _r("OK", faits, TS.signalement_dit(faits))
+    return _r("OK", faits, "")
 
 
 A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"

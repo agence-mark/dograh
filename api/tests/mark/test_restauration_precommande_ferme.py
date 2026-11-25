@@ -55,7 +55,7 @@ async def test_ferme_et_planifiable_une_precommande_est_enregistree_a_l_heure_vo
     jouer = appel_de_test.jouer
     r = await jouer("choisir_mode", mode="à emporter")
     assert r["statut"] == "FERME_PLANIFIABLE" and r["faits"]["a_planifier"] is True and r["faits"]["planifiee_permise"] is True, r
-    assert "fermés" in r["suggestion"] and "dix-huit heures" in r["suggestion"] and "plus tard" in r["suggestion"], r["suggestion"]
+    assert "pour dix-huit heures ?" in r["suggestion"] and r["faits"]["reprise_dite"] == "dix-huit heures", r  # C7a : la fermeture est un statut et des faits, seule la question reste dite
     assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter" and appel_de_test.fiche[panier.CLE]["a_planifier"] is True
     ajout = await jouer("ajouter", articles=[A("regina", 1, "Normale"), "coca"])
     assert ajout["statut"] == "OK" and len(appel_de_test.fiche[panier.CLE]["lignes"]) == 2
@@ -93,7 +93,7 @@ async def test_ferme_sans_le_reglage_le_comportement_d_avant_est_inchange(appel_
     jouer = appel_de_test.jouer
     r = await jouer("choisir_mode", mode="à emporter")
     assert r["statut"] == "FERME" and r["faits"]["planifiee_permise"] is False, r
-    assert "dix-huit heures" in r["suggestion"] and "plus tard" not in r["suggestion"], r["suggestion"]
+    assert r["suggestion"] == "" and r["faits"]["reprise_dite"] == "dix-huit heures", r
     assert "a_planifier" not in r["faits"]
     assert appel_de_test.fiche.get(panier.CLE, {}).get("mode") is None  # rien n'est posé
 
@@ -105,7 +105,7 @@ async def test_une_heure_dite_au_premier_tour_est_gardee_jusqu_a_finaliser(appel
     r = await jouer("choisir_mode", mode="à emporter", articles=[A("regina", 1, "Normale")], heure=quand["faits"]["heure_voulue"])
     assert r["statut"] == "FERME_PLANIFIABLE", r
     # appel 2566 : l'heure déjà dite vaut accord pour plus tard ; le résultat dit pour quand, sans reproposer « plus tard »
-    assert r["suggestion"].startswith("Commande pour dix-neuf heures.") and "plus tard" not in r["suggestion"], r["suggestion"]
+    assert r["suggestion"] == "" and r["faits"]["heure_voulue_dite"] == "dix-neuf heures", r
     assert appel_de_test.fiche[panier.CLE]["heure_voulue"] == quand["faits"]["heure_voulue"]
     assert len(appel_de_test.fiche[panier.CLE]["lignes"]) == 1  # les articles dits dans le même geste suivent
     suite = await _jusqu_a_la_relecture(jouer, None)  # l'heure n'est PAS redite à finaliser

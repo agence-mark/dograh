@@ -134,13 +134,13 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
     if jour.statut == dates_futures.INTROUVABLE:
         seule = _heure_seule(texte, heure)
         if seule is None:
-            return Resultat("INTROUVABLE", {}, TSC.quel_jour({}), "jour")
+            return Resultat("INTROUVABLE", {}, "", "jour")
         if seule.statut == dates_futures.AMBIGU:
             faits = {"candidats_heure": [dates_futures.heure_dite(c) for c in seule.candidats]}
             return Resultat("AMBIGU", faits, TSC.heure_ambigue(faits), "heure")
         if datetime.combine(local.date(), seule.heure, tzinfo=fuseau) <= local:
             faits = {"heure_dite": dates_futures.heure_dite(seule.heure), "heure_passee_aujourd_hui": True}
-            return Resultat("INTROUVABLE", faits, TSC.heure_passee_sans_jour(faits), "jour")
+            return Resultat("INTROUVABLE", faits, "", "jour")
         jour = dates_futures.Resolution(dates_futures.RETENU, local.date(), (local.date(),))
         heure = heure if heure and dates_futures.resoudre_l_heure(heure).statut != dates_futures.INTROUVABLE else texte
     if jour.statut == dates_futures.AMBIGU:
@@ -149,10 +149,10 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
         return Resultat("AMBIGU", faits, TSC.jour_ambigu(faits), "jour")
     faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
     if not heure:
-        return Resultat("INCOMPLETE", faits, TSC.quelle_heure_ce_jour(faits), "heure")
+        return Resultat("INCOMPLETE", faits, "", "heure")
     h = dates_futures.resoudre_l_heure(heure)
     if h.statut == dates_futures.INTROUVABLE:
-        return Resultat("INCOMPLETE", faits, TSC.quelle_heure_exactement(faits), "heure")
+        return Resultat("INCOMPLETE", faits, "", "heure")
     if h.statut == dates_futures.AMBIGU:
         faits = {**faits, "candidats_heure": [dates_futures.heure_dite(c) for c in h.candidats]}
         return Resultat("AMBIGU", faits, TSC.heure_ambigue(faits), "heure")
@@ -160,7 +160,7 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
     faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
     if voulue <= local:
         faits["heure_passee_aujourd_hui"] = True  # le jour retenu n'est jamais avant aujourd'hui (``dates_futures``) : une heure passée l'est aujourd'hui même
-        return Resultat("ARGUMENT_INVALIDE", faits, TSC.heure_passee(faits), "heure")
+        return Resultat("ARGUMENT_INVALIDE", faits, "", "heure")
     return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
 
 
@@ -277,7 +277,6 @@ class SourceClasseur:
         }
         if not etat["ouvert"]:
             sortie["reprise_dite"] = await self._reprise_dite(sortie)
-            sortie["phrase"] = TSC.fermeture(sortie)
         return sortie
 
     async def _reprise_dite(self, etat: dict[str, Any]) -> str | None:
@@ -418,11 +417,11 @@ class SourceClasseur:
             return Resultat("ARGUMENT_INVALIDE", {"possibles": list(envois.A_LA_DEMANDE)}, "", "quoi")
         envoi_allume = await envois.liaison_db.envoi_actif(self.c, self.lieu.etablissement_id, "sms", quoi)
         if envoi_allume is None or not telephone:
-            return Resultat("INDISPONIBLE", {}, TSC.envoi_indisponible({}))
+            return Resultat("INDISPONIBLE", {}, "")
         envoi = await envois.envoyer_et_dire_pourquoi(self.c, organisation, self.lieu.etablissement_id, quoi, telephone, {}, cle_unique)
         if envoi is Envoi.PARTI:
             faits = {"envoye": True}
-            return Resultat("OK", faits, TSC.envoye(faits))
+            return Resultat("OK", faits, "")
         # trois raisons que le modèle ne doit pas confondre : la personne l'a déjà reçu, le message ne peut pas lui parvenir (pas de mobile, pas de compte),
         # ou le fournisseur est en panne (on pourra réessayer)
         if envoi is Envoi.PANNE:

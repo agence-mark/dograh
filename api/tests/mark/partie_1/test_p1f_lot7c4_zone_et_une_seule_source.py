@@ -26,35 +26,37 @@ async def _zones_de_senlis(commerce):
         await c.execute("INSERT INTO mark.resto_zone (site_id, nom, forme, communes, rayon_km, exclues, frais, delai, ordre) VALUES ($1,$2,$3,$4,$5,$6,200,30,$7)", a, nom, forme, communes, rayon, [], ordre)
 
 
-def _verifie(r, statut: str, secours, manque: str | None = None):
+def _verifie(r, statut: str, secours, manque: str | None = None, *, vide: bool = True):
+    """Un texte vidé (C7a) : le retour n'en porte plus ; la fonction de secours refait le texte d'avant des seuls faits. Un texte de question : le retour le porte encore."""
     assert (r.statut, r.manque) == (statut, manque), r
-    assert r.suggestion == secours(r.faits), r
+    assert r.suggestion == ("" if vide else secours(r.faits)), r
+    return secours(r.faits)
 
 
 async def test_une_commune_hors_zone_se_dit_avec_les_communes_livrees(commerce):
     await _zones_de_senlis(commerce)
     r = await Z.verifier_adresse(commerce.c, commerce.a, "7 rue Victor Hugo, Compiègne")
-    _verifie(r, "HORS_ZONE", TSC.hors_zone)
-    assert r.suggestion.startswith("Nous ne livrons pas à Compiègne. Nous livrons ") and r.faits["communes_livrees"], r
+    texte = _verifie(r, "HORS_ZONE", TSC.hors_zone)
+    assert texte.startswith("Nous ne livrons pas à Compiègne. Nous livrons ") and r.faits["communes_livrees"], r
 
 
 async def test_sans_aucune_zone_l_adresse_est_hors_zone(commerce):
     await commerce.c.execute("DELETE FROM mark.resto_zone WHERE site_id = $1", commerce.a)
     r = await Z.verifier_adresse(commerce.c, commerce.a, "7 rue Victor Hugo, Compiègne")
-    _verifie(r, "HORS_ZONE", TSC.hors_zone)
-    assert r.suggestion == "Nous ne livrons pas à cette adresse." and r.faits == {"raison": "aucune_zone"}
+    texte = _verifie(r, "HORS_ZONE", TSC.hors_zone)
+    assert texte == "Nous ne livrons pas à cette adresse." and r.faits == {"raison": "aucune_zone"}
 
 
 async def test_une_adresse_vide_ou_sans_commune_ou_ambigue(commerce):
     await _zones_de_senlis(commerce)
     r = await Z.verifier_adresse(commerce.c, commerce.a, "  ")
-    _verifie(r, "ARGUMENT_INVALIDE", TSC.adresse_non_comprise, "adresse")
-    assert r.suggestion == "Je n'ai pas compris l'adresse, pouvez-vous la répéter ?"
+    texte = _verifie(r, "ARGUMENT_INVALIDE", TSC.adresse_non_comprise, "adresse")
+    assert texte == "Je n'ai pas compris l'adresse, pouvez-vous la répéter ?"
     r = await Z.verifier_adresse(commerce.c, commerce.a, "rue de Paris")
-    _verifie(r, "INTROUVABLE", TSC.quelle_commune, "commune")
-    assert r.suggestion == "Dans quelle commune se trouve l'adresse ?"
+    texte = _verifie(r, "INTROUVABLE", TSC.quelle_commune, "commune")
+    assert texte == "Dans quelle commune se trouve l'adresse ?"
     r = await Z.verifier_adresse(commerce.c, commerce.a, "5 rue de la Mairie, Saint-Just")
-    _verifie(r, "AMBIGU", TSC.commune_ambigue, "commune")
+    _verifie(r, "AMBIGU", TSC.commune_ambigue, "commune", vide=False)
     assert r.suggestion.startswith("Est-ce Saint-Just (") and " ou Saint-Just (" in r.suggestion and r.suggestion.endswith(") ?"), r.suggestion
 
 

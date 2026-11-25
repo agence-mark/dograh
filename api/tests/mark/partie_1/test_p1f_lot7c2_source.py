@@ -20,15 +20,15 @@ SOIR = datetime(2026, 11, 17, 20, 0, tzinfo=PARIS)
 
 def test_jour_introuvable_dit_pour_quel_jour():
     r = resolution_du_jour_et_de_l_heure("bientôt", None, MATIN)
-    assert (r.statut, r.manque, r.suggestion) == ("INTROUVABLE", "jour", "Pour quel jour ?")
-    assert r.suggestion == TSC.quel_jour(r.faits)
+    assert (r.statut, r.manque, r.suggestion) == ("INTROUVABLE", "jour", "")
+    assert TSC.quel_jour(r.faits) == "Pour quel jour ?"
 
 
 def test_heure_sans_jour_deja_passee_dit_pour_quel_jour():
     r = resolution_du_jour_et_de_l_heure("dix-neuf heures", "dix-neuf heures", SOIR)
-    assert (r.statut, r.manque, r.suggestion) == ("INTROUVABLE", "jour", "Il est déjà plus de dix-neuf heures : pour quel jour ?")
+    assert (r.statut, r.manque, r.suggestion) == ("INTROUVABLE", "jour", "")
     assert r.faits == {"heure_dite": "dix-neuf heures", "heure_passee_aujourd_hui": True}
-    assert r.suggestion == TSC.heure_passee_sans_jour(r.faits)
+    assert TSC.heure_passee_sans_jour(r.faits) == "Il est déjà plus de dix-neuf heures : pour quel jour ?"
 
 
 @pytest.mark.parametrize("texte, heure", [("", "sept heures"), ("demain", "sept heures")])
@@ -46,21 +46,21 @@ def test_jour_ambigu_propose_les_deux_jours():
 
 def test_jour_sans_heure_demande_l_heure_de_ce_jour():
     r = resolution_du_jour_et_de_l_heure("demain", None, MATIN)
-    assert (r.statut, r.manque, r.suggestion) == ("INCOMPLETE", "heure", "À quelle heure, mercredi dix-huit novembre ?")
-    assert r.suggestion == TSC.quelle_heure_ce_jour(r.faits)
+    assert (r.statut, r.manque, r.suggestion) == ("INCOMPLETE", "heure", "")
+    assert TSC.quelle_heure_ce_jour(r.faits) == "À quelle heure, mercredi dix-huit novembre ?"
 
 
 def test_heure_illisible_demande_l_heure_exacte():
     r = resolution_du_jour_et_de_l_heure("demain", "bientôt", MATIN)
-    assert (r.statut, r.manque, r.suggestion) == ("INCOMPLETE", "heure", "À quelle heure exactement ?")
-    assert r.suggestion == TSC.quelle_heure_exactement(r.faits)
+    assert (r.statut, r.manque, r.suggestion) == ("INCOMPLETE", "heure", "")
+    assert TSC.quelle_heure_exactement(r.faits) == "À quelle heure exactement ?"
 
 
 def test_heure_deja_passee_aujourd_hui_porte_son_fait():
     r = resolution_du_jour_et_de_l_heure("aujourd'hui", "neuf heures du matin", MATIN)
-    assert (r.statut, r.manque, r.suggestion) == ("ARGUMENT_INVALIDE", "heure", "Cette heure est déjà passée, pour quelle heure ?")
+    assert (r.statut, r.manque, r.suggestion) == ("ARGUMENT_INVALIDE", "heure", "")
     assert r.faits["heure_passee_aujourd_hui"] is True and r.faits["heure_dite"] == "neuf heures"
-    assert r.suggestion == TSC.heure_passee(r.faits)
+    assert TSC.heure_passee(r.faits) == "Cette heure est déjà passée, pour quelle heure ?"
 
 
 @pytest.mark.parametrize("jour", ["aujourd'hui", "ce soir", "demain", "après-demain", "mardi", "samedi", "le 17", "le 18", "le 24 novembre", "ce week-end", "dans trois jours"])

@@ -41,8 +41,9 @@ def option(nom: str, signalements: list[str] | None) -> dict[str, Any]:
 
 
 def _verifie(r, texte: str):
-    assert r.suggestion == texte, r
-    assert r.suggestion == TS.signalement_dit(r.faits), r
+    """C7a : le retour ne porte plus le texte (``suggestion`` vide) ; la fonction de secours le refait des seuls faits."""
+    assert r.suggestion == "", r
+    assert TS.signalement_dit(r.faits) == texte, r
     return r
 
 
@@ -98,10 +99,10 @@ def test_plusieurs_allergenes_une_reponse_chacun_et_le_reste_non_reconnu():
 
 def test_un_regime_etiquete_a_l_article_ou_au_restaurant():
     r = A._regime_dit(Source(), {"nom": "Burger", "regimes": ["halal"]}, "halal", {"halal_restaurant": False})
-    assert (r.suggestion, r.faits.get("etiquete")) == ("D'après la fiche, Burger est halal.", True), r
-    assert r.suggestion == TS.regime_d_un_article(r.faits)
+    assert (r.suggestion, r.faits.get("etiquete")) == ("", True), r
+    assert TS.regime_d_un_article(r.faits) == "D'après la fiche, Burger est halal."
     r = A._regime_dit(Source(), {"nom": "Burger", "regimes": []}, "halal", {"halal_restaurant": True})
-    assert r.suggestion == "D'après la fiche du restaurant, la carte est halal." and r.suggestion == TS.regime_d_un_article(r.faits), r
+    assert r.suggestion == "" and TS.regime_d_un_article(r.faits) == "D'après la fiche du restaurant, la carte est halal.", r
 
 
 def test_les_textes_du_catalogue_d_un_regime_disent_cinq_noms_au_plus():

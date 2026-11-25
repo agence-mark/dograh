@@ -176,7 +176,7 @@ async def test_ce_que_l_agent_dit_est_ce_qui_part_a_la_caisse(commerce):
     vu = await moteur.voir_commande(appel.source, appel.p, appel.regles)
     assert vu.faits["total"] == 1341 and vu.faits["total_remises"] == 149                         # 14,90 - 1,49
     assert [(r["nom"], r["montant"]) for r in vu.faits["remises"]] == [("Remise DIX", 149)]
-    assert "économisez" in vu.suggestion
+    assert vu.suggestion == ""  # C7a : la remise est dans les faits (``remises``, ``total_remises``)
     relecture = await appel.jusqu_a_la_relecture()
     # B12 (lot 6, journal L06-41) : la relecture ne nomme plus la remise ; elle dit le total net, qui est juste
     assert relecture.faits["total"] == 1341 and "Remise DIX" not in relecture.suggestion and "treize euros quarante et un" in relecture.suggestion
@@ -247,7 +247,7 @@ async def test_un_seuil_presque_atteint_est_dit_une_fois_avec_ce_qui_manque(comm
     await _poser(c, a, "SEUIL", "seuil_panier", {"minimum": 1500}, {"montant": 300}, {})
     appel = await Appel(commerce, vente_en_plus=False).pret(A("margherita", 1, "Normale"), "coca")      # 10,90 + 2,00 = 12,90 : 86 % du seuil
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
-    assert (r.faits["moment"], r.faits["remise"]["manque"]) == ("seuil_presque_atteint", 210) and "deux euros dix" in r.suggestion.lower().replace("-", " ")
+    assert (r.faits["moment"], r.faits["remise"]["manque"]) == ("seuil_presque_atteint", 210) and r.suggestion == ""
     assert (await moteur.remises_disponibles(appel.source, appel.p, appel.regles)).faits["a_dire"] is False
     # loin du seuil : rien à dire
     loin = await Appel(commerce, vente_en_plus=False).pret("coca")
@@ -268,16 +268,16 @@ async def test_voir_produit_composition_seulement_signalement_seulement_sur_dema
     # la composition : « il y a quoi dans la regina » ; jamais un allergène de soi-même
     r = await vu("la regina")
     assert r.statut == "OK" and "mozzarella" in r.faits["ingredients"] and "signalement" not in r.faits
-    assert "gluten" not in r.suggestion.lower() and "allerg" not in r.suggestion.lower()
+    assert "gluten" not in r.suggestion.lower() and "allerg" not in r.suggestion.lower()  # la composition reste dite (C6)
     # une fiche sans allergènes renseignés : INCONNU, jamais « sans »
     r = await vu("la regina", "les cacahuètes")
-    assert r.faits["signalement"] == "inconnu" and r.suggestion == "Je ne peux pas vous le confirmer."
+    assert r.faits["signalement"] == "inconnu" and r.suggestion == ""
     # la fiche renseignée : présent / absent d'après la fiche
     await c.execute("UPDATE mark.resto_produit SET allergenes = '{gluten,lait}' WHERE ref = 'P-PIZZAS-TOMATE-REGINA'")
     r = await vu("la regina", "le gluten")
-    assert (r.faits["signalement"], r.faits["code"]) == ("present", "gluten") and r.suggestion == "Oui, Regina contient le gluten."
+    assert (r.faits["signalement"], r.faits["code"]) == ("present", "gluten") and r.suggestion == ""
     r = await vu("la regina", "cacahuètes")
-    assert r.faits["signalement"] == "absent_de_la_fiche" and r.suggestion.startswith("D'après la fiche")
+    assert r.faits["signalement"] == "absent_de_la_fiche" and r.suggestion == ""
     # aucun allergène connu (liste vide) n'est pas inconnu
     await c.execute("UPDATE mark.resto_produit SET allergenes = '{}' WHERE ref = 'P-PIZZAS-TOMATE-REGINA'")
     assert (await vu("la regina", "le lait")).faits["signalement"] == "absent_de_la_fiche"

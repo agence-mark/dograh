@@ -102,7 +102,7 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     faits = {"recherche": "sans", "code": code, **({"codes": codes} if len(codes) > 1 else {}), "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
     if surs:
         faits = {**faits, "mot": mot}  # la chose évitée, que le texte dit
-        return _r("OK", faits, TS.article_sans_une_chose(faits))
+        return _r("OK", faits, "")
     if contiennent and not inconnus and not selon:
         return _r("OK", faits, "")  # les faits disent combien en contiennent : le modèle le dit
     return _r("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")  # rien n'est écrit pour le reste : la proposition du module commun, en consigne
@@ -146,7 +146,7 @@ async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reg
     trouves = list(dict.fromkeys(a["nom"] for a, e in etats if e is (True if contient else False)))
     inconnus = sum(1 for _, e in etats if e is None)
     faits = {"recherche": "ingredient", "chose": chose, "contient": contient, "articles": trouves, "inconnus": inconnus}
-    return _r("OK", faits, TS.articles_par_ingredient(faits))
+    return _r("OK", faits, "")
 
 
 def ingredient_demande(texte: str | None) -> tuple[str, bool, str] | None:
@@ -186,14 +186,14 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         if r.faits.get("articles") or r.faits.get("inconnus"):
             return _avec(r, p)  # « lesquels sans oignons ? » : d'après les ingrédients du catalogue
     if not produit or not produit.strip():
-        return _r("ARGUMENT_INVALIDE", {}, TS.de_quel_article({}), "produit")
+        return _r("ARGUMENT_INVALIDE", {}, "", "produit")
     cherche = await source.chercher(produit.strip())
     trouve, dit_en_plus = await _un_seul_candidat(source, cherche, produit.strip())
     if trouve.statut != "RETENU":
         return _avec(trouve, p)
     fiche = await source.article(trouve.faits["retenu"], p.get("mode") or source.modes[0])
     if fiche is None:
-        return _avec(_r("INTROUVABLE", {}, TS.article_introuvable({})), p)
+        return _avec(_r("INTROUVABLE", {}, ""), p)
     option = _option_dite(fiche, dit_en_plus) if dit_en_plus else None
     if dit_en_plus and option is None:
         return _avec(cherche, p)  # le reste dit n'est pas une option certaine : le doute reste un doute
@@ -227,7 +227,7 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         return _avec(_regime_dit(source, fiche, regime, info), p)
     if info.get("allergies_renvoyees_au_restaurant"):  # D22 : le restaurant a choisi de renvoyer toute question d'allergène vers lui
         faits = {"article": nom, "signalement": "renvoye_au_restaurant", "equipe_confirme": True, **_consigne_d_allergie(info)}
-        return _avec(_r("OK", faits, TS.l_equipe_le_confirme(faits)), p)
+        return _avec(_r("OK", faits, ""), p)
     dit = _signalement_dit(source, fiche, option, signale)
     return _avec(Resultat(dit.statut, {**dit.faits, **_consigne_d_allergie(info)}, dit.suggestion, dit.manque), p)
 

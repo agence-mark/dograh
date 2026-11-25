@@ -304,7 +304,7 @@ async def test_un_restaurant_qui_ferme_entre_temps_refuse_avec_la_raison(commerc
     await a.jusqu_a_la_relecture()
     await commerce.c.execute("UPDATE mark.resto_reglage_type SET pause_jusqu_a = $2 WHERE site_id = $1 AND type = 'emporter'", commerce.a, JEUDI_MIDI.replace(hour=13))
     r = await a.confirmer()
-    assert r.statut == "PAUSE_TYPE" and "pause" in r.suggestion
+    assert r.statut == "PAUSE_TYPE" and r.suggestion == ""
     assert await a.commandes() == []
 
 

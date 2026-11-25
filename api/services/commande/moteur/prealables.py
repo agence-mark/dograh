@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from api.db.bases_clients import dates_futures
-from api.services.commande import lecture, panier as P, textes_de_secours as TS
+from api.services.commande import lecture, panier as P
 from api.services.mots_dits import liste_dite, montant_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
@@ -259,7 +259,7 @@ async def etat_ouverture(source: Source, p: dict[str, Any], regles: Reglages, mo
         lignes.append({"mode": m, "libelle": source.libelles_des_modes.get(m, m), "ouvert": etat["ouvert"], **{k: etat.get(k) for k in CLES_DE_L_ETAT}})
     if mode and not lignes[0]["ouvert"]:
         etat = await source.etat(modes[0])
-        return _r(etat["statut"], {"modes": lignes}, etat.get("phrase") or TS.pas_de_commande_en_ce_moment({}))
+        return _r(etat["statut"], {"modes": lignes}, "")
     ouverts = [l["libelle"] for l in lignes if l["ouvert"]]
     return _r("OK", {"modes": lignes, "ouverts": ouverts}, "")
 
@@ -274,12 +274,12 @@ async def heure_annoncee(source: Source, p: dict[str, Any], regles: Reglages, mo
         return _avec(_r("INCOMPLETE", {"mode": choisi}, source.question_de_la_zone, "zone"), p)
     etat = await source.etat(choisi)
     if not etat["ouvert"]:
-        return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, etat.get("phrase") or TS.pas_de_commande_en_ce_moment({})), p)
+        return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""), p)
     annonce = await source.annonce(choisi, _zone_id(p))
     if annonce is None:
         return _r("INDISPONIBLE", {"mode": choisi}, "")
     faits = {"mode": choisi, "heure_annoncee": annonce["prete"], "texte": annonce["texte"], "minutes": annonce.get("minutes")}
-    return _r("OK", faits, TS.ce_sera_pret(faits))
+    return _r("OK", faits, "")
 
 
 def voie_de_l_adresse(texte: str, commune: str, code_postal: str | None) -> str:
@@ -377,7 +377,7 @@ async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | N
 
 
 def annoncer_la_fermeture(p: dict[str, Any], etat: dict[str, Any]) -> str:
-    """Lot 4 (M07, appel 2649) : la phrase de la fermeture, dite UNE fois par appel (un drapeau du panier, lu partout) ; ensuite, rien."""
-    if not J.une_fois(p, J.FERMETURE):  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part
-        return ""
-    return etat.get("phrase") or TS.pas_de_commande_en_ce_moment({})
+    """Lot 4 (M07, appel 2649) : la fermeture est marquée dite UNE fois par appel (``J.FERMETURE``, lu par la porte et par la question du mode). Lot 7b-C7a : le code n'écrit plus
+    la phrase (la source non plus) : la fermeture est dite par le modèle d'après le statut et les faits de l'état (``CLES_DE_L_ETAT``) ; la valeur rendue est donc toujours vide."""
+    J.une_fois(p, J.FERMETURE)  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part
+    return ""

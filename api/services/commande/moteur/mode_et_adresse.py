@@ -40,8 +40,9 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     etat = await source.etat(choisi)
     a_planifier = not etat["ouvert"] and bool(etat.get("planifiee_permise"))
     if not etat["ouvert"] and not a_planifier:
+        annoncer_la_fermeture(p, etat)  # marque la fermeture dite : le modèle la dit d'après le statut et les faits (C7a)
         return _avec(
-            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, annoncer_la_fermeture(p, etat)),
+            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""),
             p,
         )
     await garder_l_heure(source, p, heure_voulue)
@@ -50,7 +51,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         return r
     # Fermé mais planifiable : le résultat dit la fermeture et propose le créneau ; la question en cours (zone, articles) suit, sinon l'heure.
     # Appel 2610 : la fermeture déjà dite avec la question du mode ne se redit pas.
-    fermeture = annoncer_la_fermeture(p, etat)
+    annoncer_la_fermeture(p, etat)
     heure_voulue_dite = None
     dire = getattr(source, "quand_dit", None)
     if p.get("heure_voulue") and dire:
@@ -58,18 +59,15 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         # tournait en « est-ce que cela vous convient ? »). Le résultat dit pour quand la commande est prise ; le créneau se vérifie à ``finaliser``.
         heure_voulue_dite = await dire(datetime.fromisoformat(p["heure_voulue"]))
     faits = {**r.faits, **{k: etat.get(k) for k in CLES_DE_L_ETAT}, "a_planifier": True, **({"heure_voulue_dite": heure_voulue_dite} if heure_voulue_dite else {})}
-    if heure_voulue_dite:
-        fermeture = TS.commande_pour(faits)
     prochaine = etat.get("prochaine_ouverture")
     if not p.get("heure_voulue") and not p.get("heure_proposee_faite") and isinstance(prochaine, datetime) and dire is not None:
         # Evan, 21/11 : « il faut lui indiquer dès le début de l'appel que le magasin est fermé et lui demander si elle veut planifier une commande pour
         # l'ouverture à 18 h ». La proposition est LA question du début (``heure_proposee``) ; ce qui manque ensuite (les articles, l'adresse) suit sa réponse.
         p["heure_proposee_faite"] = True
         faits = {**faits, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
-        return _avec(_r("FERME_PLANIFIABLE", faits, f"{fermeture} {TS.preparer_pour_l_ouverture(faits)}".strip(), "heure_proposee"), p)
-    suite = r.suggestion if r.manque else ("" if p.get("heure_voulue") else TS.quel_jour_et_quelle_heure(faits))
-    phrase = fermeture + (f" {suite}" if suite else "")
-    return _avec(_r("FERME_PLANIFIABLE", faits, phrase.strip(), r.manque), p)
+        return _avec(_r("FERME_PLANIFIABLE", faits, TS.preparer_pour_l_ouverture(faits), "heure_proposee"), p)
+    suite = r.suggestion if r.manque else ""
+    return _avec(_r("FERME_PLANIFIABLE", faits, suite, r.manque), p)
 
 
 async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, choisi: str, a_planifier: bool) -> Resultat:
@@ -103,12 +101,9 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
 
 
 def _avec_le_minimum(r: Resultat, faits: dict[str, Any], p: dict[str, Any], manque: str | None) -> Resultat:
-    """L'adresse retenue, rien de pris : le minimum de la zone est le fait ``minimum_dit`` (la copie du modèle n'a pas le montant en centimes de la zone)."""
+    """L'adresse retenue, rien de pris : le minimum de la zone est le fait ``minimum_dit`` (la copie du modèle n'a pas le montant en centimes de la zone) ; le code ne l'écrit plus en phrase."""
     minimum_dit = _minimum_de_l_adresse(faits, p)
-    if minimum_dit is None:
-        return Resultat(r.statut, faits, r.suggestion, manque)
-    faits = {**faits, "minimum_dit": minimum_dit}
-    return Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, TS.minimum_de_l_adresse(faits)) if t), manque)
+    return Resultat(r.statut, {**faits, "minimum_dit": minimum_dit} if minimum_dit is not None else faits, r.suggestion, manque)
 
 
 async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, adresse: str | None, commune: str | None = None) -> Resultat:

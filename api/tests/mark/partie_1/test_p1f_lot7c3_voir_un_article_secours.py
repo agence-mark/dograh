@@ -55,46 +55,46 @@ async def test_la_recherche_sans_une_chose_dit_les_articles_et_la_chose_evitee()
     carte = Carte([article("Reine", ["lait"]), article("Margherita", ["gluten"]), article("Veggie", []), article("Marinara", [])])
     r = await V._chercher_ce_qui_est_sans(carte, {}, REGLES, "pizzas sans lait", None)
     assert r.faits["mot"] == "lait" and r.faits["sans"] == ["Margherita", "Veggie", "Marinara"], r
-    assert r.suggestion == "D'après la fiche, Margherita, Veggie et Marinara ne contiennent pas de lait.", r
-    assert r.suggestion == TS.article_sans_une_chose(r.faits)
+    assert r.suggestion == "", r
+    assert TS.article_sans_une_chose(r.faits) == "D'après la fiche, Margherita, Veggie et Marinara ne contiennent pas de lait.", r
 
 
 async def test_sans_dit_un_seul_article_entre_autres_ce_qui_depend_du_choix_et_ce_qui_reste_inconnu():
     sept = [article(f"Pizza {c}", []) for c in "ABCDEFG"]
     r = await V._chercher_ce_qui_est_sans(Carte(sept), {}, REGLES, "pizzas sans œuf", None)
-    assert r.suggestion == "D'après la fiche, Pizza A, Pizza B, Pizza C, Pizza D et Pizza E, entre autres, ne contiennent pas d'œuf.", r
-    assert r.suggestion == TS.article_sans_une_chose(r.faits)
+    assert r.suggestion == "", r
+    assert TS.article_sans_une_chose(r.faits) == "D'après la fiche, Pizza A, Pizza B, Pizza C, Pizza D et Pizza E, entre autres, ne contiennent pas d'œuf.", r
     inconnu = [article("Reine", []), article("Maison", None)]
     r = await V._chercher_ce_qui_est_sans(Carte(inconnu), {}, REGLES, "pizzas sans gluten", None)
-    assert r.suggestion == f"D'après la fiche, Reine ne contient pas de gluten. {INFO.POUR_LES_AUTRES_NON_GARANTI}", r
-    assert r.suggestion == TS.article_sans_une_chose(r.faits)
+    assert r.suggestion == "", r
+    assert TS.article_sans_une_chose(r.faits) == f"D'après la fiche, Reine ne contient pas de gluten. {INFO.POUR_LES_AUTRES_NON_GARANTI}", r
     selon = {**article("Burger", []), "obligatoires": [[{"nom": "pain", "signalements": [{"code": "gluten"}]}, {"nom": "salade", "signalements": []}]]}
     r = await V._chercher_ce_qui_est_sans(Carte([article("Reine", []), selon]), {}, REGLES, "sans gluten", None)
-    assert r.suggestion == f"D'après la fiche, Reine ne contient pas de gluten. Pour Burger, {INFO.CA_DEPEND_DU_CHOIX_NON_GARANTI}", r
-    assert r.suggestion == TS.article_sans_une_chose(r.faits)
+    assert r.suggestion == "", r
+    assert TS.article_sans_une_chose(r.faits) == f"D'après la fiche, Reine ne contient pas de gluten. Pour Burger, {INFO.CA_DEPEND_DU_CHOIX_NON_GARANTI}", r
 
 
 async def test_la_recherche_par_ingredient_dit_ceux_qui_en_ont_ceux_qui_n_en_ont_pas_et_le_doute():
     carte = Carte([article("Reine", None, ["jambon", "champignons"]), article("Marine", None, ["thon", "olives"]), article("Maison", None, None)])
     r = await V.chercher_par_ingredient(carte, {}, REGLES, "thon", contient=True)
-    assert r.suggestion == f"D'après nos articles, Marine contient de thon. {INFO.POUR_LES_AUTRES_NON_CONFIRMABLE}", r
-    assert r.suggestion == TS.articles_par_ingredient(r.faits) and r.faits["articles"] == ["Marine"]
+    assert r.suggestion == "", r
+    assert TS.articles_par_ingredient(r.faits) == f"D'après nos articles, Marine contient de thon. {INFO.POUR_LES_AUTRES_NON_CONFIRMABLE}", r and r.faits["articles"] == ["Marine"]
     r = await V.chercher_par_ingredient(Carte([article("Reine", None, ["jambon"])]), {}, REGLES, "thon", contient=True)
-    assert r.suggestion == "D'après nos articles, aucun ne contient de thon." and r.suggestion == TS.articles_par_ingredient(r.faits), r
+    assert r.suggestion == "" and TS.articles_par_ingredient(r.faits) == "D'après nos articles, aucun ne contient de thon.", r
     r = await V.chercher_par_ingredient(Carte([article("Reine", None, ["jambon"])]), {}, REGLES, "thon", contient=False)
-    assert r.suggestion == "D'après nos articles, Reine ne contient pas de thon." and r.suggestion == TS.articles_par_ingredient(r.faits), r
+    assert r.suggestion == "" and TS.articles_par_ingredient(r.faits) == "D'après nos articles, Reine ne contient pas de thon.", r
     r = await V.chercher_par_ingredient(Carte([article("Reine", None, ["jambon"]), article("Marine", None, ["thon"])]), {}, REGLES, "thon", contient=False)
-    assert r.suggestion == "D'après nos articles, Reine ne contient pas de thon." and r.suggestion == TS.articles_par_ingredient(r.faits), r
+    assert r.suggestion == "" and TS.articles_par_ingredient(r.faits) == "D'après nos articles, Reine ne contient pas de thon.", r
     r = await V.chercher_par_ingredient(Carte([article("Maison", None, None)]), {}, REGLES, "thon", contient=True)
-    assert r.suggestion == INFO.NON_CONFIRMABLE and r.suggestion == TS.articles_par_ingredient(r.faits), r
+    assert r.suggestion == "" and TS.articles_par_ingredient(r.faits) == INFO.NON_CONFIRMABLE, r
     r = await V.chercher_par_ingredient(Carte([article("Reine", None, ["jambon"]), article("Marine", None, ["thon"])]), {}, REGLES, "thon", contient=True)
-    assert r.suggestion == "D'après nos articles, Marine contient de thon.", r
-    assert r.suggestion == TS.articles_par_ingredient(r.faits)
+    assert r.suggestion == "", r
+    assert TS.articles_par_ingredient(r.faits) == "D'après nos articles, Marine contient de thon.", r
 
 
 async def test_tous_en_contiennent_quand_la_chose_est_partout():
     r = await V.chercher_par_ingredient(Carte([article("Marine", None, ["thon"])]), {}, REGLES, "thon", contient=False)
-    assert r.suggestion == "D'après nos articles, tous en contiennent." and r.suggestion == TS.articles_par_ingredient(r.faits), r
+    assert r.suggestion == "" and TS.articles_par_ingredient(r.faits) == "D'après nos articles, tous en contiennent.", r
 
 
 async def test_composition_article_inconnu_et_article_a_preciser():
@@ -103,9 +103,9 @@ async def test_composition_article_inconnu_et_article_a_preciser():
     r = await V.voir_produit(carte, PANIER, REGLES, "Reine")
     assert r.suggestion == "Dans Reine, il y a jambon et champignons." and r.suggestion == TS.composition_d_un_article(r.faits), r
     r = await V.voir_produit(carte, PANIER, REGLES, "")
-    assert (r.statut, r.manque, r.suggestion) == ("ARGUMENT_INVALIDE", "produit", "De quel article parlez-vous ?") and r.suggestion == TS.de_quel_article(r.faits), r
+    assert (r.statut, r.manque, r.suggestion) == ("ARGUMENT_INVALIDE", "produit", "") and TS.de_quel_article(r.faits) == "De quel article parlez-vous ?", r
     r = await V.voir_produit(Carte([article("Reine", [])], fiche=None), PANIER, REGLES, "Reine")
-    assert (r.statut, r.suggestion) == ("INTROUVABLE", "Je ne trouve pas cet article.") and r.suggestion == TS.article_introuvable(r.faits), r
+    assert (r.statut, r.suggestion) == ("INTROUVABLE", "") and TS.article_introuvable(r.faits) == "Je ne trouve pas cet article.", r
 
 
 def test_l_equipe_le_confirme_et_le_choix_de_la_reservation():
