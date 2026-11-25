@@ -1,0 +1,8 @@
+{
+ "commit_teste": "229c223b",
+ "poste": "sa10",
+ "filtre": "combinaisons and not combinaisons_longues",
+ "vert": true,
+ "bilan": "========== 53 passed, 39 deselected, 1 warning in 185.21s (0:03:05) ===========",
+ "echecs": []
+}

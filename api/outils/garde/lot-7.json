@@ -1,22 +1,26 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "7da1237bfa0f2ec9a1dbfc3a79b509ef12fcfd71",
+ "commit_teste": "229c223b7c76d49a94193a97ebe70aa43503bd71",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
- "poste": "sa11",
+ "poste": "sa10",
  "vert": true,
  "controles": {
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 49
+   "fichiers_de_la_zone": 50
+  },
+  "noqa": {
+   "vert": true,
+   "ajoutes": []
   },
   "linter": {
    "vert": true,
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1121 files, 3388 dependencies.",
+    "Analyzed 1121 files, 3384 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -26,46 +30,44 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.78s ========================"
-  },
-  "noqa": {
-   "vert": true,
-   "ajoutes": []
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.36s ========================"
   },
   "donnes": {
    "vert": true,
    "tests": [
     "tests/mark/partie_1/test_cloture_b2_du.py",
+    "tests/mark/partie_1/test_cloture_b4_passation.py",
     "tests/mark/partie_1/test_cloture_b6_controle_long.py",
+    "tests/mark/partie_1/test_l03_porte.py",
+    "tests/mark/partie_1/test_l06_parole.py",
     "tests/mark/partie_1/test_l07_point_de_controle.py",
     "tests/mark/partie_1/test_l07_reservation.py",
     "tests/mark/partie_1/test_l08_briques.py",
     "tests/mark/partie_1/test_l09_briques.py",
     "tests/mark/partie_1/test_l11_briques.py",
     "tests/mark/partie_1/test_l20_laquelle_dit_les_reservations.py",
+    "tests/mark/partie_1/test_p1f_lot2_etape.py",
     "tests/mark/partie_1/test_p1f_lot3_execution.py",
+    "tests/mark/partie_1/test_p1f_lot5_g36.py",
     "tests/mark/partie_1/test_p1f_lot7_inventaire_phrases.py",
     "tests/mark/partie_1/test_p1f_lot7_table.py",
     "tests/mark/partie_1/test_p1f_lot7_table_egale_cascade.py",
     "tests/mark/partie_1/test_p1f_lot7b_heure_avant_la_relecture.py",
+    "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
+    "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
     "tests/mark/partie_1/test_p1f_lot7c1_reprises.py",
     "tests/mark/partie_1/test_p1f_lot7c1_secours_lu_par_le_repli.py",
     "tests/mark/partie_1/test_p1f_lot7c2_creneau_et_zone.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py",
     "tests/mark/partie_1/test_p1f_lot7c4_manque_sans_phrase.py",
     "tests/mark/partie_1/test_p1f_lot7c4_question_sans_phrase.py",
     "tests/mark/partie_1/test_p1f_lot7c4_zone_et_une_seule_source.py",
-    "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
-    "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
-    "tests/mark/partie_1/test_l03_porte.py",
-    "tests/mark/partie_1/test_l06_parole.py",
-    "tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py",
     "tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py",
-    "tests/mark/partie_1/test_p1f_lot2_etape.py",
     "tests/mark/test_action_ouverte_fin_d_appel.py",
-    "tests/mark/partie_1/test_cloture_b4_passation.py",
-    "tests/mark/partie_1/test_p1f_lot5_g36.py"
+    "tests/mark/partie_1/test_p1f_lot7c7_signal_du_secours.py",
+    "tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E4]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E5]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E11]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_est_vu_rouge_quand_le_code_ne_ramene_plus_l_appel\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_un_panier_ouvert_au_revoir_deux_fois_puis_le_silence_l_appel_se_termine\n=========== 581 passed, 10 xfailed, 8 warnings in 449.49s (0:07:29) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f8_des_articles_etiquetes_portent_autres_a_confirmer\nPASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f8_voisin_la_case_halal_du_restaurant_seule_n_a_rien_a_confirmer\nPASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f9_un_melange_d_alternatives_donne_la_quantite_et_les_options_de_chacune\nPASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f9_la_brique_refuse_avec_les_memes_faits_pour_la_commande_de_la_base\nPASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f9_voisin_une_valeur_sans_la_taille_garde_ses_choix_en_noms\n=========== 723 passed, 10 xfailed, 8 warnings in 600.96s (0:10:00) ==========="
   }
  }
 }
