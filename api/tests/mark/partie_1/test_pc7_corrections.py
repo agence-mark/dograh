@@ -76,7 +76,7 @@ def test_le_moteur_donne_les_reglages_de_l_outil_a_la_question(monkeypatch):
 async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
     """Défaut 3 (``pc7-conv2-hors-zone``, tour 1, appel 28) : la fiche rend le hors zone et la proposition offerte ; le second passage du
     modèle ne rend rien (4 jetons, relance sans flux vide aussi) : le flux vérifié ne contrôlait qu'un texte, rien n'était dit. Sur une étape
-    qui porte la fiche, le silence du modèle au bout des passes est remplacé par la phrase du code (``repli_dit_par_le_code``)."""
+    qui porte la fiche, le silence du modèle au bout des passes relance le modèle avec le fait (``consigne_de_relance``, lot 7b-C5)."""
     from types import SimpleNamespace
 
     from api.services.actions_communes import parole as PAROLE
@@ -106,20 +106,23 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
 
 
 async def test_le_fait_bloquant_d_une_fiche_d_avant_n_est_jamais_redit(essai_de):
-    """La phrase du fait bloquant vaut pour le tour de sa fiche : au tour suivant, le repli revient à la question en attente."""
+    """Les faits du fait bloquant valent pour le tour de leur fiche : au tour suivant, la relance du modèle revient à la question en attente (lot 7b-C5)."""
     from api.services.actions_communes import repli as R
     from api.services.workflow import parole_de_la_fiche as PF
 
     e = await essai_de("casa-italia")
     await e.tour("Deux reines normales, livrées au 8 rue Solférino à Compiègne", ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}],
                  mode_de_retrait="livraison", adresse="8 Rue Solférino", commune="Compiègne")
-    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel)
+    assert R.faits_du_fait_bloquant(e.fiche_de_l_appel)
     e.dit("Ah bon")
     p = PF.dossier_de_la_parole(e.fiche_de_l_appel)
-    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None
-    assert R.repli_dit_par_le_code(p, None, e.fiche_de_l_appel) == R.repli_dit_par_le_code(p), CONV.question_de(p)
+    assert R.faits_du_fait_bloquant(e.fiche_de_l_appel) == []
+    from api.services.actions_communes import parole as PAROLE
+
+    consigne = R.consigne_de_relance(p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel)) or ""
+    assert '"a_dire"' not in consigne, consigne  # le refus du tour d'avant n'est jamais redonné
     r = await e.tour("à emporter alors", mode_de_retrait="emporter")
-    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None, r
+    assert R.faits_du_fait_bloquant(e.fiche_de_l_appel) == [], r
 
 
 def test_l_image_donne_ses_autorites_de_certification():

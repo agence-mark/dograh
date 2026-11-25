@@ -59,7 +59,7 @@ async def test_ce_qui_manque_est_dans_le_retour_d_une_fiche_refusee(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     r = await e.tour("oui", reponse={"question_id": "Q-9", "sens": "accepte"})  # une réponse sans question : refusée
-    assert (r.get(CLE_DU) or {}).get("manque") == "Qu'est-ce que je vous mets ?", r
+    assert (r.get(CLE_DU) or {}).get("manque") == "les articles", r  # lot 7b-C5 : la valeur fermée de ce qui manque, jamais sa phrase
 
 
 async def test_regle_2_une_fiche_qui_ne_change_rien_vaut_une_phrase_sans_outil(essai_de):
@@ -172,13 +172,15 @@ async def test_ic5_la_phrase_du_code_entre_dans_l_historique(monkeypatch):
 
 
 async def test_regle_3_le_repli_redit_le_fait_accompli(essai_de):
-    """C5, DF5 : après l'enregistrement, « pardon ? » : ni question ni manque ; le repli redit la confirmation, jamais « je n'ai pas bien saisi »."""
-    from api.services.actions_communes.repli import repli_dit_par_le_code
-
+    """C5, DF5 : après l'enregistrement, « pardon ? » : ni question ni manque ; la confirmation est le fait accompli que le code a dit (§ 2 du plan, jusqu'à C6), jamais « je n'ai pas bien saisi »."""
     e = await essai_de()
     await _jusqu_a_l_enregistrement(e)
     from api.services.actions_communes import journal_du_dit as J
 
     confirmation = (J.fait_accompli(e.p) or "")
     assert confirmation.startswith("Votre commande est enregistrée"), e.p
-    assert repli_dit_par_le_code(e.p) == confirmation
+    from types import SimpleNamespace
+
+    e.montrer()
+    silence = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler_le_silence()
+    assert silence is not None and silence.a_dire == confirmation  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : rien n'est dû, le modèle muet : le fait accompli, jamais une phrase composée

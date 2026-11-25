@@ -6,7 +6,6 @@ from __future__ import annotations
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import journal_du_dit as J
-from api.services.actions_communes.repli import repli_dit_par_le_code
 
 from .aides_de_la_commande import a_emporter, jusqu_a_l_enregistrement, premier_article, refuser_la_proposition
 
@@ -19,7 +18,13 @@ async def test_apres_l_enregistrement_pardon_redit_la_confirmation_depuis_le_jou
     await jusqu_a_l_enregistrement(e)
     confirmation = J.fait_accompli(e.p) or ""
     assert confirmation.startswith("Votre commande est enregistrée"), e.p
-    assert repli_dit_par_le_code(e.p) == confirmation
+    from types import SimpleNamespace
+
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e.montrer()
+    silence = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler_le_silence()
+    assert silence is not None and silence.a_dire == confirmation  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le modèle muet, rien n'est dû : le fait accompli
     assert "dernier_fait_dit" not in e.p and "dernier_fait_dit" not in e.p.get(CONV.CLE, {})  # plus de seconde mémoire
 
 

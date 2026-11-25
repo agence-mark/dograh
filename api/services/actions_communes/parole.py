@@ -8,7 +8,7 @@ Recopie de la boucle du tour du banc (``banc-b12/appel_b12.py`` ``tour``), répa
   A (aucun outil dans ce tour alors qu'un objet est en cours ou qu'une question attend, une fois par tour) ; le rattrapage après un refus (une
   fois par tour, tenu par le drapeau ``rattrapage_refus_joue``, jamais par le texte retenu) ; le repli A (après un refus de LA FICHE, jamais
   dite) ; la barrière des chiffres (toujours) ;
-- **au bout** : une relance encore retenue, ou vide, est remplacée par ``repli_dit_par_le_code`` (le code redemande, il ne choisit rien) ;
+- **au bout** (C5, décision d'Evan 25/11 8 h 45) : le code ne compose aucune phrase ; une phrase retenue, ou un silence, relance le modèle UNE fois par tour avec le fait (``repli.consigne_de_relance``) ; si la relance échoue : le fait accompli que le code a déjà dit, sinon la phrase réglée de l'agent ;
 - **ce que le code dit lui-même** (``textes`` : ``avant``, ``prefixe``, ``suffixe``, posés par la porte, élément 1 (b)) : le récapitulatif ou la
   confirmation est dit seul et le tour s'arrête (la phrase du modèle est jetée) ; la règle chiffrée qui bloque est dite, puis le modèle repasse ;
   le prix d'une proposition est dit juste après la phrase du modèle (gardé dans l'état du tour jusqu'à elle).
@@ -190,12 +190,6 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     phrase = sans_balisage(str(a_dire or ""))
     jeter(etat, phrase)  # ce qui est jeté dans le tour (ligne 20) ; oubliée si la phrase est dite en un passage
     return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant))
-
-
-def repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
-    from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
-
-    return _repli_sans_le_fait_bloquant(p, None, None)
 
 
 def pose_une_question(phrase: str) -> bool:

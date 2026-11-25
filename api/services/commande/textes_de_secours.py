@@ -1,6 +1,6 @@
 """[.mark] Plan final Partie 1, lot 7b-C1 : les textes de secours de la commande, un par refus du moteur.
 
-Quand le modèle se tait deux fois sur un refus, le repli du code dit le refus (R = A, Evan, 25/11). Ce texte n'est JAMAIS donné au modèle : le modèle reçoit les faits du refus et
+Ce texte n'est JAMAIS donné au modèle ni dit par le code (lot 7b-C5, Evan 25/11 8 h 45 : le modèle muet est relancé avec les faits du refus) ; il reste jusqu'à C7, qui traduit chaque information qu'il porte en signal puis le retire. Le modèle reçoit les faits du refus et
 le dit avec ses mots. Chaque fonction ne lit que les faits publics du refus (ceux que la porte montre au modèle) : si le texte a besoin d'une valeur, c'est qu'un fait manque au refus,
 jamais qu'il faut la lire ailleurs. Le module qui refuse écrit ses faits, puis ``_r(statut, faits, TS.nom(faits), manque)``.
 
@@ -407,8 +407,3 @@ def panne_avec_la_commande_transmise(faits: Faits) -> str:
 def panne_sans_commande(faits: Faits) -> str:
     """La panne tombe sans commande à joindre : aucun rappel n'est promis."""
     return "Je n'arrive pas à faire cela pour le moment."
-
-
-def panne_de_la_porte(faits: Faits) -> str:
-    """Le texte de secours d'une panne : l'une des deux variantes, selon ``transmise_a_l_equipe``."""
-    return panne_avec_la_commande_transmise(faits) if faits.get("transmise_a_l_equipe") else panne_sans_commande(faits)

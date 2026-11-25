@@ -109,10 +109,6 @@ def _objet_en_cours(_dossier: dict) -> bool:
     return False
 
 
-def _texte_du_manque(_dossier: dict, _fiche: dict) -> str | None:
-    return None
-
-
 def _valeur_du_manque(_dossier: dict, _fiche: dict) -> str | None:
     return None
 
@@ -123,7 +119,6 @@ SERVICE = declarer(
         porte_la_fiche="fiche",
         dossier_de_la_parole=_dossier_de_la_parole,
         objet_en_cours=_objet_en_cours,
-        texte_du_manque=_texte_du_manque,
         valeur_du_manque=_valeur_du_manque,
         libelle="Service (interne)",
         integration="interne",

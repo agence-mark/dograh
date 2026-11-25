@@ -1,6 +1,6 @@
 """[.mark] Lot 7b-C1 (point 3 de l'audit C0) : un catalogue de secours n'est lu que par le repli.
 
-Un texte de secours est ce que le code dit quand le modèle se tait deux fois sur un refus (R = A) : il ne revient JAMAIS au modèle. Pour chaque fichier ``textes_de_secours*.py`` et
+Un texte de secours est une phrase que le code ne dit plus (lot 7b-C5, décision d'Evan 25/11 8 h 45 : le modèle muet est relancé avec les faits ; le repli n'en lit plus aucun) et qui ne revient JAMAIS au modèle ; elle reste jusqu'à C7. Pour chaque fichier ``textes_de_secours*.py`` et
 ``phrases_du_manque.py``, la liste de ceux qui importent ses fonctions de texte est fermée : le repli, le chemin du fait bloquant, et chaque module qui refuse pour SA suggestion.
 ``Manque`` (la valeur fermée de ce qui manque) reste libre. Un importeur de plus rougit ce test ; les trois qui rangent le manque dans le constat caché (``CLE_DU``) sont permis depuis C4 : le texte n'arrive plus au modèle.
 """
@@ -18,11 +18,6 @@ LIBRES = frozenset({"Manque", "MODE", "PORTEES_PAR_UNE_QUESTION", "valeur_du_man
 TOUS = "*"
 # (catalogue, importeur, nom importé ou ``*``) : ce que chaque catalogue laisse lire, et par qui.
 PERMIS = {
-    ("services/commande/phrases_du_manque.py", "services/actions_communes/repli.py", "texte_a_dire"),  # le repli : ce qui manque ensuite
-    ("services/commande/phrases_du_manque.py", "services/commande/porte.py", "texte_a_dire"),  # 7b-C4 : ``DU.constater`` range le manque dans le constat caché (``CLE_DU``), lu par le repli seul, jamais dans le retour du modèle
-    ("services/reservation/phrases_du_manque.py", "services/reservation/porte.py", "texte_a_dire"),  # idem pour la réservation
-    ("services/reservation/phrases_du_manque.py", "services/integrations/connectors/actions/reservation.py", "texte_a_dire"),  # le crochet du repli du connecteur (``texte_du_manque``)
-    ("services/commande/phrases_du_manque.py", "services/commande/porte.py", "phrase_du_manque"),  # le chemin du fait bloquant (``phrase_du_fait_bloquant_de``)
     ("services/commande/phrases_du_manque.py", "services/commande/moteur/enregistrement.py", "phrase_du_manque"),  # le module qui refuse écrit le manque (téléphone, prénom) : la phrase du catalogue, mot pour mot
     ("services/commande/phrases_du_manque.py", "services/commande/moteur/reglement.py", "phrase_du_manque"),  # idem : le moyen de paiement qui manque
     ("services/commande/phrases_du_manque.py", "services/commande/moteur/changement.py", "phrase_du_manque"),  # idem : l'adresse qui manque à un changement
@@ -38,6 +33,7 @@ PERMIS = {
     ("services/commande/textes_de_secours.py", "db/bases_clients/restauration_commande.py", TOUS),  # une seule source des textes en double (rupture, moyen refusé)
     ("services/commande/textes_de_secours.py", "db/bases_clients/textes_de_secours_commande.py", TOUS),  # la fermeture sans heure de reprise dit la phrase de la commande
     # C3 : la réservation et l'allergie refusent elles-mêmes ; la feuille de la réservation est lue par le moteur, la porte, la base et le catalogue du manque
+    ("services/reservation/phrases_du_manque.py", "services/reservation/phrases_du_manque.py", TOUS),  # C5 : plus aucun importeur de ses textes (le repli n'en lit plus) ; déclarée jusqu'à C7, qui la retire
     *{("services/reservation/textes_de_secours.py", f"services/reservation/{m}.py", TOUS) for m in ("moteur", "porte", "phrases_du_manque")},
     ("services/reservation/textes_de_secours.py", "db/bases_clients/restauration_reservation.py", TOUS),  # la base qui refuse écrit le texte de secours de son refus
     *{("services/restauration/carte_et_allergenes/textes_de_secours.py", f"services/restauration/carte_et_allergenes/{m}.py", TOUS) for m in ("allergie_de_la_commande", "voir_un_article")},

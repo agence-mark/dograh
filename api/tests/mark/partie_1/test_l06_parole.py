@@ -77,17 +77,28 @@ def test_refus_de_la_fiche_et_du_metier():
     assert not R.refuse({"statut": "FAIT", "a_faire": "propose-lui Coca-Cola en une question"})
 
 
-def test_repli_question_en_attente():
-    """L06-28 : au bout des passes, le code dit la question en attente par sa phrase (conv3 t2, mot pour mot)."""
+def _puis(p, fiche=None):
+    """Ce que la relance du modèle lui donne à dire ensuite (``puis``), lu dans la consigne que le code construit : du JSON, jamais une phrase."""
+    import json
+
+    consigne = R.consigne_de_relance(p, fiche if fiche is not None else {}, PAROLE.EtatDuTour(tour=3))
+    return json.loads(consigne[consigne.index("{"):])["puis"], consigne
+
+
+def test_relance_question_en_attente():
+    """L06-28, décision d'Evan 25/11 8 h 45 (lot 7b-C5) : au bout des passes, le code relance le modèle avec la question en attente en faits (conv3 t2) ; la relecture, phrase du § 2, garde son texte
+    jusqu'à C6 ; une proposition n'est jamais redite par sa phrase."""
     relecture = ("Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. Cela fait vingt-sept euros quatre-vingts. "
                  "C'est bon ?")
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []}) == relecture
+    puis, _ = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []})
+    assert puis == {"question": {"id": "Q-2", "type": "relecture", "texte": relecture}}
     proposition = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition}}}) == proposition
+    puis, consigne = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition, "article_propose": "Coca-Cola"}}})
+    assert puis == {"question": {"id": "Q-1", "type": "proposition", "article_propose": "Coca-Cola"}} and proposition not in consigne
 
 
 async def test_repli_phrase_du_manque(essai_de):
-    """L06-28 (f307 t2) : sous le minimum, sans question en attente, le repli est la phrase du manque du module."""
+    """L06-28 (f307 t2) : sous le minimum, sans question en attente, la relance porte ce qui manque en valeur fermée (lot 7b-C5), jamais la phrase du module."""
     e = await essai_de("casa-italia", minimum=5000)
     await e.tour("en livraison au 9 avenue du Bouteiller à Chantilly", mode_de_retrait="livraison", commune="Chantilly", adresse="9 avenue du Bouteiller")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
@@ -95,7 +106,8 @@ async def test_repli_phrase_du_manque(essai_de):
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     assert CONV.question_de(e.p) is None, CONV.question_de(e.p)
-    assert R.repli_dit_par_le_code(e.p) == "Je vous mets autre chose ?", R.repli_dit_par_le_code(e.p)
+    puis, consigne = _puis(e.p, e.fiche_de_l_appel)
+    assert puis == {"manque": "d'autres articles, ou qu'elle dise qu'elle a tout dit"} and "Je vous mets autre chose" not in consigne, consigne
 
 
 # --------------------------------------------------------------------------- la note composée (L06-07)
@@ -219,9 +231,10 @@ def test_prix_dit_apres_la_question_du_modele():
     assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Il est à deux euros."
     assert PAROLE.avec_le_suffixe("Avec ça, un Coca-Cola bien frais ?", etat) == "Avec ça, un Coca-Cola bien frais ? Il est à deux euros."
     assert PAROLE.avec_le_suffixe("Autre chose ?", etat) is None  # dit une fois
-    # passe vide après la naissance de la proposition : le code dit la proposition de B8 (repli E-b)
+    # passe vide après la naissance de la proposition : lot 7b-C5, le modèle est relancé avec la proposition en faits, le code ne dit plus la phrase de B8
     b8 = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "x", "repli": b8}}}) == b8
+    puis, consigne = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "x", "repli": b8}}})
+    assert puis["question"]["type"] == "proposition" and b8 not in consigne
 
 
 async def test_parole_sans_fiche_rejouee(essai_de):

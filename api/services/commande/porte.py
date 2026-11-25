@@ -52,8 +52,8 @@ from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, CLE_DU_SUFFIXE, lecture_sur_une_copie, lire
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
-from api.services.commande.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
+from api.services.commande.phrases_du_manque import Manque
+from api.services.commande.phrases_du_manque import valeur_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
     Resultat,
@@ -722,7 +722,7 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any, ex:
     """Lire, appliquer, conclure ; puis ``constater`` ce que la personne vit de plus qu'avant (B2 : ce qui est dû, à la sortie de toute fiche)."""
     vu_avant = DU.ce_qui_se_voit(contexte.panier)
     retour = await _lire_appliquer_conclure(fiche_du_modele, contexte, ex)
-    return DU.constater(retour, vu_avant, contexte.panier, texte_a_dire_du_manque, _seuil_de_sortie(contexte))
+    return DU.constater(retour, vu_avant, contexte.panier, valeur_du_manque, _seuil_de_sortie(contexte))
 
 
 async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> dict[str, Any]:
@@ -730,7 +730,7 @@ async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex
     CONV.de(p)["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
-        poser_le_fait_bloquant(ctx.fiche, None, None, METIER_DU_FAIT_BLOQUANT)
+        poser_le_fait_bloquant(ctx.fiche, None, METIER_DU_FAIT_BLOQUANT)
     f = await _lire(fiche_du_modele, ctx, ex)
     if isinstance(f, dict):
         return f  # l'enveloppe d'un refus entier, ou d'une fiche déjà faite
@@ -1177,8 +1177,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
         J.dire_le_fait(p, textes["avant"], tour)  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
-    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r) for r in refusants) if x) or None, METIER_DU_FAIT_BLOQUANT,
-                           [_refus_pour_le_modele(r) for r in refusants])
+    poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [_refus_pour_le_modele(r) for r in refusants])
     return consignes
 
 
@@ -1205,25 +1204,6 @@ def refusants_de_la_fiche(f: LaFiche) -> list[Resultat]:
             vus.add(J.identite_du_refus(r))
             refusants.append(r)
     return refusants
-
-
-def raison_du_fait_bloquant(dernier: Any) -> str | None:
-    """La raison d'un fait bloquant qui refuse, telle que le module la rend (hors zone : « Nous ne livrons pas à X. Nous livrons … »), ou ``None``."""
-    if dernier is None or dernier.statut not in STATUTS_QUI_REFUSENT:
-        return None
-    return (dernier.suggestion or "").strip() or None
-
-
-def phrase_du_fait_bloquant_de(dernier: Any) -> str | None:
-    """Point de contrôle du lot 7 : la phrase du code pour un fait bloquant qui refuse (``repli.STATUTS_QUI_REFUSENT``), celle que le module rend
-    (hors zone : « Nous ne livrons pas à X. Nous livrons … ») ; hors zone, suivie des autres modes ouverts par la phrase du mode (« À emporter ? »,
-    ``phrases_du_manque``). Aucune phrase écrite ici. ``None`` : pas de fait bloquant qui refuse, ou le module ne rend pas de phrase."""
-    phrase = raison_du_fait_bloquant(dernier)
-    if phrase is None:
-        return None
-    autres = [m.get("libelle") or m.get("mode") for m in (dernier.faits or {}).get("autres_modes") or [] if isinstance(m, dict)]
-    propose = phrase_du_manque(Manque.MODE, [a for a in autres if a]) if autres else None
-    return f"{phrase} {propose}" if propose else phrase
 
 
 def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
@@ -1579,8 +1559,8 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
 
 
-# La panne pendant la fiche : le modèle la dit avec ses mots (la consigne ``a_faire``, le fait ``transmise_a_l_equipe``) ; s'il se tait deux fois, le repli dit le texte de secours
-# (``textes_de_secours.panne_de_la_porte``, posé en fait bloquant du tour). Le code ne la dit jamais seul.
+# La panne pendant la fiche : le modèle la dit avec ses mots (la consigne ``a_faire``, le fait ``transmise_a_l_equipe``) ; s'il se tait, le code le relance avec le fait
+# (``INDISPONIBLE``, posé en fait bloquant du tour). Le code ne la dit jamais.
 A_FAIRE_DE_LA_PANNE_TRANSMISE = ("le moteur est en panne : dis-lui avec tes mots que tu n'arrives pas à enregistrer sa commande pour le moment, "
                                  "qu'elle est transmise à l'équipe et que l'équipe la rappelle")
 A_FAIRE_DE_LA_PANNE = "le moteur est en panne : dis-lui avec tes mots que tu n'arrives pas à faire cela pour le moment, sans promettre de rappel ni de transmission à l'équipe"
@@ -1643,9 +1623,9 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         faits_de_la_panne = {"indisponible": True, "transmise_a_l_equipe": transmise}
         a_faire = None
         if action.nom == "fiche" and isinstance(ctx.fiche, dict):
-            # R = A : le modèle dit la panne avec ses mots ; le texte de secours (``TS.panne_de_la_porte``) n'est dit que par le repli, s'il se tait deux fois. Il ne promet un rappel que si
+            # Le modèle dit la panne avec ses mots ; s'il se tait, le code le relance avec le fait (C5). Il ne promet un rappel que si
             # la commande a bien été jointe à l'équipe (le fait ``transmise_a_l_equipe``, la même consigne).
-            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne), METIER_DU_FAIT_BLOQUANT,
+            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), METIER_DU_FAIT_BLOQUANT,
                                    [{"statut_du_module": "INDISPONIBLE", "manque": None, "faits": faits_de_la_panne}])
             a_faire = A_FAIRE_DE_LA_PANNE_TRANSMISE if transmise else A_FAIRE_DE_LA_PANNE
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})

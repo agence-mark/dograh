@@ -31,7 +31,7 @@ def _fiche(*, fait_bloquant: str | None = None, question: dict | None = None, ra
     if question:
         CONV.poser_question(dossier, question)
     if fait_bloquant:
-        poser_le_fait_bloquant(fiche, 1, fait_bloquant, "commande")
+        poser_le_fait_bloquant(fiche, 1, "commande", [{"statut_du_module": "INTROUVABLE", "manque": None, "faits": {"article": "pizza au homard"}}])
     if rattrapage:
         etat = PAROLE.etat_du_tour(fiche)
         etat.rattrapage_a_joue = True
@@ -119,15 +119,15 @@ def test_e2c_une_reprise_ne_compose_pas_la_question_du_code():
 
 
 async def test_c2_le_fait_bloquant_de_la_commande_range_ses_faits_a_cote_du_texte(essai_de):
-    """Client « Deux reines livrées à Compiègne. » (hors zone) : les faits rangés sont ceux que le modèle reçoit (``refus_de_la_fiche``), le texte reste (comportement égal)."""
-    from api.services.actions_communes.repli import CLE_FAIT_BLOQUANT, faits_du_fait_bloquant, phrase_du_fait_bloquant
+    """Client « Deux reines livrées à Compiègne. » (hors zone) : les faits rangés sont ceux que le modèle reçoit (``refus_de_la_fiche``), le texte de secours n'y est plus (commit 9)."""
+    from api.services.actions_communes.repli import CLE_FAIT_BLOQUANT, faits_du_fait_bloquant
 
     e = await essai_de("casa-italia")
     r = await e.tour("Deux reines normales, livrées au 8 rue Solférino à Compiègne", ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}],
                      mode_de_retrait="livraison", adresse="8 Rue Solférino", commune="Compiègne")
     assert r["faits"]["refus_de_la_fiche"], r
     assert faits_du_fait_bloquant(e.fiche_de_l_appel) == r["faits"]["refus_de_la_fiche"]
-    assert phrase_du_fait_bloquant(e.fiche_de_l_appel) and "commande" in e.fiche_de_l_appel[CLE_FAIT_BLOQUANT]["faits"]
+    assert "commande" in e.fiche_de_l_appel[CLE_FAIT_BLOQUANT]["faits"]
 
 
 async def test_c2_une_suggestion_vide_garde_la_consigne_du_refus(essai_de, monkeypatch):
@@ -163,7 +163,7 @@ def test_c3_la_consigne_porte_les_refus_et_la_question_en_faits_jamais_en_phrase
     from api.services.actions_communes.repli import consigne_de_relance
 
     fiche = _fiche(question=_question())
-    poser_le_fait_bloquant(fiche, 1, HOMARD, "commande", [_refus_de_homard()])
+    poser_le_fait_bloquant(fiche, 1, "commande", [_refus_de_homard()])
     consigne = consigne_de_relance(P.du_dossier(fiche), fiche, PAROLE.etat_du_tour(fiche))
     assert consigne and HOMARD not in consigne and QUESTION_DU_CODE not in consigne, consigne
     faits = _faits_de_la_consigne(consigne)
@@ -233,7 +233,7 @@ async def _tour_muet(fiche: dict, reponses: list):
 def _fiche_du_homard() -> dict:
     fiche = _fiche()
     refus = {"statut_du_module": "INTROUVABLE", "manque": None, "faits": {"article": "pizza au homard", "plus_proches": ["Margherita", "Regina"]}}
-    poser_le_fait_bloquant(fiche, 1, HOMARD, "commande", [refus])
+    poser_le_fait_bloquant(fiche, 1, "commande", [refus])
     etat = PAROLE.etat_du_tour(fiche)
     etat.faits_du_refus.append(refus)  # ce que la fiche a donné au modèle : ses valeurs passent la barrière des chiffres (« Regina »)
     PAROLE.garder(fiche, etat)
@@ -376,3 +376,34 @@ async def test_e2c_une_seule_reprise_par_tour():
     """Le modèle redit « Pas de souci. » sans la question : sa phrase est dite seule (un plafond par tour), jamais la question du code."""
     dit, consignes = await _tour_avec_texte(_fiche(question=_question(), rattrapage=True), "Pas de souci.", ["Pas de souci."])
     assert dit == "Pas de souci." and len(consignes) == 1, (dit, consignes)
+
+
+# --------------------------------------------------------------------------- commit 9 : le repli composé est retiré
+
+
+NOMS_RETIRES = ("repli_dit_par_le_code", "_repli_sans_le_fait_bloquant", "_question_ou_manque", "phrase_du_fait_bloquant", "repli_sans_le_fait_bloquant_de", "reprise_apres_la_phrase",
+                "phrase_du_fait_bloquant_de", "raison_du_fait_bloquant", "texte_du_manque", "panne_de_la_porte")
+
+
+def test_c9_aucun_nom_du_repli_compose_ne_reste_dans_le_code():
+    """Grep à zéro : ni la fonction, ni son appelant, ni le champ ``textes`` du fait bloquant ; ``TS.du_refus`` non plus (le refus de la réservation se lit par ``refuse_a_dire``)."""
+    import re
+
+    from api.outils import inventaire_rustines as I
+
+    reste = []
+    for dossier in ("services", "db", "routes", "tasks", "mcp_server"):
+        for f in (I.RACINE_API / dossier).rglob("*.py"):
+            texte = f.read_text(encoding="utf-8")
+            reste += [f"{f.name}: {nom}" for nom in NOMS_RETIRES if re.search(rf"\b{nom}\b", texte)]
+            reste += [f"{f.name}: du_refus" for _ in [0] if re.search(r"\bdef du_refus\b|\bTS\.du_refus\b", texte)]
+    assert not reste, reste
+
+
+def test_c9_le_manque_du_constat_est_une_valeur_fermee_jamais_une_phrase():
+    """``Du.manque`` : la valeur fermée de ce qui manque (``Manque``, la liste de la réservation), lue par la relance ; jamais le texte du catalogue."""
+    from api.services.commande.phrases_du_manque import valeur_du_manque
+
+    fiche = _fiche()
+    P.du_dossier(fiche)["mode"] = "emporter"
+    assert valeur_du_manque(P.du_dossier(fiche)) == "les articles"

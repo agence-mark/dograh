@@ -737,11 +737,17 @@ async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
 
 
 def test_conv_la_question_d_etape_redite_par_le_repli_finit_par_un_seul_point_d_interrogation():
-    """Série 2 du lot 11 (FOR3-A) : « … cookie, donut ou dessert du jour ? ? » ; la question d'étape finit déjà par « ? »."""
-    from api.services.actions_communes.repli import repli_dit_par_le_code
+    """Série 2 du lot 11 (FOR3-A) : « … cookie, donut ou dessert du jour ? ? » ; décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne redit plus la question d'étape, le modèle est relancé
+    avec son objet (l'article en question) : aucune phrase du code, donc aucun « ? ? »."""
+    import json
 
-    p = {CONV.CLE: {CONV.CLE_QUESTION: {"type": "etape", "texte": "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"}}}
-    assert repli_dit_par_le_code(p) == "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"
+    from api.services.actions_communes.parole import EtatDuTour
+    from api.services.actions_communes.repli import consigne_de_relance
+
+    texte = "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "etape", "texte": texte, "article_en_question": "Formule complète"}}}
+    consigne = consigne_de_relance(p, {}, EtatDuTour(tour=1))
+    assert json.loads(consigne[consigne.index("{"):])["puis"] == {"question": {"id": "Q-1", "type": "etape", "article_en_question": "Formule complète"}} and texte not in consigne
 
 
 async def _parole_de(e, a_dire, **cases):
@@ -754,16 +760,19 @@ async def _parole_de(e, a_dire, **cases):
 async def test_conv_lot_9_une_ambiguite_est_rendue_au_modele_avec_ses_candidats(essai_de):
     """Lot 7b-C4, E1 = A (Evan, 25/11 ; avant : lot 9, OPT3-A, le code disait « Vous voulez dire : Bubble tea ? » mot pour mot à la place de la phrase du modèle) : une question d'ambiguïté
     née dans le tour suit la ligne de toute question née : le modèle repasse avec les candidats (``faits.candidats``, ``faits.dit``) et dit le doute avec ses mots ; si le modèle se tait, le repli
-    dit le texte du registre, que le modèle ne reçoit jamais."""
+    est relancé avec le doute (lot 7b-C5), jamais avec le texte du registre, que le modèle ne reçoit jamais."""
+    import json
+
     from api.services.actions_communes import parole as PAROLE
-    from api.services.actions_communes.repli import repli_dit_par_le_code
+    from api.services.actions_communes.repli import consigne_de_relance
 
     e = await brique(essai_de, "OPT3")
     r, d = await _parole_de(e, "Je ne trouve pas de bubble tea sur notre carte.", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}])
     assert r["question"]["type"] == "ambiguite", r
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == "fait_bloquant" and d.a_dire is None, d
     assert r["resultats"][0]["faits"] == {"candidats": ["Bubble tea"], "dit": "bubble tea avec des perles"}, r["resultats"]
-    assert repli_dit_par_le_code(e.p).startswith("Vous voulez dire"), "le modèle muet : le repli dit le doute du registre"
+    consigne = consigne_de_relance(e.p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel))  # le modèle muet : relancé avec le doute en faits
+    assert json.loads(consigne[consigne.index("{"):])["puis"]["question"]["candidats"] == ["Bubble tea"] and "Vous voulez dire" not in consigne, consigne
 
 
 async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_modele(essai_de):

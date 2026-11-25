@@ -41,7 +41,7 @@ from api.services.reservation import textes_de_secours as TS
 from api.services.reservation import source as registre_des_sources
 from api.services.reservation.lire import lire
 from api.services.actions_communes import du as DU
-from api.services.reservation.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
+from api.services.reservation.phrases_du_manque import valeur_du_manque
 from api.services.restauration.mesures import mesures as mesures_du_module
 from api.services.workflow.cases_selon_l_etat import CLE_DES_PAROLES, CLE_DIT_DANS_L_APPEL, CLE_DU_TOUR, cases_montrees
 
@@ -415,10 +415,10 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     premier = toutes_les_refus[0] if toutes_les_refus else None
     posee = CONV.question_de(e)
     question = Question(posee["id"], posee["type"], posee.get("texte") or "") if posee is not None else None
-    phrase_du_jour = None
+    jour_a_demander = None
     if question is None and not toutes_les_refus and dernier is not None and (dernier.faits or {}).get("precision_gardee") is None:
         manque = MANQUES_DU_MODELE.get(dernier.manque, dernier.manque) if dernier.manque not in (None, "relecture", "confirmation") else None
-        phrase_du_jour = dernier.suggestion if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" and dernier.suggestion else None
+        jour_a_demander = "le jour" if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" else None  # C5 : la valeur fermée de ce qui manque (jamais la phrase de ``suggestion``)
         if manque:
             plus["manque"] = manque
     a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
@@ -431,15 +431,25 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     textes = textes_du_code(e, dernier, operation, nee, deja_enregistree)
     if isinstance(ctx.fiche, dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
-        refus_a_dire = TS.du_refus(dernier, transmise) if dernier is not None else ""
-        if refus_a_dire:  # R = A : le modèle se tait deux fois, le code dit le refus
-            poser_le_fait_bloquant(ctx.fiche, tour, refus_a_dire, METIER_DU_FAIT_BLOQUANT, [{"statut_du_module": dernier.statut, "manque": dernier.manque, "faits": faits}])
+        if refuse_a_dire(dernier):  # C5 : le modèle se tait, le code le relance avec le refus (jamais une phrase de secours)
+            poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [{"statut_du_module": dernier.statut, "manque": dernier.manque, "faits": faits}])
         elif operation in OPERATIONS_QUI_ECRIVENT:  # une écriture sans refus remplace le refus posé plus tôt dans ce tour ; une lecture ou une question ne touche à rien (même fiche, même clé que la commande)
-            poser_le_fait_bloquant(ctx.fiche, tour, None, METIER_DU_FAIT_BLOQUANT)
+            poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT)
     retour = Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None, a_faire=a_faire, plus=plus).vers_json()
-    if phrase_du_jour:
-        retour[DU.CLE_DU] = {"manque": phrase_du_jour}  # 7b-C4 : la phrase du jour est du repli, rangée dans le constat caché, jamais dans le retour du modèle
+    if jour_a_demander:
+        retour[DU.CLE_DU] = {"manque": jour_a_demander}  # le jour à demander, rangé dans le constat caché, jamais dans le retour du modèle
     return retour
+
+
+def refuse_a_dire(dernier: Any) -> bool:
+    """Le dernier retour du module est un refus que le modèle doit dire : un refus ou un introuvable, la règle « une seule réservation par appel » (la réservation de l'appel est annulée),
+    la capacité non réglée. Rien pour le reste."""
+    if dernier is None:
+        return False
+    faits = dernier.faits or {}
+    return (dernier.statut in ("REFUSEE", "INTROUVABLE")
+            or (dernier.statut == "DEJA_FAIT" and faits.get("raison") == "deja_une_reservation_dans_cet_appel" and bool(faits.get("deja_annulee")))
+            or (dernier.statut == "INCOMPLETE" and dernier.manque == "capacite"))
 
 
 # --------------------------------------------------------------------------- l'issue de l'appel (C10), posée par l'opération qui la fait
@@ -516,7 +526,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                                            phrase_du_code=getattr(ctx, "phrase_du_code", None))
                 vu_avant = DU.ce_qui_se_voit(e)
                 retour = await executer_la_fiche_de_reservation(dict(arguments or {}), contexte)
-                retour = DU.constater(retour, vu_avant, e, texte_a_dire_du_manque, seuil_de_sortie(contexte.configurations, CLE_RESERVATION_BOUCLE, DEFAULT_RESERVATION_BOUCLE_FOIS_AVANT_LA_SORTIE))  # B2 : ce qui est dû, comme la commande (même faute, même traitement)
+                retour = DU.constater(retour, vu_avant, e, valeur_du_manque, seuil_de_sortie(contexte.configurations, CLE_RESERVATION_BOUCLE, DEFAULT_RESERVATION_BOUCLE_FOIS_AVANT_LA_SORTIE))  # B2 : ce qui est dû, comme la commande (même faute, même traitement)
                 _poser_l_issue_de_la_fiche(ctx, contexte.operations)
                 await _dire_au_flux(ctx, source, contexte.operations)
                 _mesurer(ctx.fiche, contexte.operations)

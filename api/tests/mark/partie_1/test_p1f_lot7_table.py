@@ -93,12 +93,12 @@ def test_la_table_videe_ne_decide_plus(monkeypatch):
 
 @pytest.mark.parametrize("phrase", ["Vous voulez autre chose ? Je note.", "D'accord. Autre chose ?", "Quelle taille ? Normale ou grande ?", "C'est noté.", "Très bien, quelle taille ?!"])
 def test_une_seule_regle_pour_dire_qu_une_phrase_pose_une_question(phrase):
-    """M4 : la table et la reprise de la question en attente lisent la même ponctuation (la fin de la phrase), jamais un « ? » au milieu."""
+    """M4 : la table et la relance de la question en attente lisent la même ponctuation (la fin de la phrase), jamais un « ? » au milieu."""
     from api.services.actions_communes import parole as PAROLE
 
     p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?", "repli": "Quelle taille ?"}}}
-    reprise = PAROLE.reprise_apres_la_phrase(phrase, EtatDuTour(tour=1), p)
-    assert (reprise is None) == PAROLE.pose_une_question(phrase), (phrase, reprise)
+    due = PAROLE.question_oubliee(phrase, EtatDuTour(tour=1), p)
+    assert due == (not PAROLE.pose_une_question(phrase)), (phrase, due)
 
 
 def test_le_commun_ne_lit_aucun_nom_de_case_la_porte_du_metier_pose_le_fait():

@@ -3,8 +3,7 @@ B12 décision 1, repli A seul d'après B13, D62).
 
 Branché à la place du contrôle des répliques (``reponse_avalee.RepliqueVerifiee``) quand l'étape montre la fiche au modèle : la phrase dite sans
 appel d'outil est retenue selon ``actions_communes.parole.phrase_libre_retenue`` (critères structurels, D1 : aucune lecture des mots en dehors de
-la barrière des chiffres), et le modèle repasse avec la ligne d'état du rappel ; la relance encore retenue est remplacée par la phrase du code
-(``repli_dit_par_le_code``). Sur une autre étape, le contrôle d'avant est rendu tel quel. ⛔ Ne lève jamais : dans le doute, la réplique passe.
+la barrière des chiffres), et le modèle repasse avec la ligne d'état du rappel ; la relance encore retenue est remplacée par une relance du modèle avec le fait (``consigne_de_relance``, une par tour), puis par le fait accompli ou la phrase réglée de l'agent : le code ne compose aucune phrase (C5). Sur une autre étape, le contrôle d'avant est rendu tel quel. ⛔ Ne lève jamais : dans le doute, la réplique passe.
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ from loguru import logger
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import journal_du_dit as J
-from api.services.actions_communes.repli import consigne_de_relance, repli_dit_par_le_code
+from api.services.actions_communes.repli import consigne_de_relance
 from api.services.commande import panier as P
 from api.services.workflow.verite_des_actions import Retenue, tracer_une_retenue
 

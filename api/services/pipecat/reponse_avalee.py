@@ -365,7 +365,7 @@ def noter_un_outil_de_passation(service: Any, nom: str) -> None:
 
 
 # P5 (lot 19 bis) : la fiche d'un connecteur aux arguments illisibles n'est pas exécutée comme ``{}`` (une fiche vide ne dit rien) : elle arrive marquée, la porte la refuse
-# (``arguments_illisibles``, un refus de LA FICHE) et le modèle repasse ; au bout des passes, le repli du code parle. Jamais un tour muet.
+# (``arguments_illisibles``, un refus de LA FICHE) et le modèle repasse ; au bout des passes, le code relance le modèle avec le fait (C5), puis dit le fait accompli ou la phrase réglée. Jamais un tour muet.
 ATTRIBUT_NOMS_DES_FICHES = "mark_noms_des_fiches"
 ARGUMENTS_D_UNE_FICHE_ILLISIBLE = '{"arguments_illisibles": true}'
 
@@ -751,7 +751,7 @@ class RepliqueVerifiee:
                         yield morceau
                     return
             # D26 (note de Pierre du 20/11, point 4) : la relance a échoué (429, délai) ou n'a rien rendu : la réplique retenue n'est JAMAIS dite
-            # telle quelle ; la phrase du code la remplace (le repli du point de contact, sinon une phrase neutre)
+            # telle quelle ; le fait accompli que le code a dit, sinon la phrase réglée de l'agent la remplace (jamais un refus ni une question composés par le code)
             logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : relance sans réponse, phrase du code")
             if appel:
                 # le texte retenu précédait un appel d'outil : l'appel part, le texte jamais (l'outil rend ce qui se dit)

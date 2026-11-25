@@ -91,7 +91,7 @@ def test_r6_chaque_constante_du_constat_a_une_seule_source_et_un_seul_sens():
     assert not hasattr(parole, "__all__") and not hasattr(parole, "BLOQUANTS") and not hasattr(parole, "RETRAIT_D_UNE_LIGNE") and not hasattr(parole, "CLE_FAITS_A_DIRE")
     assert parole.FAITS_A_DIRE != DU.CLE_FAITS_A_DIRE  # un motif de la décision, une clé du retour : deux noms, deux sens
     assert enveloppe_legere.CLE_DU is DU.CLE_DU and table_de_parole.RETRAIT_D_UNE_LIGNE is DU.RETRAIT_D_UNE_LIGNE
-    assert callable(parole.repli_sans_le_fait_bloquant_de) and not hasattr(parole, "_repli_sans_le_fait_bloquant_de")
+    assert not hasattr(parole, "repli_sans_le_fait_bloquant_de") and not hasattr(parole, "_repli_sans_le_fait_bloquant_de")  # C5 : le repli composé est retiré
     assert "refus" not in DU.Du().vers_json()  # aucun lecteur : retiré
 
 

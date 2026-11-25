@@ -236,7 +236,7 @@ GLOSSAIRE: dict[str, tuple[frozenset[str], str]] = {
     'rendu_sur': (frozenset(['case']), 'En espèces : le billet, en euros.'),
     'renonce': (frozenset(['case']), 'B6 : elle ne veut plus réserver. (Rouge : pris pour un au revoir, n4 et n5.)'),
     'renseigne': (frozenset(['cle_retour']), "L'information est-elle renseignée."),
-    'repli_dit_par_le_code': (frozenset(['regle_du_code']), 'Nouveau cas de « dit par le code » (B12, repli A, extension du repli E-b) : au bout des passes, sans phrase dicible du modèle après un refus de la fiche ou une phrase retenue, le code dit la question en attente ou la phrase du module qui dit ce qui manque ; il ne choisit rien.'),
+    'consigne_de_relance': (frozenset(['regle_du_code']), 'Lot 7b-C5 (décision d\'Evan 25/11 8 h 45) : au bout des passes, sans phrase dicible du modèle après un refus de la fiche ou une phrase retenue, le code ne dit rien : il relance le modèle une fois par tour avec le fait (les refus du tour, puis la question en attente ou ce qui manque, en JSON).'),
     'reponse': (frozenset(['case', 'cle_retour']), 'Sa réponse à la question en attente, avec son identifiant.'),
     'reponse_manquante': (frozenset(['cle_retour']), 'Une question attend : la fiche doit porter sa réponse.'),
     'reponses': (frozenset(['cle_retour']), 'Les réponses possibles.'),
