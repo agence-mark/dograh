@@ -1080,7 +1080,7 @@ async def modifier(
             return _avec(_r("INTERDIT", lot, ""), p)
         quantite = lot["lots"]
     if quantite is not None and quantite > lecture.QUANTITE_MAX:
-        faits = {"quantite": quantite, "quantite_max": lecture.QUANTITE_MAX}
+        faits = {"quantite_max": lecture.QUANTITE_MAX}  # pas la quantité dite : elle change d'un tour à l'autre et remettrait le compteur du journal à zéro
         return _avec(_r("ARGUMENT_INVALIDE", faits, TS.combien_exactement(faits), "quantite"), p)
     if quantite == 0:
         return await retirer(source, p, regles, ligne=str(cible["n"]))

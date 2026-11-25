@@ -88,3 +88,19 @@ async def test_si_elle_dit_oui_le_message_part_pour_de_bon(essai_de, monkeypatch
     assert r["statut"] == "FAIT" and e.ctx.fiche[porte.CLE_MESSAGE_LAISSE] is True, r
     assert e.ctx.fiche[rappels.CLE_RAPPEL][0]["objet"] == "rappel commande refusée"
     assert e.ctx.fiche["call_disposition"] == "message_a_transmettre"  # l'issue de l'appel : sans réglage, le code est le nom de l'issue
+
+
+# ── R5 : « mettez-en 150 », « 200 », « 300 » est le même refus, le compteur du journal ne repart pas ──────────────────────
+
+async def test_une_quantite_trop_haute_a_la_modification_garde_la_meme_identite(appel):
+    from api.services.actions_communes import journal_du_dit as J
+    from api.services.commande import lecture
+    from api.tests.mark.commande_sur_la_fiche import article as A
+
+    await appel.ajouter(A("margherita", 1, "Normale"))
+    identites = set()
+    for combien in (lecture.QUANTITE_MAX + 50, lecture.QUANTITE_MAX + 150, lecture.QUANTITE_MAX + 250):
+        r = await appel.modifier(ligne="1", quantite=combien)
+        assert r.statut == "ARGUMENT_INVALIDE", r
+        identites.add(J.identite_du_refus(r))
+    assert len(identites) == 1, identites
