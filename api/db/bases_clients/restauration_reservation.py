@@ -30,6 +30,7 @@ from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
 from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.instantane import stable, vivant
 from api.services.mots_dits import nombre_en_lettres
+from api.services.reservation import textes_de_secours as TS
 from api.db.bases_clients.restauration_commande import E164, _quand_dit
 from api.db.bases_clients.restauration_commun import json_lu
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
@@ -42,22 +43,11 @@ RAISONS = frozenset(
     {capacite.PASSE, capacite.TROP_TOT, capacite.TROP_LOIN, capacite.HORS_SERVICE, capacite.GROUPE_TROP_GRAND, capacite.FERME, capacite.COMPLET,
      "type_ferme", "plus_modifiable", "passee"}
 )
-_PHRASES = {
-    capacite.PASSE: "Ce moment est déjà passé.",
-    capacite.TROP_TOT: "C'est trop tôt pour moi, il me faut un peu plus de temps.",
-    capacite.TROP_LOIN: "C'est trop loin pour que je réserve.",
-    capacite.HORS_SERVICE: "Nous ne prenons pas de réservation à cette heure-là.",
-    capacite.GROUPE_TROP_GRAND: "Pour un groupe de cette taille, il faut appeler le restaurant.",
-    capacite.FERME: "Nous ne prenons pas de réservation sur ce moment.",
-    capacite.COMPLET: "Nous sommes complets à cette heure-là.",
-    "type_ferme": "Nous ne prenons pas de réservation en ce moment.",
-    "plus_modifiable": "Cette réservation n'est plus modifiable.",
-    "passee": "Cette réservation est passée, je ne peux plus la changer.",
-}
 
 
 def _refus(detail: str, **plus: Any) -> Resultat:
-    return Resultat("REFUSEE", {"raison": "autre", "detail": detail, **plus}, _PHRASES[detail])
+    faits = {"raison": "autre", "detail": detail, **plus}
+    return Resultat("REFUSEE", faits, TS.refus_de_la_base(faits))
 
 
 @dataclass(frozen=True)
@@ -202,8 +192,8 @@ async def _propositions(
 def _avec_propositions(refus: Resultat, propositions: list[dict]) -> Resultat:
     if not propositions:
         return refus
-    dites = [p["quand_dit"] for p in propositions]
-    return Resultat(refus.statut, {**refus.faits, "propositions": propositions}, f"{refus.suggestion} Je peux vous proposer {' ou '.join(dites)}.", refus.manque)
+    faits = {**refus.faits, "propositions": propositions}
+    return Resultat(refus.statut, faits, TS.refus_de_la_base(faits), refus.manque)
 
 
 async def capacite_du_jour(
@@ -230,7 +220,7 @@ async def capacite_du_jour(
     if capacite.capacite_manquante(unites, regles):
         return Resultat("INCOMPLETE", {}, "", "capacite")
     if regles.effectif_max is not None and couverts > regles.effectif_max:
-        return Resultat("REFUSEE", {"raison": "autre", "detail": "groupe_trop_grand", "maximum": regles.effectif_max}, "Pour un groupe de cette taille, il faut appeler le restaurant.")
+        return _refus("groupe_trop_grand", maximum=regles.effectif_max)
     libres = capacite.creneaux_libres(jour, couverts, duree_minutes, unites, occupations, services, fuseau, maintenant_, regles)
     return Resultat("OK", {"creneaux": libres, "duree_minutes": duree_minutes, "complet": not libres})
 
@@ -245,11 +235,7 @@ async def groupe_trop_grand(connexion: asyncpg.Connection, etablissement_id: int
     maximum = await stable(connexion, ("groupe_max", etablissement_id), lire)
     if maximum is None or not isinstance(couverts, int) or couverts <= maximum:
         return None
-    return Resultat(
-        "REFUSEE",
-        {"raison": "autre", "detail": "groupe_trop_grand", "maximum": maximum, "a_faire": "dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe"},
-        "Pour un groupe de cette taille, il faut appeler le restaurant.",
-    )
+    return _refus("groupe_trop_grand", maximum=maximum, a_faire="dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe")
 
 
 async def creer_reservation(
