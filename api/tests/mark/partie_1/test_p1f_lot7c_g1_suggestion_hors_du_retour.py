@@ -130,9 +130,9 @@ async def _texte_a_dire(salle, monkeypatch, suggestions):
 # ── le scénario atteint le canal (vert) ─────────────────────────────────────────────────────────────────────────────────
 
 async def test_scenario_explication_atteint_le_canal(essai_de, suggestions):
-    """Le refus est bien dans ``refus_de_la_fiche`` (ses faits, sans phrase) et le module a bien écrit sa suggestion : le canal est fermé, pas absent."""
+    """Le refus est bien dans ``refus_de_la_fiche`` (ses faits, sans phrase). Lot 7b-C7a : l'article introuvable ne porte plus aucun texte de secours (``r.suggestion`` vide, ``test_p1f_lot7c7_signal_du_secours`` prouve que ses faits suffisent) : le canal est fermé à la source, le module n'écrit plus rien dans ce tour."""
     r, valeurs, du_tour, _ = await _explication(essai_de, suggestions)
-    assert r["faits"]["refus_de_la_fiche"] and du_tour and not valeurs, (r["faits"], du_tour)
+    assert r["faits"]["refus_de_la_fiche"] and not du_tour and not valeurs, (r["faits"], du_tour)
 
 
 async def test_scenario_heure_a_dire_atteint_le_canal(essai_de, suggestions, monkeypatch):
