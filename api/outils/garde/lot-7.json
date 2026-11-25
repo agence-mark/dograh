@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "286d940f76b76a29ce0398187e165da1cef38d1e",
+ "commit_teste": "2b8533818f9d3133583d25eb7bb5044d12b0548d",
  "base_de_comparaison": "e36536d89927d0018afe6b87e2e0348fdd89ab93",
  "poste": "sa12",
  "vert": true,
@@ -9,14 +9,14 @@
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 25
+   "fichiers_de_la_zone": 32
   },
   "linter": {
    "vert": true,
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1118 files, 3360 dependencies.",
+    "Analyzed 1118 files, 3358 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.14s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.12s ========================"
   },
   "noqa": {
    "vert": true,
@@ -35,6 +35,14 @@
   "donnes": {
    "vert": true,
    "tests": [
+    "tests/mark/partie_1/test_cloture_b2_du.py",
+    "tests/mark/partie_1/test_controle_caisse_reservation.py",
+    "tests/mark/partie_1/test_inventaire_rustines.py",
+    "tests/mark/partie_1/test_l06_parole.py",
+    "tests/mark/partie_1/test_l11_briques.py",
+    "tests/mark/partie_1/test_l19bis_parole.py",
+    "tests/mark/partie_1/test_l20_complet_dit_par_le_code.py",
+    "tests/mark/partie_1/test_l20_lecture_apres_refus.py",
     "tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py",
     "tests/mark/partie_1/test_p1f_lot7_allergie.py",
     "tests/mark/partie_1/test_p1f_lot7_cases_illisibles.py",
@@ -68,20 +76,14 @@
     "tests/mark/partie_1/test_p1f_lot7b_phrase_de_repli.py",
     "tests/mark/partie_1/test_p1f_lot7b_prefixe.py",
     "tests/mark/partie_1/test_p1f_lot7b_refus_de_la_reservation.py",
+    "tests/mark/partie_1/test_p1f_lot7b_regles_en_faits.py",
     "tests/mark/partie_1/test_p1f_lot7b_seuil_de_sortie.py",
     "tests/mark/partie_1/test_p1f_lot7b_une_consigne.py",
     "tests/mark/partie_1/test_pc7_corrections.py",
-    "tests/mark/partie_1/test_l06_parole.py",
-    "tests/mark/partie_1/test_l20_lecture_apres_refus.py",
-    "tests/mark/partie_1/test_l19bis_parole.py",
     "tests/mark/test_declenchement_de_l_action.py",
-    "tests/mark/test_verite_des_actions.py",
-    "tests/mark/partie_1/test_l11_briques.py",
-    "tests/mark/partie_1/test_l20_complet_dit_par_le_code.py",
-    "tests/mark/partie_1/test_controle_caisse_reservation.py",
-    "tests/mark/partie_1/test_cloture_b2_du.py"
+    "tests/mark/test_verite_des_actions.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_cloture_b2_du.py::test_tf2_un_changement_d_une_commande_enregistree_se_dit_par_le_code\nPASSED tests/mark/partie_1/test_cloture_b2_du.py::test_dc4_annuler_une_commande_enregistree_en_deux_temps\nPASSED tests/mark/partie_1/test_cloture_b2_du.py::test_dc4_non_laisse_la_commande_enregistree\nPASSED tests/mark/partie_1/test_cloture_b2_du.py::test_ic5_la_phrase_du_code_entre_dans_l_historique\nPASSED tests/mark/partie_1/test_cloture_b2_du.py::test_regle_3_le_repli_redit_le_fait_accompli\n=========== 557 passed, 16 xfailed, 2 warnings in 213.55s (0:03:33) ==========="
+   "sortie": "PASSED tests/mark/test_verite_des_actions.py::test_k7_le_controle_nomme_la_raison\nPASSED tests/mark/test_verite_des_actions.py::test_le_moteur_branche_le_controle_sur_l_etape_qui_offre_confier\nPASSED tests/mark/test_verite_des_actions.py::test_le_moteur_ne_branche_rien_quand_la_case_est_eteinte\nPASSED tests/mark/test_verite_des_actions.py::test_la_case_d_une_etape_sans_outil_d_action_ne_branche_rien\nPASSED tests/mark/test_verite_des_actions.py::test_le_champ_de_l_etape_est_vide_par_defaut_et_pas_dans_le_formulaire\n=========== 564 passed, 16 xfailed, 2 warnings in 232.65s (0:03:52) ==========="
   }
  }
 }
