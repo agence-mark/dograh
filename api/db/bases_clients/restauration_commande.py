@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
+from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
@@ -131,6 +132,11 @@ def _refus(statut: str, suggestion: str, manque: str | None = None, **faits: Any
     return Resultat(statut, faits, suggestion, manque)
 
 
+def _refus_de_secours(statut: str, secours: Callable[[dict], str], manque: str | None = None, **faits: Any) -> Resultat:
+    """Un refus dont le texte de secours se refait de ses seuls faits (``textes_de_secours_commande``) : le test d'un refus compare ``suggestion`` à ``secours(faits)``."""
+    return Resultat(statut, faits, secours(faits), manque)
+
+
 # --------------------------------------------------------------------------- #
 # Le calcul d'un panier depuis la carte
 # --------------------------------------------------------------------------- #
@@ -190,17 +196,17 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         code = c.get("option_code")
         trouve = options.get(code)
         if trouve is None:
-            return 0, _refus("HORS_CARTE", "Ce choix n'existe pas pour ce produit.", code=code)
+            return 0, _refus_de_secours("HORS_CARTE", TSC.choix_hors_produit, code=code)
         g, o = trouve
         n = c.get("quantite", 1)
         if not isinstance(n, int) or n < 1:
-            return 0, _refus("ARGUMENT_INVALIDE", "Quantité de choix invalide.", "quantite", code=code)
+            return 0, _refus_de_secours("ARGUMENT_INVALIDE", TSC.quantite_de_choix_invalide, "quantite", code=code)
         if code in panier.ruptures:
-            return 0, _refus("RUPTURE", f"{o['nom']} n'est plus disponible.", code=code, nom=o["nom"])
+            return 0, _refus_de_secours("RUPTURE", TSC.indisponible, code=code, nom=o["nom"])
         par_groupe[g["id"]] = par_groupe.get(g["id"], 0) + n
         par_option[code] = par_option.get(code, 0) + n
         if par_option[code] > g["max_par_option"]:
-            return 0, _refus("MAXIMUM_ATTEINT", f"{o['nom']} ne se prend pas plus de {g['max_par_option']} fois.", groupe=g["id"], code=code)
+            return 0, _refus_de_secours("MAXIMUM_ATTEINT", TSC.option_trop_de_fois, groupe=g["id"], code=code, nom=o["nom"], maximum=g["max_par_option"])
         refus = conditions_de_vente.refus_de_l_option(o, panier.mode)  # PRX1 et PRX3 : l'option hors de sa plage ou d'un autre mode
         if refus is not None:
             return 0, _refus("INTERDIT", "", **refus)
@@ -233,9 +239,9 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
     for g in groupes:
         n = par_groupe.get(g["id"], 0)
         if n < g["min"]:
-            return 0, _refus("CHOIX_OBLIGATOIRE", f"Il faut choisir : {g['nom']}.", groupe=g["id"], nom=g["nom"], minimum=g["min"])
+            return 0, _refus_de_secours("CHOIX_OBLIGATOIRE", TSC.choix_obligatoire, groupe=g["id"], nom=g["nom"], minimum=g["min"])
         if n > g["max"]:
-            return 0, _refus("MAXIMUM_ATTEINT", f"Pas plus de {g['max']} pour : {g['nom']}.", groupe=g["id"], nom=g["nom"], maximum=g["max"])
+            return 0, _refus_de_secours("MAXIMUM_ATTEINT", TSC.pas_plus_pour, groupe=g["id"], nom=g["nom"], maximum=g["max"])
     return supplement, None
 
 
@@ -284,16 +290,16 @@ def _formule(panier: _Panier, f: dict, code: str, choisis: list[dict]) -> tuple[
         code_c = c.get("option_code")
         n = c.get("quantite", 1)
         if not isinstance(n, int) or n < 1:
-            return [], 0, False, None, _refus("ARGUMENT_INVALIDE", "Quantité de choix invalide.", "quantite", code=code_c)
+            return [], 0, False, None, _refus_de_secours("ARGUMENT_INVALIDE", TSC.quantite_de_choix_invalide, "quantite", code=code_c)
         i, raison = _ligne_du_choix(panier, lignes, restantes, code_c, taille, c.get("etape"))
         if i is None:
-            return [], 0, False, None, _refus("HORS_CARTE", "Ce choix n'existe pas dans cette formule.", code=code_c, raison=raison or "choix_hors_liste")
+            return [], 0, False, None, _refus_de_secours("HORS_CARTE", TSC.choix_hors_formule, code=code_c, raison=raison or "choix_hors_liste")
         if code_c in panier.ruptures:
-            return [], 0, False, None, _refus("RUPTURE", "Un élément de la formule n'est plus disponible.", code=code_c)
+            return [], 0, False, None, _refus_de_secours("RUPTURE", TSC.element_de_formule_indisponible, code=code_c)
         prises = 1 if lignes[i]["a_volonte"] else n
         if prises > restantes[i]:
-            return [], 0, False, None, _refus("MAXIMUM_ATTEINT", f"Pas plus de {lignes[i]['quantite']} pour : {lignes[i]['nom']}.", groupe=lignes[i]["nom"],
-                                              maximum=lignes[i]["quantite"])
+            return [], 0, False, None, _refus_de_secours("MAXIMUM_ATTEINT", TSC.pas_plus_pour, groupe=lignes[i]["nom"],
+                                                        nom=lignes[i]["nom"], maximum=lignes[i]["quantite"])
         restantes[i] -= prises
         par_ligne.setdefault(i, []).append({**c, "quantite": prises})
     rendu: list[dict] = []
@@ -305,11 +311,11 @@ def _formule(panier: _Panier, f: dict, code: str, choisis: list[dict]) -> tuple[
             options = [{"code": x, "nom": x, "alternative": k} for k, a in enumerate(ligne["alternatives"]) for x in a.get("codes") or []]
             pris, refus = choix_entre_deux_contenus.brique_for12_une_alternative({"nom": ligne["nom"], "alternatives": ligne["alternatives"], "options": options}, pris)
             if refus is not None:
-                return [], 0, False, None, _refus("HORS_CARTE", "Une seule alternative.", groupe=ligne["nom"], **refus)
+                return [], 0, False, None, _refus_de_secours("HORS_CARTE", TSC.une_seule_alternative, groupe=ligne["nom"], **refus)
             voulu = next((int(a.get("quantite") or 1) for a in ligne["alternatives"] if pris and pris[0]["option_code"] in (a.get("codes") or [])), voulu)
         total = sum(c["quantite"] for c in pris)
         if ligne["obligatoire"] and total < (1 if ligne["a_volonte"] else voulu):
-            return [], 0, False, None, _refus("CHOIX_OBLIGATOIRE", f"Il faut choisir : {ligne['nom']}.", groupe=ligne["nom"], nom=ligne["nom"], minimum=voulu)
+            return [], 0, False, None, _refus_de_secours("CHOIX_OBLIGATOIRE", TSC.choix_obligatoire, groupe=ligne["nom"], nom=ligne["nom"], minimum=voulu)
         for c in pris:
             produit, d = panier.decl[c["option_code"]]
             groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
@@ -320,7 +326,7 @@ def _formule(panier: _Panier, f: dict, code: str, choisis: list[dict]) -> tuple[
             retirables = {x["nom"] for x in produit["ingredients"] if x.get("retirable")} | set(retrait_d_ingredient.options_retirables(groupes))
             inconnus = [r for r in (c.get("retires") or []) if r not in retirables]
             if inconnus:
-                return [], 0, False, None, _refus("HORS_CARTE", f"On ne peut pas retirer : {inconnus[0]}.", code=c["option_code"], retire=inconnus[0])
+                return [], 0, False, None, _refus_de_secours("HORS_CARTE", TSC.ne_peut_pas_retirer, code=c["option_code"], retire=inconnus[0])
             prix_ligne = supplement_de_formule.brique_for4_ajouter_le_supplement_de_ligne(ligne, c["option_code"])
             supplement += (prix_ligne + gain) * c["quantite"]
             alcool = alcool or bool(produit.get("alcool"))
@@ -369,7 +375,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
     for rang, l in enumerate(brouillon_lignes, start=1):
         code, n = l.get("code_caisse"), l.get("quantite", 1)
         if not isinstance(n, int) or not 1 <= n <= 99:
-            return [], 0, _refus("ARGUMENT_INVALIDE", "Quantité invalide.", "quantite", ligne=rang)
+            return [], 0, _refus_de_secours("ARGUMENT_INVALIDE", TSC.quantite_invalide, "quantite", ligne=rang)
         formule = panier.formules.get(code)
         if code in panier.decl:
             produit, d = panier.decl[code]
@@ -394,9 +400,9 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             base, groupes, retirables, options_retirables = declinaison_f["prix"], [], set(), {}
             rendu_f, supplement_f, alcool, taux, erreur_f = _formule(panier, formule, code, l.get("choix") or [])
         else:
-            return [], 0, _refus("HORS_CARTE", "Ce produit n'est pas à la carte.", code=code)
+            return [], 0, _refus_de_secours("HORS_CARTE", TSC.produit_hors_carte, code=code)
         if code in panier.ruptures:
-            return [], 0, _refus("RUPTURE", f"{nom} n'est plus disponible.", code=code, nom=nom)
+            return [], 0, _refus_de_secours("RUPTURE", TSC.indisponible, code=code, nom=nom)
         # Lot 12 (PRX1, PRX3, PRX8, PRX9) : la plage, le mode, le maximum par commande et le délai minimal ; les quantités du même produit s'additionnent d'une ligne à l'autre
         objet = produit if code in panier.decl else formule
         refus = conditions_de_vente.refus_de_la_ligne(objet, d if code in panier.decl else None, panier.mode, n, pris_du_produit.get(objet["id"], 0), panier.maintenant, panier.servi_le)
@@ -404,12 +410,12 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             return [], 0, _refus("INTERDIT", "", **refus)
         pris_du_produit[objet["id"]] = pris_du_produit.get(objet["id"], 0) + n
         if l.get("prix_unitaire") is not None and l["prix_unitaire"] != base:
-            return [], 0, _refus("REFUSEE", "Le prix ne correspond pas à la carte.", raison="prix_different", code=code)
+            return [], 0, _refus_de_secours("REFUSEE", TSC.prix_different, raison="prix_different", code=code)
         if erreur_f:
             return [], 0, erreur_f
         inconnus = [r for r in (l.get("retires") or []) if r not in retirables]
         if inconnus:
-            return [], 0, _refus("HORS_CARTE", f"On ne peut pas retirer : {inconnus[0]}.", code=code, retire=inconnus[0])
+            return [], 0, _refus_de_secours("HORS_CARTE", TSC.ne_peut_pas_retirer, code=code, retire=inconnus[0])
         rendu: list[dict] = []
         if formule is not None:
             rendu, supplement = rendu_f, supplement_f  # lot 11 : les choix rangés sur les lignes de la formule (``_formule``)

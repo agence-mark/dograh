@@ -77,3 +77,61 @@ def envoi_indisponible(faits: Faits) -> str:
 
 def envoye(faits: Faits) -> str:
     return "C'est envoyé."
+
+
+# --------------------------------------------------------------------------- #
+# La carte : les choix d'un produit, d'une formule, les lignes de la commande (``restauration_commande``)
+# --------------------------------------------------------------------------- #
+
+
+def choix_hors_produit(faits: Faits) -> str:
+    return "Ce choix n'existe pas pour ce produit."
+
+
+def quantite_de_choix_invalide(faits: Faits) -> str:
+    return "Quantité de choix invalide."
+
+
+def indisponible(faits: Faits) -> str:
+    """Un produit ou un choix en rupture : ``nom`` le dit."""
+    return f"{faits['nom']} n'est plus disponible."
+
+
+def option_trop_de_fois(faits: Faits) -> str:
+    return f"{faits['nom']} ne se prend pas plus de {faits['maximum']} fois."
+
+
+def choix_obligatoire(faits: Faits) -> str:
+    return f"Il faut choisir : {faits['nom']}."
+
+
+def pas_plus_pour(faits: Faits) -> str:
+    return f"Pas plus de {faits['maximum']} pour : {faits['nom']}."
+
+
+def choix_hors_formule(faits: Faits) -> str:
+    return "Ce choix n'existe pas dans cette formule."
+
+
+def element_de_formule_indisponible(faits: Faits) -> str:
+    return "Un élément de la formule n'est plus disponible."
+
+
+def une_seule_alternative(faits: Faits) -> str:
+    return "Une seule alternative."
+
+
+def ne_peut_pas_retirer(faits: Faits) -> str:
+    return f"On ne peut pas retirer : {faits['retire']}."
+
+
+def quantite_invalide(faits: Faits) -> str:
+    return "Quantité invalide."
+
+
+def produit_hors_carte(faits: Faits) -> str:
+    return "Ce produit n'est pas à la carte."
+
+
+def prix_different(faits: Faits) -> str:
+    return "Le prix ne correspond pas à la carte."
