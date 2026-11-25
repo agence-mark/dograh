@@ -62,3 +62,15 @@ def test_la_commande_sans_reglages_de_l_appel_lit_le_defaut_du_schema():
 
     assert PORTE_COMMANDE._seuil_de_sortie(SimpleNamespace()) == W.model_fields[CLE_FOIS_AVANT_LA_SORTIE].default == 3
     assert PORTE_COMMANDE._seuil_de_sortie(SimpleNamespace(regles=SimpleNamespace(fois_avant_la_sortie=4))) == 4
+
+
+async def test_la_consigne_de_sortie_ne_donne_aucun_nombre_en_dur(essai_de):
+    """Seuil réglé à 2 : la personne redit « un zzzquoi » une seconde fois ; la consigne ne dit pas « troisième » (le nombre vient du réglage, jamais d'un texte)."""
+    e = await essai_de()
+    e.ctx.configurations = {CLE_FOIS_AVANT_LA_SORTIE: 2}
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("un zzzquoi", ajouter=[{"article": "zzzquoi", "quantite": 1}])
+    r2 = await e.tour("un zzzquoi encore", ajouter=[{"article": "zzzquoi", "quantite": 1}])
+    assert J.A_FAIRE_SORTIE in r2["a_faire"], r2["a_faire"]
+    for nombre in ("troisième", "deuxième", "quatrième", "cinquième", "trois", "deux fois"):
+        assert nombre not in r2["a_faire"].lower(), (nombre, r2["a_faire"])
