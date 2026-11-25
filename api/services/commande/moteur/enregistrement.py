@@ -19,7 +19,7 @@ from api.services.commande.etat_pour_le_modele import manque_de_l_identite
 from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
-from api.services.commande.moteur.articles import _phrase_de_la_question, _reprendre_les_dits
+from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
 CLE_CONFIRMATION = "confirmation_sans_question"  # le fait accompli que le code dit, sans la question qui le suit ; gardé avec le résultat, jamais montré au modèle
 from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, poser_la_relecture, regler
@@ -200,7 +200,7 @@ def question_de_la_ligne_en_attente(p: dict[str, Any]) -> Resultat | None:
     if not en_attente:
         return None
     q = en_attente[0]["attente"]
-    return _avec(_r("CHOIX_OBLIGATOIRE", {"article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"]), p)
+    return _avec(choix_obligatoire({"article": en_attente[0]["nom"], "article_de_la_carte": en_attente[0]["article_nom"], "question": q}), p)
 
 
 async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, **gestes: Any) -> Resultat:

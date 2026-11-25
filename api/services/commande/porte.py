@@ -265,6 +265,11 @@ def _faits_publics(r: Resultat) -> dict[str, Any]:
     return PC.faits_publics(r, _faits_gardes())
 
 
+def faits_vus_par_le_modele(r: Resultat) -> dict[str, Any]:
+    """Les faits d'un refus tels que le modèle les reçoit : ce que doit suffire à dire un texte de secours (``textes_de_secours``)."""
+    return _faits_publics(r)
+
+
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
     return PC.resultat_public(operation, r, _faits_gardes())
 

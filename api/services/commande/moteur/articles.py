@@ -13,7 +13,7 @@ from loguru import logger
 from api.db.bases_clients import recherche_liste
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
-from api.services.commande import lecture, panier as P, tailles
+from api.services.commande import lecture, panier as P, tailles, textes_de_secours as TS
 from api.services.commande.briques import conditions_de_vente, declinaison_nommee, taille_fixant_le_nombre, menu_a_composition_fixe, formule_a_etapes, menu_a_taille_liee, menu_pour_n_personnes, choix_entre_deux_contenus, a_volonte, inconnue, code_de_remise, choix_unique_obligatoire, option_conditionnelle, hors_jours_feries, produit_alcoolise, produit_au_poids, lot_de_vente, taille
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres
@@ -91,35 +91,14 @@ def _question(article: dict, ligne: dict) -> dict | None:
     return None
 
 
-_UNITE_DITE = re.compile(r"(?<![\w,.])(\d+(?:[,.]\d+)?)\s*(cl|ml|l|g|kg)(?![\w])", re.IGNORECASE)
-_UNITES_EN_MOTS = {"cl": "centilitre", "ml": "millilitre", "l": "litre", "g": "gramme", "kg": "kilo"}
-
-
-def _unites_dites(texte: str) -> str:
-    """« 33 cl » -> « 33 centilitres », « 1,5 l » -> « 1,5 litre » : une unité abrégée n'est pas une parole (SA-52, appel 2604)."""
-    def dite(m: re.Match) -> str:
-        valeur = float(m.group(1).replace(",", "."))
-        mot = _UNITES_EN_MOTS[m.group(2).casefold()]
-        return f"{m.group(1)} {mot}{'s' if valeur >= 2 else ''}"
-
-    return _UNITE_DITE.sub(dite, texte or "")
-
-
 def _phrase_de_la_question(q: dict, article_nom: str) -> str:
-    """SA-52 (appel 2604) : la question d'un choix est une PHRASE à dire, jamais une étiquette (« taille pour X : 33 cl… ») que le modèle
-    lit telle quelle : « Quelle taille pour votre X : 33 centilitres, 1,5 litre ou 2 litres ? » ; « Pour votre X, qu'est-ce que vous prenez
-    comme couleurs, deux au choix : … ? ». Sans accord deviné (« comme » ne dépend pas du genre du nom du groupe)."""
-    if not q["options"]:
-        return f"Il faut préciser : {q['nom']}."
-    options = liste_dite([_unites_dites(o) for o in q["options"]])
-    if q["type"] == "declinaison":
-        return f"{q.get('libelle') or 'Quel choix'} pour votre {article_nom} : {options} ?"
-    nom = re.sub(r"\s*\([^)]*\)", "", q["nom"]).strip() or q["nom"]
-    nom = _unites_dites(nom[:1].lower() + nom[1:])
-    combien = ""
-    if q.get("max", 1) > 1:
-        combien = f", {nombre_en_lettres(q['max'])} au choix" if q.get("min") == q["max"] else f", jusqu'à {nombre_en_lettres(q['max'])}"
-    return f"Pour votre {article_nom}, qu'est-ce que vous prenez comme {nom}{combien} : {options} ?"
+    """Le texte de secours de la question d'un choix (``TS.question_d_un_choix``) pour une question et le nom de l'article de la carte."""
+    return TS.question_d_un_choix({"question": q, "article_de_la_carte": article_nom})
+
+
+def choix_obligatoire(faits: dict) -> Resultat:
+    """La question ouverte d'un choix (taille, groupe, étape) : ses faits portent ``question`` et ``article_de_la_carte`` (le nom de l'article, sans la taille de la ligne)."""
+    return _r("CHOIX_OBLIGATOIRE", faits, _phrase_de_la_question(faits["question"], faits["article_de_la_carte"]), faits["question"]["nom"])
 
 
 def _appliquer_les_defauts(article: dict, ligne: dict) -> None:
@@ -137,7 +116,8 @@ def _choisir(ligne: dict, chemin: tuple[str, ...], groupe: dict, option: dict, q
     """Pose ``quantite`` de cette option. Un choix unique (obligatoire, un seul) est REMPLACÉ (changement d'avis) ; sinon les maximums du
     groupe et de l'option sont respectés. ``None`` : posé."""
     if option["rupture"]:
-        return _r("RUPTURE", {"nom": option["nom"], "code": option["code"]}, f"{option['nom']} n'est plus disponible.")
+        faits = {"nom": option["nom"], "code": option["code"]}
+        return _r("RUPTURE", faits, TS.n_est_plus_disponible(faits))
     niveau = _niveau(ligne["choix"], chemin)
     if groupe["max"] == 1 and (groupe["min"] >= 1 or FO.est_une_etape(groupe)):
         return remplacer_un_choix(niveau, groupe, option)
@@ -145,10 +125,11 @@ def _choisir(ligne: dict, chemin: tuple[str, ...], groupe: dict, option: dict, q
     total_groupe = _compte(ligne, chemin, groupe)
     nouvelle = (existant["quantite"] if existant else 0) + quantite
     if total_groupe + quantite > groupe["max"] or nouvelle > groupe["max_par_option"]:
-        return _r(
-            "MAXIMUM_ATTEINT", {"groupe": groupe["nom"], "option": option["nom"], "maximum": groupe["max"], "maximum_par_option": groupe["max_par_option"]},
-            f"{groupe['nom']} : pas plus de {nombre_en_lettres(groupe['max'] if total_groupe + quantite > groupe['max'] else groupe['max_par_option'])} ; {option['nom']} n'est pas pris.",
-        )
+        faits = {
+            "groupe": groupe["nom"], "option": option["nom"], "maximum": groupe["max"], "maximum_par_option": groupe["max_par_option"],
+            "maximum_atteint": groupe["max"] if total_groupe + quantite > groupe["max"] else groupe["max_par_option"],  # le nombre que le refus dit
+        }
+        return _r("MAXIMUM_ATTEINT", faits, TS.maximum_atteint(faits))
     if existant:
         existant["quantite"] = nouvelle
     else:
@@ -217,7 +198,8 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
             choix_sans_objet(ligne, brut.strip(" ,;."), notes_libres)
             continue
         if not index:
-            return _r("HORS_CARTE", {"article": ligne["nom"], "raison": "aucun_choix"}, f"{ligne['nom']} ne se prend pas avec des choix.")
+            faits = {"article": ligne["nom"], "raison": "aucun_choix"}
+            return _r("HORS_CARTE", faits, TS.ne_se_prend_pas_avec_des_choix(faits))
         elements = [Element(cle, o["nom"], tuple(o.get("synonymes") or ()), g["nom"]) for cle, (_, g, o) in index.items()]
         trouve = None
         if brut != morceau:
@@ -238,17 +220,16 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
             continue  # SA-52 : ce que l'article contient déjà (sa description, ses ingrédients) : rien à choisir ni à refuser
         if trouve["statut"] == "AMBIGU":
             noms = [c["libelle"] for c in trouve["candidats"]]
-            return _r("AMBIGU", {"candidats": noms, "dit": morceau, CLE_OPTION_DITE: morceau}, "Vous voulez dire : " + liste_dite(noms) + " ?")
+            faits = {"candidats": noms, "dit": morceau, CLE_OPTION_DITE: morceau}
+            return _r("AMBIGU", faits, TS.vous_voulez_dire(faits))
         if trouve["statut"] != "RETENU":
             proches = [index[c["id"]][2] for c in trouve["candidats"] if c["id"] in index]
             suppl = [o for c in trouve["candidats"] if c["id"] in index for o in [index[c["id"]][2]] if index[c["id"]][1]["role"] == "supplement"]
             propose = suppl or proches
-            return _r(
-                "HORS_CARTE",
-                {"article": ligne["nom"], "dit": morceau, "plus_proches": [{"nom": o["nom"], "prix": o["prix"]} for o in propose[:3]]},
-                f"Je n'ai pas « {morceau} » pour {ligne['nom']}."
-                + (f" Le plus proche : {liste_dite([o['nom'] for o in propose[:3]])}." if propose else _ce_qui_se_choisit(index)),
-            )
+            faits = {"article": ligne["nom"], "dit": morceau, "plus_proches": [{"nom": o["nom"], "prix": o["prix"]} for o in propose[:3]]}
+            if not propose:
+                faits["choix_possibles"] = _ce_qui_se_choisit(index)  # aucune option proche du mot dit : ce que l'article propose
+            return _r("HORS_CARTE", faits, TS.option_hors_carte(faits))
         chemin, g, o = index[trouve["retenu"]]
         refus = _choisir(ligne, chemin, g, o, quantite)
         if refus is not None:
@@ -256,10 +237,9 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
     return None
 
 
-def _ce_qui_se_choisit(index: dict) -> str:
-    """Aucune option proche du mot dit : le refus dit ce que l'article propose (DEC4, conversation du 19/11), au plus quatre noms."""
-    noms = list(dict.fromkeys(o["nom"] for _, (_, _, o) in index.items()))[:4]
-    return f" Ce qui se choisit : {liste_dite(noms)}." if noms else ""
+def _ce_qui_se_choisit(index: dict) -> list[str]:
+    """Aucune option proche du mot dit : ce que l'article propose (DEC4, conversation du 19/11), au plus quatre noms."""
+    return list(dict.fromkeys(o["nom"] for _, (_, _, o) in index.items()))[:4]
 
 
 def placer_les_choix(article: dict, ligne: dict, morceau: str, dans: str | None) -> tuple[Resultat | None, str | None]:
@@ -273,9 +253,10 @@ def placer_les_choix(article: dict, ligne: dict, morceau: str, dans: str | None)
     if "cible" in refus:
         return None, refus["cible"]
     if refus["raison"] == "choix_de_plusieurs_etapes":
-        return _r("INCOMPLETE", {"article": ligne["nom"], **refus}, f"Pour quelle étape : {liste_dite(refus['etapes'])} ?", "etape"), None
-    return _r("HORS_CARTE", {"article": ligne["nom"], **{k: v for k, v in refus.items() if k != "prix_max"}, **({"regle_prix_max": refus["prix_max"]} if refus.get("prix_max") else {})},
-              f"Je n'ai pas « {morceau} » dans {ligne['nom']}."), None
+        faits = {"article": ligne["nom"], **refus}
+        return _r("INCOMPLETE", faits, TS.pour_quelle_etape(faits), "etape"), None
+    faits = {"article": ligne["nom"], **{k: v for k, v in refus.items() if k != "prix_max"}, **({"regle_prix_max": refus["prix_max"]} if refus.get("prix_max") else {})}
+    return _r("HORS_CARTE", faits, TS.pas_dans_la_formule(faits)), None
 
 
 def retirer_sur_le_plat(article: dict, ligne: dict, texte: str) -> Resultat | None:
@@ -291,7 +272,8 @@ def retirer_sur_le_plat(article: dict, ligne: dict, texte: str) -> Resultat | No
                 porteurs.append((c, trouve["retenu"]))
         if len(porteurs) > 1:
             noms = [c["nom"] for c, _ in porteurs]
-            return _r("AMBIGU", {"candidats": noms, "dit": morceau}, "Sur lequel : " + liste_dite(noms) + " ?")
+            faits = {"candidats": noms, "dit": morceau}
+            return _r("AMBIGU", faits, TS.sur_lequel(faits))
         if porteurs:
             c, nom = porteurs[0]
             if nom not in c.setdefault("retires", []):
@@ -675,8 +657,7 @@ async def _un_article(
         variante = menu_pour_n_personnes.brique_for10_pour_combien(article, personnes)  # FOR10 : la sous-case ``personnes`` dit la déclinaison de la formule
         if variante is None and any(d.get("type") == "personnes" for d in article["declinaisons"]):
             question = declinaison_nommee.brique_dec1_demander_la_declinaison(article["declinaisons"])
-            ligne_refus = {"article": article["nom"], "question": question, "dit": personnes, "raison": menu_pour_n_personnes.RAISON_HORS_LISTE}
-            return _r("CHOIX_OBLIGATOIRE", ligne_refus, _phrase_de_la_question(question, article["nom"]), question["nom"])
+            return choix_obligatoire({"article": article["nom"], "article_de_la_carte": article["nom"], "question": question, "dit": personnes, "raison": menu_pour_n_personnes.RAISON_HORS_LISTE})
     if variante:
         # la variante dite et elle seule : une variante que l'article n'a pas reste une question, jamais la seule déclinaison posée sans le dire (C8, 2664)
         declinaison = _declinaison_choisie(article, variante, regles)
@@ -731,9 +712,7 @@ async def _un_article(
         ligne["article_nom"] = article["nom"]
         p["lignes"].append(ligne)
         P.toucher(p)
-        return _avec(
-            _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question}, _phrase_de_la_question(question, article["nom"]), question["nom"]), p
-        )
+        return _avec(choix_obligatoire({"article": ligne["nom"], "article_de_la_carte": article["nom"], "question": question}), p)
     essai = copy.deepcopy(p)
     if not _fusionner(essai, ligne):
         essai["lignes"].append(ligne)
@@ -900,7 +879,7 @@ async def etat_apres_ajout(source: Source, p: dict[str, Any], regles: Reglages, 
     en_attente = P.a_completer(p)
     if en_attente:
         q = en_attente[0]["attente"]
-        return _r("CHOIX_OBLIGATOIRE", {**faits, "article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"])
+        return choix_obligatoire({**faits, "article": en_attente[0]["nom"], "article_de_la_carte": en_attente[0]["article_nom"], "question": q})
     chiffre = await chiffrer_le_panier(source, p, regles)
     minimum = _minimum_non_atteint(chiffre)
     if minimum is not None:
@@ -931,7 +910,7 @@ def changer_la_taille(article: dict, ligne: dict, variante: str, regles: Reglage
     vendables = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"]]
     if dite is None:
         question = declinaison_nommee.brique_dec1_demander_la_declinaison(article["declinaisons"])
-        return _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question, "dit": variante}, _phrase_de_la_question(question, article["nom"]), question["nom"])
+        return choix_obligatoire({"article": ligne["nom"], "article_de_la_carte": article["nom"], "question": question, "dit": variante})
     if dite["code"] == ligne.get("code"):
         return _r("RIEN_A_CHANGER", {"ligne": ligne["n"], "article": ligne["nom"], "variante": dite["nom"]}, "")
     if not dite["vendable"] or dite["rupture"]:
@@ -966,7 +945,7 @@ async def _travailler_une_ligne(
         # La réponse à « quelle taille ? » : la déclinaison dite (le nom d'une taille).
         trouve = _declinaison_choisie(article, taille_dite or choix, regles)
         if trouve is None:
-            return _avec(_r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": attente}, _phrase_de_la_question(attente, article["nom"]), attente["nom"]), p)
+            return _avec(choix_obligatoire({"article": ligne["nom"], "article_de_la_carte": article["nom"], "question": attente}), p)
         if not trouve["vendable"] or trouve["rupture"]:
             return _avec(_r("RUPTURE", {"nom": f"{article['nom']} {trouve['nom']}"}, f"{article['nom']} {trouve['nom']} n'est plus disponible."), p)
         ligne["code"] = trouve["code"]
