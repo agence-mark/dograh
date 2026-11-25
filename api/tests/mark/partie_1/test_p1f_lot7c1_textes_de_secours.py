@@ -614,8 +614,7 @@ async def test_la_commande_se_lit_avec_ses_lignes_dites_et_son_total(appel):
     await appel.ajouter("coca")
     await appel.mode()
     r = await appel.voir()
-    faits = porte.faits_vus_par_le_modele(r)
-    assert faits["lignes_dites"] and r.suggestion == TS.la_commande_se_lit(faits)
+    assert "lignes_dites" not in r.faits  # R3 : la phrase des lignes n'est pas un fait ; le module la passe à part au texte de secours
     assert r.suggestion == "Vous avez un Coca-Cola. Cela fait deux euros."
 
 

@@ -307,7 +307,7 @@ def commande_vide_a_lire(faits: Faits) -> str:
 
 
 def la_commande_se_lit(faits: Faits) -> str:
-    """La commande lue : ``lignes_dites`` (ce qui est pris, déjà dit), ``total`` ou ``sous_total`` et ``minimum_non_atteint``, ``remises`` et ``total_remises``, ``livraison_offerte``."""
+    """La commande lue, une lecture et non un refus : ``lignes_dites`` (ce qui est pris, déjà dit) est passé par le module qui lit, jamais posé dans les faits que reçoit le modèle ; puis ``total`` ou ``sous_total`` et ``minimum_non_atteint``, ``remises`` et ``total_remises``, ``livraison_offerte``."""
     phrase = f"Vous avez {faits['lignes_dites']}."
     minimum, total = faits.get("minimum_non_atteint"), faits.get("total")
     if minimum is not None:

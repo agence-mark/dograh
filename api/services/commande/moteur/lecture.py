@@ -59,12 +59,12 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
     remises = chiffre.faits.get("remises") or []
     offerte = bool(chiffre.faits.get("livraison_offerte")) and total is not None  # lot 14 (OFF4) : le code dit que la livraison est offerte
     faits = {
-        "lignes": lignes, "lignes_dites": _phrase_des_lignes(P.lignes_pretes(p)), "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total,
+        "lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total,
         "remises": [{"nom": r["nom"], "montant": r["montant"]} for r in remises], "total_remises": chiffre.faits.get("total_remises", 0),
         "offerts": chiffre.faits.get("offerts") or [], **({"livraison_offerte": True} if offerte else {}),
         **({"minimum_non_atteint": minimum} if minimum is not None else {}),
     }
-    return _avec(_r("OK", faits, TS.la_commande_se_lit(faits)), p, total=total)
+    return _avec(_r("OK", faits, TS.la_commande_se_lit({**faits, "lignes_dites": _phrase_des_lignes(P.lignes_pretes(p))})), p, total=total)
 
 
 async def _noter_dite(source: Source, ref: str, appel_id: str | None) -> None:
