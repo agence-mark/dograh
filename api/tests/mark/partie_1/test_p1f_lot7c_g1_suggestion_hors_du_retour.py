@@ -107,7 +107,7 @@ async def _question(essai_de, suggestions):
     await e.tour("à emporter", mode_de_retrait="emporter")
     suggestions.clear()
     r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-    return r, [r["question"]["texte"]] if isinstance(r.get("question"), dict) else [], _du_tour(suggestions)
+    return r, [r["question"]["texte"]] if isinstance(r.get("question"), dict) and r["question"]["texte"] else [], _du_tour(suggestions)
 
 
 async def _texte_a_dire(salle, monkeypatch, suggestions):
@@ -132,8 +132,8 @@ async def test_scenario_heure_a_dire_atteint_le_canal(essai_de, suggestions, mon
 
 
 async def test_scenario_question_atteint_le_canal(essai_de, suggestions):
-    _, valeurs, du_tour = await _question(essai_de, suggestions)
-    assert valeurs and du_tour, (valeurs, du_tour)
+    r, valeurs, du_tour = await _question(essai_de, suggestions)
+    assert r["question"]["type"] == "variante" and du_tour and not valeurs, (r["question"], du_tour)  # la question est posée, sans phrase
 
 
 async def test_scenario_texte_a_dire_atteint_le_canal(salle, monkeypatch, suggestions):
@@ -159,7 +159,6 @@ async def test_g1_canal_heure_a_dire(essai_de, suggestions, monkeypatch):
     assert not _fuites(r, du_tour), _fuites(r, du_tour)
 
 
-@_a_fermer("question.texte")
 async def test_g1_canal_question_texte(essai_de, suggestions):
     r, _, du_tour = await _question(essai_de, suggestions)
     assert not _fuites(r, du_tour), _fuites(r, du_tour)

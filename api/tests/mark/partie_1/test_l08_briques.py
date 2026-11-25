@@ -5,6 +5,7 @@ Une classe par brique (``TestART1`` ...), chacune avec sa règle, son aller-reto
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.db.bases_clients import restauration_commande as RC
 from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
 from api.services.commande.moteur import articles as _articles
@@ -243,9 +244,9 @@ class TestDEC1:
         """Sur la carte Kebab-like : « un Kefta » demande la version (Classic ou Royal), « une Regina » la taille ; jamais l'un pour l'autre."""
         e = await brique(essai_de, "DEC1")
         r = await e.tour("un kefta", ajouter=[{"article": "kefta", "quantite": 1}])
-        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and "Quelle version pour votre Kefta : Classic ou Royal" in fait(r), r
+        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and "Quelle version pour votre Kefta : Classic ou Royal" in CONV.question_de(e.p)["texte"] and r["question"]["texte"] == "", r  # 7b-C4 : le texte reste au registre (repli), le modèle ne le reçoit pas
         r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-        assert "Quelle taille pour votre Regina : Junior ou Senior" in fait(r), r
+        assert "Quelle taille pour votre Regina : Junior ou Senior" in CONV.question_de(e.p)["texte"], r
 
     async def test_dec1_aller_retour_caisse(self, essai_de):
         e = await brique(essai_de, "DEC1")
@@ -261,7 +262,7 @@ class TestDEC3:
         """« un coca » sur une carte à 33 cl et à la bouteille : la contenance est demandée, jamais supposée ; la réponse la pose."""
         e = await brique(essai_de, "DEC3")
         r = await e.tour("un coca", ajouter=[{"article": "coca", "quantite": 1}])
-        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and "Quelle contenance pour votre Coca : 33 centilitres ou Bouteille" in fait(r), r
+        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and "Quelle contenance pour votre Coca : 33 centilitres ou Bouteille" in CONV.question_de(e.p)["texte"] and r["question"]["texte"] == "", r  # 7b-C4 : texte au registre, pas au modèle
         await e.tour("la bouteille", ajouter=[{"article": "coca", "quantite": 1, "variante": "Bouteille"}])
         assert [(l["nom"], l["quantite"]) for l in e.p["lignes"] if not l.get("attente")] == [("Coca Bouteille", 1)], e.retours[-1]
 

@@ -31,7 +31,7 @@ from api.schemas.workflow_configurations import DEFAULT_RESERVATION_BOUCLE_FOIS_
 from api.services.actions_communes.seuil_de_sortie import CLE_RESERVATION, CLE_RESERVATION_BOUCLE, seuil_de_sortie
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
-from api.services.actions_communes.enveloppe import Enveloppe, Question
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, Enveloppe, Question
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
 from api.services.actions_communes.repli import poser_le_fait_bloquant
@@ -175,7 +175,7 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
     ou de l'annulation (D5, banc : ``deja_dit_par_le_code``)."""
     avant = PC.premier_cas((
         # lot 20 : le choix porte jours et heures
-        (nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation", "choix") and bool(nee.get("texte")), lambda: str(nee["texte"])),
+        (nee is not None and nee.get("type") in QUESTIONS_DITES_PAR_LE_CODE and bool(nee.get("texte")), lambda: str(nee["texte"])),  # 7b-C4 : le choix n'y est plus, le modèle dit les réservations
         (dernier is not None and bool(dernier.suggestion) and (
             dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)), lambda: dernier.suggestion),
     ))
@@ -402,6 +402,8 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         if transmise:
             faits["transmise_a_l_equipe"] = True  # la promesse est tenue : le modèle peut dire que la demande est transmise
         faits = {k: v for k, v in faits.items() if k != "raison"}
+        if dernier.statut == "AMBIGU" and isinstance(posee_choix := CONV.question_de(e), dict) and posee_choix.get("type") == "choix":
+            faits["candidats_dits"] = list(posee_choix.get("candidats_dits") or [])  # 7b-C4 : les réservations de la personne, que le modèle dit avec ses mots
         if isinstance((dernier.faits or {}).get("propositions"), list):
             faits["horaires_libres"] = [p.get("heure_dite") or p.get("quand_dit") for p in dernier.faits["propositions"]]  # B4 (M9), Pierre 14 : la base rend ``quand_dit``, le moteur ``heure_dite`` (avant : null)
     plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
