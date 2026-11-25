@@ -413,6 +413,10 @@ def test_c9_aucun_nom_du_repli_compose_ne_reste_dans_le_code():
     from api.outils import inventaire_rustines as I
 
     reste = []
+    # reprise R3 : les textes qui décrivaient l'ancien repli (le texte de secours « lu » ou « dit » par le repli) sont faux depuis le commit 9
+    for f in (I.RACINE_API / "services").rglob("*.py"):
+        texte = f.read_text(encoding="utf-8")
+        reste += [f"{f.name}: {m}" for m in ("lu par le repli", "que le repli dit", "n'est lu que par le repli") if m in texte]
     for dossier in ("services", "db", "routes", "tasks", "mcp_server"):
         for f in (I.RACINE_API / dossier).rglob("*.py"):
             texte = f.read_text(encoding="utf-8")

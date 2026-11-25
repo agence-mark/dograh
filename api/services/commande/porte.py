@@ -283,7 +283,7 @@ def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
 
 def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
     """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…), sans phrase : le modèle le dit avec ses mots d'après les faits ;
-    le texte de secours du module (``r.suggestion``) n'est lu que par le repli, par le fait bloquant."""
+    le texte de secours du module (``r.suggestion``) n'est plus dit par le code (C5) : il reste jusqu'à C7, qui en traduit chaque information en fait."""
     return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r)}
 
 
