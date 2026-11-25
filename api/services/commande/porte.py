@@ -1213,6 +1213,34 @@ def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
     return f"propose-lui {article} en une question, avec tes mots et sans aucun chiffre : le code dit son prix juste après ta phrase", bool(q.get("chiffre"))
 
 
+def _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee) -> dict[str, Any]:
+    """Les faits que la fiche rend au modèle : le panier, le refus du module, les refus de la fiche, l'heure qui manque, le montant d'une annulation à confirmer."""
+    faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
+    if bloquant:
+        faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
+    elif refusants:
+        faits["fait_bloquant"] = {"statut_du_module": refusants[0].statut, "manque": refusants[0].manque}
+    if refusants:
+        faits["refus_de_la_fiche"] = [_refus_pour_le_modele(r) for r in refusants]  # tous les refus de la fiche, avec la question ouverte du registre : le modèle dit les deux
+    if heures:
+        faits["heure_a_dire"] = [_refus_pour_le_modele(r) for r in heures]  # ce qui manque de l'heure voulue : le modèle le demande avec ses mots
+    if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and (p.get("enregistree") or {}).get("total") is not None:
+        faits["annulation_a_confirmer"] = {"montant": p["enregistree"]["total"]}  # DC4 (Q2 = A) : le modèle pose la question, le montant est un fait que la barrière des chiffres laisse passer
+    return faits
+
+
+def _a_faire_de_la_fiche(refus, executees, nee) -> tuple[Any, bool]:
+    """La consigne du tour (selon la question née, jamais quand la fiche a refusé) et si le prix est dit par le code après la phrase du modèle."""
+    a_faire, prix_dit = B.a_faire_des_refus(refus, executees), False
+    if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and not refus:
+        a_faire = A_FAIRE_DE_L_ANNULATION
+    if nee is not None and nee.get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION and not refus:
+        a_faire = formule_a_etapes.A_FAIRE
+    if nee is not None and nee.get("type") == "proposition" and not refus:
+        a_faire, prix_dit = _a_faire_de_la_proposition(nee)
+    return a_faire, prix_dit
+
+
 def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee=None, refusants=(), heures=()) -> dict[str, Any]:
     from api.services.actions_communes.enveloppe import Question
 
@@ -1231,27 +1259,11 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         plus["refus"] = refus
         plus["cases_refusees"] = sorted({c for r in refus for c in r["cases"]})
         plus["cases_non_executees_car_liees"] = sorted(ecartees - set(plus["cases_refusees"]) - {"*"})
-    faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
-    if bloquant:
-        faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
-    elif refusants:
-        faits["fait_bloquant"] = {"statut_du_module": refusants[0].statut, "manque": refusants[0].manque}
-    if refusants:
-        faits["refus_de_la_fiche"] = [_refus_pour_le_modele(r) for r in refusants]  # tous les refus de la fiche, avec la question ouverte du registre : le modèle dit les deux
-    if heures:
-        faits["heure_a_dire"] = [_refus_pour_le_modele(r) for r in heures]  # ce qui manque de l'heure voulue : le modèle le demande avec ses mots
-    if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and (p.get("enregistree") or {}).get("total") is not None:
-        faits["annulation_a_confirmer"] = {"montant": p["enregistree"]["total"]}  # DC4 (Q2 = A) : le modèle pose la question, le montant est un fait que la barrière des chiffres laisse passer
+    faits = _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee)
     premier = refus[0] if refus else None
-    a_faire = B.a_faire_des_refus(refus, executees)
-    if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and not refus:
-        a_faire = A_FAIRE_DE_L_ANNULATION
-    if nee is not None and nee.get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION and not refus:
-        a_faire = formule_a_etapes.A_FAIRE
-    if nee is not None and nee.get("type") == "proposition" and not refus:
-        a_faire, prix_dit = _a_faire_de_la_proposition(nee)
-        if prix_dit:
-            plus["prix_dit_par_le_code_apres_ta_phrase"] = True
+    a_faire, prix_dit = _a_faire_de_la_fiche(refus, executees, nee)
+    if prix_dit:
+        plus["prix_dit_par_le_code_apres_ta_phrase"] = True
     return Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None,
                      a_faire=a_faire, plus=plus).vers_json()
 

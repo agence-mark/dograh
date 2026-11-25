@@ -118,7 +118,7 @@ def valeurs_des_faits(faits: Any) -> list[str]:
     if isinstance(faits, float):
         return valeurs_des_faits(round(faits))
     if isinstance(faits, str):
-        return [faits] if re.search(r"\d", faits) or valeurs_et_places(faits)[0] else []
+        return [faits] if any(c.isdigit() for c in faits) or valeurs_et_places(faits)[0] else []
     if isinstance(faits, dict):
         return [v for x in faits.values() for v in valeurs_des_faits(x)]
     if isinstance(faits, (list, tuple)):

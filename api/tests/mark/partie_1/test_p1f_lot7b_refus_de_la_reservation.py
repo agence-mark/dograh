@@ -16,8 +16,11 @@ from api.services.reservation import porte as PORTE
 from api.services.workflow import parole_de_la_fiche as PF
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark.partie_1.test_l07_reservation import MOTS
-from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
-from api.tests.mark.test_restauration_reservation import SAMEDI_20H, demande, salle  # noqa: F401
+from api.tests.mark import test_base_client as _BASE
+from api.tests.mark import test_restauration_reservation as _RESA
+from api.tests.mark.test_restauration_reservation import demande
+
+base_essai, base_prete, salle = _BASE.base_essai, _BASE.base_prete, _RESA.salle  # les fixtures du classeur, reprises sans import inutile
 
 
 async def test_26_complet_le_modele_dit_le_refus_et_propose_les_horaires_libres(salle, monkeypatch):

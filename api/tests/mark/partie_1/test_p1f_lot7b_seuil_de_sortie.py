@@ -8,7 +8,10 @@ from __future__ import annotations
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.seuil_de_sortie import CLE_FOIS_AVANT_LA_SORTIE, seuil_de_sortie
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
-from api.tests.mark.test_restauration_reservation import SAMEDI_20H, salle  # noqa: F401
+from api.tests.mark import test_restauration_reservation as _RESA
+from api.tests.mark.test_restauration_reservation import SAMEDI_20H
+
+salle = _RESA.salle  # la fixture de la salle, reprise sans import inutile
 
 
 def test_le_reglage_se_lit_avec_le_defaut_du_metier_et_ignore_ce_qui_est_faux():
@@ -48,7 +51,7 @@ async def test_commande_sans_reglage_garde_l_issue_au_second_refus(essai_de):
     assert J.A_FAIRE_ISSUE in r2["a_faire"] and J.A_FAIRE_SORTIE not in r2["a_faire"], r2["a_faire"]
 
 
-async def _choix_non_compris_deux_fois(salle, monkeypatch, configurations):  # noqa: F811
+async def _choix_non_compris_deux_fois(salle, monkeypatch, configurations):
     from api.db.bases_clients.restauration_reservation import creer_reservation
     from api.tests.mark.partie_1.porte_essai_reservation import TEL
 
@@ -66,11 +69,11 @@ async def _choix_non_compris_deux_fois(salle, monkeypatch, configurations):  # n
     return retours
 
 
-async def test_reservation_sans_reglage_le_choix_non_compris_s_arrete_au_second(salle, monkeypatch):  # noqa: F811
+async def test_reservation_sans_reglage_le_choix_non_compris_s_arrete_au_second(salle, monkeypatch):
     retours = await _choix_non_compris_deux_fois(salle, monkeypatch, {})
     assert len(retours) == 2 and retours[-1]["raison"] == "choix_non_compris_deux_fois", retours
 
 
-async def test_reservation_reglee_a_trois_pose_une_question_de_plus(salle, monkeypatch):  # noqa: F811
+async def test_reservation_reglee_a_trois_pose_une_question_de_plus(salle, monkeypatch):
     retours = await _choix_non_compris_deux_fois(salle, monkeypatch, {CLE_FOIS_AVANT_LA_SORTIE: 3})
     assert len(retours) == 3 and retours[-1]["raison"] == "choix_non_compris_deux_fois", retours
