@@ -15,7 +15,6 @@ from api.services.commande import panier as P
 from api.services.reservation import etat_pour_le_modele as ETAT_RESERVATION
 
 PHRASE = "Quelle taille pour la Regina ?"
-ROUGE = pytest.mark.xfail(strict=True, raises=AssertionError, reason="5e canal : l'état écrit encore la phrase de secours (fermé au commit suivant)")
 
 
 def _etat_de_la_commande(question: dict) -> str:
@@ -40,19 +39,16 @@ QUESTIONS_DE_LA_COMMANDE = [
 ]
 
 
-@ROUGE
 @pytest.mark.parametrize("question", QUESTIONS_DE_LA_COMMANDE, ids=lambda q: q["type"])
 def test_commande_la_phrase_de_secours_n_est_pas_dans_l_etat(question):
     assert PHRASE not in _etat_de_la_commande(question)
 
 
-@ROUGE
 def test_commande_l_ambiguite_donne_ses_candidats_en_faits_bruts():
     etat = _etat_de_la_commande({"type": "ambiguite", "texte": PHRASE, moteur.CLE_CANDIDATS: [{"libelle": "Regina", "id": 1}, {"libelle": "Reine", "id": 2}]})
     assert "(précision) : Regina ; Reine ;" in etat, etat
 
 
-@ROUGE
 def test_commande_la_variante_donne_l_article_en_question():
     assert "(variante) : Regina ;" in _etat_de_la_commande({"type": "variante", "texte": PHRASE, "article_en_question": "Regina"})
 
@@ -62,7 +58,6 @@ def test_commande_une_question_dite_par_le_code_garde_son_texte(type_):
     assert PHRASE in _etat_de_la_commande({"type": type_, "texte": PHRASE})
 
 
-@ROUGE
 def test_reservation_la_phrase_de_secours_du_choix_n_est_pas_dans_l_etat():
     assert PHRASE not in _etat_de_la_reservation({"type": "choix", "texte": PHRASE, "candidats_dits": ["jeudi à 19 h"]})
 
