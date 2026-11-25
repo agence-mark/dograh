@@ -280,9 +280,9 @@ def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
 
 
 def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
-    """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…) et son explication, pour qu'il le dise avec ses mots."""
-    explication = (r.suggestion or "").strip()
-    return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r), **({"explication": explication} if explication else {})}
+    """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…), sans phrase : le modèle le dit avec ses mots d'après les faits ;
+    le texte de secours du module (``r.suggestion``) n'est lu que par le repli, par le fait bloquant."""
+    return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r)}
 
 
 async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, question: dict, sens: str | None,

@@ -774,7 +774,9 @@ async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_modele(essai_de):
     cases = {"ajouter": [{"article": "coupe de glace", "variante": "3 boules", "quantite": 1, "composition": ["vanille", "chocolat", "café", "pistache"]}]}
     r, d = await _parole_de(e, "C'est noté pour la coupe.", **cases)
     assert any(x.get("statut_du_module") == "MAXIMUM_ATTEINT" for x in r["resultats"]), r
-    assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None and "pas plus de trois" in json.dumps(r["faits"]["refus_de_la_fiche"], ensure_ascii=False), (d, r["faits"])
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None, (d, r["faits"])
+    refus = r["faits"]["refus_de_la_fiche"]  # lot 7b-C4 (R = A) : le maximum est un fait (« pas plus de trois » est le texte de secours du repli), sans phrase
+    assert [(x["statut_du_module"], x["faits"]["maximum"]) for x in refus] == [("MAXIMUM_ATTEINT", 3)], refus
 
 
 async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de):

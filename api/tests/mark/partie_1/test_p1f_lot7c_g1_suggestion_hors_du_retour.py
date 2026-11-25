@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 from api.services.commande import moteur, porte
+from api.services.commande.phrases_dites_par_le_code import PHRASES as PHRASES_DU_PLAN
 from api.services.commande.moteur import socle as _socle
 from api.services.commande.resultat import Resultat
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
@@ -64,6 +65,19 @@ def _qui_figurent(suggestions_du_tour: list[str], valeurs: list[str]) -> list[st
     return [v for v in valeurs if any(s in v for s in suggestions_du_tour)]
 
 
+_DU_PLAN = [re.compile("^" + re.sub(r"\\{[a-z_]+\\}", ".*", re.escape(ph.texte)) + "$") for ph in PHRASES_DU_PLAN.values()]
+
+
+def _hors_du_plan(valeurs: list[str]) -> list[str]:
+    """Les valeurs d'un retour moins les phrases que le plan permet au code de dire mot pour mot (§ 2, ``phrases_dites_par_le_code``)."""
+    return [v for v in valeurs if not any(m.match(v.strip()) for m in _DU_PLAN)]
+
+
+def _fuites(r: dict, du_tour: list[str]) -> list[str]:
+    """G1 sur le retour ENTIER (audit C0) : une suggestion du tour sous n'importe quelle clé (``pourquoi``, ``dit``…) est une fuite, pas seulement dans son canal."""
+    return _qui_figurent(du_tour, _hors_du_plan(_valeurs(r)))
+
+
 async def _explication(essai_de, suggestions):
     """Client « Une pizza au homard. » : l'article n'existe pas, le module refuse (introuvable) et donne sa phrase."""
     e = await essai_de()
@@ -107,13 +121,14 @@ async def _texte_a_dire(salle, monkeypatch, suggestions):
 # ── le scénario atteint le canal (vert) ─────────────────────────────────────────────────────────────────────────────────
 
 async def test_scenario_explication_atteint_le_canal(essai_de, suggestions):
-    _, valeurs, du_tour = await _explication(essai_de, suggestions)
-    assert valeurs and du_tour, (valeurs, du_tour)
+    """Le refus est bien dans ``refus_de_la_fiche`` (ses faits, sans phrase) et le module a bien écrit sa suggestion : le canal est fermé, pas absent."""
+    r, valeurs, du_tour = await _explication(essai_de, suggestions)
+    assert r["faits"]["refus_de_la_fiche"] and du_tour and not valeurs, (r["faits"], du_tour)
 
 
 async def test_scenario_heure_a_dire_atteint_le_canal(essai_de, suggestions, monkeypatch):
-    _, valeurs, du_tour = await _heure_a_dire(essai_de, suggestions, monkeypatch)
-    assert valeurs and FERME in du_tour, (valeurs, du_tour)
+    r, valeurs, du_tour = await _heure_a_dire(essai_de, suggestions, monkeypatch)
+    assert r["faits"]["heure_a_dire"] and FERME in du_tour and not valeurs, (r["faits"], du_tour)
 
 
 async def test_scenario_question_atteint_le_canal(essai_de, suggestions):
@@ -129,30 +144,28 @@ async def test_scenario_texte_a_dire_atteint_le_canal(salle, monkeypatch, sugges
 # ── G1 : aucune suggestion du tour dans le canal (échec attendu strict, un par canal) ───────────────────────────────────
 
 def _a_fermer(canal: str):
-    return pytest.mark.xfail(strict=True, reason=f"G1, canal {canal} : la suggestion du module arrive encore au modèle (7b-C4 ferme le canal)")
+    return pytest.mark.xfail(strict=True, raises=AssertionError, reason=f"G1, canal {canal} : la suggestion du module arrive encore au modèle (7b-C4 ferme le canal)")
 
 
-@_a_fermer("explication")
 async def test_g1_canal_explication(essai_de, suggestions):
     """Client « Une pizza au homard. » : le retour ne dit ni la phrase du module ni « pas de pizza » ; le modèle dit le refus avec ses mots, d'après les faits."""
-    r, valeurs, du_tour = await _explication(essai_de, suggestions)
-    assert not _qui_figurent(du_tour, valeurs), valeurs
+    r, _, du_tour = await _explication(essai_de, suggestions)
+    assert not _fuites(r, du_tour), _fuites(r, du_tour)
     assert not [v for v in _valeurs(r) if "pas de pizza" in v], r
 
 
-@_a_fermer("heure_a_dire")
 async def test_g1_canal_heure_a_dire(essai_de, suggestions, monkeypatch):
-    _, valeurs, du_tour = await _heure_a_dire(essai_de, suggestions, monkeypatch)
-    assert not _qui_figurent(du_tour, valeurs), valeurs
+    r, _, du_tour = await _heure_a_dire(essai_de, suggestions, monkeypatch)
+    assert not _fuites(r, du_tour), _fuites(r, du_tour)
 
 
 @_a_fermer("question.texte")
 async def test_g1_canal_question_texte(essai_de, suggestions):
-    _, valeurs, du_tour = await _question(essai_de, suggestions)
-    assert not _qui_figurent(du_tour, valeurs), valeurs
+    r, _, du_tour = await _question(essai_de, suggestions)
+    assert not _fuites(r, du_tour), _fuites(r, du_tour)
 
 
 @_a_fermer("texte_a_dire")
 async def test_g1_canal_texte_a_dire(salle, monkeypatch, suggestions):
-    _, valeurs, du_tour = await _texte_a_dire(salle, monkeypatch, suggestions)
-    assert not _qui_figurent(du_tour, valeurs), valeurs
+    r, _, du_tour = await _texte_a_dire(salle, monkeypatch, suggestions)
+    assert not _fuites(r, du_tour), _fuites(r, du_tour)
