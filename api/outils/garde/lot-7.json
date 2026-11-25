@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "24a2cc7b1c2759a8adb2f8ab6e8d3c15e9bfec5b",
+ "commit_teste": "101526a65785984c3b3041a3a42e4bd976141de3",
  "base_de_comparaison": "e36536d89927d0018afe6b87e2e0348fdd89ab93",
  "poste": "sa12",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.71s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.80s ========================"
   },
   "noqa": {
    "vert": true,
@@ -85,7 +85,7 @@
     "tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py",
     "tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_la_commande_sort_a_trois_pour_le_refus_redit_et_la_boucle\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_le_seuil_est_obligatoire_et_aucune_constante_ne_le_double\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_la_commande_sans_reglages_de_l_appel_lit_le_defaut_du_schema\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py::test_transmission_faite_la_consigne_dit_transmise_et_ne_dit_pas_passe\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py::test_transmission_non_faite_rien_n_est_promis\n=========== 573 passed, 16 xfailed, 2 warnings in 230.04s (0:03:50) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_le_seuil_est_obligatoire_et_aucune_constante_ne_le_double\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_la_commande_sans_reglages_de_l_appel_lit_le_defaut_du_schema\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_la_consigne_de_sortie_ne_donne_aucun_nombre_en_dur\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py::test_transmission_faite_la_consigne_dit_transmise_et_ne_dit_pas_passe\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py::test_transmission_non_faite_rien_n_est_promis\n=========== 574 passed, 16 xfailed, 2 warnings in 239.42s (0:03:59) ==========="
   }
  }
 }
