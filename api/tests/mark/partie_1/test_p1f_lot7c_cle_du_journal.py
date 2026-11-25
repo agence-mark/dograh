@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import porte
-from api.services.commande.moteur import articles
+from api.services.commande import textes_de_secours as TS
 from api.services.commande.resultat import Resultat
 
 
@@ -42,7 +42,7 @@ async def test_le_compteur_ne_repart_pas_quand_le_texte_de_suggestion_change(ess
         tour["n"] += 1
         return f"variante {tour['n']}"
 
-    monkeypatch.setattr(articles, "liste_dite", liste_changeante)
+    monkeypatch.setattr(TS, "liste_dite", liste_changeante)  # le texte de secours de l'article introuvable (7b-C1) lit la liste dite
     retours = []
     for _ in range(3):
         retours.append(await e.tour("un zzzquoi", ajouter=[{"article": "zzzquoi", "quantite": 1}]))
