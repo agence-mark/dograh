@@ -233,7 +233,9 @@ def test_un_appelant_connu_n_ouvre_pas_la_commande_au_bonjour():
 
 def test_seuls_le_choix_du_mode_et_le_panier_neuf_ecrivent_le_mode():
     """Le mode n'est jamais écrit par le chargement de l'appelant connu : dans ``services/commande``, seuls le choix du mode (``mode_et_adresse``) et
-    ``repartir_de_zero`` (``panier``) écrivent ``["mode"] =``. Un troisième écrivain ouvrirait la commande dès le bonjour d'un habitué."""
+    ``repartir_de_zero`` (``panier``) l'écrivent DIRECTEMENT (``["mode"] =``). Un troisième écrivain direct ouvrirait la commande dès le bonjour d'un habitué.
+    Le test ne voit pas ``registre.repartir`` (la nouvelle commande, DC5), qui recopie le mode par une boucle (``neuf[cle] = p[cle]``) puis ``remplacer_par`` :
+    c'est la copie voulue, le mode de la commande d'avant est gardé."""
     import re
 
     ecrivains = sorted(
