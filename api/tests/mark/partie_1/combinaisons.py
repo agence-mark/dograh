@@ -686,7 +686,7 @@ def rc6(partie: Partie) -> list[Faute]:
     def signe(o: Observation):
         r = o.retour or {}
         bloquant = (r.get("faits") or {}).get("fait_bloquant")
-        return (question(o.apres).get("texte"), json.dumps(bloquant, sort_keys=True) if bloquant else None, r.get("raison"))  # B3 : jamais « 'None' »
+        return (CONV.identite_de_la_question(question(o.apres)), json.dumps(bloquant, sort_keys=True) if bloquant else None, r.get("raison"))  # B3 : jamais « 'None' » ; lot 7b-C5 : la question par sa structure, plus par son texte
 
     sortie = J.A_FAIRE_SORTIE in str((obs[-1].retour or {}).get("a_faire") or "")  # B3 : la sortie du journal (un message à l'équipe)
     if len({signe(o) for o in obs}) == 1 and all(lignes_de(o.avant) == lignes_de(o.apres) for o in obs) and any(signe(obs[0])) and not sortie:
@@ -726,7 +726,7 @@ def rc9(o: Observation) -> list[Faute]:
     """Une question a un numéro stable et tombe avec son objet."""
     f: list[Faute] = []
     qa, qp = question(o.avant), question(o.apres)
-    if qa and qp and qa.get("type") == qp.get("type") and qa.get("texte") == qp.get("texte") and qa.get("id") != qp.get("id"):
+    if qa and qp and CONV.identite_de_la_question(qa)[1:] == CONV.identite_de_la_question(qp)[1:] and qa.get("id") != qp.get("id"):  # lot 7b-C5 : la même question par sa structure (type, objet), plus par son texte
         f.append(("RC9", f"la même question change de numéro : {qa.get('id')} → {qp.get('id')}"))
     if qp.get("type") == "proposition" and qp.get("article_propose"):
         noms = {str(l.get("nom") or "") for l in o.apres.get("lignes") or []}
