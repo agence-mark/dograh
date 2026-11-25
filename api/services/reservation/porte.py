@@ -27,8 +27,8 @@ from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_RESERVATION
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes.consignes import en_une_phrase
-from api.schemas.workflow_configurations import DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE
-from api.services.actions_communes.seuil_de_sortie import CLE_RESERVATION, seuil_de_sortie
+from api.schemas.workflow_configurations import DEFAULT_RESERVATION_BOUCLE_FOIS_AVANT_LA_SORTIE, DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE
+from api.services.actions_communes.seuil_de_sortie import CLE_RESERVATION, CLE_RESERVATION_BOUCLE, seuil_de_sortie
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
 from api.services.actions_communes.enveloppe import Enveloppe, Question
@@ -500,7 +500,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                                            phrase_du_code=getattr(ctx, "phrase_du_code", None))
                 vu_avant = DU.ce_qui_se_voit(e)
                 retour = await executer_la_fiche_de_reservation(dict(arguments or {}), contexte)
-                retour = DU.constater(retour, vu_avant, e, texte_a_dire_du_manque, seuil_de_sortie(contexte.configurations, CLE_RESERVATION, DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE))  # B2 : ce qui est dû, comme la commande (même faute, même traitement)
+                retour = DU.constater(retour, vu_avant, e, texte_a_dire_du_manque, seuil_de_sortie(contexte.configurations, CLE_RESERVATION_BOUCLE, DEFAULT_RESERVATION_BOUCLE_FOIS_AVANT_LA_SORTIE))  # B2 : ce qui est dû, comme la commande (même faute, même traitement)
                 _poser_l_issue_de_la_fiche(ctx, contexte.operations)
                 await _dire_au_flux(ctx, source, contexte.operations)
                 _mesurer(ctx.fiche, contexte.operations)

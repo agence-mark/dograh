@@ -7,9 +7,8 @@ from __future__ import annotations
 
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.seuil_de_sortie import CLE_FOIS_AVANT_LA_SORTIE, CLE_RESERVATION, seuil_de_sortie
-from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
+from api.tests.mark.partie_1.porte_essai_reservation import choix_non_compris
 from api.tests.mark import test_restauration_reservation as _RESA
-from api.tests.mark.test_restauration_reservation import SAMEDI_20H
 
 salle = _RESA.salle  # la fixture de la salle, reprise sans import inutile
 
@@ -62,35 +61,17 @@ async def test_commande_sans_reglage_garde_l_issue_au_second_refus(essai_de):
     assert J.A_FAIRE_ISSUE in r2["a_faire"] and J.A_FAIRE_SORTIE not in r2["a_faire"], r2["a_faire"]
 
 
-async def _choix_non_compris_deux_fois(salle, monkeypatch, configurations):
-    from api.db.bases_clients.restauration_reservation import creer_reservation
-    from api.tests.mark.partie_1.porte_essai_reservation import TEL
-
-    for numero, debut, personnes in (("a", SAMEDI_20H, 2), ("b", SAMEDI_20H.replace(day=15, hour=19), 3)):
-        await creer_reservation(salle.c, salle.a, {"debut": debut, "couverts": personnes, "prenom": "Alice", "telephone": TEL, "appel_id": f"avant-{numero}"})
-    essai = EssaiReservation(salle, monkeypatch)
-    essai.ctx.configurations = configurations
-    r = await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
-    retours = []
-    for _ in range(3):
-        r = await essai.tour("euh bleu", reponse={"question_id": (r.get("question") or {}).get("id", ""), "sens": "autre", "valeurs": ["bleu"]})
-        retours.append(r)
-        if "question" not in r:
-            break
-    return retours
-
-
 async def test_reservation_sans_reglage_le_choix_non_compris_s_arrete_au_second(salle, monkeypatch):
-    retours = await _choix_non_compris_deux_fois(salle, monkeypatch, {})
+    retours = await choix_non_compris(salle, monkeypatch, {})
     assert len(retours) == 2 and retours[-1]["raison"] == "choix_non_compris_deux_fois", retours
 
 
 async def test_reservation_reglee_a_trois_pose_une_question_de_plus(salle, monkeypatch):
-    retours = await _choix_non_compris_deux_fois(salle, monkeypatch, {CLE_RESERVATION: 3})
+    retours = await choix_non_compris(salle, monkeypatch, {CLE_RESERVATION: 3})
     assert len(retours) == 3 and retours[-1]["raison"] == "choix_non_compris_deux_fois", retours
 
 
 async def test_reservation_ne_lit_pas_la_cle_de_la_commande(salle, monkeypatch):
     """Mettre la commande à 4 ne change rien à la réservation : le choix non compris s'arrête toujours au second."""
-    retours = await _choix_non_compris_deux_fois(salle, monkeypatch, {CLE_FOIS_AVANT_LA_SORTIE: 4})
+    retours = await choix_non_compris(salle, monkeypatch, {CLE_FOIS_AVANT_LA_SORTIE: 4})
     assert len(retours) == 2 and retours[-1]["raison"] == "choix_non_compris_deux_fois", retours

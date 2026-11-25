@@ -1,6 +1,6 @@
 """[.mark] Lot 7b, M6 : le nombre de fois qu'une même chose se redit avant la sortie (proposer un message à l'équipe), réglage du restaurant.
 
-UNE clé de configuration par métier (``commande_fois_avant_la_sortie``, ``reservation_fois_avant_la_sortie``) ; la valeur par défaut de chacune vit dans le schéma
+UNE clé de configuration par seuil distinct (``commande_fois_avant_la_sortie``, ``reservation_fois_avant_la_sortie`` pour le choix et la recherche, ``reservation_boucle_fois_avant_la_sortie``) ; la valeur par défaut de chacune vit dans le schéma
 (``schemas/workflow_configurations.py``, lue par le formulaire) et ``seuil_de_sortie`` la reçoit de l'appelant : aucune constante cachée ici. Le journal de ce qui est dit ne lit
 aucun réglage : il reçoit le seuil.
 """
@@ -13,6 +13,7 @@ from loguru import logger
 
 CLE_FOIS_AVANT_LA_SORTIE = "commande_fois_avant_la_sortie"
 CLE_RESERVATION = "reservation_fois_avant_la_sortie"
+CLE_RESERVATION_BOUCLE = "reservation_boucle_fois_avant_la_sortie"
 SEUIL_BAS, SEUIL_HAUT = 2, 5
 
 

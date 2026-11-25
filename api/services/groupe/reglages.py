@@ -146,6 +146,7 @@ CLES_THEME_MODULES: tuple[str, ...] = (
     "commande_mentions_de_remise",
     "commande_fois_avant_la_sortie",
     "reservation_fois_avant_la_sortie",
+    "reservation_boucle_fois_avant_la_sortie",
     "commande_moities_prix",
     "controle_donnees",
     "variables_telephone",
