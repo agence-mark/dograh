@@ -13,7 +13,6 @@ from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes.seuil_de_sortie import CLE_FOIS_AVANT_LA_SORTIE
 from api.services.commande import porte
-from api.tests.mark.partie_1.porte_essai import essai_de  # noqa: F401  (fixture)
 
 SEUIL = W.model_fields[CLE_FOIS_AVANT_LA_SORTIE].default
 

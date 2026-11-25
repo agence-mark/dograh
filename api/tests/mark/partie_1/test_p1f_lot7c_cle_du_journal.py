@@ -11,7 +11,6 @@ from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import porte
 from api.services.commande.moteur import articles
 from api.services.commande.resultat import Resultat
-from api.tests.mark.partie_1.porte_essai import essai_de  # noqa: F401  (fixture)
 
 
 def _introuvable(dit: str, suggestion: str, proches: list[str] | None = None) -> Resultat:
