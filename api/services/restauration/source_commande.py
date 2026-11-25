@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration, restauration_en_plus
+from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.restauration_carte import accord_du_produit
 from api.db.bases_clients.restauration_signalement_carte import signaler_une_regle_inconnue
 from api.db.bases_clients.annonce_heure import dite
@@ -132,32 +133,33 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
     if jour.statut == dates_futures.INTROUVABLE:
         seule = _heure_seule(texte, heure)
         if seule is None:
-            return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
+            return Resultat("INTROUVABLE", {}, TSC.quel_jour({}), "jour")
         if seule.statut == dates_futures.AMBIGU:
-            dites = [dates_futures.heure_dite(c) for c in seule.candidats]
-            return Resultat("AMBIGU", {"candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
+            faits = {"candidats_heure": [dates_futures.heure_dite(c) for c in seule.candidats]}
+            return Resultat("AMBIGU", faits, TSC.heure_ambigue(faits), "heure")
         if datetime.combine(local.date(), seule.heure, tzinfo=fuseau) <= local:
-            dite = dates_futures.heure_dite(seule.heure)
-            return Resultat("INTROUVABLE", {"heure_dite": dite, "heure_passee_aujourd_hui": True}, f"Il est déjà plus de {dite} : pour quel jour ?", "jour")
+            faits = {"heure_dite": dates_futures.heure_dite(seule.heure), "heure_passee_aujourd_hui": True}
+            return Resultat("INTROUVABLE", faits, TSC.heure_passee_sans_jour(faits), "jour")
         jour = dates_futures.Resolution(dates_futures.RETENU, local.date(), (local.date(),))
         heure = heure if heure and dates_futures.resoudre_l_heure(heure).statut != dates_futures.INTROUVABLE else texte
     if jour.statut == dates_futures.AMBIGU:
-        dits = [dates_futures.jour_dit(j) for j in jour.candidats]
-        candidats = [{"jour": j.isoformat(), "jour_dit": d} for j, d in zip(jour.candidats, dits)]
-        return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {' ou '.join(dits)} ?", "jour")
+        candidats = [{"jour": j.isoformat(), "jour_dit": dates_futures.jour_dit(j)} for j in jour.candidats]
+        faits = {"candidats": candidats}
+        return Resultat("AMBIGU", faits, TSC.jour_ambigu(faits), "jour")
     faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
     if not heure:
-        return Resultat("INCOMPLETE", faits, f"À quelle heure, {faits['jour_dit']} ?", "heure")
+        return Resultat("INCOMPLETE", faits, TSC.quelle_heure_ce_jour(faits), "heure")
     h = dates_futures.resoudre_l_heure(heure)
     if h.statut == dates_futures.INTROUVABLE:
-        return Resultat("INCOMPLETE", faits, "À quelle heure exactement ?", "heure")
+        return Resultat("INCOMPLETE", faits, TSC.quelle_heure_exactement(faits), "heure")
     if h.statut == dates_futures.AMBIGU:
-        dites = [dates_futures.heure_dite(c) for c in h.candidats]
-        return Resultat("AMBIGU", {**faits, "candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
+        faits = {**faits, "candidats_heure": [dates_futures.heure_dite(c) for c in h.candidats]}
+        return Resultat("AMBIGU", faits, TSC.heure_ambigue(faits), "heure")
     voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
     faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
     if voulue <= local:
-        return Resultat("ARGUMENT_INVALIDE", faits, "Cette heure est déjà passée, pour quelle heure ?", "heure")
+        faits["heure_passee_aujourd_hui"] = True  # le jour retenu n'est jamais avant aujourd'hui (``dates_futures``) : une heure passée l'est aujourd'hui même
+        return Resultat("ARGUMENT_INVALIDE", faits, TSC.heure_passee(faits), "heure")
     return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
 
 

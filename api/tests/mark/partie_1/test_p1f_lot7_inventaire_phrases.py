@@ -41,7 +41,9 @@ FICHIERS_DU_LOT = (
 
 # Un catalogue de secours n'est lu que par le repli (le texte que le code dit quand le modèle se tait deux fois sur un refus, jamais donné au modèle) : ses phrases sont permises.
 # Il s'exempte par son nom, jamais par une liste de phrases : ranger une phrase au catalogue ailleurs ne la rend pas permise (I-7).
-CATALOGUES_DE_SECOURS = ("services/commande/phrases_du_manque.py", "services/reservation/phrases_du_manque.py")
+CATALOGUES_DE_SECOURS = (
+    "db/bases_clients/textes_de_secours_commande.py", "services/commande/phrases_du_manque.py", "services/reservation/phrases_du_manque.py",
+)
 NOM_D_UN_CATALOGUE_DE_SECOURS = re.compile(r"(?:^|/)(?:textes_de_secours[^/]*|phrases_du_manque)\.py$")
 
 # Textes écrits pour l'équipe du restaurant (ticket, SMS au gérant), jamais dits à la personne au téléphone : un morceau passé à l'un de ces envois est permis (liste blanche,
