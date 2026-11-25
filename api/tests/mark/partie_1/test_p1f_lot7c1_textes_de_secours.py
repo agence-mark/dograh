@@ -382,8 +382,9 @@ def test_le_minimum_de_l_adresse_se_lit_de_la_zone_quand_rien_n_est_pris():
     from api.services.commande.moteur import prealables
 
     faits = {"zone": {"nom": "Senlis", "minimum": 1500}}
-    assert prealables._minimum_de_l_adresse(faits, P.nouveau()) == TS.minimum_de_l_adresse(faits) == "Le minimum de commande pour cette adresse est de quinze euros."
-    assert prealables._minimum_de_l_adresse({"zone": {"minimum": 0}}, P.nouveau()) == ""
+    assert prealables._minimum_de_l_adresse(faits, P.nouveau()) == "quinze euros"  # F2 : la valeur dite, posée en fait ``minimum_dit``
+    assert TS.minimum_de_l_adresse(faits) == "Le minimum de commande pour cette adresse est de quinze euros."
+    assert prealables._minimum_de_l_adresse({"zone": {"minimum": 0}}, P.nouveau()) is None
 
 
 # ── commit 5 (comportement) : les phrases de fermeture sortent des faits, les clés de l'état n'ont plus qu'une liste ────

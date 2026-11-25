@@ -449,7 +449,7 @@ async def _minimum_de_l_adresse(kebab_):
 
 CAS_DU_KEBAB: list[Cas] = [
     Cas("minimum_de_l_adresse", TS.minimum_de_l_adresse, _minimum_de_l_adresse, "F", [("quinze euros", "quinze euros")], "RETENU",
-        manque="F2 : le minimum de la zone est retiré de la copie du modèle et rien ne le remplace au retour de l'adresse"),
+        ),
 ]
 
 
