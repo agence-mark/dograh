@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "fe3d08db2284a194a95da9b1c2325f4eb37e5532",
+ "commit_teste": "7581c49feac71b957e0b471fcd8a5fdaed6060ce",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa13",
  "vert": true,
@@ -9,7 +9,7 @@
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 24
+   "fichiers_de_la_zone": 25
   },
   "linter": {
    "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 13.13s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 13.33s ========================"
   },
   "noqa": {
    "vert": true,
@@ -68,6 +68,8 @@
     "tests/mark/partie_1/test_p1f_lot7_suite_du_tour.py",
     "tests/mark/partie_1/test_p1f_lot7_table.py",
     "tests/mark/partie_1/test_p1f_lot7_table_egale_cascade.py",
+    "tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py",
+    "tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py",
     "tests/mark/partie_1/test_p1f_lot7b_barriere_des_faits.py",
     "tests/mark/partie_1/test_p1f_lot7b_boucle_une_source.py",
     "tests/mark/partie_1/test_p1f_lot7b_dc4.py",
@@ -79,26 +81,21 @@
     "tests/mark/partie_1/test_p1f_lot7b_regles_en_faits.py",
     "tests/mark/partie_1/test_p1f_lot7b_seuil_de_sortie.py",
     "tests/mark/partie_1/test_p1f_lot7b_une_consigne.py",
-    "tests/mark/partie_1/test_pc7_corrections.py",
-    "tests/mark/test_declenchement_de_l_action.py",
-    "tests/mark/test_verite_des_actions.py",
-    "tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py",
-    "tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py",
     "tests/mark/partie_1/test_p1f_lot7c_cle_du_journal.py",
-    "tests/mark/partie_1/test_p1f_lot7c_seuils_de_sortie.py",
-    "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
     "tests/mark/partie_1/test_p1f_lot7c_deja_enregistree.py",
+    "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
     "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
     "tests/mark/partie_1/test_p1f_lot7c_plus_proches_sans_doublon.py",
-    "tests/mark/partie_1/test_p1f_lot7c2_source.py",
-    "tests/mark/partie_1/test_p1f_lot7c2_fermeture.py",
-    "tests/mark/partie_1/test_p1f_lot7c2_envoi.py",
-    "tests/mark/partie_1/test_p1f_lot7c2_carte.py",
-    "tests/mark/partie_1/test_p1f_lot7c2_creneau_et_zone.py",
-    "tests/mark/partie_1/test_p1f_lot7c2_manques_et_reglement.py",
+    "tests/mark/partie_1/test_p1f_lot7c_seuils_de_sortie.py",
     "tests/mark/partie_1/test_p1f_lot7c1_reprises.py",
     "tests/mark/partie_1/test_p1f_lot7c1_secours_lu_par_le_repli.py",
     "tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_carte.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_creneau_et_zone.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_envoi.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_fermeture.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_manques_et_reglement.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_source.py",
     "tests/mark/partie_1/test_p1f_lot7c3_allergie_secours.py",
     "tests/mark/partie_1/test_p1f_lot7c3_fait_accompli.py",
     "tests/mark/partie_1/test_p1f_lot7c3_feuille_de_secours.py",
@@ -110,9 +107,12 @@
     "tests/mark/partie_1/test_p1f_lot7c3_retours_de_la_base.py",
     "tests/mark/partie_1/test_p1f_lot7c3_retours_du_moteur.py",
     "tests/mark/partie_1/test_p1f_lot7c3_une_seule_source_commande.py",
-    "tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py"
+    "tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py",
+    "tests/mark/partie_1/test_pc7_corrections.py",
+    "tests/mark/test_declenchement_de_l_action.py",
+    "tests/mark/test_verite_des_actions.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py::test_la_recherche_par_ingredient_dit_ceux_qui_en_ont_ceux_qui_n_en_ont_pas_et_le_doute\nPASSED tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py::test_tous_en_contiennent_quand_la_chose_est_partout\nPASSED tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py::test_composition_article_inconnu_et_article_a_preciser\nPASSED tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py::test_l_equipe_le_confirme_et_le_choix_de_la_reservation\nPASSED tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py::test_les_deux_petites_aides_de_la_feuille_font_comme_avant\n=========== 852 passed, 14 xfailed, 6 warnings in 401.04s (0:06:41) ==========="
+   "sortie": "PASSED tests/mark/test_verite_des_actions.py::test_k7_le_controle_nomme_la_raison\nPASSED tests/mark/test_verite_des_actions.py::test_le_moteur_branche_le_controle_sur_l_etape_qui_offre_confier\nPASSED tests/mark/test_verite_des_actions.py::test_le_moteur_ne_branche_rien_quand_la_case_est_eteinte\nPASSED tests/mark/test_verite_des_actions.py::test_la_case_d_une_etape_sans_outil_d_action_ne_branche_rien\nPASSED tests/mark/test_verite_des_actions.py::test_le_champ_de_l_etape_est_vide_par_defaut_et_pas_dans_le_formulaire\n=========== 856 passed, 14 xfailed, 6 warnings in 302.92s (0:05:02) ==========="
   }
  }
 }
