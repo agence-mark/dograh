@@ -80,7 +80,22 @@ async def test_dc10_allume_le_code_relit_le_numero_dicte_avec_sa_question(essai_
     assert "confirmer_numero_dicte" in _manques(r), r
     textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
     attendue = CAT.MOTIFS[CAT.NUMERO_DICTE_RELU].variantes_defaut[0].replace("{numero}", DIT)
-    assert textes.get("avant") == attendue and not any(x in str(textes) for x in _retenus()), textes  # le numéro n'est dit qu'une fois
+    # n° 12 (décision d'Evan 25/11 9 h 30, ordre de « C6 révisée ») : la question réglée suit la phrase du modèle (``suffixe``), plus rien n'est dit avant elle
+    assert textes.get("suffixe") == attendue and not textes.get("avant") and not any(x in str(textes) for x in _retenus()), textes  # le numéro n'est dit qu'une fois
+
+
+async def test_dc10_allume_la_question_du_numero_dicte_part_apres_la_phrase_du_modele(essai_de):
+    """n° 12 (décision d'Evan 25/11 9 h 30 ; ordre de « C6 révisée » : la phrase du modèle, puis la question réglée, toujours la dernière), comme à la réservation.
+    Client « Léa, au zéro six, douze… » / avant : code « Je note le zéro six, douze…, c'est bon ? » (la phrase du modèle jamais dite) / après : modèle « Merci Léa. » + code
+    « Je note le zéro six, douze…, c'est bon ? ». Voisin : une phrase du modèle qui pose déjà une question n'est pas dite avec elle (deux questions), le modèle repasse."""
+    e = await _jusqu_au_numero(essai_de, appelant=False)
+    await e.tour("Léa, au zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678", prenom="Léa")
+    r = e.retours[-1]
+    attendue = CAT.MOTIFS[CAT.NUMERO_DICTE_RELU].variantes_defaut[0].replace("{numero}", DIT)
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Merci Léa."})
+    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == f"Merci Léa. {attendue}", d
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Merci Léa, c'est bien ce numéro ?"})
+    assert d.mode == PAROLE.SECOND_PASSAGE, d
 
 
 async def test_dc10_eteint_le_code_dit_le_numero_retenu_apres_la_confirmation_du_modele_avant_m108(essai_de):

@@ -1,14 +1,13 @@
 """[.mark] Lot 6 (G2) : ce que les portes de la commande et de la réservation font de la même façon, à côté de l'issue de l'appel (``issues``).
 
-* ``resultat_public`` : un résultat du module tel que le modèle le reçoit (l'opération, son statut, ce qui manque, les faits sans ce que le métier garde pour lui) ;
-* ``premier_cas`` : parmi les cas qu'un métier écrit dans l'ordre, le texte que le code dit lui-même au retour de la fiche.
+* ``resultat_public`` : un résultat du module tel que le modèle le reçoit (l'opération, son statut, ce qui manque, les faits sans ce que le métier garde pour lui).
 
-Aucun mot de métier : les faits écartés, les mots du modèle et les cas viennent de la porte qui appelle.
+Aucun mot de métier : les faits écartés et les mots du modèle viennent de la porte qui appelle.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from api.services.actions_communes.arguments import en_json
@@ -26,10 +25,3 @@ def resultat_public(operation: str, r: Resultat, ecartes: Iterable[str], mots_du
     manque = (mots_du_modele or {}).get(r.manque, r.manque) if r.manque else None
     return {"operation": operation, "statut_du_module": r.statut, **({"manque": manque} if manque else {}), "faits": faits_publics(r, ecartes)}
 
-
-def premier_cas(cas: Iterable[tuple[bool, Callable[[], str]]]) -> str | None:
-    """Le texte du premier cas dont la condition est vraie (le texte n'est calculé que pour lui) ; ``None`` quand aucun ne l'est."""
-    for condition, texte in cas:
-        if condition:
-            return texte()
-    return None

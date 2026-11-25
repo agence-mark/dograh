@@ -9,9 +9,8 @@ Recopie de la boucle du tour du banc (``banc-b12/appel_b12.py`` ``tour``), répa
   fois par tour, tenu par le drapeau ``rattrapage_refus_joue``, jamais par le texte retenu) ; le repli A (après un refus de LA FICHE, jamais
   dite) ; la barrière des chiffres (toujours) ;
 - **au bout** (C5, décision d'Evan 25/11 8 h 45) : le code ne compose aucune phrase ; une phrase retenue, ou un silence, relance le modèle UNE fois par tour avec le fait (``repli.consigne_de_relance``) ; si la relance échoue : le fait accompli que le code a déjà dit, sinon la phrase réglée de l'agent ;
-- **ce que le code dit lui-même** (``textes`` : ``avant``, ``prefixe``, ``suffixe``, posés par la porte, élément 1 (b)) : le récapitulatif ou la
-  confirmation est dit seul et le tour s'arrête (la phrase du modèle est jetée) ; la règle chiffrée qui bloque est dite, puis le modèle repasse ;
-  le prix d'une proposition est dit juste après la phrase du modèle (gardé dans l'état du tour jusqu'à elle).
+- **ce que le code dit lui-même** (``textes``, posés par la porte, élément 1 (b)) : C6, une phrase réglée (le numéro, le total, le rendu, la question M108 ou DC10) dite juste
+  après la phrase du modèle (``suffixe``, gardé dans l'état du tour jusqu'à elle) ; plus aucune porte ne pose ``avant`` (C6 n° 12), la ligne de la table qui le lit reste sans producteur.
 
 Critères structurels seulement (D1) : l'état de l'action et du tour, jamais le sens des mots. L'état du tour vit dans la fiche de l'appel
 (``CLE_ETAT_DU_TOUR``), remis à zéro quand la personne reparle (``tour_de_la_personne``).

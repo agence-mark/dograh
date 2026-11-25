@@ -121,6 +121,9 @@ A_FAIRE_DE_LA_CONFIRMATION = (  # C6 n° 5 et 10 : le modèle confirme avec ses 
 A_FAIRE_DU_CHANGEMENT = (  # C6 n° 6 : le modèle dit que la commande enregistrée est changée ; le nouveau total et la question sont dits par le code juste après sa phrase
     "dis-lui avec tes mots que sa commande est changée, sans prix et sans question : le code dit le nouveau total et la question juste après ta phrase"
 )
+A_FAIRE_AVANT_LE_NUMERO_DICTE = (  # C6 n° 12 : DC10, le modèle dit ce que la fiche a fait ; la relecture du numéro dicté et sa question sont dites par le code après sa phrase
+    "dis-lui avec tes mots ce que sa fiche a fait, sans numéro de téléphone et sans question : le code relit le numéro dicté et pose la question juste après ta phrase"
+)
 A_FAIRE_DE_L_ANNULATION_FAITE = "dis-lui avec tes mots que sa commande est annulée, sans prix"  # C6 n° 7 : DC4, second temps
 A_FAIRE_DE_L_ANNULATION_EN_COURS = "dis-lui avec tes mots que la commande n'est pas passée : rien n'est enregistré"  # C6 n° 7 : la commande en cours annulée
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
@@ -203,8 +206,9 @@ def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None, phrase_du_total: str | None = None, phrase_du_rendu: str | None = None,
                    phrase_du_changement: str | None = None, phrase_du_numero: str | None = None) -> dict[str, Any]:
-    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : ce qui est dû à la personne (B2, M3), les faits accomplis
-    (annulée) et la question qui se dit mot pour mot. ``deja_enregistree`` : la commande l'était avant cette fiche (un changement se dit, ``remplace`` ; une réponse sans
+    """Les phrases réglées que le code dit lui-même au retour de cette fiche (vide : aucune), toujours APRÈS la phrase du modèle (``suffixe`` ; C6 n° 12 : plus rien n'est dit avant
+    elle), avec ce que le modèle doit dire (``a_faire``, ``chiffres_exiges``) et le fait accompli gardé au journal. La question réglée du numéro dicté (DC10, ``QUESTIONS_DITES_PAR_LE_CODE``)
+    suit la phrase du modèle, seule question, à la fin (ordre de « C6 révisée », comme la question du numéro de la réservation). ``deja_enregistree`` : la commande l'était avant cette fiche (un changement se dit, ``remplace`` ; une réponse sans
     changement, non). C6 n° 5 et 6 (décision d'Evan 25/11 9 h 30) : la confirmation et le changement sont dits par le MODÈLE ; le code dit après sa phrase le rendu, le nouveau
     total et la question M108. RC1 (contrôle long, lot 3) : UNE seule question dans le tour : une question du registre en attente (l'annulation demandée, un doute, une taille)
     est posée par le modèle, et M108 ne s'y ajoute pas.
@@ -234,13 +238,10 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION:
         montant = RQ.montant_enregistre_dit(p)  # DC4, premier temps : la question du modèle doit dire le montant d'aujourd'hui ; faux ou absent, il est relancé
         return {"suffixe": "", "chiffres_exiges": {"montant": montant} if montant else {}}
-    dite_par_la_question = nee is not None and nee.get("type") in QUESTIONS_DITES_PAR_LE_CODE and nee.get("texte")
-    avant_le_reste = PC.premier_cas((
-        (bool(dite_par_la_question), lambda: str(nee["texte"])),
-    ))
-    if avant_le_reste is not None:
-        textes["avant"] = avant_le_reste
-    elif nee is not None and nee.get("type") == "proposition" and nee.get("prix") and not nee.get("offerte") and not refus:
+    if nee is not None and nee.get("type") in QUESTIONS_DITES_PAR_LE_CODE and nee.get("texte"):
+        # n° 12 (ordre de « C6 révisée ») : la question réglée du numéro dicté (DC10) suit la phrase du modèle, seule question, à la fin (comme à la réservation)
+        return {"suffixe": str(nee["texte"]), "chiffres_exiges": {}, "a_faire": A_FAIRE_AVANT_LE_NUMERO_DICTE}
+    if nee is not None and nee.get("type") == "proposition" and nee.get("prix") and not nee.get("offerte") and not refus:
         # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le modèle pose la proposition avec son prix, exigé de sa phrase ; absent ou faux, il est relancé (même ligne que DC4)
         return {"suffixe": "", "chiffres_exiges": {"prix": montant_en_lettres(int(nee["prix"]))}}
     elif nee is not None and nee.get("type") == "relecture" and phrase_du_total:
@@ -1254,19 +1255,17 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
         consignes.append((C.QUESTION, A_FAIRE_DE_L_HEURE))
     if textes.get("a_faire"):
         consignes.append((C.RESTE, str(textes["a_faire"])))  # C6 n° 5 et 6 : le modèle dit le fait accompli, le code la suite
-    if refusants and "avant" not in textes:  # C5 : le refus se lit sur les refusants, plus sur le texte de secours (une suggestion vide garde sa consigne)
+    if refusants:  # C5 : le refus se lit sur les refusants, plus sur le texte de secours (une suggestion vide garde sa consigne)
         # Le refus se dit une fois comme un fait (B3, M5, C7, DF7) ; redit, le journal donne l'issue, puis la sortie. Une question née avec le refus se dit d'une seule voix avec lui.
         etape = J.fait_redit(p, " ".join(J.identite_du_refus(r) for r in refusants), tour, _seuil_de_sortie(ctx))
         if etape in (J.ISSUE, J.SORTIE) or (etape != J.PREMIERE and nee is None):
             consignes.append(_consigne_du_journal(etape))  # déjà dit : l'issue, puis la sortie (rien de plus dans le même tour)
         else:
             consignes.append((C.REFUS_A_DIRE, A_FAIRE_DES_REFUS_A_DIRE))
-        if nee is not None:
-            consignes.append((C.QUESTION, A_FAIRE_DE_LA_QUESTION))
+        if nee is not None and nee.get("type") not in QUESTIONS_DITES_PAR_LE_CODE:
+            consignes.append((C.QUESTION, A_FAIRE_DE_LA_QUESTION))  # n° 12 : une question que le code dit (DC10) suit la phrase du modèle, il ne la pose pas
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
-    if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
-        J.dire_le_fait(p, textes["avant"], tour)  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
-    elif textes.get("fait_accompli"):
+    if textes.get("fait_accompli"):
         J.dire_le_fait(p, str(textes["fait_accompli"]), tour)  # C6 n° 5 : la confirmation dite par le modèle ; le journal en garde le fait, que le repli redit
     poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [_refus_pour_le_modele(r) for r in refusants])
     return consignes

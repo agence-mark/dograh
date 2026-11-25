@@ -5,7 +5,7 @@ dont la condition est vraie décide. Une condition se lit sur le ``Du`` (ce qui 
 et sur l'état du tour : jamais sur les mots de la personne ni sur le nom d'une case (D1). Aucun mot du métier.
 
 Le mode dit QUI PARLE : ``A_DIRE_SEUL`` (la phrase est dite, le tour s'arrête) ou ``SECOND_PASSAGE`` (la phrase est jetée, le modèle repasse avec le retour). Le code ne dit
-mot pour mot que les exceptions du § 2 du plan (leur texte arrive dans ``avant``) ; C6 : le total, le rendu et la question M108 suivent la phrase du modèle (``suffixe``).
+mot pour mot que ses phrases réglées, après la phrase du modèle (``suffixe`` : le numéro, le total, le rendu, la question M108 ou DC10 ; C6) ; plus aucune porte ne pose ``avant`` (C6 n° 12).
 """
 
 from __future__ import annotations

@@ -25,19 +25,12 @@ def test_le_resultat_public_garde_ce_que_le_metier_ecarte_et_dit_ce_qui_manque_a
         "operation": "ajouter", "statut_du_module": "INCOMPLETE", "manque": "prenom", "faits": {"tables": [1], "visible": "oui"}}
 
 
-def test_le_premier_cas_vrai_donne_son_texte_et_aucun_autre_n_est_calcule():
-    calcules = []
-    cas = ((False, lambda: calcules.append("a") or "a"), (True, lambda: calcules.append("b") or "b"), (True, lambda: calcules.append("c") or "c"))
-    assert PC.premier_cas(cas) == "b" and calcules == ["b"]
-    assert PC.premier_cas(((False, lambda: "x"),)) is None
-    assert PC.premier_cas(((True, lambda: ""),)) == ""
-
-
-def test_les_deux_metiers_disent_leur_texte_par_le_meme_mecanisme(monkeypatch):
-    monkeypatch.setattr(PC, "premier_cas", lambda cas: "dit par le mecanisme commun")
+def test_aucun_des_deux_metiers_ne_dit_plus_rien_avant_la_phrase_du_modele():
+    """C6 n° 12 (décision d'Evan 25/11 9 h 30 ; ordre de « C6 révisée » : la phrase du modèle, puis les phrases réglées, la question à la fin) : ``premier_cas`` (le texte dit à la
+    place du modèle, ``avant``) n'a plus d'appelant et est retiré ; la question réglée du numéro dicté de la commande suit la phrase du modèle (``suffixe``), comme à la réservation."""
     refus = Resultat("REFUSEE", {"detail": "complet"}, "Plus de place.")
-    assert reservation.textes_du_code({}, refus, "reserver", None, False) == {}  # C6 n° 9 (décision d'Evan 25/11 9 h 30) : la réservation ne dit plus rien mot pour mot (n° 8 et 9)
-    # C6 n° 5 à 7 (décision d'Evan 25/11 9 h 30) : la confirmation, le changement et l'annulation sont dits par le modèle ; le mécanisme commun se voit sur une question que le code
-    # dit encore (le numéro dicté, jusqu'au n° 10)
+    assert reservation.textes_du_code({}, refus, "reserver", None, False) == {}  # C6 n° 9 : la réservation ne dit plus rien mot pour mot (n° 8 et 9)
+    assert not hasattr(PC, "premier_cas")
     ok = Resultat("OK", {}, "")
-    assert commande.textes_du_code({}, ok, {"type": "numero_dicte", "texte": "Je note le zéro six, c'est bon ?"}, [], False) == {"avant": "dit par le mecanisme commun"}
+    textes = commande.textes_du_code({}, ok, {"type": "numero_dicte", "texte": "Je note le zéro six, c'est bon ?"}, [], False)
+    assert "avant" not in textes and textes["suffixe"] == "Je note le zéro six, c'est bon ?" and textes["chiffres_exiges"] == {}, textes
