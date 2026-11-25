@@ -52,17 +52,18 @@ async def test_tiramisu_sans_option_dit_que_ca_depend_et_nomme_l_option(commerce
     assert r.faits["options_qui_contiennent"] == ["Pistache"]
     assert r.suggestion == ""
     # les autres parfums n'ont aucune donnée : jamais garantis (fait ``autres_a_confirmer``)
-    assert r.faits["autres_a_confirmer"] is True
+    assert r.faits["autres_a_confirmer"] is True and r.faits["a_confirmer_par_l_equipe"] is True
 
 
 async def test_option_sans_donnee_jamais_ne_contient_pas(commerce):
     vu = _vu(await _appel(commerce))
     r = await vu("tiramisu classic", "fruits à coque")
     assert r.statut == "OK" and r.faits["signalement"] == "inconnu" and r.faits["option"] == "Classic"
-    assert r.suggestion == "" and r.faits["signalement"] == "inconnu"  # C7a : « non garanti » est le signalement inconnu
+    assert r.suggestion == "" and r.faits["a_confirmer_par_l_equipe"] is True  # « je ne peux pas le garantir, l'équipe pourra vous le confirmer » : un fait, pas seulement le statut
     # la liste des signalements, demandée sans en nommer un : la réserve de l'option est dite
     liste = await vu("tiramisu classic", "des allergies")
     assert liste.faits["signalement"] == "liste" and liste.suggestion == ""
+    assert liste.faits["options_a_confirmer"] is True and liste.faits["a_confirmer_par_l_equipe"] is True
 
 
 async def test_option_dont_la_donnee_existe_est_lue(commerce):

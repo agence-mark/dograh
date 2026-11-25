@@ -412,7 +412,7 @@ async def test_sans_oignons_par_ingredient(essai_de):
     r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "chorizo", contient=True)
     assert r.faits["articles"] and r.faits["inconnus"] > 0, r  # donnée absente = inconnu (E21)
     r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "sardines", contient=True)
-    assert not r.faits["articles"] and r.suggestion == "", r
+    assert not r.faits["articles"] and r.faits["inconnus"] > 0 and r.suggestion == "", r  # le catalogue ne dit pas tout : « il n'y en a pas » ne se dit pas
 
 
 async def test_choisir_mode_2641_t2(essai_de):
