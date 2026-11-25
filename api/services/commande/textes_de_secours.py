@@ -227,3 +227,22 @@ def minimum_de_l_adresse(faits: Faits) -> str:
 def ce_sera_pret(faits: Faits) -> str:
     """L'heure annoncée : fait ``texte`` (« à dix-neuf heures trente »)."""
     return f"Ce sera prêt {faits['texte']}."
+
+
+# --------------------------------------------------------------------------- #
+# mode_et_adresse.py : un mode fermé qui se planifie
+# --------------------------------------------------------------------------- #
+
+
+def commande_pour(faits: Faits) -> str:
+    """L'heure voulue est déjà gardée : fait ``heure_voulue_dite``."""
+    return f"Commande pour {faits['heure_voulue_dite']}."
+
+
+def preparer_pour_l_ouverture(faits: Faits) -> str:
+    """La proposition du début d'appel : fait ``heure_proposee_dite`` (l'ouverture, dite)."""
+    return f"Voulez-vous que je prépare votre commande pour {faits['heure_proposee_dite']} ?"
+
+
+def quel_jour_et_quelle_heure(faits: Faits) -> str:
+    return "Pour quel jour et à quelle heure ?"

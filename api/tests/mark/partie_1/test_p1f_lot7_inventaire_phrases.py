@@ -57,7 +57,6 @@ A_RENDRE_C1 = frozenset({
     "services/commande/moteur/changement.py",
     "services/commande/moteur/enregistrement.py",
     "services/commande/moteur/lecture.py",
-    "services/commande/moteur/mode_et_adresse.py",
     "services/commande/moteur/reglement.py",
     "services/commande/porte.py",
 })

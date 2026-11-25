@@ -427,7 +427,7 @@ async def test_une_heure_gardee_se_dit_en_fait(appel, monkeypatch):
     assert r.statut == "FERME_PLANIFIABLE"
     faits = porte.faits_vus_par_le_modele(r)
     assert faits["heure_voulue_dite"] == "demain à dix-neuf heures" and "fermeture" not in faits
-    assert "Commande pour demain à dix-neuf heures." in r.suggestion
+    assert r.suggestion.startswith(TS.commande_pour(faits)) and "Commande pour demain à dix-neuf heures." in r.suggestion
 
 
 def test_les_cles_de_l_etat_sont_posees_a_un_seul_endroit():
@@ -437,3 +437,27 @@ def test_les_cles_de_l_etat_sont_posees_a_un_seul_endroit():
     assert prealables.CLES_DE_L_ETAT == ("raison", "reprise", "reprise_dite", "prochaine_ouverture", "planifiee_permise")
     for module in (prealables, mode_et_adresse):
         assert '("raison", "reprise", "prochaine_ouverture", "planifiee_permise")' not in inspect.getsource(module)
+
+
+# ── commit 6 : un mode fermé qui se planifie (mode_et_adresse.py) ───────────────────────────────────────────────────────
+from datetime import datetime, timezone  # noqa: E402
+
+
+async def test_la_proposition_du_debut_dit_l_ouverture_en_fait(appel, monkeypatch):
+    async def quand_dit(_h):
+        return "dix-huit heures"
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True, prochaine_ouverture=datetime(2026, 11, 25, 17, tzinfo=timezone.utc)))
+    monkeypatch.setattr(appel.source, "quand_dit", quand_dit, raising=False)
+    r = await moteur.choisir_mode(appel.source, appel.p, appel.regles, "emporter")
+    assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_proposee")
+    faits = porte.faits_vus_par_le_modele(r)
+    assert faits["heure_proposee_dite"] == "dix-huit heures"
+    assert r.suggestion == f"{PHRASE_DE_FERMETURE} {TS.preparer_pour_l_ouverture(faits)}" == f"{PHRASE_DE_FERMETURE} Voulez-vous que je prépare votre commande pour dix-huit heures ?"
+
+
+async def test_sans_ouverture_connue_le_jour_et_l_heure_se_demandent(appel, monkeypatch):
+    await appel.ajouter("coca")
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True))
+    r = await moteur.choisir_mode(appel.source, appel.p, appel.regles, "emporter")
+    assert r.statut == "FERME_PLANIFIABLE" and r.manque is None
+    assert r.suggestion == f"{PHRASE_DE_FERMETURE} {TS.quel_jour_et_quelle_heure(porte.faits_vus_par_le_modele(r))}" == f"{PHRASE_DE_FERMETURE} Pour quel jour et à quelle heure ?"
