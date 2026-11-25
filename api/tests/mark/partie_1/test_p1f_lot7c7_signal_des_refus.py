@@ -572,3 +572,25 @@ async def test_aucun_refus_de_la_base_de_la_commande_n_ecrit_de_texte(cas):
 async def test_aucun_refus_du_classeur_de_la_commande_n_ecrit_de_texte(cas, commerce, monkeypatch):
     r = await jouer(cas.scenario, commerce, monkeypatch)
     assert r.suggestion == "", r
+
+
+# ── R1 (audit du lot A) : les deux refus de la base qui avaient gardé l'ancienne forme de ``_refus`` ──────────────────────────────────────────────────────
+
+async def test_un_article_au_poids_sans_poids_se_refuse_incomplet_manque_poids(essai_de):
+    """Avant : un article au poids sans poids faisait planter l'outil (``TypeError``) ; après : refus INCOMPLETE, manque ``poids``, raison ``poids_a_dire``, aucun texte."""
+    from api.tests.mark.partie_1.aides_briques import brique
+    from api.tests.mark.partie_1.test_l13_briques import _objets_charges
+
+    e = await brique(essai_de, "QTE1")
+    await _objets_charges(e)
+    r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-HOUMOUS-UNIQUE", "quantite": 1}])
+    assert r.statut == "INCOMPLETE" and r.manque == "poids" and r.faits["raison"] == "poids_a_dire" and r.suggestion == "", r
+
+
+async def test_un_interdit_de_la_ligne_n_a_pas_de_manque(essai_de):
+    """Avant : le texte vide tombait dans ``manque`` (``''``) ; après : ``None``, comme tout refus qui ne manque de rien."""
+    from api.tests.mark.partie_1.aides_briques import brique
+
+    e = await brique(essai_de, "PRX8")
+    r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-TENDERS-UNIQUE", "quantite": 5, "choix": []}])
+    assert r.statut == "INTERDIT" and r.manque is None and r.suggestion == "", r

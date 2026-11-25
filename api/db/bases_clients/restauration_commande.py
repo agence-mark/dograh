@@ -204,7 +204,7 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
             return 0, _refus("MAXIMUM_ATTEINT", groupe=g["id"], code=code, nom=o["nom"], maximum=g["max_par_option"])
         refus = conditions_de_vente.refus_de_l_option(o, panier.mode)  # PRX1 et PRX3 : l'option hors de sa plage ou d'un autre mode
         if refus is not None:
-            return 0, _refus("INTERDIT", "", **refus)
+            return 0, _refus("INTERDIT", **refus)
         prix_o = _prix_de_l_option(g, o, declinaison, panier.mode)
         entree = {"option_code": code, "quantite": n, "choix": [], "nom": o["nom"], "prix": 0 if g["role"] == "moities" else prix_o, "groupe": g["nom"]}
         entrees = [entree]
@@ -379,7 +379,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             if produit_au_poids.est_vendu_au_poids(produit):
                 # QTE1 : le prix d'une portion est celui de son poids au prix au kilo ; sans poids, rien ne se chiffre (jamais un prix deviné)
                 if not l.get("poids_g"):
-                    return [], 0, _refus("INCOMPLETE", "", "poids", raison=produit_au_poids.RAISON_POIDS_A_DIRE, article=produit["nom"])
+                    return [], 0, _refus("INCOMPLETE", "poids", raison=produit_au_poids.RAISON_POIDS_A_DIRE, article=produit["nom"])
                 base = produit_au_poids.prix_de_la_portion(produit, int(l["poids_g"]))
             # DEC2 : le minimum et le maximum d'un groupe sont ceux de la déclinaison choisie quand elle les fixe (une seule règle, ``briques/taille_fixant_le_nombre.py``)
             groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
@@ -402,7 +402,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
         objet = produit if code in panier.decl else formule
         refus = conditions_de_vente.refus_de_la_ligne(objet, d if code in panier.decl else None, panier.mode, n, pris_du_produit.get(objet["id"], 0), panier.maintenant, panier.servi_le)
         if refus is not None:
-            return [], 0, _refus("INTERDIT", "", **refus)
+            return [], 0, _refus("INTERDIT", **refus)
         pris_du_produit[objet["id"]] = pris_du_produit.get(objet["id"], 0) + n
         if l.get("prix_unitaire") is not None and l["prix_unitaire"] != base:
             return [], 0, _refus("REFUSEE", raison="prix_different", code=code)
