@@ -13,7 +13,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, nombre_en_lettres, phrase_nette
+from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nombre_en_lettres, phrase_nette
 
 Faits = Mapping[str, Any]
 
@@ -207,3 +207,23 @@ def pas_dans_la_commande(faits: Faits) -> str:
 
 def que_change_t_on(faits: Faits) -> str:
     return "Qu'est-ce que je change ?"
+
+
+# --------------------------------------------------------------------------- #
+# prealables.py : l'ouverture, l'heure annoncée, l'adresse
+# --------------------------------------------------------------------------- #
+
+
+def pas_de_commande_en_ce_moment(faits: Faits) -> str:
+    """Le secours d'une fermeture quand la source n'a pas écrit la sienne (``etat["phrase"]``, qui reste le texte de secours de ces refus : elle passe avant celui-ci)."""
+    return "Nous ne prenons pas de commande en ce moment."
+
+
+def minimum_de_l_adresse(faits: Faits) -> str:
+    """Le minimum de commande de la zone : fait ``zone.minimum`` (en centimes)."""
+    return f"Le minimum de commande pour cette adresse est de {montant_en_lettres(faits['zone']['minimum'])}."
+
+
+def ce_sera_pret(faits: Faits) -> str:
+    """L'heure annoncée : fait ``texte`` (« à dix-neuf heures trente »)."""
+    return f"Ce sera prêt {faits['texte']}."

@@ -329,3 +329,45 @@ async def test_une_quantite_invalide_et_rien_a_changer(appel):
     r = await appel.modifier(ligne="1")
     assert r.manque == "modification"
     le_texte_de_secours_suffit(r, TS.que_change_t_on, "Qu'est-ce que je change ?")
+
+
+# ── commit 4 : l'ouverture, l'heure annoncée, l'adresse (prealables.py) ─────────────────────────────────────────────────
+def _etat_ferme(phrase=None):
+    async def etat(_mode):
+        return {"ouvert": False, "statut": "FERME", "phrase": phrase, "raison": "ferme", "reprise": None, "prochaine_ouverture": None, "planifiee_permise": False}
+    return etat
+
+
+async def test_une_fermeture_sans_phrase_de_la_source_dit_le_secours_de_la_commande(appel, monkeypatch):
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme())
+    r = await moteur.etat_ouverture(appel.source, appel.p, appel.regles, "emporter")
+    assert r.statut == "FERME"
+    le_texte_de_secours_suffit(r, TS.pas_de_commande_en_ce_moment, "Nous ne prenons pas de commande en ce moment.")
+    r = await moteur.heure_annoncee(appel.source, appel.p, appel.regles, "emporter")
+    le_texte_de_secours_suffit(r, TS.pas_de_commande_en_ce_moment)
+
+
+async def test_la_phrase_de_fermeture_de_la_source_reste_le_secours(appel, monkeypatch):
+    """La source écrit sa phrase (C2) : elle passe avant le texte du moteur ; elle n'est plus une valeur des faits (commit 5), le secours n'est lu que par le repli."""
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme("Les livraisons sont terminées."))
+    r = await moteur.heure_annoncee(appel.source, appel.p, appel.regles, "emporter")
+    assert r.suggestion == "Les livraisons sont terminées."
+    from api.services.commande.moteur import prealables
+    assert prealables.annoncer_la_fermeture({}, {"phrase": None}) == TS.pas_de_commande_en_ce_moment({})
+
+
+async def test_l_heure_annoncee_dit_ce_sera_pret(appel, monkeypatch):
+    async def annonce(_mode, _zone):
+        return {"prete": "2026-11-25T20:00:00+01:00", "texte": "à vingt heures", "minutes": 20}
+    monkeypatch.setattr(appel.source, "annonce", annonce)
+    r = await moteur.heure_annoncee(appel.source, appel.p, appel.regles, "emporter")
+    assert r.statut == "OK"
+    le_texte_de_secours_suffit(r, TS.ce_sera_pret, "Ce sera prêt à vingt heures.")
+
+
+def test_le_minimum_de_l_adresse_se_lit_de_la_zone_quand_rien_n_est_pris():
+    from api.services.commande.moteur import prealables
+
+    faits = {"zone": {"nom": "Senlis", "minimum": 1500}}
+    assert prealables._minimum_de_l_adresse(faits, P.nouveau()) == TS.minimum_de_l_adresse(faits) == "Le minimum de commande pour cette adresse est de quinze euros."
+    assert prealables._minimum_de_l_adresse({"zone": {"minimum": 0}}, P.nouveau()) == ""

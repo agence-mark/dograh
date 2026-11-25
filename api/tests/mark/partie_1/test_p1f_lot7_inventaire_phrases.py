@@ -26,7 +26,6 @@ FICHIERS_DU_LOT = (
     "services/commande/moteur/enregistrement.py",
     "services/commande/moteur/lecture.py",
     "services/commande/moteur/mode_et_adresse.py",
-    "services/commande/moteur/prealables.py",
     "services/commande/moteur/reglement.py",
     "services/commande/porte.py",
     "services/commande/registre.py",
@@ -59,7 +58,6 @@ A_RENDRE_C1 = frozenset({
     "services/commande/moteur/enregistrement.py",
     "services/commande/moteur/lecture.py",
     "services/commande/moteur/mode_et_adresse.py",
-    "services/commande/moteur/prealables.py",
     "services/commande/moteur/reglement.py",
     "services/commande/porte.py",
 })
