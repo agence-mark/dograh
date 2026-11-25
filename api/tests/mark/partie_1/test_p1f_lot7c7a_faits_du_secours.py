@@ -10,7 +10,7 @@ from api.services.commande.briques import choix_entre_deux_contenus as FOR12
 from api.services.commande.moteur import articles
 from api.tests.mark.partie_1.aides_signal import etape_de_boissons, formule_du_menu
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as A_
-from api.tests.mark.partie_1.test_p1f_lot7c3_allergie_secours import Source as SourceAllergie, fiche, option
+from api.tests.mark.partie_1.aides_signal import SourceAllergie, fiche, option
 from api.tests.mark import test_commande_kebab_sa52 as _KEBAB
 
 base_essai, base_prete, kebab = _KEBAB.base_essai, _KEBAB.base_prete, _KEBAB.kebab  # les fixtures du kebab, reprises sans import inutile

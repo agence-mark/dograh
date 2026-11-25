@@ -5,50 +5,16 @@ La source est un double qui ne connaît que sa carte."""
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
 
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.reservation import textes_de_secours as TSR
 from api.services.restauration.carte_et_allergenes import textes_de_secours as TS
 from api.services.restauration.carte_et_allergenes import voir_un_article as V
+from api.tests.mark.partie_1.aides_signal import Carte, article_de_carte as article
 
 NG = INFO.NON_GARANTI
-LIBELLES = {"gluten": "le gluten", "lait": "le lait", "oeufs": "l'œuf"}
 REGLES = SimpleNamespace()
 PANIER = {"mode": "sur_place", "lignes": []}
-
-
-class Carte:
-    """Une carte d'essai : ses articles (``nom``, ``categorie``, ``signalements``, ``ingredients``, ``obligatoires``), sans réseau."""
-
-    modes = ["sur_place"]
-
-    def __init__(self, articles: list[dict[str, Any]], fiche: dict[str, Any] | None = None):
-        self.articles, self._fiche = articles, fiche
-
-    async def catalogue(self, mode):
-        return {"articles": self.articles, "libelles": LIBELLES}
-
-    def signalement_dit(self, texte):
-        return next((c for c, libelle in LIBELLES.items() if texte.strip() in (c, libelle, libelle.split(" ", 1)[-1], libelle.lstrip("l'"))), None)
-
-    def signalements_dits(self, texte):
-        code = self.signalement_dit(texte)
-        return ([code] if code else []), code is None
-
-    def codes_d_un_nom(self, nom):
-        return []
-
-    async def chercher(self, texte):
-        trouve = next((a for a in self.articles if a["nom"].casefold() == texte.casefold()), None)
-        return SimpleNamespace(statut="RETENU" if trouve else "INTROUVABLE", faits={"retenu": trouve["nom"]} if trouve else {}, suggestion="", manque=None)
-
-    async def article(self, nom, mode):
-        return self._fiche
-
-
-def article(nom: str, signalements: list[str] | None, ingredients: list[str] | None = None, categorie: str = "pizzas") -> dict[str, Any]:
-    return {"nom": nom, "categorie": categorie, "signalements": None if signalements is None else [{"code": c} for c in signalements], "ingredients": ingredients, "obligatoires": []}
 
 
 async def test_la_recherche_sans_une_chose_dit_les_articles_et_la_chose_evitee():
