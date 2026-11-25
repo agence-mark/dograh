@@ -367,3 +367,18 @@ def commandes_plusieurs(faits: Faits) -> str:
 
 def commande_annulee(faits: Faits) -> str:
     return "Cette commande est annulée."
+
+
+# --------------------------------------------------------------------------- #
+# changement.py, porte.py : changer une commande enregistrée, l'heure proposée refusée
+# --------------------------------------------------------------------------- #
+
+
+def tout_retirer_c_est_annuler(faits: Faits) -> str:
+    """Le changement viderait la commande (fait ``manque`` = ``articles``) : retirer toutes les lignes, c'est annuler."""
+    return "Pour tout retirer, c'est une annulation."
+
+
+def pour_quel_jour_alors(faits: Faits) -> str:
+    """La proposition d'heure est refusée sans autre heure dite (fait ``heure_manquante``) : « alors » la redemande, de plus que la question du début."""
+    return "Pour quel jour et à quelle heure, alors ?"

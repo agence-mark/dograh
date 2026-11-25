@@ -703,3 +703,40 @@ async def test_plusieurs_commandes_et_une_commande_annulee_se_disent_par_leur_se
     monkeypatch.setattr(appel.source, "retrouver", annulee)
     r = await moteur.retrouver_commande(appel.source, appel.p, appel.regles, Appelant(), "12")
     le_texte_de_secours_suffit(r, TS.commande_annulee, "Cette commande est annulée.")
+
+
+# ── commit 10 : changer une commande enregistrée, l'heure proposée refusée (changement.py, porte.py) ────────────────────
+import copy  # noqa: E402
+
+from api.services.commande.moteur import changement  # noqa: E402
+
+
+async def _changer(appel, monkeypatch, *, mode=None):
+    monkeypatch.setattr(changement, "_permet_l_annulation", lambda _source: True)
+    avant = copy.deepcopy(appel.p)
+    avant["enregistree"] = {"numero": "00000000-0000-0000-0000-000000000001", "numero_court": "12", "total": 200}
+    if mode:
+        appel.p["mode"] = mode
+        appel.p["lignes"] = [{"n": 1}]
+        monkeypatch.setattr(changement.P, "lignes_pretes", lambda _p: [{"n": 1}])
+    return await changement.changer_commande_enregistree(appel.source, appel.p, appel.regles, Appelant(), avant)
+
+
+async def test_tout_retirer_d_une_commande_enregistree_dit_que_c_est_une_annulation(appel, monkeypatch):
+    r = await _changer(appel, monkeypatch)
+    assert (r.statut, r.manque) == ("INCOMPLETE", "articles")
+    assert porte.faits_vus_par_le_modele(r)["raison"] == "changement_incomplet"
+    le_texte_de_secours_suffit(r, TS.tout_retirer_c_est_annuler, "Pour tout retirer, c'est une annulation.")
+
+
+async def test_changer_en_livraison_sans_adresse_demande_l_adresse_par_la_phrase_du_manque(appel, monkeypatch):
+    r = await _changer(appel, monkeypatch, mode="livraison")
+    assert (r.statut, r.manque) == ("INCOMPLETE", "adresse")
+    assert r.suggestion == phrase_du_manque(Manque.ADRESSE_ET_COMMUNE) == "Quelle est l'adresse de livraison ?"
+
+
+async def test_une_heure_proposee_refusee_sans_autre_heure_redemande_le_jour(appel):
+    r = await porte._repondre_a_l_heure_proposee(appel.source, appel.p, appel.regles, Appelant(), {}, "refuse", None, None)
+    assert (r.statut, r.manque) == ("INCOMPLETE", "heure_voulue")
+    assert porte.faits_vus_par_le_modele(r)["heure_manquante"] is True
+    le_texte_de_secours_suffit(r, TS.pour_quel_jour_alors, "Pour quel jour et à quelle heure, alors ?")

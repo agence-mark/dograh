@@ -46,6 +46,7 @@ from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
+from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
@@ -386,7 +387,8 @@ async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles
     if not heure and sens == "autre":
         return Resultat("OK", {"rien_ajoute": True}, "")  # file d'attente : « autre » (elle dit ses pizzas) garde la question posée
     if not heure:
-        return Resultat("INCOMPLETE", {}, "Pour quel jour et à quelle heure, alors ?", "heure_voulue")
+        faits = {"heure_manquante": True}
+        return Resultat("INCOMPLETE", faits, TS.pour_quel_jour_alors(faits), "heure_voulue")
     r = await moteur.poser_l_heure(source, p, str(heure))
     if r is not None:
         return r
