@@ -75,7 +75,7 @@ def _une_seule_par_appel_annulee(numero: str, **demande: Any) -> Resultat:
     faits = {"reservation": numero, "raison": "deja_une_reservation_dans_cet_appel", "deja_annulee": True}
     if any(v not in (None, "") for v in demande.values()):
         faits["demande"] = {k: v for k, v in demande.items() if v not in (None, "")}
-    return _r("DEJA_FAIT", faits, "")  # le texte est dit par la porte (``TS.du_refus``), qui sait si la demande est transmise
+    return _r("DEJA_FAIT", faits, "")  # le texte est dit par la porte (la porte range le refus en fait : ``transmise_a_l_equipe``)
 
 
 def _r(statut: str, faits: dict | None = None, suggestion: str = "", manque: str | None = None) -> Resultat:

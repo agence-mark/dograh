@@ -1,7 +1,6 @@
 """[.mark] Lot 7b-C3 : les textes de secours de la réservation (feuille : rien de ``services.reservation`` n'y est importé, la base et le moteur la lisent tous deux).
 
-Un texte de secours est la phrase qu'un refus ou une question portait déjà dans ``suggestion`` : le modèle ne la reçoit plus (R = A, le repli du code ne la dit que lorsque le
-modèle s'est tu deux fois sur le refus). Chaque fonction est pure et ne lit que les faits du refus (plus les mots dits des nombres) : ``resultat.suggestion == texte(faits)`` est ce que
+Un texte de secours est la phrase qu'un refus ou une question portait déjà dans ``suggestion`` : le modèle ne la reçoit plus et le code ne la dit plus (C5 : le modèle muet est relancé avec les faits) ; elle reste jusqu'à C7. Chaque fonction est pure et ne lit que les faits du refus (plus les mots dits des nombres) : ``resultat.suggestion == texte(faits)`` est ce que
 prouve le test de chaque refus. Un texte qui lit une valeur absente des faits la fait ajouter au refus.
 """
 
@@ -223,15 +222,3 @@ def une_seule_par_appel(faits: Faits) -> str:
 
 def capacite_non_reglee(faits: Faits) -> str:
     return "Je ne peux pas confirmer une place pour l'instant : je laisse un message à l'équipe pour qu'elle vous rappelle ?"
-
-
-def du_refus(dernier: Any, transmise: bool) -> str:
-    """Le texte que le code dit si le modèle se tait deux fois sur le refus du dernier retour (R = A) ; vide quand ce retour n'est pas un refus."""
-    faits = dict(dernier.faits or {})
-    if dernier.statut in ("REFUSEE", "INTROUVABLE"):
-        return dernier.suggestion or ""
-    if dernier.statut == "DEJA_FAIT" and faits.get("raison") == "deja_une_reservation_dans_cet_appel" and faits.get("deja_annulee"):
-        return une_seule_par_appel({"transmise": transmise})
-    if dernier.statut == "INCOMPLETE" and dernier.manque == "capacite":
-        return capacite_non_reglee(faits)
-    return ""

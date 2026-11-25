@@ -77,17 +77,28 @@ def test_refus_de_la_fiche_et_du_metier():
     assert not R.refuse({"statut": "FAIT", "a_faire": "propose-lui Coca-Cola en une question"})
 
 
-def test_repli_question_en_attente():
-    """L06-28 : au bout des passes, le code dit la question en attente par sa phrase (conv3 t2, mot pour mot)."""
+def _puis(p, fiche=None):
+    """Ce que la relance du modèle lui donne à dire ensuite (``puis``), lu dans la consigne que le code construit : du JSON, jamais une phrase."""
+    import json
+
+    consigne = R.consigne_de_relance(p, fiche if fiche is not None else {}, PAROLE.EtatDuTour(tour=3))
+    return json.loads(consigne[consigne.index("{"):])["puis"], consigne
+
+
+def test_relance_question_en_attente():
+    """L06-28, décision d'Evan 25/11 8 h 45 (lot 7b-C5) : au bout des passes, le code relance le modèle avec la question en attente en faits (conv3 t2) ; la relecture, phrase du § 2, garde son texte
+    jusqu'à C6 ; une proposition n'est jamais redite par sa phrase."""
     relecture = ("Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. Cela fait vingt-sept euros quatre-vingts. "
                  "C'est bon ?")
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []}) == relecture
+    puis, _ = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []})
+    assert puis == {"question": {"id": "Q-2", "type": "relecture", "texte": relecture}}
     proposition = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition}}}) == proposition
+    puis, consigne = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition, "article_propose": "Coca-Cola"}}})
+    assert puis == {"question": {"id": "Q-1", "type": "proposition", "article_propose": "Coca-Cola"}} and proposition not in consigne
 
 
 async def test_repli_phrase_du_manque(essai_de):
-    """L06-28 (f307 t2) : sous le minimum, sans question en attente, le repli est la phrase du manque du module."""
+    """L06-28 (f307 t2) : sous le minimum, sans question en attente, la relance porte ce qui manque en valeur fermée (lot 7b-C5), jamais la phrase du module."""
     e = await essai_de("casa-italia", minimum=5000)
     await e.tour("en livraison au 9 avenue du Bouteiller à Chantilly", mode_de_retrait="livraison", commune="Chantilly", adresse="9 avenue du Bouteiller")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
@@ -95,7 +106,8 @@ async def test_repli_phrase_du_manque(essai_de):
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     assert CONV.question_de(e.p) is None, CONV.question_de(e.p)
-    assert R.repli_dit_par_le_code(e.p) == "Je vous mets autre chose ?", R.repli_dit_par_le_code(e.p)
+    puis, consigne = _puis(e.p, e.fiche_de_l_appel)
+    assert puis == {"manque": "d'autres articles, ou qu'elle dise qu'elle a tout dit"} and "Je vous mets autre chose" not in consigne, consigne
 
 
 # --------------------------------------------------------------------------- la note composée (L06-07)
@@ -219,9 +231,10 @@ def test_prix_dit_apres_la_question_du_modele():
     assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Il est à deux euros."
     assert PAROLE.avec_le_suffixe("Avec ça, un Coca-Cola bien frais ?", etat) == "Avec ça, un Coca-Cola bien frais ? Il est à deux euros."
     assert PAROLE.avec_le_suffixe("Autre chose ?", etat) is None  # dit une fois
-    # passe vide après la naissance de la proposition : le code dit la proposition de B8 (repli E-b)
+    # passe vide après la naissance de la proposition : lot 7b-C5, le modèle est relancé avec la proposition en faits, le code ne dit plus la phrase de B8
     b8 = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "x", "repli": b8}}}) == b8
+    puis, consigne = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "x", "repli": b8}}})
+    assert puis["question"]["type"] == "proposition" and b8 not in consigne
 
 
 async def test_parole_sans_fiche_rejouee(essai_de):
@@ -250,7 +263,7 @@ async def test_rattrapage_une_fois_par_tour(essai_de):
 
 
 async def test_pas_de_phrase_sans_outil_apres_refus_de_la_fiche(essai_de):
-    """L06-26 (B12) : après un refus de LA FICHE, aucune phrase sans outil n'est dite : retenue, puis la relance fautive est remplacée par le repli."""
+    """L06-26 (B12) : après un refus de LA FICHE, aucune phrase sans outil n'est dite : retenue, puis la relance fautive relance le modèle avec le fait (décision d'Evan 25/11 8 h 45)."""
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     e.dit("une margherita mega")
@@ -261,7 +274,8 @@ async def test_pas_de_phrase_sans_outil_apres_refus_de_la_fiche(essai_de):
     v = _verificateur(e)
     assert v.controler("Je remplace tout de suite.").raison == PAROLE.APRES_REFUS
     relance = v.controler_la_relance("C'est fait, je remplace.")
-    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.a_dire, relance
+    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : la relance fautive n'est pas remplacée par une phrase du code : le modèle est relancé avec le fait
+    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.a_dire is None and relance.consigne, relance
 
 
 async def test_refus_du_metier_phrase_gardee(essai_de):
@@ -287,7 +301,7 @@ async def test_repli_sur_phrase_vide(essai_de):
     v = _verificateur(e)
     v.controler("")
     relance = v.controler_la_relance("")
-    assert relance is not None and relance.a_dire, (relance, r)
+    assert relance is not None and relance.a_dire is None and relance.consigne, (relance, r)  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : relancé avec le fait, pas de phrase du code
 
 
 def test_porte_la_fiche():
@@ -637,7 +651,7 @@ async def test_outil_exige_apres_refus_de_la_fiche(essai_de):
     assert retenue.raison == PAROLE.APRES_REFUS and retenue.outil is None and retenue.appel_par_le_code is False and not retenue.a_dire
     assert retenue.consigne == R.RAPPEL_APRES_REFUS
     relance = v.controler_la_relance("Voilà, c'est ajouté.")
-    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.outil is None and relance.a_dire
+    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.outil is None and relance.a_dire is None and relance.consigne  # décision d'Evan 25/11 8 h 45 (lot 7b-C5)
 
 
 def test_accueil_voir_produit_refuse():
@@ -904,7 +918,12 @@ async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
             else:
                 # retenue une fois (rattrapage) : le modèle repasse ; sa relance est la phrase que le banc a dite
                 seconde = v.controler_la_relance(libre)
-                par, dit = ("code", seconde.a_dire) if seconde is not None and seconde.a_dire else ("modele", libre)
+                if seconde is not None and seconde.a_dire:
+                    par, dit = "code", seconde.a_dire
+                elif seconde is not None and seconde.consigne:
+                    par, dit = "relance du fait", libre  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne dit rien, le modèle est relancé avec le fait
+                else:
+                    par, dit = "modele", libre
         attendu = PAROLE.sans_balisage(tour.get("texte") or "") if tour["dit_par"] in ("code", "a_dire", "modele+code") else None
         if par != tour["dit_par"] or (attendu is not None and lu_comme_au_banc(PAROLE.sans_balisage(dit or "")) != lu_comme_au_banc(attendu)):
             ecarts.append(f"{conversation['conversation']} tour {i} « {tour['dit'][:40]} » : banc {tour['dit_par']} « {(tour.get('texte') or '')} » / "

@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import inspect
+from functools import partial
 import json
 import re
 import time
@@ -365,7 +366,7 @@ def noter_un_outil_de_passation(service: Any, nom: str) -> None:
 
 
 # P5 (lot 19 bis) : la fiche d'un connecteur aux arguments illisibles n'est pas exécutée comme ``{}`` (une fiche vide ne dit rien) : elle arrive marquée, la porte la refuse
-# (``arguments_illisibles``, un refus de LA FICHE) et le modèle repasse ; au bout des passes, le repli du code parle. Jamais un tour muet.
+# (``arguments_illisibles``, un refus de LA FICHE) et le modèle repasse ; au bout des passes, le code relance le modèle avec le fait (C5), puis dit le fait accompli ou la phrase réglée. Jamais un tour muet.
 ATTRIBUT_NOMS_DES_FICHES = "mark_noms_des_fiches"
 ARGUMENTS_D_UNE_FICHE_ILLISIBLE = '{"arguments_illisibles": true}'
 
@@ -636,8 +637,9 @@ class RepliqueVerifiee:
     - un flux qui porte un appel d'outil passe tel quel, dans son ordre ;
     - une réplique de texte seul est contrôlée (``controler(texte)`` rend ``None`` ou une retenue) ; sans retenue,
       elle passe telle quelle ;
-    - retenue : le modèle est relancé UNE fois, sans flux, avec la consigne de la retenue (``relancer(retenue)``) ;
-      la relance est rendue telle quelle, quoi qu'elle dise. Relance vide ou en erreur : la réplique d'origine passe.
+    - retenue : le modèle est relancé UNE fois, sans flux, avec la consigne de la retenue (``relancer(retenue)``) ; une relance retenue à son tour avec le fait à redonner
+      est relancée au plus UNE fois encore (la relance du fait). Sinon, ou sans réponse : le texte que porte la retenue, le fait accompli ou la phrase réglée de l'agent ;
+      jamais la réplique retenue, jamais un tour muet (une retenue sans consigne ni appel exigé n'a pas de requête de plus : elle va droit à la phrase du code).
     - SA-36 (M87) : une retenue qui porte un texte à dire à la place (``a_dire``) est remplacée par lui, sans relance ; une relance
       qui affirme comme fait ce qu'aucun outil du tour n'a fait (``controler_la_relance``) est remplacée de même.
 
@@ -720,12 +722,15 @@ class RepliqueVerifiee:
                     retenue = await retenue
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[cerveau] texte avant l'outil non contrôlé : {erreur!r}")
+        async for morceau in self._relancer_sans_lever(retenue, appel, tenus, usage):
+            yield morceau
+
+    async def _relancer_sans_lever(self, retenue, appel, tenus, usage, du_fait=False):
+        """Ce que rend la réplique quand elle est retenue : relancée UNE fois, et si cette relance est retenue à son tour avec une consigne (le fait, C5), relancée UNE fois encore (``du_fait``, la
+        même méthode, appelée par elle-même : une seule façon de relancer, un seul ``except`` qui ne laisse jamais une erreur sortir à la place du service). ⛔ Ne lève jamais."""
         if retenue is not None:
-            a_dire = getattr(retenue, "a_dire", None)
-            if isinstance(a_dire, str) and a_dire.strip():
-                # SA-36 (M87) : la retenue sait ce qu'il faut dire à la place (la question du dernier outil) : dit sans relance.
-                logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : remplacée par le texte de l'outil")
-                for morceau in self._a_dire(a_dire.strip(), usage):
+            if self._rien_a_relancer(retenue):
+                async for morceau in self._dire_sans_relancer(retenue, appel, tenus, usage):
                     yield morceau
                 return
             reprise = None
@@ -741,52 +746,94 @@ class RepliqueVerifiee:
                 for morceau in self._appel_du_code(outil_du_code, additionner(usage, getattr(reprise, "usage", None))):
                     yield morceau
                 return
-            if reprise is not None:
-                morceaux = en_morceaux(reprise, usage)
-                if any(porte_quelque_chose(m) for m in morceaux) and self._controler_la_relance is not None:
-                    texte_repris = "".join(
-                        getattr(_delta(m), "content", None) or "" for m in morceaux if _delta(m) is not None
-                    )
-                    appel_repris = any(getattr(_delta(m), "tool_calls", None) for m in morceaux if _delta(m) is not None)
-                    seconde = None
-                    if texte_repris and not appel_repris:
-                        try:
-                            seconde = self._controler_la_relance(texte_repris)
-                        except Exception as erreur:  # noqa: BLE001
-                            logger.warning(f"[cerveau] relance non contrôlée : {erreur!r}")
-                    if seconde is not None:
-                        # D26 : une relance retenue à son tour n'est jamais dite : le texte de l'outil, sinon la phrase du code
-                        a_dire = getattr(seconde, "a_dire", None)
-                        a_dire = a_dire.strip() if isinstance(a_dire, str) and a_dire.strip() else self._phrase_du_code()
-                        logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par le texte du code")
-                        morceaux = self._a_dire(a_dire, additionner(usage, getattr(reprise, "usage", None)))
-                if any(porte_quelque_chose(m) for m in morceaux):
-                    logger.warning(
-                        f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : réponse rendue par la relance"
-                    )
-                    for morceau in morceaux:
-                        yield morceau
-                    return
-            # D26 (note de Pierre du 20/11, point 4) : la relance a échoué (429, délai) ou n'a rien rendu : la réplique retenue n'est JAMAIS dite
-            # telle quelle ; la phrase du code la remplace (le repli du point de contact, sinon une phrase neutre)
-            logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : relance sans réponse, phrase du code")
-            if appel:
-                # le texte retenu précédait un appel d'outil : l'appel part, le texte jamais (l'outil rend ce qui se dit)
-                for tenu in tenus:
-                    if getattr(_delta(tenu), "tool_calls", None) or getattr(tenu, "usage", None) is not None:
-                        yield tenu
-                return
-            for morceau in self._a_dire(self._phrase_du_code(), usage):
+            async for morceau in self._rendre_la_relance(retenue, reprise, appel, tenus, usage, du_fait):
                 yield morceau
             return
         for tenu in tenus:
             yield tenu
 
+    @staticmethod
+    def _rien_a_relancer(retenue) -> bool:
+        """La retenue porte son texte à dire (SA-36), ou n'a ni consigne ni appel exigé (un second silence du tour, C5) : aucune requête de plus."""
+        a_dire = getattr(retenue, "a_dire", None)
+        return bool(isinstance(a_dire, str) and a_dire.strip()) or not (getattr(retenue, "consigne", None) or getattr(retenue, "outil", None))
+
+    async def _dire_sans_relancer(self, retenue, appel, tenus, usage):
+        """Le texte de la retenue, dit sans relance (SA-36 : la question du dernier outil) ; sans texte, la phrase du code : le fait accompli ou la phrase réglée, jamais un tour muet."""
+        a_dire = getattr(retenue, "a_dire", None)
+        if isinstance(a_dire, str) and a_dire.strip():
+            logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : remplacée par le texte de l'outil")
+            for morceau in self._a_dire(a_dire.strip(), usage):
+                yield morceau
+            return
+        async for morceau in self._sans_reponse_de_la_relance(retenue, appel, tenus, usage):
+            yield morceau
+
+    async def _rendre_la_relance(self, retenue, reprise, appel, tenus, usage, du_fait):
+        """La réponse de la relance, dite telle quelle ; retenue à son tour avec le fait à redonner, la méthode de relance est rappelée UNE fois (``du_fait``) ; sans réponse : le fait accompli ou la phrase réglée."""
+        if reprise is not None:
+            morceaux, encore = await self._morceaux_de_la_relance(reprise, usage, du_fait)
+            if encore is not None:
+                async for morceau in self._relancer_sans_lever(encore, appel, tenus, usage, du_fait=True):
+                    yield morceau
+                return
+            if any(porte_quelque_chose(m) for m in morceaux):
+                logger.warning(
+                    f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : réponse rendue par la relance"
+                )
+                for morceau in morceaux:
+                    yield morceau
+                return
+        async for morceau in self._sans_reponse_de_la_relance(retenue, appel, tenus, usage):
+            yield morceau
+
+    async def _sans_reponse_de_la_relance(self, retenue, appel, tenus, usage):
+        """La relance a échoué ou n'a rien rendu : la réplique retenue n'est jamais dite telle quelle (le fait accompli ou la phrase réglée la remplace)."""
+        # D26 (note de Pierre du 20/11, point 4) : la relance a échoué (429, délai) ou n'a rien rendu : la réplique retenue n'est JAMAIS dite
+        # telle quelle ; le fait accompli que le code a dit, sinon la phrase réglée de l'agent la remplace (jamais un refus ni une question composés par le code)
+        logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : relance sans réponse, phrase du code")
+        if appel:
+            # le texte retenu précédait un appel d'outil : l'appel part, le texte jamais (l'outil rend ce qui se dit)
+            for tenu in tenus:
+                if getattr(_delta(tenu), "tool_calls", None) or getattr(tenu, "usage", None) is not None:
+                    yield tenu
+            return
+        for morceau in self._a_dire(self._phrase_du_code(), usage):
+            yield morceau
+
+    def _retenue_de_la_relance(self, morceaux: list[Any]) -> Any:
+        """SA-36 (M87) : la réponse de la relance, contrôlée sur un seul point (une retenue qui a un texte à dire à la place, ou une consigne). ``None`` : rendue telle quelle."""
+        if self._controler_la_relance is None or not any(porte_quelque_chose(m) for m in morceaux):
+            return None
+        texte_repris = "".join(getattr(_delta(m), "content", None) or "" for m in morceaux if _delta(m) is not None)
+        appel_repris = any(getattr(_delta(m), "tool_calls", None) for m in morceaux if _delta(m) is not None)
+        if not texte_repris or appel_repris:
+            return None
+        return self._controler_la_relance(texte_repris)  # ``controler_la_relance`` ne lève jamais (contrat du contrôle de la fiche)
+
+    async def _morceaux_de_la_relance(self, reprise: Any, usage: Any, du_fait: bool = False) -> tuple[list[Any], Any]:
+        """La réponse de la relance, rendue telle quelle ; retenue à son tour (D26), elle n'est jamais dite : le texte que la retenue porte, sinon (C5, décision d'Evan 25/11 8 h 45) la retenue
+        elle-même, à relancer UNE fois avec le fait (``du_fait`` : déjà fait, plus de relance), sinon la phrase du code (le fait accompli, ou la phrase réglée de l'agent). Rend ``(morceaux, retenue à relancer)``."""
+        morceaux = en_morceaux(reprise, usage)
+        seconde = self._retenue_de_la_relance(morceaux)
+        if seconde is None:
+            return morceaux, None
+        usage_d_ici = additionner(usage, getattr(reprise, "usage", None))
+        a_dire = getattr(seconde, "a_dire", None)
+        if isinstance(a_dire, str) and a_dire.strip():
+            logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par le texte du code")
+            return self._a_dire(a_dire.strip(), usage_d_ici), None
+        if not du_fait and getattr(seconde, "consigne", None):
+            return morceaux, seconde
+        logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par la phrase du code")
+        return self._a_dire(self._phrase_du_code(), usage_d_ici), None
+
     def _phrase_du_code(self) -> str:
-        """Ce que dit le code quand une réplique retenue n'a pas de remplaçant : le repli du point de contact (la question en attente), sinon neutre."""
+        """Ce que dit le code quand une réplique retenue n'a pas de remplaçant et que la relance a échoué (C5, décision d'Evan 25/11 8 h 45) : le fait accompli qu'il a déjà dit
+        (§ 2 du plan, jusqu'à C6), sinon la phrase réglée de l'agent. Jamais le refus ni la question composés par le code."""
         if self._silence is not None:
             try:
-                repli = getattr(self._silence(), "a_dire", None)
+                repli = getattr(self._silence(sans_relance=True), "a_dire", None)
                 if isinstance(repli, str) and repli.strip():
                     return repli.strip()
             except Exception as erreur:  # noqa: BLE001
@@ -1069,7 +1116,7 @@ class RepriseSansFluxMixin:
                 la_relance = lambda texte: verificateur.controler_la_relance(texte, messages)  # noqa: E731
             le_silence = None
             if verificateur is not None and hasattr(verificateur, "controler_le_silence"):
-                le_silence = lambda: verificateur.controler_le_silence(messages)  # noqa: E731
+                le_silence = partial(verificateur.controler_le_silence, messages)  # ``sans_relance`` s'y ajoute à l'appel
             repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence, lambda: phrase_de_repli_reglee(self))
         # SA-38 (M89) : en dernier, sur ce que l'agent dirait vraiment (relances comprises) ; sans phrase du code dans ce tour, rien.
         dites = phrases_dites_par_le_code(self, getattr(context, "messages", None))

@@ -315,3 +315,26 @@ async def test_defauts_connus_df12_reservation(salle, monkeypatch):  # noqa: F81
         fautes.append(f"M9 : créneau complet, des heures proposées à null : {json.dumps(r2.get('faits'), ensure_ascii=False)[:300]}")
     _ecrire("defaut-DF12", {"lignes": fautes})
     assert not fautes, "\n".join(fautes)
+
+
+def test_rc7_la_consigne_de_relance_doit_porter_la_question_en_attente_vu_rouge():
+    """Lot 7b-C5 n° 11 : après « pardon ? », le code ne dit rien de sa voix ; la consigne qui relance le modèle doit porter la question en attente (son identifiant)."""
+    question = {"id": "Q-2", "type": "variante", "texte": "Quelle taille ?", "article_en_question": "Regina"}
+    apres = {"conversation": {"question": question}}
+    avec = '- relance : {"puis": {"question": {"id": "Q-2", "type": "variante"}}}'
+    sans = '- relance : {"puis": {"manque": "les articles"}}'
+    assert not C.rc7(_observation(geste="G35", apres=apres, consigne=avec))
+    assert C.rc7(_observation(geste="G35", apres=apres, consigne=sans)), "la consigne a perdu la question en attente"
+    assert C.rc7(_observation(geste="G35", apres={"lignes": [{}]}, consigne=None)), "rien à relancer alors que la commande n'est pas finie"
+
+
+def test_rc6_et_rc9_lisent_la_question_par_sa_structure_vu_rouge():
+    """Lot 7b-C5 n° 11 : même texte et autre objet = deux questions ; le texte changé avec le même objet = la même question (avant : le texte tenait lieu d'identité)."""
+    def etat(q):
+        return {"lignes": [], "conversation": {"question": q}}
+
+    meme_objet = {"type": "variante", "article_en_question": "Regina"}
+    q1, q2 = {"id": "Q-1", "texte": "Quelle taille ?", **meme_objet}, {"id": "Q-2", "texte": "Une taille pour la Regina ?", **meme_objet}
+    assert C.rc9(_observation(geste="G1", avant=etat(q1), apres=etat(q2))), "même type et même objet, un autre numéro : la même question change de numéro"
+    autre = {"id": "Q-2", "texte": "Quelle taille ?", "type": "variante", "article_en_question": "Margherita"}
+    assert not [f for f in C.rc9(_observation(geste="G1", avant=etat(q1), apres=etat(autre))) if "change de numéro" in f[1]], "même texte, autre objet : deux questions"

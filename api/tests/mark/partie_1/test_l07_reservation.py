@@ -362,11 +362,12 @@ def test_phrases_du_manque_reservation():
     assert PM.PHRASES_DU_MANQUE == attendu
     from api.services.reservation import etat_pour_le_modele as E
 
-    assert PM.texte_a_dire({}) == "Pour combien de personnes ?"
-    assert PM.texte_a_dire({"brouillon": {"personnes": 4}}) == "Pour quel jour ?"
-    assert PM.texte_a_dire({"brouillon": {"personnes": 4, "jour": "samedi", "heure": "20h", "prenom": "A"}, "numero_affiche": False}) == attendu["le numéro de téléphone"]
-    assert PM.texte_a_dire({"recherche": True}) == attendu["le nom et le jour de sa réservation d'avant"]
-    assert PM.texte_a_dire({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1"}}}) is None  # une question porte ce qui manque
+    # lot 7b-C5 (décision d'Evan 25/11 8 h 45) : le code ne dit plus la phrase du manque ; la relance du modèle reçoit la VALEUR fermée (``valeur_du_manque``)
+    assert PM.valeur_du_manque({}) == "le nombre de personnes"
+    assert PM.valeur_du_manque({"brouillon": {"personnes": 4}}) == "le jour"
+    assert PM.valeur_du_manque({"brouillon": {"personnes": 4, "jour": "samedi", "heure": "20h", "prenom": "A"}, "numero_affiche": False}) == "le numéro de téléphone"
+    assert PM.valeur_du_manque({"recherche": True}) == "le nom et le jour de sa réservation d'avant"
+    assert PM.valeur_du_manque({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1"}}}) is None  # une question porte ce qui manque
     assert {E.ce_qui_manque_ensuite({}, True), E.ce_qui_manque_ensuite({"recherche": True}, True)} <= set(attendu)
     from api.tests.mark.partie_1 import glossaire  # noqa: F401  # les raisons de refus de la réservation sont rangées « métier »
 
@@ -376,4 +377,4 @@ def test_phrases_du_manque_reservation():
 async def test_le_manque_est_rendu_par_la_fiche(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch)
     r = await essai.tour("quatre personnes", personnes=4)
-    assert r["manque"] == "jour" and r[CLE_DU]["manque"] == "Pour quel jour ?", r
+    assert r["manque"] == "jour" and r[CLE_DU]["manque"] == "le jour", r  # lot 7b-C5 : la valeur fermée, jamais sa phrase

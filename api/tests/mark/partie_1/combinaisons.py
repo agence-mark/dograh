@@ -59,10 +59,11 @@ class Observation:
     attendu: Counter | None
     fiche: dict[str, Any] | None
     duree_ms: float = 0.0
-    repli: str | None = None
+    consigne: str | None = None  # lot 7b-C5 : ce que le code donne au modèle muet après « pardon ? » (la consigne de relance, ses faits en JSON), sinon le fait accompli ; jamais une phrase composée
     base: dict[str, Any] | None = None  # la commande de ``resto_commande`` (et ses lignes) quand le panier en porte une enregistrée
     prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois
     finaliser_appels: int = 0  # combien de fois la fiche de ce geste a mené la commande à sa fin (invariant : jamais plus d'une)
+    relance_du_fait: bool = False  # lot 7b-C5 : le modèle a déjà été relancé avec le fait dans ce tour (le plafond d'une relance par tour)
 
     @property
     def dit_par_le_code(self) -> str:
@@ -382,7 +383,7 @@ class Partie:
         if dit is not None:
             e.dit(dit)
             self.fiche_du_tour = None
-        retour, textes, decision, repli, duree, nombre_de_fins = None, {}, None, None, 0.0, 0
+        retour, textes, decision, consigne, duree, nombre_de_fins = None, {}, None, None, 0.0, 0
         attendu = effet(lignes_de(avant), avant) if effet is not None else None
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
@@ -397,9 +398,10 @@ class Partie:
             if not rejeu and dit is not None:
                 self.dernier_effet = effet  # G31 (dans le même tour) ne change pas ce que « je répète » rejouerait
         else:
-            repli = R.repli_dit_par_le_code(self.p)
+            consigne = R.consigne_de_relance(self.p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel)) or J.fait_accompli(self.p)
         base, prise = await self._lire_la_base()
-        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli, base, prise, nombre_de_fins if fiche is not None else 0)
+        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, consigne, base, prise, nombre_de_fins if fiche is not None else 0,
+                        relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait)
         self.observations.append(o)
         self.journal.append(o.dit_par_le_code)
         return o
@@ -574,6 +576,11 @@ def _code_a_parle(o: Observation) -> bool:
     return bool(o.dit_par_le_code) or (o.decision is not None and getattr(o.decision, "motif", "") == "texte_du_code")
 
 
+def _relance_deja_faite(o: Observation) -> bool:
+    """La relance du modèle de ce tour a déjà eu lieu : sa phrase part seule, même sans la question (le plafond d'une relance par tour)."""
+    return o.relance_du_fait
+
+
 def rc1(o: Observation) -> list[Faute]:
     """Une seule question, et toujours une quand il manque quelque chose."""
     f: list[Faute] = []
@@ -585,8 +592,8 @@ def rc1(o: Observation) -> list[Faute]:
     manque = (r.get(CLE_DU) or {}).get("manque")
     d = o.decision
     # le modèle formule la question de ce qui manque avec ses mots (Evan, 17/11) : la faute est une phrase dite seule qui n'en pose AUCUNE
-    if (manque and d is not None and d.mode == PAROLE.A_DIRE_SEUL and manque not in (d.a_dire or "") and manque not in o.dit_par_le_code
-            and "?" not in (d.a_dire or "")):
+    # lot 7b-C5 : ``manque`` est une valeur fermée, plus une phrase ; la table fait repasser le modèle une fois (``relance_du_fait``), ensuite sa phrase part seule
+    if manque and d is not None and d.mode == PAROLE.A_DIRE_SEUL and not o.dit_par_le_code and "?" not in (d.a_dire or "") and not _relance_deja_faite(o):
         f.append(("RC1", f"ce qui manque (« {manque} ») n'est pas demandé : seule part « {d.a_dire} »"))
     dits = o.dit_par_le_code
     if dits.count("?") > 1:
@@ -679,7 +686,7 @@ def rc6(partie: Partie) -> list[Faute]:
     def signe(o: Observation):
         r = o.retour or {}
         bloquant = (r.get("faits") or {}).get("fait_bloquant")
-        return (question(o.apres).get("texte"), json.dumps(bloquant, sort_keys=True) if bloquant else None, r.get("raison"))  # B3 : jamais « 'None' »
+        return (CONV.identite_de_la_question(question(o.apres)), json.dumps(bloquant, sort_keys=True) if bloquant else None, r.get("raison"))  # B3 : jamais « 'None' » ; lot 7b-C5 : la question par sa structure, plus par son texte
 
     sortie = J.A_FAIRE_SORTIE in str((obs[-1].retour or {}).get("a_faire") or "")  # B3 : la sortie du journal (un message à l'équipe)
     if len({signe(o) for o in obs}) == 1 and all(lignes_de(o.avant) == lignes_de(o.apres) for o in obs) and any(signe(obs[0])) and not sortie:
@@ -688,17 +695,16 @@ def rc6(partie: Partie) -> list[Faute]:
 
 
 def rc7(o: Observation) -> list[Faute]:
-    """Incompréhension : le dire, puis reprendre la question en attente (ou le manque)."""
+    """Incompréhension : le dire, puis reprendre la question en attente (ou le manque). Lot 7b-C5 : le code ne reprend rien de sa voix, il relance le modèle ; la consigne de relance doit porter la
+    question en attente (son identifiant), ou ce qui manque."""
     if o.geste != "G35":
         return []
-    q, attendu = question(o.apres), None
-    if q.get("texte") and q.get("type") not in ("proposition",):
-        attendu = q["texte"]
-    if attendu and attendu not in (o.repli or ""):
-        return [("RC7", f"après « pardon ? », le repli ne reprend pas la question en attente : « {o.repli} »")]
-    if not finie(o.apres) and not q and not o.repli:
+    q = question(o.apres)
+    if q.get("id") and f'"id": "{q["id"]}"' not in (o.consigne or ""):
+        return [("RC7", f"après « pardon ? », la consigne de relance ne porte pas la question en attente : « {o.consigne} »")]
+    if not finie(o.apres) and not q and not o.consigne:
         return [("RC7", "après « pardon ? », rien à redire alors que la commande n'est pas finie")]
-    if finie(o.apres) and not o.repli:
+    if finie(o.apres) and not o.consigne:
         return [("RC7", "après une action faite (enregistrée ou annulée), « pardon ? » n'a rien à redire : seule la phrase neutre « je n'ai pas bien saisi » part (C5)")]
     return []
 
@@ -720,7 +726,7 @@ def rc9(o: Observation) -> list[Faute]:
     """Une question a un numéro stable et tombe avec son objet."""
     f: list[Faute] = []
     qa, qp = question(o.avant), question(o.apres)
-    if qa and qp and qa.get("type") == qp.get("type") and qa.get("texte") == qp.get("texte") and qa.get("id") != qp.get("id"):
+    if qa and qp and CONV.identite_de_la_question(qa)[1:] == CONV.identite_de_la_question(qp)[1:] and qa.get("id") != qp.get("id"):  # lot 7b-C5 : la même question par sa structure (type, objet), plus par son texte
         f.append(("RC9", f"la même question change de numéro : {qa.get('id')} → {qp.get('id')}"))
     if qp.get("type") == "proposition" and qp.get("article_propose"):
         noms = {str(l.get("nom") or "") for l in o.apres.get("lignes") or []}
@@ -782,16 +788,16 @@ def manque_du_moteur(texte: str | None):
 
 
 def rc12(o: Observation) -> list[Faute]:
-    """« Ce qui manque » a une seule réponse : la phrase de manque rendue est celle du manque que le moteur bloque."""
+    """« Ce qui manque » a une seule réponse : la valeur de manque rendue est celle du manque que le moteur bloque."""
     from api.services.commande import phrases_du_manque as M
 
     r = o.retour or {}
     fb = (r.get("faits") or {}).get("fait_bloquant") or {}
     if (r.get(CLE_DU) or {}).get("manque") and fb.get("manque"):
         manque, modes = manque_du_moteur(fb["manque"])
-        attendu = M.phrase_du_manque(manque, modes)
+        attendu = manque.value if manque is not None and M.phrase_du_manque(manque, modes) else None  # lot 7b-C5 : la valeur fermée de ce qui manque, plus sa phrase
         if attendu and attendu != r[CLE_DU]["manque"]:
-            return [("RC12", f"phrase de manque « {r[CLE_DU]['manque']} », le moteur bloque sur « {fb['manque']} »")]
+            return [("RC12", f"valeur de manque « {r[CLE_DU]['manque']} », le moteur bloque sur « {fb['manque']} »")]
     return []
 
 

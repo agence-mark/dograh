@@ -29,8 +29,10 @@ ECARTS_DE_LA_CUISINE: dict[str, str] = {
     "conv2-hors-zone": "DC3 : fiche B12 qui répond à la proposition close au tour d'avant (changement de mode sans « oui »)",
     "conv4-allergie": "DC3 : fiche B12 qui répond à la proposition close au tour d'avant (question sur l'allergie sans « oui »)",
 }
+# Lot 7b-C5 (décision d'Evan 25/11 8 h 45) : plus aucun écart n'est « le code complète ou remplace la phrase du modèle » : le code relance le modèle avec le fait (``repli.consigne_de_relance``), une fois par tour.
 ECARTS_DE_LA_PAROLE: dict[str, str] = {
-    "conv3-taille": ECARTS_DE_LA_CUISINE["conv3-taille"], "conv2-hors-zone": ECARTS_DE_LA_CUISINE["conv2-hors-zone"],
+    "conv3-taille": ECARTS_DE_LA_CUISINE["conv3-taille"] + " ; lot 7b-C5 (décision d'Evan 25/11 8 h 45) : la relance retenue n'est plus remplacée par le code, le modèle est relancé avec le fait",
+    "conv2-hors-zone": ECARTS_DE_LA_CUISINE["conv2-hors-zone"],
     # B2 (M3, règle 1) : une phrase dite seule qui ne demande pas ce qui manque est jetée ; le modèle repasse et le demande avec ses mots
     "conv4-allergie": "B2 : « Je vais vérifier pour votre allergie aux noix. » ne demande pas ce qui manque : le modèle repasse",
     "conv6-recommencer-annuler": "B2 : « Pas de problème, je vous attends. » ne demande pas ce qui manque : le modèle repasse",

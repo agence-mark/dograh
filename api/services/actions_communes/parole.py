@@ -8,7 +8,7 @@ Recopie de la boucle du tour du banc (``banc-b12/appel_b12.py`` ``tour``), répa
   A (aucun outil dans ce tour alors qu'un objet est en cours ou qu'une question attend, une fois par tour) ; le rattrapage après un refus (une
   fois par tour, tenu par le drapeau ``rattrapage_refus_joue``, jamais par le texte retenu) ; le repli A (après un refus de LA FICHE, jamais
   dite) ; la barrière des chiffres (toujours) ;
-- **au bout** : une relance encore retenue, ou vide, est remplacée par ``repli_dit_par_le_code`` (le code redemande, il ne choisit rien) ;
+- **au bout** (C5, décision d'Evan 25/11 8 h 45) : le code ne compose aucune phrase ; une phrase retenue, ou un silence, relance le modèle UNE fois par tour avec le fait (``repli.consigne_de_relance``) ; si la relance échoue : le fait accompli que le code a déjà dit, sinon la phrase réglée de l'agent ;
 - **ce que le code dit lui-même** (``textes`` : ``avant``, ``prefixe``, ``suffixe``, posés par la porte, élément 1 (b)) : le récapitulatif ou la
   confirmation est dit seul et le tour s'arrête (la phrase du modèle est jetée) ; la règle chiffrée qui bloque est dite, puis le modèle repasse ;
   le prix d'une proposition est dit juste après la phrase du modèle (gardé dans l'état du tour jusqu'à elle).
@@ -29,7 +29,6 @@ from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_
 CLE_ETAT_DU_TOUR = "parole_du_tour"
 CLE_TEXTES_DU_CODE = "textes_du_code_de_la_fiche"  # ce que le code dit lui-même pour la fiche du tour (``avant``, ``prefixe``, ``suffixe``), posé par la porte
 CLE_DU_TOUR = "tour_de_la_personne"  # le tour de la personne, la même clé que la porte (cases_selon_l_etat.CLE_DU_TOUR)
-PASSES_AU_PLUS = 5
 
 A_DIRE_SEUL = "a_dire_seul"
 SECOND_PASSAGE = "second_passage"
@@ -37,7 +36,7 @@ SECOND_PASSAGE = "second_passage"
 RAPPEL_SANS_OUTIL = "- Ta réponse précédente n'avait pas d'appel d'outil : elle n'a pas été dite, et rien n'est changé."
 # Raisons de retenue d'une phrase libre (liste fermée, au glossaire)
 SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refus", "repli_a", "chiffre"
-SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le repli du code est dit
+SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le modèle est relancé avec le fait (C5)
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
 QUESTION_DEJA_DONNEE = "question_deja_donnee"  # motif : la question née dans le tour, déjà donnée au modèle, posée par la phrase de sa fiche (lot 19)
@@ -64,6 +63,7 @@ class EtatDuTour:
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
     jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
+    relance_du_fait: bool = False  # C5 : le modèle a été relancé avec le fait dans ce tour (une fois par tour de la personne, remis à zéro avec l'état)
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
 
 
@@ -118,7 +118,7 @@ def noter_la_lecture_rendue(fiche_de_l_appel: Any) -> None:
         etat = etat_du_tour(fiche_de_l_appel)
         etat.lecture_pas_vue = True
         # Lot 20 (n11) : la lecture est la dernière chose rendue au modèle : sa phrase répond à la lecture, elle n'est plus un rattrapage du refus d'une
-        # fiche d'avant (« La Napoli contient des anchois… » retenue puis remplacée par le repli). Une fiche refusée APRÈS elle repose le refus.
+        # fiche d'avant (« La Napoli contient des anchois… » retenue puis relancée avec le fait). Une fiche refusée APRÈS elle repose le refus.
         etat.suite.append(LECTURE)  # ligne 23 : le refus n'est pas effacé, la lecture vient après lui
         garder(fiche_de_l_appel, etat)
 
@@ -192,12 +192,6 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant))
 
 
-def repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
-    from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
-
-    return _repli_sans_le_fait_bloquant(p, None, None)
-
-
 def pose_une_question(phrase: str) -> bool:
     """La phrase pose-t-elle une question : sa dernière proposition se termine par « ? » (sa ponctuation, jamais ses mots). Le seul critère de la parole."""
     return sans_balisage(phrase).rstrip(" .!…").endswith("?")
@@ -215,22 +209,14 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
     return dit
 
 
-REPRISE = "reprise_de_la_question"  # pas une retenue : la phrase dite, suivie de la question en attente redite par le code (lot 20)
+REPRISE = "reprise_de_la_question"  # motif : la phrase dite n'a pas posé la question en attente ; le modèle est relancé avec elle (lot 20, C5)
 
 
-def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_du_manque: Any = None, fiche: Any = None, *, rien_change: bool = False) -> str | None:
-    """Lot 20 (Evan, 21/11 : « l'agent dit "je n'ai pas compris", puis reprend ce qu'il faisait ») : la question en attente, redite par le code après la
-    phrase du modèle, quand rien n'a changé dans ce tour (aucune fiche) et que sa phrase ne pose pas déjà une question (une question à la fois). Sinon ``None``.
-    Critère sur l'état du tour et la forme de la phrase, jamais sur ses mots.
-    ``rien_change`` (M1, RC4 : trois fois la même fiche dans un tour) : la fiche qui vient de passer n'a rien changé, les fiches d'avant dans le tour ne retirent
-    pas ce qui est dû : la question en attente, ou ce qui manque, suit la phrase."""
-    from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
-
-    if (etat.fiches and not rien_change) or not isinstance(p, dict) or CONV.question_de(p) is None:
-        return None
-    if pose_une_question(texte):
-        return None
-    return _repli_sans_le_fait_bloquant(p, texte_du_manque, fiche)
+def question_oubliee(texte: str, etat: EtatDuTour, p: dict | None) -> bool:
+    """Lot 20 (Evan, 21/11 : « l'agent dit "je n'ai pas compris", puis reprend ce qu'il faisait ») : une question attend, rien n'a changé dans ce tour (aucune fiche) et la phrase du modèle
+    n'en pose aucune (une question à la fois). C5 (décision d'Evan 25/11 8 h 45) : le code ne la redit plus, le modèle est relancé avec elle. Critère sur l'état du tour et la forme de la phrase,
+    jamais sur ses mots."""
+    return not etat.fiches and isinstance(p, dict) and CONV.question_de(p) is not None and not pose_une_question(texte)
 
 
 def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, question_en_attente: bool, paroles: list[str], p: dict | None = None) -> str | None:

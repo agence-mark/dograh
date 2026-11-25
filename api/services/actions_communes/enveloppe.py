@@ -78,7 +78,7 @@ def rangee(raison: str) -> str | None:
 
 
 # Les questions que le code dit lui-même, mot pour mot, par ``avant`` (relecture, numéro dicté, récapitulatifs de la réservation, annulation de la réservation) : seules
-# elles rendent leur texte au modèle. Toute autre question lui est donnée par son type, sans phrase (7b-C4, R = A) ; son texte reste au registre, lu par le repli et la boucle.
+# elles rendent leur texte au modèle. Toute autre question lui est donnée par son type, sans phrase (7b-C4, R = A) ; son texte reste au registre (identité de la question : sa structure, jamais son texte, C5 n° 10).
 QUESTIONS_DITES_PAR_LE_CODE = frozenset({"relecture", "numero_dicte", "recapitulatif", "recap_modif", "annulation"})
 
 

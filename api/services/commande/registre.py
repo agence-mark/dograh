@@ -73,7 +73,7 @@ def texte_du_changement(p: dict[str, Any], question: str | None = None, montant:
 
 def texte_dit_de_la_question(q: dict[str, Any], p: dict[str, Any]) -> str | None:
     """Ce que le code dit pour poser cette question : son texte ; la proposition, son repli (son texte n'est qu'une consigne). L'annulation n'a plus de forme à part (DC4, Q2 = A) :
-    son texte, mis à jour avec le total d'AUJOURD'HUI de la commande, est celui que le repli dit quand le modèle se tait."""
+    son texte, mis à jour avec le total d'AUJOURD'HUI de la commande, est celui que le code dit (§ 2 du plan, jusqu'à C6)."""
     if q.get("type") == "proposition":
         return q.get("repli") or None
     return str(q.get("texte") or "").strip() or None

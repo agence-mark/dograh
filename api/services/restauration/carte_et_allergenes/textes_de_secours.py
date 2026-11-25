@@ -1,6 +1,6 @@
 """[.mark] Lot 7b-C3 : les textes de secours de la carte et des allergènes (régime, signalement d'allergène, lecture d'un article).
 
-Un texte de secours est la phrase qu'un retour de lecture portait déjà dans ``suggestion`` : fonction pure qui ne lit que les faits du retour (``resultat.suggestion == texte(faits)`` est ce que
+Un texte de secours est la phrase qu'un retour de lecture portait déjà dans ``suggestion`` (le code ne la dit plus, lot 7b-C5 ; elle reste jusqu'à C7) : fonction pure qui ne lit que les faits du retour (``resultat.suggestion == texte(faits)`` est ce que
 prouve le test de chaque retour). Un texte qui lit une valeur absente des faits la fait ajouter au retour. Les morceaux de phrase communs (« D'après la fiche », « je ne peux pas le
 garantir ») restent ceux du module d'information (``phrases_d_information``), jamais récrits ici.
 """

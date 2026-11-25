@@ -19,7 +19,7 @@ from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
 from api.services.actions_communes.parole import (
     A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, REPRISE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
-    apres_un_refus, pose_une_question, question_nee_dans_ce_tour, reprise_apres_la_phrase, repli_sans_le_fait_bloquant_de,
+    apres_un_refus, pose_une_question, question_nee_dans_ce_tour,
 )
 
 
@@ -73,9 +73,24 @@ def _rendre_la_fiche(e: Entrees) -> None:
     e.etat.fiches -= 1  # une fiche vide n'est pas une fiche
 
 
+def _du_a_reposer(e: Entrees) -> bool:
+    """Une question attend, ou un manque est dû, et la phrase du modèle n'en pose aucune (une question à la fois) : ce que le modèle a oublié. Lu sur la forme (le « ? », le dossier), jamais sur les mots."""
+    return not pose_une_question(e.phrase) and (e.en_attente or bool(e.du.manque))
+
+
+def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
+    """C5 (décision d'Evan 25/11 8 h 45) : le code ne complète plus la phrase du modèle par la question ou le manque ; il le laisse repasser avec le retour, UNE fois par tour
+    (``EtatDuTour.relance_du_fait``, la même que la relance du repli) ; ensuite sa phrase est dite seule. ``None`` : rien n'est dû, ou la relance est déjà faite."""
+    if not _du_a_reposer(e) or e.etat.relance_du_fait:
+        return None
+    e.etat.relance_du_fait = True
+    e.etat.suffixe = e.suffixe_avant  # le prix que le code doit dire après la phrase n'est pas perdu : il suit la phrase du second passage
+    return Decision(SECOND_PASSAGE, motif=motif)
+
+
 def _rien_change(e: Entrees) -> Decision:
-    """Une fiche qui ne change rien est une phrase sans outil : retenue une fois par tour, puis dite avec la question en attente reposée (ou ce qui manque) ;
-    jamais « C'est noté » seul quand rien n'est noté."""
+    """Une fiche qui ne change rien est une phrase sans outil : retenue une fois par tour ; puis, si la phrase oublie la question en attente ou ce qui manque, le modèle repasse une fois ;
+    ensuite dite seule ; jamais « C'est noté » seul quand rien n'est noté."""
     etat, phrase = e.etat, e.phrase
     etat.fiches -= 1
     if not etat.rattrapage_a_joue and (e.objet_en_cours or e.en_attente):
@@ -85,21 +100,23 @@ def _rien_change(e: Entrees) -> Decision:
     if not phrase or e.chiffre:
         return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre")
     e.etat.jetee = None
-    reprise = reprise_apres_la_phrase(phrase, etat, e.p, rien_change=True) or (None if pose_une_question(phrase) else sans_balisage(e.du.manque or "") or None)
-    if not reprise and not pose_une_question(phrase) and isinstance(e.p, dict):
-        reprise = J.fait_accompli(e.p)  # RC4 : le fait accompli, que le code redit
+    if (relance := _relancer_le_fait(e, MANQUE)) is not None:
+        return relance
+    reprise = None if _du_a_reposer(e) or pose_une_question(phrase) or not isinstance(e.p, dict) else J.fait_accompli(e.p)  # RC4 : le fait accompli, que le code redit (§ 2 du plan, jusqu'à C6)
     if reprise:
         return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
 
 
 def _question(e: Entrees) -> Decision:
-    """Une question née dans ce tour, ou un prix à dire après la phrase. Déjà donnée au modèle : sa phrase est dite (puis le prix dû) ; sinon le modèle repasse avec elle."""
+    """Une question née dans ce tour, ou un prix à dire après la phrase. Déjà donnée au modèle : sa phrase est dite (puis le prix dû) ; si elle oublie la question, le modèle repasse une
+    fois (C5) ; sinon le modèle repasse avec elle."""
     etat, phrase = e.etat, e.phrase
     if e.question_donnee_dite:
         e.etat.jetee = None
-        suite = None if pose_une_question(phrase) else repli_sans_le_fait_bloquant_de(e.p)  # une seule question : celle du code suit « C'est noté »
-        return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite or e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
+        if (relance := _relancer_le_fait(e, MANQUE)) is not None:
+            return relance
+        return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id
     etat.suffixe = e.suffixe_du_code
     return Decision(SECOND_PASSAGE, motif="question_nouvelle")

@@ -22,7 +22,7 @@ async def _jamais(*_a, **_k):
 def _connecteur_d_essai(nom: str, action: str, *, porte: str | None):
     return CAT.declarer(Connecteur(
         nom=nom, libelle="Essai", integration="interne", interne=True, executer_interne=_jamais, porte_la_fiche=porte,
-        dossier_de_la_parole=lambda _fiche: {}, objet_en_cours=lambda _dossier: False, texte_du_manque=lambda _dossier, _fiche: None,
+        dossier_de_la_parole=lambda _fiche: {}, objet_en_cours=lambda _dossier: False,
         actions=(Action(nom=action, description="essai", parametres=(), ecrit=False, local=True, preparer=_jamais, resultat=_jamais),)))
 
 

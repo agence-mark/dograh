@@ -3,8 +3,7 @@ B12 décision 1, repli A seul d'après B13, D62).
 
 Branché à la place du contrôle des répliques (``reponse_avalee.RepliqueVerifiee``) quand l'étape montre la fiche au modèle : la phrase dite sans
 appel d'outil est retenue selon ``actions_communes.parole.phrase_libre_retenue`` (critères structurels, D1 : aucune lecture des mots en dehors de
-la barrière des chiffres), et le modèle repasse avec la ligne d'état du rappel ; la relance encore retenue est remplacée par la phrase du code
-(``repli_dit_par_le_code``). Sur une autre étape, le contrôle d'avant est rendu tel quel. ⛔ Ne lève jamais : dans le doute, la réplique passe.
+la barrière des chiffres), et le modèle repasse avec la ligne d'état du rappel ; la relance encore retenue est remplacée par une relance du modèle avec le fait (``consigne_de_relance``, une par tour), puis par le fait accompli ou la phrase réglée de l'agent : le code ne compose aucune phrase (C5). Sur une autre étape, le contrôle d'avant est rendu tel quel. ⛔ Ne lève jamais : dans le doute, la réplique passe.
 """
 
 from __future__ import annotations
@@ -16,7 +15,8 @@ from loguru import logger
 
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import parole as PAROLE
-from api.services.actions_communes.repli import repli_dit_par_le_code
+from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes.repli import consigne_de_relance
 from api.services.commande import panier as P
 from api.services.workflow.verite_des_actions import Retenue, tracer_une_retenue
 
@@ -89,32 +89,40 @@ class VerificateurDeLaFiche:
         if raison is None:
             # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33)
             dit = PAROLE.avec_le_suffixe(texte, etat)
-            if not dit:
-                # Lot 20 : rien n'a changé dans ce tour et une question attend : après sa phrase (« je n'ai pas compris »), le code repose la question
-                reprise = PAROLE.reprise_apres_la_phrase(texte, etat, p, getattr(connecteur, "texte_du_manque", None), fiche)
-                if reprise:
-                    PAROLE.garder(fiche, etat)
-                    return Retenue(PAROLE.REPRISE, texte[:80], "", a_dire=f"{PAROLE.sans_balisage(texte)} {reprise}")
+            if not dit and PAROLE.question_oubliee(texte, etat, p) and (consigne := consigne_de_relance(p, fiche, etat, connecteur)):
+                # Lot 20 : rien n'a changé dans ce tour et une question attend, la phrase (« je n'ai pas compris ») ne la pose pas : le modèle repasse avec elle (C5)
+                PAROLE.garder(fiche, etat)
+                return Retenue(PAROLE.REPRISE, texte[:80], consigne)
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.SUFFIXE, texte[:80], "", a_dire=dit) if dit else None
         PAROLE.garder(fiche, etat)
         if relance or raison == PAROLE.REPLI_A and etat.retenues.count(PAROLE.REPLI_A) > 1:
-            # Au bout : la phrase du code (la question en attente, sinon ce qui manque) ; le code redemande, il ne choisit rien.
-            repli = repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche)
-            if etat.suffixe:
-                # Conversation du lot 12 (PRX5-A) : le prix lu que le code devait dire après la phrase n'est pas perdu quand la phrase (au chiffre) est retenue jusqu'au repli
-                repli = " ".join(x for x in (etat.suffixe, repli) if x)
-                etat.suffixe = etat.suffixe_lu = None
-                PAROLE.garder(fiche, etat)
-            return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison], a_dire=repli)
+            return self._au_bout(raison, texte, relance, p, connecteur)
         return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison])
+
+    def _au_bout(self, raison: str, texte: str, relance: bool, p: dict, connecteur: Any) -> Retenue:
+        """Au bout (une relance retenue, ou le repli A redit) : C5, décision d'Evan 25/11 8 h 45, le code ne dit pas la question ni le refus ; il relance le modèle UNE fois
+        avec le fait (``consigne_de_relance``). Déjà fait dans ce tour : le fait accompli que le code a dit (précédé du prix lu en attente), sinon rien (``RepliqueVerifiee`` dit la phrase réglée)."""
+        fiche = self._fiche()
+        etat = PAROLE.etat_du_tour(fiche)
+        consigne = consigne_de_relance(p, fiche, etat, connecteur)
+        if consigne:
+            PAROLE.garder(fiche, etat)
+            return Retenue(raison, texte[:80], consigne)
+        a_dire = J.fait_accompli(p)
+        if etat.suffixe:
+            # Conversation du lot 12 (PRX5-A) : le prix lu que le code devait dire après la phrase n'est pas perdu quand la phrase (au chiffre) est retenue jusqu'au bout
+            a_dire = " ".join(x for x in (etat.suffixe, a_dire) if x)
+            etat.suffixe = etat.suffixe_lu = None
+        PAROLE.garder(fiche, etat)
+        return Retenue(raison, texte[:80], "" if relance else PAROLE.RAPPELS[raison], a_dire=a_dire or None)
 
     def controler(self, texte: str, messages: Any = None) -> Retenue | None:
         try:
             if not porte_la_fiche(self._fiche()):
                 return self.autre.controler(texte, messages) if self.autre is not None else None
             retenue = self._retenue(texte, relance=False)
-            if retenue is not None and retenue.raison not in (PAROLE.SUFFIXE, PAROLE.REPRISE):
+            if retenue is not None and retenue.raison != PAROLE.SUFFIXE:
                 tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
             return retenue
         except Exception as erreur:  # noqa: BLE001
@@ -129,17 +137,19 @@ class VerificateurDeLaFiche:
             retenue = self._retenue(texte, relance=True)
             if retenue is not None:
                 # P2 (lot 19 bis) : une relance retenue n'est jamais dite, même quand le code n'a pas de phrase de remplacement (``a_dire`` vide : ``RepliqueVerifiee`` dit alors sa phrase neutre)
-                tracer_une_retenue(self.moteur, retenue.raison, detail="repli du code")
+                tracer_une_retenue(self.moteur, retenue.raison, detail="relance du fait ou fait accompli")
                 return retenue
             return None
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[parole] relance non contrôlée : {erreur!r}")
             return None
 
-    def controler_le_silence(self, messages: Any = None) -> Retenue | None:
+    def controler_le_silence(self, messages: Any = None, sans_relance: bool = False) -> Retenue | None:
         """Point de contrôle du lot 7 (conversation 2, tour muet hors zone) : sur une étape qui porte la fiche, le modèle n'a rendu ni texte ni
-        appel au bout de ses passes (le flux, puis sa relance sans flux). Jamais un tour muet : la phrase du code est dite (la question en
-        attente, sinon ce qui manque, ``repli_dit_par_le_code``), comme pour une relance retenue. Ailleurs : le contrôle d'avant, s'il en a un."""
+        appel au bout de ses passes (le flux, puis sa relance sans flux). Jamais un tour muet. C5 (décision d'Evan 25/11 8 h 45) : le code ne compose pas
+        de phrase, il RELANCE le modèle avec le fait (``consigne_de_relance``) ; sans rien à relancer, le fait accompli que le code a déjà dit, sinon une retenue vide (sans consigne ni
+        texte : ``RepliqueVerifiee`` dit alors la phrase réglée de l'agent) : sur ces étapes elle ne rend jamais ``None``. ``sans_relance`` : la relance du modèle a échoué ou n'est plus permise,
+        seul le fait accompli reste. Ailleurs : le contrôle d'avant, s'il en a un (``None`` possible). En cas d'erreur de lecture : ``None`` (le flux rendu tel quel, jamais une exception)."""
         try:
             if not porte_la_fiche(self._fiche()):
                 autre = getattr(self.autre, "controler_le_silence", None)
@@ -147,10 +157,17 @@ class VerificateurDeLaFiche:
             fiche = self._fiche()
             connecteur = _connecteur_de_l_etape(self.moteur)
             p = dossier_de_la_parole(fiche, connecteur)
-            a_dire = repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche)
+            etat = PAROLE.etat_du_tour(fiche)
+            consigne = None if sans_relance else consigne_de_relance(p, fiche, etat, connecteur)
+            if consigne:
+                PAROLE.garder(fiche, etat)
+                tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="relance du fait")
+                return Retenue(PAROLE.SILENCE, "", consigne)
+            a_dire = J.fait_accompli(p)
             if not a_dire:
-                return None
-            tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="repli du code")
+                tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="phrase réglée")
+                return Retenue(PAROLE.SILENCE, "", "")
+            tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="fait accompli")
             return Retenue(PAROLE.SILENCE, "", "", a_dire=a_dire)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[parole] silence non contrôlé : {erreur!r}")
