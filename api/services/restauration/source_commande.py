@@ -271,7 +271,7 @@ class SourceClasseur:
         sortie = {
             "ouvert": etat["ouvert"], "statut": None if etat["ouvert"] else statut_de_fermeture(etat["raison"]), "raison": etat["raison"],
             "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"], "delai_minutes": etat["delai_minutes"],
-            "planifiee_permise": bool(reglage and reglage["planifiee_permise"]), "reprise_dite": None, "phrase": "",
+            "planifiee_permise": bool(reglage and reglage["planifiee_permise"]), "reprise_dite": None,
             # une pause (de la caisse, du type, forcée) : seule sa reprise compte, jamais la prochaine ouverture des horaires (lot 4, audit § 3.3)
             "en_pause": etat["raison"] in ("caisse_pause", "pause_type", "pause_force"),
         }

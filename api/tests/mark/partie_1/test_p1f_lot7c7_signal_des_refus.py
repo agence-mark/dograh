@@ -246,7 +246,7 @@ async def _numero_illisible(appel, _mp):
 
 def _etat_ferme(**en_plus):
     async def etat(_mode):
-        return {"ouvert": False, "statut": "FERME", "phrase": None, "raison": "ferme", "reprise": None, "reprise_dite": None, "prochaine_ouverture": None,
+        return {"ouvert": False, "statut": "FERME", "raison": "ferme", "reprise": None, "reprise_dite": None, "prochaine_ouverture": None,
                 "planifiee_permise": False, **en_plus}
     return etat
 

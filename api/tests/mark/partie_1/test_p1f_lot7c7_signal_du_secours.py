@@ -70,7 +70,7 @@ async def _vide():
 
 def _etat_ferme(**en_plus):
     async def etat(_mode):
-        return {"ouvert": False, "statut": "FERME", "phrase": None, "raison": "ferme", "reprise": None, "reprise_dite": "dix-huit heures", "prochaine_ouverture": None,
+        return {"ouvert": False, "statut": "FERME", "raison": "ferme", "reprise": None, "reprise_dite": "dix-huit heures", "prochaine_ouverture": None,
                 "planifiee_permise": False, **en_plus}
     return etat
 

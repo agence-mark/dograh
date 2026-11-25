@@ -175,7 +175,7 @@ class SourceDePieces:
         return False
 
     async def etat(self, mode):
-        return {"ouvert": True, "statut": None, "raison": None, "reprise": None, "prochaine_ouverture": None, "delai_minutes": 0, "planifiee_permise": False, "phrase": ""}
+        return {"ouvert": True, "statut": None, "raison": None, "reprise": None, "prochaine_ouverture": None, "delai_minutes": 0, "planifiee_permise": False}
 
     async def chercher(self, texte):
         t = recherche_liste.chercher([Element(ref, nom) for ref, (nom, _) in self.CATALOGUE.items()], texte)
