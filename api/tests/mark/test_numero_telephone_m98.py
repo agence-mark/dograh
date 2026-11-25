@@ -246,16 +246,22 @@ async def test_reservation_numero_affiche_une_question_et_dicte_relu_une_fois(sa
 
     base = {"jour": "samedi", "heure": "20h", "personnes": 2, "prenom": "Alice"}
     a = AppelResa(salle)
+    from types import SimpleNamespace
+
+    from api.services.phrases.catalogue import MOTIFS, NUMERO_DICTE_RELU
+    from api.services.reservation.porte import question_du_code
+
+    # C6 n° 8 (décision d'Evan 25/11 9 h 30 ; Q2 = A) : la relecture est dite par le modèle ; la porte dit après elle la question réglée du numéro, seule question, à la fin
+    ctx = SimpleNamespace()
     r = await a.reserver(**base)
-    assert r.manque == "relecture" and r.suggestion.endswith(" " + QUESTION) and r.suggestion.count("?") == 1, r.suggestion
+    assert r.manque == "relecture" and not r.suggestion and question_du_code(ctx, r) == QUESTION, r
     assert r.faits["numero_affiche_dit"] == numero_en_lettres(TEL_RESA)
     r = await a.reserver(telephone="0698765432")  # « non, plutôt le 06… »
-    assert r.suggestion.startswith(f"Je note le {numero_en_lettres('+33698765432')}.") and r.suggestion.endswith("C'est bon ?") and QUESTION not in r.suggestion
+    relu = MOTIFS[NUMERO_DICTE_RELU].variantes_defaut[0].replace("{numero}", numero_en_lettres("+33698765432"))
+    assert question_du_code(ctx, r) == relu and QUESTION not in relu, r
     assert "numero_affiche_dit" not in r.faits
     assert (await a.reserver(confirmer=True)).statut == "ENREGISTREE"
 
     d = AppelResa(salle, affiche=None)
     r = await d.reserver(**base, telephone="0610203040")
-    assert r.suggestion.startswith(f"Je note le {DIT_2569}.") and r.suggestion.count(DIT_2569) == 1 and r.suggestion.endswith("C'est bon ?")
-    reglee = await AppelResa(salle).reserver(**base, question_numero_affiche="Ce numéro vous va ?")
-    assert reglee.suggestion.endswith(" Ce numéro vous va ?")
+    assert question_du_code(ctx, r).count(DIT_2569) == 1 and r.faits["numero_retenu_dit"] == DIT_2569, r

@@ -212,12 +212,12 @@ async def test_l_enveloppe_ne_dit_rien_d_un_echec():
 @pytest.mark.parametrize(
     ("operation", "resultat", "recap", "attendu"),
     [
-        ("reserver", Resultat("INCOMPLETE", {"a_confirmer": True}, "Je vous réserve ... C'est bon ?", "relecture"), {"type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}, True),
-        ("reserver", Resultat("ENREGISTREE", {"numero": "R1"}, "C'est noté pour vingt heures.", None), None, True),
-        ("modifier", Resultat("INCOMPLETE", {"a_confirmer": True}, "Je change ... C'est bon ?", "relecture"), {"type": "recap_modif", "texte": "Je change ... C'est bon ?"}, True),
-        ("modifier", Resultat("OK", {}, "C'est modifié, à vingt heures trente.", None), None, True),
-        ("annuler", Resultat("INCOMPLETE", {"a_confirmer": True}, "Vous voulez annuler ... ?", "confirmation"), {"type": "annulation", "texte": "Vous voulez annuler ... ?"}, True),
-        ("annuler", Resultat("OK", {}, "C'est annulé.", None), None, True),
+        ("reserver", Resultat("INCOMPLETE", {"a_confirmer": True}, "Je vous réserve ... C'est bon ?", "relecture"), {"type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}, False),  # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle
+        ("reserver", Resultat("ENREGISTREE", {"numero": "R1"}, "C'est noté pour vingt heures.", None), None, False),  # C6 n° 9 (décision d'Evan 25/11 9 h 30) : le fait accompli est dit par le modèle
+        ("modifier", Resultat("INCOMPLETE", {"a_confirmer": True}, "Je change ... C'est bon ?", "relecture"), {"type": "recap_modif", "texte": "Je change ... C'est bon ?"}, False),  # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle
+        ("modifier", Resultat("OK", {}, "C'est modifié, à vingt heures trente.", None), None, False),  # C6 n° 9 (décision d'Evan 25/11 9 h 30) : le fait accompli est dit par le modèle
+        ("annuler", Resultat("INCOMPLETE", {"a_confirmer": True}, "Vous voulez annuler ... ?", "confirmation"), {"type": "annulation", "texte": "Vous voulez annuler ... ?"}, False),  # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle
+        ("annuler", Resultat("OK", {}, "C'est annulé.", None), None, False),  # C6 n° 9 (décision d'Evan 25/11 9 h 30) : le fait accompli est dit par le modèle
         ("reserver", Resultat("REFUSEE", {}, "Nous sommes complets.", None), None, False),
         ("reserver", Resultat("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes"), None, False),
         (None, Resultat("OK", {}, "Nous avons de la place à vingt heures.", None), None, False),

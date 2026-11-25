@@ -14,7 +14,6 @@ Chaque geste prend la SOURCE (la capacité vraie), l'état de la réservation en
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 import hashlib
 import json
 import uuid
@@ -26,7 +25,6 @@ from api.services.actions_communes import journal_du_dit as J
 from api.db.bases_clients import dates_futures
 from api.services.actions_communes.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.mots_dits import heure_en_lettres, liste_dite, nombre_en_lettres
-from api.services.phrases.catalogue import MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
 from api.services.reservation import textes_de_secours as TS
 from api.services.reservation.source import Source
 
@@ -192,24 +190,19 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
 # --------------------------------------------------------------------------- #
 
 
-QUESTION_NUMERO_AFFICHE = MOTIFS_DES_PHRASES[NUMERO_AFFICHE_GARDE].variantes_defaut[0]
-
-
-async def reserver(
-    source: Source, etat: dict[str, Any], appelant: Appelant, *, question_numero_affiche: str | None = QUESTION_NUMERO_AFFICHE, **gestes: Any
-) -> Resultat:
-    """Le geste, puis le numéro dicté et RETENU dans cet appel dit par le code (même mécanisme que la commande : ``avec_numeros_retenus``). Le numéro
+async def reserver(source: Source, etat: dict[str, Any], appelant: Appelant, **gestes: Any) -> Resultat:
+    """Le geste, puis le numéro dicté et RETENU dans cet appel (même mécanisme que la commande : ``avec_numeros_retenus``, ``numero_retenu_dit``). Le numéro
     qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
 
-    M98 : quand le numéro gardé est celui qui s'affiche, la relecture finit par UNE question qui le dit (``question_numero_affiche``, phrase du
-    code réglable ; vide : « C'est bon ? ») et il est porté dans les faits (``numero_affiche_dit``), jamais ajouté à la phrase."""
+    M98 : quand le numéro gardé est celui qui s'affiche, il est porté dans les faits (``numero_affiche_dit``). C6 n° 8 (Q2 = A) : la porte dit alors, après la relecture
+    du modèle, la question réglée du numéro gardé, seule question, à la fin ; un numéro dicté est relu par la question réglée du numéro dicté."""
     deja = reservation_de_l_appel(etat)
     if deja:
         # R01 : « on sera cinq » après l'enregistrement ne crée jamais une seconde table : un changement passe par modifier
         if deja in (etat.get("annulees") or []):
             return _une_seule_par_appel_annulee(deja, jour=gestes.get("jour"), heure=gestes.get("heure"), personnes=gestes.get("personnes"), prenom=gestes.get("prenom"))
         return _r("DEJA_FAIT", {"reservation": deja, "raison": "deja_une_reservation_dans_cet_appel"}, TS.deja_une_reservation_dans_cet_appel({}), "modification")
-    r = await _reserver(source, etat, appelant, question_numero_affiche=question_numero_affiche, **gestes)
+    r = await _reserver(source, etat, appelant, **gestes)
     b = etat.get("brouillon") or {}
     if appelant.telephone_affiche and _vers_e164(b.get("telephone_dit") or appelant.telephone_affiche) == appelant.telephone_affiche:
         r = avec_numero_affiche(r, appelant.telephone_affiche)
@@ -225,11 +218,11 @@ async def reserver(
 async def _reserver(
     source: Source, etat: dict[str, Any], appelant: Appelant, *, jour: str | None = None, heure: str | None = None, personnes: int | None = None,
     prenom: str | None = None, telephone: str | None = None, note: str | None = None, confirmer: bool = False,
-    question_numero_affiche: str | None = QUESTION_NUMERO_AFFICHE,
 ) -> Resultat:
     """Conduit une réservation jusqu'à son enregistrement, UN manque à la fois : personnes, jour, heure, nom, numéro (jamais redemandé quand il
     s'affiche), puis la RELECTURE. L'enregistrement n'a lieu que sur ``confirmer`` après une relecture valide ; la place est revérifiée par la
-    source. Tout ce qui a été dit est gardé d'un appel du geste au suivant."""
+    source. Tout ce qui a été dit est gardé d'un appel du geste au suivant. C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture rend des FAITS (personnes, quand, heure,
+    prénom) ; le modèle la dit avec ses mots, le code n'en compose aucune phrase."""
     b = etat.setdefault("brouillon", {})
     if isinstance(personnes, int) and not isinstance(personnes, bool):
         b["personnes"] = personnes
@@ -294,11 +287,8 @@ async def _reserver(
         )
     if not (confirmer and relue and relue.get("empreinte") == empreinte):
         etat["lecture"] = {"empreinte": empreinte, "jeton": uuid.uuid4().hex}
-        question = (question_numero_affiche or "").strip() if numero_e164 == appelant.telephone_affiche else ""
-        phrase = PHRASES_DITES.relecture_de_la_reservation(personnes=_personnes_dites(b["personnes"]), quand=quand_dit, prenom=b["prenom"], question=question)
-        return _r(
-            "INCOMPLETE", {"a_confirmer": True, "personnes": b["personnes"], "quand": quand_dit, "prenom": b["prenom"]}, phrase, "relecture",
-        )
+        faits = {"a_confirmer": True, "personnes": b["personnes"], "quand": quand_dit, "heure": resolu.faits["heure_dite"], "prenom": b["prenom"]}
+        return _r("INCOMPLETE", faits, "", "relecture")
     r = await source.creer(
         {"debut": debut, "personnes": b["personnes"], "prenom": b["prenom"], "telephone": numero_e164, "note": b.get("note"), "appel_id": appelant.appel_id}
     )
@@ -432,7 +422,8 @@ async def modifier(
 ) -> Resultat:
     """Change l'heure, le nombre de personnes, le nom ou la note de la réservation VISÉE, après relecture confirmée. R03 : ce qui est dit est gardé dans
     ``etat["modification"]`` d'une fiche à l'autre (le jour dit sans l'heure reste ; l'heure seule se résout sur le jour gardé, jamais sur l'ancien).
-    La source revérifie la place (les unités de la réservation comptent comme libres). Seul le jour sans l'heure : l'heure est redemandée."""
+    La source revérifie la place (les unités de la réservation comptent comme libres). Seul le jour sans l'heure : l'heure est redemandée. C6 n° 8 : la relecture du
+    changement rend ``ce_qui_change`` en faits (quand, heure, personnes, prénom, note) ; le modèle le dit."""
     numero = etat.get("cible")
     if numero and numero in (etat.get("annulees") or []):
         if numero == reservation_de_l_appel(etat):  # ce qu'elle dit après avoir annulé la réservation de CET appel est une nouvelle demande, pas un changement (E30)
@@ -453,7 +444,7 @@ async def modifier(
     if note and note.strip():
         m["note"] = note.strip()[:NOTE_MAX]
     changements: dict[str, Any] = {}
-    dit: list[str] = []
+    ce_qui_change: dict[str, Any] = {}  # C6 n° 8 : ce qui change, en faits (le modèle le dit avec ses mots)
     if m.get("jour"):
         voulu = await source.resoudre_une_date(m["jour"], None)
         if voulu.statut not in ("RETENU", "INCOMPLETE"):
@@ -470,20 +461,17 @@ async def modifier(
             doute_leve_sur(m, resolu)
             return resolu
         changements["debut"] = datetime.fromisoformat(resolu.faits["heure_voulue"])
-        dit.append(f"{resolu.faits['jour_dit']} à {resolu.faits['heure_dite']}")
+        ce_qui_change.update({"quand": f"{resolu.faits['jour_dit']} à {resolu.faits['heure_dite']}", "heure": resolu.faits["heure_dite"]})
     # M103 : seul ce qui CHANGE est pris et relu ; ce que le modèle renvoie tel quel (« au nom de Martin », déjà Martin) ne se redit pas.
     if changements.get("debut") is not None and r.get("debut") == changements["debut"]:
         changements.pop("debut")
-        dit.clear()
+        ce_qui_change.clear()
     if isinstance(m.get("personnes"), int) and m["personnes"] != r.get("personnes"):
-        changements["personnes"] = m["personnes"]
-        dit.append(_personnes_dites(m["personnes"]))
+        changements["personnes"] = ce_qui_change["personnes"] = m["personnes"]
     if m.get("prenom") and m["prenom"].casefold() != (r.get("prenom") or "").strip().casefold():
-        changements["prenom"] = m["prenom"]
-        dit.append(f"au nom de {changements['prenom']}")
+        changements["prenom"] = ce_qui_change["prenom"] = m["prenom"]
     if m.get("note") and m["note"] != (r.get("note") or "").strip():
-        changements["note"] = m["note"]
-        dit.append("avec votre note")
+        changements["note"] = ce_qui_change["note"] = m["note"]
     if not changements and m:
         etat.pop("modification", None)
         faits = {"reservation": r["numero"], "inchangee": True, "quand_dit": r["quand_dit"], "personnes": r["personnes"]}
@@ -494,7 +482,7 @@ async def modifier(
     relue = etat.get("lecture_modification")
     if not (confirmer and relue and relue.get("empreinte") == empreinte):
         etat["lecture_modification"] = {"empreinte": empreinte, "jeton": uuid.uuid4().hex}
-        return _r("INCOMPLETE", {"a_confirmer": True, "reservation": r["numero"]}, PHRASES_DITES.relecture_du_changement(liste_dite(dit).replace(" ou ", " et ")), "relecture")
+        return _r("INCOMPLETE", {"a_confirmer": True, "reservation": r["numero"], "ce_qui_change": ce_qui_change}, "", "relecture")
     ecrit = await source.modifier(r["numero"], changements)
     if ecrit.statut in ("OK", "DEJA_FAIT"):
         etat.pop("lecture_modification", None)
@@ -513,11 +501,9 @@ async def annuler(source: Source, etat: dict[str, Any], appelant: Appelant, *, c
         return refus
     if not (confirmer and etat.get("annulation") == r["numero"]):
         etat["annulation"] = r["numero"]
-        # B5 (audit des textes § 2.5) : avant d'annuler, le déplacement est proposé par la question du code (règle du métier, plus par le texte).
-        return _r(
-            "INCOMPLETE", {"a_confirmer": True, "reservation": r["numero"]},
-            PHRASES_DITES.annulation_de_la_reservation(quand=r["quand_dit"], personnes=_personnes_dites(r["personnes"])), "confirmation",
-        )
+        # B5 (audit des textes § 2.5) : avant d'annuler, le déplacement est proposé (règle du métier) ; C6 n° 8 : par le modèle, d'après les faits et la consigne de la porte
+        faits = {"a_confirmer": True, "reservation": r["numero"], "quand": r["quand_dit"], "heure": r.get("heure_dite"), "personnes": r["personnes"]}
+        return _r("INCOMPLETE", faits, "", "confirmation")
     fait = await source.annuler(r["numero"])
     if fait.statut in ("OK", "DEJA_FAIT"):
         etat.pop("annulation", None)

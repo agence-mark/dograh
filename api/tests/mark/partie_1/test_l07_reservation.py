@@ -157,7 +157,8 @@ async def test_jour_puis_heure_en_modification(salle, monkeypatch):
     r = await essai.tour("plutôt dimanche", jour="dimanche")
     assert r["manque"] == "heure" and essai.etat["modification"]["jour"] == "dimanche", r
     r = await essai.tour("à dix-neuf heures", heure="dix-neuf heures")
-    assert r["question"]["type"] == "recap_modif" and "dimanche" in r["question"]["texte"], r  # le bon jour, pas l'ancien
+    # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture du changement est dite par le modèle, d'après ce qui change (faits)
+    assert r["question"]["type"] == "recap_modif" and "dimanche" in r["faits"]["ce_qui_change"]["quand"], r  # le bon jour, pas l'ancien
 
 
 # --------------------------------------------------------------------------- L07-06 : R06, la lecture des places lit le brouillon, n'écrit jamais
@@ -216,7 +217,7 @@ async def test_nom_pour_retrouver_pas_pour_changer(salle, monkeypatch):
     assert essai.etat.get("cible") and "modification" not in essai.etat and "question" not in r, r  # retrouvée, pas renommée
     assert await salle.c.fetchval("SELECT prenom FROM mark.resto_reservation") == "Alice"
     r = await essai.tour("mettez-la au nom de Durand", nom="Durand")
-    assert r["question"]["type"] == "recap_modif" and "Durand" in r["question"]["texte"], r  # changer le nom est un autre geste
+    assert r["question"]["type"] == "recap_modif" and r["faits"]["ce_qui_change"] == {"prenom": "Durand"}, r  # changer le nom est un autre geste (C6 n° 8 : en faits)
 
 
 # --------------------------------------------------------------------------- L07-10 : B03, une seule capacité du jour, plans du soir compris

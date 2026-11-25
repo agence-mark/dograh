@@ -308,11 +308,12 @@ async def test_defauts_connus_df12_reservation(salle, monkeypatch):  # noqa: F81
         fautes.append(f"relecture non atteinte : {r}")
     else:
         r = await e.tour("oui c'est bon, à vingt heures", reponse={"question_id": q["id"], "sens": "accepte"}, heure="vingt heures")
-        dit = " ".join((e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {}).values())
+        # C6 n° 9 (décision d'Evan 25/11 9 h 30) : la réservation faite est dite par le modèle (personnes et heure exigées) ; le code en garde le fait au journal, que le repli redit
+        textes = e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {}
         if r.get("statut") != "ENREGISTREE":
             fautes.append(f"RC4 : l'accord avec l'heure redite n'enregistre pas (statut {r.get('statut')}, {r.get('raison')})")
-        elif not dit:
-            fautes.append("RC4 : réservation enregistrée, le code ne le dit pas")
+        elif not (textes.get("chiffres_exiges") and textes.get("fait_accompli")):
+            fautes.append("RC4 : réservation enregistrée, ni le modèle ni le repli ne peuvent le dire")
     await creer_reservation(salle.c, salle.a, {"debut": SAMEDI_20H, "couverts": 6, "prenom": "Zoe", "telephone": "+33600000001", "appel_id": "z"})
     e2 = EssaiReservation(salle, monkeypatch, appelant="+33600000077")
     r2 = await e2.tour("six personnes samedi à vingt heures au nom de Bob", personnes=6, jour="samedi", heure="vingt heures", nom="Bob")
