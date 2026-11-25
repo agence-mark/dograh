@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 from api.services.actions_communes import enveloppe as E
-from api.services.commande import phrases_dites_par_le_code as PD
 from api.services.commande import registre as RQ
+from api.services.phrases import catalogue as CAT
 
-# Chaque type de la liste fermée, lié à son exception du plan (§ 2 de phrases_dites_par_le_code) : une question dite par le code est une exception écrite.
-# C6 n° 3b et 8 (décision d'Evan 25/11 9 h 30) : la relecture de la commande, les récapitulatifs et l'annulation de la réservation n'y sont plus, le modèle les dit.
-EXCEPTION_DU_TYPE = {
-    RQ.TYPE_DU_NUMERO_DICTE: PD.EXCEPTION_NUMERO,
+# Chaque type de la liste fermée, lié au motif réglé qui le dit (C6 n° 12, décision d'Evan 25/11 9 h 30 : ``PHRASES_DU_CODE`` remplace les exceptions du plan) : une question dite par le
+# code est une phrase réglée de la liste fermée. C6 n° 3b et 8 : la relecture de la commande, les récapitulatifs et l'annulation de la réservation n'y sont plus, le modèle les dit.
+MOTIF_DU_TYPE = {
+    RQ.TYPE_DU_NUMERO_DICTE: CAT.NUMERO_DICTE_RELU,
 }
 
 
-def test_chaque_type_dit_par_le_code_a_son_exception_du_plan():
-    assert set(EXCEPTION_DU_TYPE) == E.QUESTIONS_DITES_PAR_LE_CODE
-    assert all(ex in PD.EXCEPTIONS_DU_PLAN for ex in EXCEPTION_DU_TYPE.values())
+def test_chaque_type_dit_par_le_code_a_son_motif_de_la_liste_fermee():
+    assert set(MOTIF_DU_TYPE) == E.QUESTIONS_DITES_PAR_LE_CODE
+    assert all(m in CAT.PHRASES_DU_CODE for m in MOTIF_DU_TYPE.values())
 
 
 def test_une_question_dite_par_le_code_garde_son_texte_les_autres_n_en_ont_plus():

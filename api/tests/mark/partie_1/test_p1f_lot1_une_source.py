@@ -15,7 +15,7 @@ from api.services.actions_communes import euros as EU
 from api.services.actions_communes import moyens_de_paiement as MP
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import petits_mots as PM
-from api.services.commande import phrases_dites_par_le_code as PD
+from api.services.phrases import catalogue as CAT
 
 API = I.RACINE_API
 
@@ -191,24 +191,27 @@ def test_la_decision_autre_chose_lit_le_membre_pas_un_texte():
 
 
 # --------------------------------------------------------------------------- L2, n° 82, 86 : les phrases du code
-# 7b-C6 (décision d'Evan, 25/11 9 h 30) : les cinq tests qui suivent disent les phrases d'avant ; ils sont réécrits au commit 12 avec la liste fermée PHRASES_DU_CODE
-# (garde : test_p1f_lot7c6_phrases_du_code.py).
+# 7b-C6 n° 12 (décision d'Evan, 25/11 9 h 30, § 8 bis) : le module des phrases d'avant est supprimé ; la liste fermée ``PHRASES_DU_CODE`` (motifs réglés du catalogue)
+# le remplace : le total, le numéro, le rendu, et les phrases déjà réglées (numéro dicté relu, numéro affiché gardé, M108) (garde : test_p1f_lot7c6_phrases_du_code.py).
 
-def test_chaque_phrase_du_code_nomme_une_exception_du_plan():
-    assert PD.PHRASES and all(ph.exception in PD.EXCEPTIONS_DU_PLAN for ph in PD.PHRASES.values())
-    # le § 2 du plan nomme : relecture, total, numéro, confirmation, fait accompli qui engage, DC4 ; ni DC5, ni le repli de panne (audit du lot 1)
-    assert PD.EXCEPTIONS_DU_PLAN == {"relecture", "total", "numero", "confirmation", "fait accompli qui engage", "DC4"}
-    assert not [k for k in PD.PHRASES if "panne" in k]
+def test_chaque_phrase_du_code_est_un_motif_regle_de_la_liste_fermee():
+    assert CAT.PHRASES_DU_CODE == {
+        CAT.TOTAL_RELECTURE, CAT.TOTAL_APRES_CORRECTION, CAT.TOTAL_APRES_CHANGEMENT, CAT.RENDU_DE_MONNAIE, CAT.NUMERO_RETENU,
+        CAT.NUMERO_DICTE_RELU, CAT.NUMERO_AFFICHE_GARDE, CAT.APRES_ENREGISTREMENT,
+    }
+    assert all(CAT.MOTIFS[m].variantes_defaut for m in CAT.PHRASES_DU_CODE)
+    # ni DC5, ni le repli de panne (audit du lot 1)
+    assert not [k for k in CAT.PHRASES_DU_CODE if "panne" in k or "nouvelle" in k]
+    assert not (API / "services" / "commande" / "phrases_dites_par_le_code.py").exists()
 
 
 def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
-    assert "nouvelle_commande" not in PD.PHRASES and not hasattr(PD, "TEXTE_NOUVELLE_COMMANDE"), "DC5 n'est pas une exception : un refus suivi d'une question, que le modèle dit"
+    assert "nouvelle_commande" not in CAT.PHRASES_DU_CODE, "DC5 n'est pas une phrase du code : un refus suivi d'une question, que le modèle dit"
     assert INFO.NOUVELLE_COMMANDE_PROPOSEE == "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation passe au modèle ; ses deux faits d'avant ne sont plus que des textes de secours (gardés au journal)
     from api.services.commande import textes_de_secours as TS_A
 
     assert TS_A.annulation_confirmee({}) == "Je vous confirme l'annulation de votre commande." and TS_A.annulee_en_cours({}) == "Je ne l'enregistre pas."
-    assert not hasattr(PD, "annulation_demandee") and not hasattr(PD, "TEXTE_ANNULATION_CONFIRMEE")
     # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le changement passe au modèle ; son texte d'avant n'est plus qu'un texte de secours, le nouveau total est le motif réglé
     from api.services.commande import textes_de_secours as TS_C
 
@@ -233,15 +236,17 @@ def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
     assert not hasattr(registre, "texte_du_changement")  # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le code ne compose plus le changement
 
 
-def test_une_phrase_du_registre_n_est_ecrite_nulle_part_ailleurs():
+def test_une_phrase_du_code_n_est_ecrite_nulle_part_ailleurs():
+    """C6 n° 12 : chaque variante d'un motif de la liste fermée n'est écrite qu'au catalogue (le code la dit par le motif, jamais par un texte recopié)."""
     fautes = []
-    for ph in PD.PHRASES.values():
-        debut = ph.texte.split("{")[0].strip()
-        if len(debut) < 20:
-            continue
-        for p, source in _sources("services", "db"):
-            if p.name != "phrases_dites_par_le_code.py" and debut in source:
-                fautes.append(f"{p.relative_to(API).as_posix()} : « {debut} »")
+    for m in sorted(CAT.PHRASES_DU_CODE):
+        for v in CAT.MOTIFS[m].variantes_defaut:
+            debut = v.split("{")[0].strip()
+            if len(debut) < 20:
+                continue
+            for p, source in _sources("services", "db"):
+                if p.parts[-2:] != ("phrases", "catalogue.py") and debut in source:
+                    fautes.append(f"{p.relative_to(API).as_posix()} : « {debut} »")
     assert not fautes, fautes
 
 

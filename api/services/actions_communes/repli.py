@@ -160,7 +160,7 @@ def _libelles(candidats: Any) -> list[str]:
 
 def question_pour_la_relance(q: dict[str, Any]) -> dict[str, Any]:
     """La question en attente donnée au modèle en faits : son numéro, son type, son objet (l'article, les candidats, les choix) ; jamais le texte de secours du module,
-    sauf pour les questions que le code dit lui-même (``QUESTIONS_DITES_PAR_LE_CODE``, jusqu'à C6)."""
+    sauf pour les questions que le code dit lui-même (``QUESTIONS_DITES_PAR_LE_CODE`` : le numéro dicté, DC10, dit après la phrase du modèle depuis C6 n° 12)."""
     sortie: dict[str, Any] = {"id": q.get("id"), "type": q.get("type")}
     for cle in CLES_DE_L_OBJET_D_UNE_QUESTION:
         if q.get(cle):

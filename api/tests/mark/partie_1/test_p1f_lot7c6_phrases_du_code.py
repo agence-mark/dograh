@@ -2,7 +2,7 @@
 (motifs réglables du catalogue) et les phrases déjà réglées (numéro dicté relu, numéro affiché gardé, après l'enregistrement).
 
 Garde G3 : ce qui part à la voix est la phrase du modèle ou le texte d'un motif de ``PHRASES_DU_CODE``. Un xfail strict (``raises=AssertionError``) par famille de phrases, posé
-au commit 1, retiré par le commit qui ferme la famille. Aucun modèle, aucun appel : on lit les sources.
+au commit 1, retiré par le commit qui ferme la famille ; le commit 12 supprime le module et ferme la liste. Aucun modèle, aucun appel : on lit les sources.
 """
 
 from __future__ import annotations
@@ -70,7 +70,6 @@ def test_je_note_le_numero_n_est_plus_ecrit_dans_le_resultat_d_un_outil():
     assert "Je note le {" not in source and "je note le {" not in source
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="C6 commit 12 : la liste fermée PHRASES_DU_CODE remplace le module des phrases dites par le code")
 def test_la_liste_fermee_des_phrases_du_code_est_celle_de_la_decision_du_25_11():
     from api.services.phrases import catalogue
 

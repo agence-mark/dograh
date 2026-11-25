@@ -11,7 +11,6 @@ import pytest
 from api.services.commande import panier as P, porte, textes_de_secours as TS
 from api.services.commande import moteur
 from api.services.commande.briques import formule as FO
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.commande.moteur import changement
 from api.services.commande.moteur import enregistrement
 from api.services.commande.moteur import prealables, reglement
@@ -504,12 +503,10 @@ async def test_le_prenom_qui_manque_se_demande_par_la_phrase_du_manque(appel):
     assert r.manque == "prenom" and r.suggestion == phrase_du_manque(Manque.PRENOM) == "À quel nom je mets la commande ?"
 
 
-async def test_le_numero_affiche_se_propose_avec_la_phrase_du_code_ou_le_reglage(appel):
+async def test_le_numero_affiche_est_propose_par_le_modele_sans_phrase_du_code(appel):
     r = await enregistrement.identifier(appel.source, appel.p, appel.regles, Appelant(telephone_affiche="+33612345678"), telephone=None, prenom="Paul")
     assert r.manque == "confirmer_numero" and r.suggestion == ""  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le numéro qui s'affiche est proposé par le modèle, le code ne dit rien
-    assert PHRASES_DITES.numero_affiche_propose() == "Je note le numéro qui s'affiche, c'est bon ?"
-    assert PHRASES_DITES.numero_affiche_propose("Je note le 06, ça vous va ?") == "Je note le 06, ça vous va ?"
-    assert PHRASES_DITES.quel_numero_je_note() == "Quel numéro je note ?"
+    # C6 n° 12 (décision d'Evan 25/11 9 h 30) : « Quel numéro je note ? » et la proposition du numéro qui s'affiche ne sont plus des phrases du code (leur module est supprimé)
 
 
 async def test_la_fin_a_une_heure_fermee_propose_l_ouverture_puis_demande_le_jour(appel, monkeypatch):
@@ -585,9 +582,10 @@ def test_le_rendu_de_monnaie_et_les_relectures_se_disent_par_les_phrases_du_code
     # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le rendu est un fait du moteur ; la porte le dit par le motif réglé ``rendu_de_monnaie`` (test_p1f_lot7c6_confirmation_au_modele.py)
     assert moteur.rendu_de_monnaie({"monnaie": 500, "rendu_sur": 2500}) == {"billet": 2500, "monnaie": 500}
     assert moteur.rendu_de_monnaie({"monnaie": 0, "rendu_sur": 2500}) is None
-    assert PHRASES_DITES.relecture_complete(corps="une Reine, à emporter", total="douze euros") == "Je vous relis : une Reine, à emporter. Cela fait douze euros. C'est bon ?"
-    assert PHRASES_DITES.relecture_apres_changement(changes="On retire la Reine. ", total="dix euros") == "On retire la Reine. Cela fait maintenant dix euros. C'est bon ?"
-    assert PHRASES_DITES.relecture_apres_changement(changes="", total="dix euros") == "Cela fait maintenant dix euros. C'est bon ?"
+    # C6 n° 12 (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle ; le code n'en dit que le total, par les motifs réglés de la liste fermée (le module des phrases d'avant est supprimé)
+    from api.services.phrases.catalogue import PHRASES_DU_CODE, RENDU_DE_MONNAIE, TOTAL_APRES_CORRECTION, TOTAL_RELECTURE
+
+    assert {TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, RENDU_DE_MONNAIE} <= PHRASES_DU_CODE
 
 
 async def test_la_relecture_entiere_puis_apres_changement_rendent_des_faits(appel):

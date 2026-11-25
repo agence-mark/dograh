@@ -18,9 +18,9 @@ from api.services.actions_communes.enveloppe_legere import pour_le_modele
 
 from api.services.commande import etat_pour_le_modele as ETAT_COMMANDE
 from api.services.commande import moteur, porte
-from api.services.commande.phrases_dites_par_le_code import PHRASES as PHRASES_DU_PLAN
 from api.services.commande.moteur import socle as _socle
 from api.services.commande.resultat import Resultat
+from api.services.phrases.catalogue import MOTIFS, PHRASES_DU_CODE
 from api.services.reservation import etat_pour_le_modele as ETAT_RESERVATION
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark import test_base_client as _BASE
@@ -69,11 +69,12 @@ def _qui_figurent(suggestions_du_tour: list[str], valeurs: list[str]) -> list[st
     return [v for v in valeurs if any(s in v for s in suggestions_du_tour)]
 
 
-_DU_PLAN = [re.compile("^" + re.sub(r"\\{[a-z_]+\\}", ".*", re.escape(ph.texte)) + "$") for ph in PHRASES_DU_PLAN.values()]
+# C6 n° 12 (décision d'Evan 25/11 9 h 30) : les phrases que le code peut dire mot pour mot sont les variantes des motifs de la liste fermée ``PHRASES_DU_CODE``
+_DU_PLAN = [re.compile("^" + re.sub(r"\\{[a-z_]+\\}", ".*", re.escape(v)) + "$") for m in sorted(PHRASES_DU_CODE) for v in MOTIFS[m].variantes_defaut]
 
 
 def _hors_du_plan(valeurs: list[str]) -> list[str]:
-    """Les valeurs d'un retour moins les phrases que le plan permet au code de dire mot pour mot (§ 2, ``phrases_dites_par_le_code``)."""
+    """Les valeurs d'un retour moins les phrases que le plan permet au code de dire mot pour mot (``PHRASES_DU_CODE``, C6 n° 12)."""
     return [v for v in valeurs if not any(m.match(v.strip()) for m in _DU_PLAN)]
 
 

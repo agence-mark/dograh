@@ -34,14 +34,15 @@ ECARTS_DE_LA_PAROLE: dict[str, str] = {
     "conv3-taille": ECARTS_DE_LA_CUISINE["conv3-taille"] + " ; lot 7b-C5 (décision d'Evan 25/11 8 h 45) : la relance retenue n'est plus remplacée par le code, le modèle est relancé avec le fait",
     "conv2-hors-zone": ECARTS_DE_LA_CUISINE["conv2-hors-zone"],
     # B2 (M3, règle 1) : une phrase dite seule qui ne demande pas ce qui manque est jetée ; le modèle repasse et le demande avec ses mots
-    "conv4-allergie": "B2 : « Je vais vérifier pour votre allergie aux noix. » ne demande pas ce qui manque : le modèle repasse",
-    "conv6-recommencer-annuler": "B2 : « Pas de problème, je vous attends. » ne demande pas ce qui manque : le modèle repasse",
+    "conv4-allergie": "B2 : « Je vais vérifier pour votre allergie aux noix. » ne demande pas ce qui manque : le modèle repasse ; C6 (décision 25/11 9 h 30) n° 11 : le prix de la proposition est dit par le modèle dans sa question, plus par le code après elle",
+    "conv6-recommencer-annuler": "B2 : « Pas de problème, je vous attends. » ne demande pas ce qui manque : le modèle repasse (C5 : relancé une fois avec le fait)",
     # B2 (TF2, H18) : une commande enregistrée puis changée dit son nouveau total par le code (avant : la phrase écrite avant le changement)
-    "conv8-apres-enregistrement": "B2 (TF2) : le nouveau total d'une commande enregistrée changée est dit par le code",
+    "conv8-apres-enregistrement": "B2 (TF2) : le nouveau total d'une commande enregistrée changée est dit par le code ; C6 (décision 25/11 9 h 30) n° 11 : le prix de la proposition est dit par le modèle dans sa question, plus par le code après elle",
     # Lot 7b (Q1) : le minimum de la livraison n'est plus dit par le code avant la phrase du modèle ; le retour le donne au modèle, qui le dit avec ses mots (la phrase enregistrée du banc ne le dit pas)
-    "conv5-consigne": "Lot 7b (Q1) : le minimum n'est plus dit par le code, il est un fait que le modèle dit",
-    # C6 n° 3b et 4 (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle ; le code ne dit plus que la phrase réglée du total après la sienne
-    "conv1-livraison-refus": "C6 (décision 25/11 9 h 30) : la relecture passe au modèle, le code ne dit que la phrase du total",
+    "conv5-consigne": "Lot 7b (Q1) : le minimum n'est plus dit par le code, il est un fait que le modèle dit ; C6 (décision 25/11 9 h 30) n° 11 : le prix de la proposition est dit par le modèle dans sa question, plus par le code après elle",
+    # C6 n° 3b et 4 (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle ; le code ne dit plus que la phrase réglée du total après la sienne ; C6 n° 11 : le prix de la
+# proposition passe au modèle (conv1, conv4, conv5, conv8). Relu au n° 12 : les huit conversations restent des écarts, chacun pour la raison écrite ici.
+    "conv1-livraison-refus": "C6 (décision 25/11 9 h 30) : la relecture passe au modèle, le code ne dit que la phrase du total ; n° 11 : le prix de la proposition est dit par le modèle",
     "conv7-heure": "C6 (décision 25/11 9 h 30) : la relecture après un changement passe au modèle, le code ne dit que la phrase du nouveau total",
 }
 
