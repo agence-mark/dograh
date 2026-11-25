@@ -81,7 +81,23 @@ async def test_trop_tot(commerce):
     await _regler(commerce, planifiee_permise=True, delai_minimal=60)
     r = await _creneau(commerce, JEUDI_MIDI + timedelta(minutes=30))
     _verifie(r, "ARGUMENT_INVALIDE", "C'est trop tôt pour moi.", TSC.trop_tot, "heure_voulue")
-    assert r.faits == {"trop_tot": True, "delai_minimal": 60}
+    assert r.faits == {"trop_tot": True, "delai_minimal": 60, "heure_demandee_dite": "douze heures trente"}
+
+
+async def test_l_heure_demandee_entre_dans_l_identite_d_un_refus_d_heure(commerce):
+    """7b-C4 (correctif A) : « 18 h », « 18 h 30 » puis « 19 h » trop tôt sont trois refus, pas un refus redit (ni issue ni sortie) ; la même heure trois fois reste le même refus
+    (le trou 1 de C0). ``plus_tard_refuse`` n'a pas l'heure : toute autre heure du même genre échoue pareil."""
+    from api.services.actions_communes import journal_du_dit as J
+
+    await _regler(commerce, planifiee_permise=True, delai_minimal=60)
+    heures = [JEUDI_MIDI + timedelta(minutes=m) for m in (15, 30, 45)]
+    trois = [J.identite_du_refus(await _creneau(commerce, h)) for h in heures]
+    assert len(set(trois)) == 3, trois
+    memes = [J.identite_du_refus(await _creneau(commerce, heures[0])) for _ in range(3)]
+    assert len(set(memes)) == 1, memes
+    await _regler(commerce, planifiee_permise=False)
+    refus_plus_tard = {J.identite_du_refus(await _creneau(commerce, JEUDI_MIDI + timedelta(hours=h))) for h in (1, 2, 3)}
+    assert len(refus_plus_tard) == 1, refus_plus_tard
 
 
 async def test_ferme_a_l_heure_voulue_dit_quand_on_rouvre(commerce):

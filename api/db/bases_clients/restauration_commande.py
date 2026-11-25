@@ -693,7 +693,8 @@ async def creneau_refuse(
             jusqu_a = "aujourd'hui" if limite == maintenant_.astimezone(fuseau).date() else jour_dit(limite)
             return _refus_de_secours("ARGUMENT_INVALIDE", TSC.commandes_jusqu_a, "heure_voulue", jusqu_a=jusqu_a)
         if heure_voulue < maintenant_ + timedelta(minutes=reglage["delai_minimal"]):
-            return _refus_de_secours("ARGUMENT_INVALIDE", TSC.trop_tot, "heure_voulue", trop_tot=True, delai_minimal=reglage["delai_minimal"])
+            return _refus_de_secours("ARGUMENT_INVALIDE", TSC.trop_tot, "heure_voulue", trop_tot=True, delai_minimal=reglage["delai_minimal"],
+                                      heure_demandee_dite=_quand_dit(heure_voulue, maintenant_, fuseau))  # 7b-C4 : l'heure demandée entre dans l'identité du refus (trois heures trop tôt ne sont pas un refus redit)
     etat = await etat_combine(connexion, etablissement_id, mode, heure_voulue or maintenant_)
     if not etat["ouvert"]:
         raison = etat["raison"]
@@ -701,13 +702,14 @@ async def creneau_refuse(
         faits = {"raison": raison, "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"]}
         if plus_tard and isinstance(quand, datetime):
             faits["rouvre_dit"] = _quand_dit(quand, maintenant_, fuseau)
+            faits["heure_demandee_dite"] = _quand_dit(heure_voulue, maintenant_, fuseau)  # idem : une autre heure demandée est un autre refus
         return _refus_de_secours(statut_de_fermeture(raison), TSC.ferme_a_cette_heure, "heure_voulue" if plus_tard else None, **faits)
     if plus_tard:
         libre = await creneau_complet(connexion, etablissement_id, mode, heure_voulue)
         if libre is not None:
             return _refus_de_secours(
                 "ARGUMENT_INVALIDE", TSC.creneau_complet, "heure_voulue",
-                raison="creneau_plein", proposition=libre, proposition_dite=_quand_dit(libre, maintenant_, fuseau),
+                raison="creneau_plein", proposition=libre, proposition_dite=_quand_dit(libre, maintenant_, fuseau), heure_demandee_dite=_quand_dit(heure_voulue, maintenant_, fuseau),
             )
     return None
 
