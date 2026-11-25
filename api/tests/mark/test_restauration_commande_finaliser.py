@@ -113,7 +113,7 @@ async def test_un_numero_refuse_est_demande_une_fois_puis_le_numero_affiche_est_
     assert (await a.finaliser(moyen="carte")).manque == "confirmer_numero"
     moteur.repondre_au_numero_affiche(a.p, "refuse", a.appelant)
     r = await a.finaliser(moyen="carte", confirmer=True)
-    assert (r.manque, r.suggestion) == ("telephone", "Quel numéro je note ?")
+    assert (r.manque, r.suggestion) == ("telephone", "")  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le modèle demande le numéro, le code ne dit rien
     r = await a.finaliser(moyen="carte", confirmer=True)  # elle n'a rien dicté : la question n'est pas redite, le numéro affiché est reproposé
     assert r.manque == "confirmer_numero" and "Quel numéro je note" not in r.suggestion, (r.manque, r.suggestion)
     moteur.repondre_au_numero_affiche(a.p, "accepte", a.appelant)

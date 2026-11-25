@@ -221,7 +221,7 @@ async def test_la_relecture_ne_parle_pas_d_ecran(commerce):
     r = await a.jusqu_a_la_relecture()
     assert "affiche" not in r.suggestion
     numero = await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")  # après son accord : le numéro qui s'affiche, proposé
-    assert numero.manque == "confirmer_numero" and "affiche" not in numero.suggestion and "pour vous joindre en cas de problème" in numero.suggestion
+    assert numero.manque == "confirmer_numero" and numero.suggestion == ""  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le modèle propose le numéro qui s'affiche
 
 
 def test_un_appelant_presse_n_entend_ni_offert_ni_remise():

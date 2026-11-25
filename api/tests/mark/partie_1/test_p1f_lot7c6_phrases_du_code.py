@@ -50,10 +50,6 @@ def _appelants(noms: tuple[str, ...]) -> list[str]:
     return fautes
 
 
-def _xfail(famille: str, raison: str):
-    return pytest.param(famille, marks=pytest.mark.xfail(strict=True, raises=AssertionError, reason=f"C6 : {raison}"), id=famille)
-
-
 @pytest.mark.parametrize("famille", [
     pytest.param("relecture_de_la_commande", id="relecture_de_la_commande"),  # fermée par les commits 3b et 4
     pytest.param("rendu_de_monnaie", id="rendu_de_monnaie"),  # fermée par le commit 5
@@ -62,14 +58,13 @@ def _xfail(famille: str, raison: str):
     pytest.param("annulation_de_la_commande", id="annulation_de_la_commande"),  # fermée par le commit 7
     pytest.param("relectures_de_la_reservation", id="relectures_de_la_reservation"),  # fermée par le commit 8
     pytest.param("reservation_faite", id="reservation_faite"),  # fermée par le commit 9
-    _xfail("numero_demande", "« quel numéro je note » et le numéro qui s'affiche passent au modèle (commit 10)"),
+    pytest.param("numero_demande", id="numero_demande"),  # fermée par le commit 10
     pytest.param("prix_au_poids", id="prix_au_poids"),  # fermée par le commit 11d
 ])
 def test_plus_aucun_appelant_ne_dit_une_phrase_du_paragraphe_2_avec_les_mots_du_code(famille):
     assert _appelants(FAMILLES[famille]) == []
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="C6 commit 10 : « Je note le {numero}. » devient le motif numero_retenu du catalogue")
 def test_je_note_le_numero_n_est_plus_ecrit_dans_le_resultat_d_un_outil():
     source = (API / "services" / "actions_communes" / "resultat.py").read_text(encoding="utf-8")
     assert "Je note le {" not in source and "je note le {" not in source

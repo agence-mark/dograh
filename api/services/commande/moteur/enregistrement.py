@@ -11,7 +11,7 @@ from typing import Any
 
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES, textes_de_secours as TS
+from api.services.commande import textes_de_secours as TS
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -75,11 +75,11 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
     if manque is Manque.TELEPHONE:
         if J.fois(p, CLE_NUMERO_REFUSE) > J.fois(p, CLE_NUMERO_DEMANDE):
             J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, la demande d'un nouveau numéro, une seule fois ; si elle ne dicte rien, le numéro affiché lui est reproposé
-            return _avec(_r("INCOMPLETE", {}, PHRASES_DITES.quel_numero_je_note(), "telephone"), p)
+            return _avec(_r("INCOMPLETE", {}, "", "telephone"), p)  # C6 n° 10 : le modèle demande le numéro (le manque), le code ne dit rien
         if appelant.telephone_affiche:
             if J.fois(p, CLE_NUMERO_PROPOSE) <= J.fois(p, CLE_NUMERO_REFUSE):
                 J.noter(p, CLE_NUMERO_PROPOSE)  # une proposition « en cours » de plus que de refus : la question du registre est ouverte
-            return _avec(_r("INCOMPLETE", {}, PHRASES_DITES.numero_affiche_propose(regles.question_numero_affiche), "confirmer_numero"), p)
+            return _avec(_r("INCOMPLETE", {}, "", "confirmer_numero"), p)  # C6 n° 10 : le modèle propose le numéro qui s'affiche (la question née, par son type)
     if manque is Manque.TELEPHONE:
         return _avec(_r("INCOMPLETE", {}, phrase_du_manque(Manque.TELEPHONE), "telephone"), p)
     if manque is Manque.PRENOM:
@@ -199,8 +199,9 @@ def question_de_la_ligne_en_attente(p: dict[str, Any]) -> Resultat | None:
 
 
 async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, **gestes: Any) -> Resultat:
-    """La fin, puis le numéro dicté et RETENU dans cet appel dit par le code (``avec_numeros_retenus``) : un numéro corrigé se relit tel que retenu,
-    jamais de mémoire. Le numéro qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
+    """La fin, puis le numéro dicté et RETENU dans cet appel, porté en fait (``avec_numeros_retenus``) et dit par le code (motif ``numero_retenu``, C6 n° 10) : un numéro corrigé se
+    relit tel que retenu, jamais de mémoire. Le numéro est celui que la commande garde (``client``, écrit au tour où il est dit, n° 30), quel que soit le geste qui l'a apporté. Le numéro
+    qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
 
     M98 : quand le numéro gardé est celui qui s'affiche, il est porté dans les faits (``numero_affiche_dit``) pour que l'agent puisse le dire si on
     le lui demande, sans être ajouté à la phrase."""
@@ -217,10 +218,17 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
     client = p["client"]
     if appelant.telephone_affiche and client.get("telephone") == appelant.telephone_affiche:
         r = avec_numero_affiche(r, appelant.telephone_affiche)
-    numero = _numero_dit(gestes.get("telephone")) if gestes.get("telephone") else None
-    dit = numero if numero and client.get("telephone") == numero and numero != appelant.telephone_affiche and client.get("numero_dit") != numero else None
-    if r.statut in ("ENREGISTREE", "DEJA_FAIT", "TRANSMISE") or not dit or r.manque == "confirmer_numero_dicte":
-        return r  # DC10 : la question de relecture dit déjà le numéro
+    tel = client.get("telephone")
+    dit = tel if tel and tel != appelant.telephone_affiche and client.get("numero_dit") != tel else None
+    if dit is None or r.statut in ("DEJA_FAIT", "TRANSMISE"):
+        return r
+    if r.manque == "confirmer_numero_dicte":
+        client["numero_dit"] = dit  # DC10 : la question de relecture dit le numéro ; il n'est pas redit après
+        return r
+    if (regles.question_numero_dicte or "").strip():
+        return r  # DC10 allumé : la question de relecture du numéro le dira, une seule fois
+    if r.statut != "ENREGISTREE" and r.manque != "relecture":
+        return r  # C6 n° 10 : le numéro retenu se dit avec une suite du code (le total de la relecture, la confirmation) ; sinon il attend (gardé dans la commande, ``client``)
     client["numero_dit"] = dit
     return avec_numeros_retenus(r, dit, None)
 

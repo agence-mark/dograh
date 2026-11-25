@@ -123,6 +123,9 @@ TOTAL_APRES_CORRECTION = "total_apres_correction"
 TOTAL_APRES_CHANGEMENT = "total_apres_changement"  # C6 n° 6 : le nouveau total d'une commande enregistrée puis changée, dit après la phrase du modèle
 RENDU_DE_MONNAIE = "rendu_de_monnaie"  # C6 n° 5 : le rendu calculé par le code, dit après la confirmation du modèle et avant la question M108
 NUMERO_DICTE_RELU = "numero_dicte_relu"  # DC10 (Evan, 22/11) : le numéro dicté relu avant l'enregistrement, réglable, allumé par défaut
+# C6 n° 10 (§ 8 bis) : le numéro dicté et retenu, dit par le code après la phrase du modèle et avant la suite du code (total, rendu, question) ; sa forme qui pose la question est
+# ``numero_dicte_relu`` (DC10). Le modèle ne dit jamais le numéro.
+NUMERO_RETENU = "numero_retenu"
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
 
@@ -625,12 +628,30 @@ MOTIFS: dict[str, Motif] = {
             moment=MOMENT_ACTION,
             variables=("numero",),
         ),
+        Motif(
+            id=NUMERO_RETENU,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Le numéro dicté, retenu",
+            libelle_en="The dictated number, kept",
+            quand_fr="Quand la personne dicte un numéro et qu'il n'est pas relu avec une question, le code le dit tel que retenu, après la phrase de l'agent et avant la suite. « {numero} » est remplacé par le numéro : une phrase sans « {numero} » est refusée.",
+            quand_en="When the person dictates a number that is not read back with a question, the code says it as kept, after the agent's sentence and before what follows. « {numero} » is replaced by the number: a sentence without « {numero} » is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Je note le {numero}.", "C'est noté, le {numero}."),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne n'entendrait pas le numéro retenu. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the number kept. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("numero",),
+        ),
     )
 }
 
 # Les motifs d'un problème (déclenchés par un fait) : un compteur dans l'appel, jamais de délai.
 # C6 : la liste FERMÉE des phrases que le code dit encore mot pour mot (les autres sont dites par le modèle d'après les faits). Complétée par chaque commit de C6 qui rend un motif neuf.
-PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, TOTAL_APRES_CHANGEMENT, RENDU_DE_MONNAIE, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE, APRES_ENREGISTREMENT})
+PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, TOTAL_APRES_CHANGEMENT, RENDU_DE_MONNAIE, NUMERO_RETENU, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE,
+                             APRES_ENREGISTREMENT})
 
 MOTIFS_DE_PROBLEME = tuple(m.id for m in MOTIFS.values() if m.moment == MOMENT_PROBLEME)
 

@@ -17,7 +17,7 @@ from api.services.commande import panier as P
 from api.services.mots_dits import chiffres_en_lettres, montant_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE, NUMERO_DICTE_RELU
+from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_DICTE_RELU
 
 
 
@@ -34,9 +34,6 @@ class Reglages:
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
     fois_avant_la_sortie: int = DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE  # M6 : combien de fois la même chose se redit avant la sortie (message à l'équipe) ; réglage du restaurant, défaut du schéma
     mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
-    # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (phrase du code réglable, lue par l'action à l'endroit de
-    # l'appel) ; ``None`` ou vide : la relecture finit par « C'est bon ? ».
-    question_numero_affiche: str | None = MOTIFS_DES_PHRASES[NUMERO_AFFICHE_GARDE].variantes_defaut[0]
     # M108 : la question qui finit la confirmation d'une commande enregistrée (phrase du code réglable, lue par l'action à l'endroit de l'appel) ;
     # ``None`` ou vide : la confirmation est dite seule.
     question_apres_enregistrement: str | None = MOTIFS_DES_PHRASES[APRES_ENREGISTREMENT].variantes_defaut[0]

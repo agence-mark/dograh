@@ -59,8 +59,8 @@ from api.services.commande.phrases_du_manque import valeur_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
     Resultat,
+    phrase_du_numero_retenu,
     question_apres_enregistrement,
-    question_du_numero_affiche,
     question_du_numero_dicte,
 )
 from api.services.commande.source import Source
@@ -74,7 +74,7 @@ SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source 
 def _regles(ctx: Any):
     regles = reglages_de_la_commande(ctx.configurations)
     if regles is not None and is_dataclass(regles):
-        regles = replace(regles, question_numero_affiche=question_du_numero_affiche(ctx), question_apres_enregistrement=question_apres_enregistrement(ctx),
+        regles = replace(regles, question_apres_enregistrement=question_apres_enregistrement(ctx),
                          question_numero_dicte=question_du_numero_dicte(ctx))
     return regles
 
@@ -110,13 +110,13 @@ A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus de la fiche, avec le
 A_FAIRE_DE_L_ANNULATION = "demande-lui avec tes mots si elle est sûre de vouloir annuler sa commande, en disant le montant (faits.annulation_a_confirmer) ; rien n'est annulé avant son « oui »"
 A_FAIRE_DE_LA_COMMANDE_PERDUE = ("sa commande n'a pas été confirmée par la cuisine : dis-le-lui, et propose-lui de laisser un message à l'équipe pour qu'elle la rappelle ; "
                                  "si elle dit oui, laisser_un_message avec l'objet")
-A_FAIRE_DE_LA_RELECTURE = (  # C6 : le modèle relit avec ses mots ; le total et la question sont dits par le code juste après sa phrase
-    "relis-lui sa commande avec tes mots d'après les faits du retour (les articles, le mode, l'heure, les offerts, ou seulement ce qui a changé), sans le total et sans question : "
-    "le code dit le total et pose la question juste après ta phrase"
+A_FAIRE_DE_LA_RELECTURE = (  # C6 : le modèle relit avec ses mots ; le numéro noté (n° 10), le total et la question sont dits par le code juste après sa phrase
+    "relis-lui sa commande avec tes mots d'après les faits du retour (les articles, le mode, l'heure, les offerts, ou seulement ce qui a changé), sans le total, sans numéro de téléphone et sans question : "
+    "le code dit le numéro noté s'il y en a un, le total, et pose la question juste après ta phrase"
 )
-A_FAIRE_DE_LA_CONFIRMATION = (  # C6 n° 5 : le modèle confirme avec ses mots ; le rendu de monnaie et la question qui suit sont dits par le code juste après sa phrase
-    "dis-lui avec tes mots que sa commande est enregistrée et quand elle sera prête ou livrée (quand_dit du résultat, à dire tel quel), sans prix et sans question : "
-    "le code dit le rendu de monnaie et la question juste après ta phrase"
+A_FAIRE_DE_LA_CONFIRMATION = (  # C6 n° 5 et 10 : le modèle confirme avec ses mots ; le numéro noté, le rendu de monnaie et la question sont dits par le code après sa phrase
+    "dis-lui avec tes mots que sa commande est enregistrée et quand elle sera prête ou livrée (quand_dit du résultat, à dire tel quel), sans prix, sans numéro de téléphone et sans question : "
+    "le code dit le numéro noté s'il y en a un, le rendu de monnaie et la question juste après ta phrase"
 )
 A_FAIRE_DU_CHANGEMENT = (  # C6 n° 6 : le modèle dit que la commande enregistrée est changée ; le nouveau total et la question sont dits par le code juste après sa phrase
     "dis-lui avec tes mots que sa commande est changée, sans prix et sans question : le code dit le nouveau total et la question juste après ta phrase"
@@ -181,13 +181,13 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.
     return None
 
 
-def _textes_de_la_confirmation(p: dict[str, Any], dernier: Resultat, question_apres: str | None, phrase_du_rendu: str | None) -> dict[str, Any]:
+def _textes_de_la_confirmation(p: dict[str, Any], dernier: Resultat, question_apres: str | None, phrase_du_rendu: str | None, phrase_du_numero: str | None = None) -> dict[str, Any]:
     """C6 n° 5 (décision d'Evan 25/11 9 h 30 ; P4) : la confirmation est dite par le MODÈLE, l'heure exigée de sa phrase (``chiffres_exiges``) ; le code dit ensuite, dans cet ordre, le rendu
-    de monnaie (motif réglé) puis la question M108, seulement si aucune question n'attend (sinon le modèle la pose). ``fait_accompli`` : le texte de secours de la source, gardé au journal
+    de monnaie (motif réglé) puis la question M108, seulement si aucune question n'attend ; C6 n° 10 : un numéro dicté et retenu dans ce geste (``phrase_du_numero``) passe avant le rendu (sinon le modèle la pose). ``fait_accompli`` : le texte de secours de la source, gardé au journal
     du dit (le repli le redit quand le modèle se tait), jamais dit à la place du modèle."""
     apres = (question_apres or "").strip() if CONV.question_de(p) is None else ""
     quand = (dernier.faits or {}).get("quand_dit")
-    return {"suffixe": " ".join(x for x in (phrase_du_rendu, apres) if x), "chiffres_exiges": {"quand": str(quand)} if quand else {},
+    return {"suffixe": " ".join(x for x in (phrase_du_numero, phrase_du_rendu, apres) if x), "chiffres_exiges": {"quand": str(quand)} if quand else {},
             "fait_accompli": dernier.suggestion, "a_faire": A_FAIRE_DE_LA_CONFIRMATION}
 
 
@@ -202,7 +202,7 @@ def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_
 
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None, phrase_du_total: str | None = None, phrase_du_rendu: str | None = None,
-                   phrase_du_changement: str | None = None) -> dict[str, Any]:
+                   phrase_du_changement: str | None = None, phrase_du_numero: str | None = None) -> dict[str, Any]:
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : ce qui est dû à la personne (B2, M3), les faits accomplis
     (annulée) et la question qui se dit mot pour mot. ``deja_enregistree`` : la commande l'était avant cette fiche (un changement se dit, ``remplace`` ; une réponse sans
     changement, non). C6 n° 5 et 6 (décision d'Evan 25/11 9 h 30) : la confirmation et le changement sont dits par le MODÈLE ; le code dit après sa phrase le rendu, le nouveau
@@ -210,7 +210,8 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     est posée par le modèle, et M108 ne s'y ajoute pas.
     ``phrase_du_total`` (C6) : la phrase réglée du total de la relecture, que le code dit après la phrase du modèle (elle porte la question) ; ``suffixe``.
     ``phrase_du_rendu`` (C6 n° 5) : la phrase réglée du rendu de monnaie, dite après la confirmation du modèle (``_textes_de_la_confirmation``) ; ``phrase_du_changement`` (C6 n° 6) : celle
-    du nouveau total d'une commande enregistrée puis changée (``_textes_du_changement``)."""
+    du nouveau total d'une commande enregistrée puis changée (``_textes_du_changement``). ``phrase_du_numero`` (C6 n° 10) : la phrase réglée du numéro dicté et retenu (motif
+    ``numero_retenu``), dite après la phrase du modèle et avant la suite du code (le total, le rendu, M108) ; seule une suite du code la porte (sans suite, la question du modèle finit le tour)."""
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
@@ -222,9 +223,9 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
             return _textes_du_changement(p, question_apres, phrase_du_changement, montant=True)
         if dernier.suggestion == J.fait_accompli(p):
             return _textes_du_changement(p, question_apres, phrase_du_changement, montant=False)
-        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu)
+        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero)
     if enregistree and bool(dernier.suggestion) and not deja_enregistree:
-        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu)
+        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero)
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation est dite par le modèle, DC4 garde ses deux temps ; le code ne dit rien après sa phrase
     if dernier.faits.get("commande_annulee"):
         return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": TS.annulation_confirmee({}), "a_faire": A_FAIRE_DE_L_ANNULATION_FAITE}
@@ -243,7 +244,7 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le modèle pose la proposition avec son prix, exigé de sa phrase ; absent ou faux, il est relancé (même ligne que DC4)
         return {"suffixe": "", "chiffres_exiges": {"prix": montant_en_lettres(int(nee["prix"]))}}
     elif nee is not None and nee.get("type") == "relecture" and phrase_du_total:
-        textes["suffixe"] = phrase_du_total
+        textes["suffixe"] = " ".join(x for x in (phrase_du_numero, phrase_du_total) if x)
     return textes
 
 
@@ -1245,7 +1246,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
-                            phrase_du_rendu=_phrase_du_rendu(ctx, p, dernier), phrase_du_changement=_phrase_du_changement(ctx, p, dernier))
+                            phrase_du_rendu=_phrase_du_rendu(ctx, p, dernier), phrase_du_changement=_phrase_du_changement(ctx, p, dernier),
+                            phrase_du_numero=phrase_du_numero_retenu(ctx, dernier.faits if dernier is not None else None, int(p.get("version") or 0)))
     refusants = refusants_de_la_fiche(f)
     consignes: list[tuple[int, str]] = []
     if heures_a_dire(f) and nee is None:

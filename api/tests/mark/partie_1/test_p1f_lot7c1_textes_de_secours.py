@@ -505,10 +505,9 @@ async def test_le_prenom_qui_manque_se_demande_par_la_phrase_du_manque(appel):
 
 
 async def test_le_numero_affiche_se_propose_avec_la_phrase_du_code_ou_le_reglage(appel):
-    from dataclasses import replace
-    regles = replace(appel.regles, question_numero_affiche=None)
-    r = await enregistrement.identifier(appel.source, appel.p, regles, Appelant(telephone_affiche="+33612345678"), telephone=None, prenom="Paul")
-    assert r.manque == "confirmer_numero" and r.suggestion == PHRASES_DITES.numero_affiche_propose() == "Je note le numéro qui s'affiche, c'est bon ?"
+    r = await enregistrement.identifier(appel.source, appel.p, appel.regles, Appelant(telephone_affiche="+33612345678"), telephone=None, prenom="Paul")
+    assert r.manque == "confirmer_numero" and r.suggestion == ""  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le numéro qui s'affiche est proposé par le modèle, le code ne dit rien
+    assert PHRASES_DITES.numero_affiche_propose() == "Je note le numéro qui s'affiche, c'est bon ?"
     assert PHRASES_DITES.numero_affiche_propose("Je note le 06, ça vous va ?") == "Je note le 06, ça vous va ?"
     assert PHRASES_DITES.quel_numero_je_note() == "Quel numéro je note ?"
 
