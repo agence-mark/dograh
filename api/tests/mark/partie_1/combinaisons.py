@@ -643,7 +643,8 @@ def rc4(o: Observation) -> list[Faute]:
     f: list[Faute] = []
     d = o.decision
     seule = d is not None and d.mode == PAROLE.A_DIRE_SEUL and d.motif != "texte_du_code"
-    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree")         and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres)
+    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree")         and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres) \
+        and bool(o.avant.get("annulee")) == bool(o.apres.get("annulee"))  # C6 n° 7 : une annulation est un changement, que le modèle dit
     if o.fiche is not None and seule and rien and (d.a_dire or "") == ANNONCE:
         f.append(("RC4", "rien n'a changé et la phrase du modèle (« C'est noté. », écrite avant l'exécution) est dite seule"))
     avant_e, apres_e = o.avant.get("enregistree") or {}, o.apres.get("enregistree") or {}

@@ -37,6 +37,7 @@ def test_les_deux_metiers_disent_leur_texte_par_le_meme_mecanisme(monkeypatch):
     monkeypatch.setattr(PC, "premier_cas", lambda cas: "dit par le mecanisme commun")
     refus = Resultat("REFUSEE", {"detail": "complet"}, "Plus de place.")
     assert reservation.textes_du_code({}, refus, "reserver", None, False) == {"avant": "dit par le mecanisme commun"}
-    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : la confirmation est dite par le modèle ; le mécanisme commun se voit sur un fait que le code dit encore (l'annulation, jusqu'au n° 7)
-    ok = Resultat("OK", {"commande_annulee": "A1"}, "")
-    assert commande.textes_du_code({}, ok, None, [], False) == {"avant": "dit par le mecanisme commun"}
+    # C6 n° 5 à 7 (décision d'Evan 25/11 9 h 30) : la confirmation, le changement et l'annulation sont dits par le modèle ; le mécanisme commun se voit sur une question que le code
+    # dit encore (le numéro dicté, jusqu'au n° 10)
+    ok = Resultat("OK", {}, "")
+    assert commande.textes_du_code({}, ok, {"type": "numero_dicte", "texte": "Je note le zéro six, c'est bon ?"}, [], False) == {"avant": "dit par le mecanisme commun"}

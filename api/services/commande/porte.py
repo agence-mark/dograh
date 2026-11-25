@@ -49,7 +49,6 @@ from api.services.commande import etape as ETAPE
 from api.services.mots_dits import montant_en_lettres
 from api.services.phrases.catalogue import RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
 from api.services.commande import panier as P
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
@@ -120,6 +119,8 @@ A_FAIRE_DE_LA_CONFIRMATION = (  # C6 n° 5 : le modèle confirme avec ses mots ;
 A_FAIRE_DU_CHANGEMENT = (  # C6 n° 6 : le modèle dit que la commande enregistrée est changée ; le nouveau total et la question sont dits par le code juste après sa phrase
     "dis-lui avec tes mots que sa commande est changée, sans prix et sans question : le code dit le nouveau total et la question juste après ta phrase"
 )
+A_FAIRE_DE_L_ANNULATION_FAITE = "dis-lui avec tes mots que sa commande est annulée, sans prix"  # C6 n° 7 : DC4, second temps
+A_FAIRE_DE_L_ANNULATION_EN_COURS = "dis-lui avec tes mots que la commande n'est pas passée : rien n'est enregistré"  # C6 n° 7 : la commande en cours annulée
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
@@ -222,10 +223,16 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu)
     if enregistree and bool(dernier.suggestion) and not deja_enregistree:
         return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu)
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation est dite par le modèle, DC4 garde ses deux temps ; le code ne dit rien après sa phrase
+    if dernier.faits.get("commande_annulee"):
+        return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": TS.annulation_confirmee({}), "a_faire": A_FAIRE_DE_L_ANNULATION_FAITE}
+    if dernier.faits.get("annulee") and dernier.suggestion:
+        return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": dernier.suggestion, "a_faire": A_FAIRE_DE_L_ANNULATION_EN_COURS}
+    if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION:
+        montant = RQ.montant_enregistre_dit(p)  # DC4, premier temps : la question du modèle doit dire le montant d'aujourd'hui ; faux ou absent, il est relancé
+        return {"suffixe": "", "chiffres_exiges": {"montant": montant} if montant else {}}
     dite_par_la_question = nee is not None and nee.get("type") in QUESTIONS_DITES_PAR_LE_CODE and nee.get("texte")
     avant_le_reste = PC.premier_cas((
-        (bool(dernier.faits.get("commande_annulee")), lambda: RQ.TEXTE_ANNULATION_CONFIRMEE),  # DC4, second temps : l'annulation faite se dit par le code
-        (bool(dernier.faits.get("annulee") and dernier.suggestion), lambda: dernier.suggestion),
         (bool(dite_par_la_question), lambda: str(nee["texte"])),
     ))
     if avant_le_reste is not None:
@@ -866,20 +873,20 @@ def _refus_de_la_commande_annulee(f: LaFiche) -> None:
 
 def _refus_de_la_commande_annulee_dans_la_fiche(f: LaFiche, refusees_en_propre: set[str]) -> None:
     """DC5 et RC8 (Evan, 22/11) : annulée DANS cette fiche (« annulez », ou le « oui » à l'annulation d'une commande enregistrée, RC4), la commande n'existe plus,
-    comme si elle l'était déjà : ni article, ni mode, ni « c'est tout » de la même fiche n'y entrent ; le code dit l'annulation. Ces cases sont écartées à part : un
+    comme si elle l'était déjà : ni article, ni mode, ni « c'est tout » de la même fiche n'y entrent ; le modèle dit l'annulation (C6 n° 7). Ces cases sont écartées à part : un
     refus ordinaire écarterait aussi l'annulation (``DEPEND_DE_TOUT``), qui est justement ce que la personne a demandé."""
     p, fiche, reponse = f.p, f.fiche, f.reponse
     if fiche.get("annuler_la_commande") is True and ETAPE.courante(p) != RQ.ANNULEE and "*" not in f.ecartees and "annuler_la_commande" not in refusees_en_propre:
         f.ecartees.discard("annuler_la_commande")  # le refus d'une autre case (le règlement avant l'accord de la relecture) n'annule pas l'annulation voulue
         dites = _cases_qui_changent(fiche)
         if dites:
-            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
+            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; dis-le avec tes mots, attends la réponse de la personne"))
             f.ecartees |= set(dites)
     if ((CONV.question_de(p) or {}).get("type") == RQ.TYPE_ANNULATION and reponse and reponse.get("sens") == "accepte"
             and ETAPE.courante(p) == RQ.ENREGISTREE and "*" not in f.ecartees):
         dites = _cases_qui_changent(fiche)
         if dites:
-            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
+            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; dis-le avec tes mots, attends la réponse de la personne"))
             f.ecartees |= set(dites)
 
 
@@ -1043,7 +1050,7 @@ async def _case_c_est_tout(f: LaFiche) -> tuple[Resultat, str] | None:
 
 async def _case_annuler_enregistree(f: LaFiche) -> tuple[Resultat, str]:
     if moteur.commande_de_l_appel(f.p) is not None and moteur.annulation_possible(f.source):
-        # DC4 (Evan, 22/11) : premier temps : la question de confirmation, avec le montant, dite par le code ; rien n'est annulé avant le « oui »
+        # DC4 (Evan, 22/11) : premier temps : la question de confirmation, posée par le modèle avec le montant (exigé de sa phrase, C6 n° 7) ; rien n'est annulé avant le « oui »
         RQ.demander_l_annulation(f.p)
         return Resultat("OK", {"confirmation_demandee": True}, ""), "annuler_une_commande_enregistree"
     return await moteur.annuler_commande_enregistree(f.source, f.p, f.regles), "annuler_une_commande_enregistree"  # la raison du refus (introuvable, impossible)
@@ -1382,8 +1389,7 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     await moteur.vider_commande(source, p, regles)
     ETAPE.transition(p, ETAPE.ANNULEE_EN_COURS)
     CONV.poser_question(p, None)
-    # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` op ``annuler``) : le code dit l'annulation lui-même, comme au banc.
-    return Resultat("OK", {"annulee": True}, PHRASES_DITES.TEXTE_ANNULEE_EN_COURS)
+    return Resultat("OK", {"annulee": True}, TS.annulee_en_cours({}))  # C6 n° 7 : le texte de secours, gardé au journal ; le modèle le dit avec ses mots
 
 
 def _laisser_un_message(message: Any, fiche: dict[str, Any], ctx: Any, resultats: list[dict], refus: list[dict]) -> None:

@@ -384,6 +384,16 @@ def commande_retrouvee(faits: Faits) -> str:
     return f"Votre commande est enregistrée pour {faits['quand_dit']}." if faits.get("quand_dit") else "Votre commande est enregistrée."
 
 
+def annulation_confirmee(faits: Faits) -> str:
+    """C6 n° 7 : DC4, second temps : la commande enregistrée est annulée. Gardé au journal du dit, jamais dit à la place du modèle."""
+    return "Je vous confirme l'annulation de votre commande."
+
+
+def annulee_en_cours(faits: Faits) -> str:
+    """C6 n° 7 : la commande en cours est annulée avant son enregistrement. Gardé au journal du dit, jamais dit à la place du modèle."""
+    return "Je ne l'enregistre pas."
+
+
 def commande_changee(faits: Faits) -> str:
     """C6 n° 6 : la commande enregistrée vient d'être changée : avec son nouveau total quand il est connu (``total``, en centimes). Gardé au journal du dit, jamais dit à la place du modèle."""
     return f"C'est changé : votre commande fait maintenant {montant_en_lettres(int(faits['total']))}." if faits.get("total") is not None else "C'est changé dans votre commande."

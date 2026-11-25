@@ -204,9 +204,11 @@ def test_chaque_phrase_du_code_nomme_une_exception_du_plan():
 def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
     assert "nouvelle_commande" not in PD.PHRASES and not hasattr(PD, "TEXTE_NOUVELLE_COMMANDE"), "DC5 n'est pas une exception : un refus suivi d'une question, que le modèle dit"
     assert INFO.NOUVELLE_COMMANDE_PROPOSEE == "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
-    assert PD.TEXTE_ANNULATION_CONFIRMEE == "Je vous confirme l'annulation de votre commande."
-    assert PD.annulation_demandee("vingt et un euros quatre-vingts") == "Vous êtes sûr de vouloir annuler votre commande de vingt et un euros quatre-vingts ?"
-    assert PD.annulation_demandee(None) == "Vous êtes sûr de vouloir annuler votre commande ?"
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation passe au modèle ; ses deux faits d'avant ne sont plus que des textes de secours (gardés au journal)
+    from api.services.commande import textes_de_secours as TS_A
+
+    assert TS_A.annulation_confirmee({}) == "Je vous confirme l'annulation de votre commande." and TS_A.annulee_en_cours({}) == "Je ne l'enregistre pas."
+    assert not hasattr(PD, "annulation_demandee") and not hasattr(PD, "TEXTE_ANNULATION_CONFIRMEE")
     # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le changement passe au modèle ; son texte d'avant n'est plus qu'un texte de secours, le nouveau total est le motif réglé
     from api.services.commande import textes_de_secours as TS_C
 
@@ -225,8 +227,9 @@ def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
     from api.services.commande import registre
 
     p = {"enregistree": {"total": 2180}}
-    assert registre.TEXTE_NOUVELLE_COMMANDE == INFO.NOUVELLE_COMMANDE_PROPOSEE and registre.TEXTE_ANNULATION_CONFIRMEE == PD.TEXTE_ANNULATION_CONFIRMEE
-    assert registre.texte_de_l_annulation(p).startswith("Vous êtes sûr de vouloir annuler votre commande de ") and registre.texte_de_l_annulation({}).endswith("commande ?")
+    assert registre.TEXTE_NOUVELLE_COMMANDE == INFO.NOUVELLE_COMMANDE_PROPOSEE
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : la question DC4 n'a plus de texte du code ; le montant d'aujourd'hui, en lettres, est exigé de la phrase du modèle
+    assert registre.montant_enregistre_dit(p) == "vingt et un euros quatre-vingts" and registre.montant_enregistre_dit({}) is None and not hasattr(registre, "texte_de_l_annulation")
     assert not hasattr(registre, "texte_du_changement")  # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le code ne compose plus le changement
 
 

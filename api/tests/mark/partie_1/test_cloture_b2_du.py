@@ -13,6 +13,8 @@ from __future__ import annotations
 from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import table_de_parole as T
+from api.services.actions_communes import journal_du_dit as J
+from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
@@ -24,7 +26,8 @@ ANNONCE = "C'est noté."
 
 
 def _dit_par_le_code(e) -> str:
-    return " ".join((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).values())
+    # C6 (décision d'Evan 25/11 9 h 30) : ce que le code dit à la voix : ``avant`` et ``suffixe`` (les autres textes, valeurs exigées et fait gardé au journal, ne sont pas dits)
+    return " ".join(str(v) for k, v in (e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).items() if k in ("avant", "suffixe") and v)
 
 
 async def _sans_question(e) -> None:
@@ -126,10 +129,11 @@ async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
     q = CONV.question_de(e.p)
     assert q["type"] == RQ.TYPE_ANNULATION and e.p.get("enregistree") and not e.p.get("annulee"), e.p  # rien n'est annulé avant le « oui »
     # lot 7b, DC4 (fiche relue, Q2 = A) : l'ancienne attente (le code pose la question mot pour mot) contredit Q2 ; le modèle la pose, son texte reste celui du repli
-    assert _dit_par_le_code(e) == "" and q["texte"] == "Vous êtes sûr de vouloir annuler votre commande de dix euros quatre-vingt-dix ?", (_dit_par_le_code(e), q)
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : plus de texte de repli à la question : le modèle la pose, le montant exigé de sa phrase
+    assert _dit_par_le_code(e) == "" and q["texte"] == "", (_dit_par_le_code(e), q)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
-    assert _dit_par_le_code(e) == RQ.TEXTE_ANNULATION_CONFIRMEE
+    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == TS.annulation_confirmee({})  # C6 n° 7 : le modèle le dit, le journal en garde le fait
 
 
 async def test_dc4_non_laisse_la_commande_enregistree(essai_de):

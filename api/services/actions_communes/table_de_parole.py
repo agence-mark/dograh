@@ -34,6 +34,7 @@ class Entrees:
     avant: str
     suffixe_du_code: str | None
     exiges: dict | None  # C6 n° 5 : un fait accompli que le modèle dit, avec les valeurs exigées de sa phrase (``None`` : aucun)
+    fait: str | None  # C6 n° 7 : le fait accompli de ce tour que le code redit si la phrase du modèle manque (``None`` : une question, rien à redire)
     question_nee: bool  # elle est née dans CE tour
     question_id: Any
     suffixe_avant: str | None  # le prix que le code dit après la phrase, posé au passage précédent
@@ -134,7 +135,7 @@ def _fait_accompli(e: Entrees) -> Decision:
     if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and porte_les_chiffres(phrase, exiges):
         etat.jetee = None
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite) if x), motif=FAIT_ACCOMPLI)
-    etat.suffixe, etat.exiges = suite, exiges
+    etat.suffixe, etat.exiges, etat.fait_a_redire = suite, exiges, e.fait
     return Decision(SECOND_PASSAGE, motif=FAIT_ACCOMPLI)
 
 
@@ -194,6 +195,7 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
         objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
     return Entrees(
         du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None, exiges=exiges,
+        fait=str(textes["fait_accompli"]) if textes.get("fait_accompli") else None,
         question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),

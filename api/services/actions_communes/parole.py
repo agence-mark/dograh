@@ -67,6 +67,7 @@ class EtatDuTour:
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
     jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
+    fait_a_redire: str | None = None  # C6 n° 5 et 7 : le fait accompli de CE tour que le code redit si la phrase du modèle manque (``None`` : aucun, la phrase réglée de l'agent)
     exiges: dict | None = None  # C6 n° 5 : les valeurs que la phrase du modèle doit dire avant la suite du code (l'heure de la commande enregistrée, ``porte_les_chiffres``) ; ``None`` : rien n'est exigé
     total_a_dire: dict | None = None  # C6 : la phrase du total que le code dit après la relecture du modèle (``{"jeton", "texte"}``) ; notée au journal quand elle part à la voix (``noter_le_total_dit``)
     relance_du_fait: bool = False  # C5 : le modèle a été relancé avec le fait dans ce tour (une fois par tour de la personne, remis à zéro avec l'état)
@@ -238,7 +239,7 @@ def fait_puis_la_suite(fait: str | None, etat: EtatDuTour) -> str | None:
     bout à bout, sans rien composer. La suite n'est dite qu'une fois. ``None`` : rien à dire."""
     dit = " ".join(x for x in (fait, etat.suffixe) if x) or None
     etat.suffixe = etat.suffixe_lu = None
-    etat.exiges = None
+    etat.exiges = etat.fait_a_redire = None
     return dit
 
 

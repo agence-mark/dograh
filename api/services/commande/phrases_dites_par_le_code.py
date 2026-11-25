@@ -26,9 +26,6 @@ class PhraseDuCode:
 
 
 PHRASES = {
-    "annulation_confirmee": PhraseDuCode("Je vous confirme l'annulation de votre commande.", EXCEPTION_FAIT_ACCOMPLI),  # DC4, second temps : l'annulation faite engage
-    "annulee_en_cours": PhraseDuCode("Je ne l'enregistre pas.", EXCEPTION_FAIT_ACCOMPLI),  # L2 : la commande en cours est annulée avant son enregistrement : le fait qui engage
-    "annulation_demandee": PhraseDuCode("Vous êtes sûr de vouloir annuler votre commande{de_montant} ?", EXCEPTION_DC4),  # texte de secours du repli seulement (Q2 = A : le modèle pose la question) ; sa place dépend de la question R
     "reservation_enregistree": PhraseDuCode("C'est réservé pour {personnes}, {quand}, au nom de {prenom}.", EXCEPTION_FAIT_ACCOMPLI),  # 7b-C3 : la réservation faite engage ; dite par le code (``avant``)
     "reservation_modifiee": PhraseDuCode("C'est modifié : {quand}, {personnes}.", EXCEPTION_FAIT_ACCOMPLI),
     "reservation_annulee": PhraseDuCode("C'est annulé.", EXCEPTION_FAIT_ACCOMPLI),
@@ -43,15 +40,6 @@ PHRASES = {
     "note_de_moitie": PhraseDuCode("sans {ingredient} sur la moitié {moitie}", EXCEPTION_RELECTURE),  # écrite sur la ligne, relue par le code dans la relecture, imprimée au ticket
     "prix_au_poids": PhraseDuCode("{arrondi}{fois}{grammes} grammes de {nom} : {prix}.", EXCEPTION_TOTAL),  # D33 : le prix d'un article au poids est un total dit par le code (jamais montré au modèle)
 }
-
-TEXTE_ANNULATION_CONFIRMEE = PHRASES["annulation_confirmee"].texte
-TEXTE_ANNULEE_EN_COURS = PHRASES["annulee_en_cours"].texte
-
-
-def annulation_demandee(montant: str | None) -> str:
-    """DC4, premier temps : le total de la commande enregistrée, en lettres."""
-    return PHRASES["annulation_demandee"].texte.format(de_montant=f" de {montant}" if montant else "")
-
 
 def prix_au_poids(*, arrondi: bool, fois: str | None, grammes: str, nom: str, prix: str) -> str:
     """Le prix d'un article au poids (QTE1), le total de la ligne : ``fois`` est le nombre de portions dit en lettres (``None`` pour une seule), ``prix`` le montant dit en lettres."""
