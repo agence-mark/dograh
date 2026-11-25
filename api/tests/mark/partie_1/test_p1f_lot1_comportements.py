@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from api.services.integrations.connectors import outil as O
+from api.tests.mark.partie_1.aides_du_cerveau import flux_du_cerveau
 
 REGLAGES_DE_L_ETAPE = {"commande_vente_en_plus": True, "agent_principal_id": 299}
 REGLAGES_DE_L_APPEL = {"commande_vente_en_plus": False, "agents_specialises": [300]}
@@ -76,24 +77,8 @@ async def test_le_tour_au_clavier_charge_l_appel_avant_d_enregistrer_le_contexte
 
 # --------------------------------------------------------------------------- le cerveau et son flux (par le vrai mixin, sur un faux fournisseur de Pipecat)
 
-async def _flux_du_cerveau(reponse: str, verificateur=None) -> str:
-    from pipecat.processors.aggregators.llm_context import LLMContext
-    from pipecat.tests import MockLLMService
-
-    from api.services.pipecat.reponse_avalee import ATTRIBUT_VERITE, RepriseSansFluxMixin
-
-    class Cerveau(RepriseSansFluxMixin, MockLLMService):
-        pass
-
-    cerveau = Cerveau(mock_steps=[MockLLMService.create_text_chunks(reponse, chunk_size=4)], chunk_delay=0)
-    if verificateur is not None:
-        setattr(cerveau, ATTRIBUT_VERITE, verificateur)
-    contexte = LLMContext(messages=[{"role": "user", "content": "bonjour"}])
-    return "".join(m.choices[0].delta.content or "" for m in [m async for m in await cerveau.get_chat_completions(contexte)] if m.choices)
-
-
 async def test_le_flux_du_cerveau_ne_laisse_passer_aucune_balise_de_reflexion():
-    dit = await _flux_du_cerveau("C'est l'IA.\n\n<thought\n>\n\nC'est noté.")
+    dit = await flux_du_cerveau("C'est l'IA.\n\n<thought\n>\n\nC'est noté.")
     assert "<" not in dit and dit.split() == ["C'est", "l'IA.", "C'est", "noté."], dit
 
 

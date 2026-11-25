@@ -16,6 +16,7 @@ from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import etape as ETAPE
+from api.services.actions_communes.consignes import ALLERGIE as ALLERGIE_RANG
 from api.services.actions_communes.du import FAITS_A_DIRE_PAR_LE_MODELE, Du
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
@@ -426,8 +427,7 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
         if not faits:
             return None
         retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
-        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
-        return Du(faits_au_modele=(FAITS_A_DIRE_PAR_LE_MODELE,))  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
+        return Du(faits_au_modele=(FAITS_A_DIRE_PAR_LE_MODELE,), consignes=((ALLERGIE_RANG, A_FAIRE_DE_L_ALLERGIE),))  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
     except Exception:  # noqa: BLE001
         # La panne se voit : le préalable bloquant (``allergie_sans_reponse``) tient l'enregistrement, mais personne n'aurait su pourquoi la personne n'entendait rien de son allergie.
         logger.exception("allergie : les faits de l'allergie n'ont pas pu être lus ni donnés au modèle")

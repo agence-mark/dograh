@@ -27,12 +27,10 @@ def id_de_la_rubrique(article: dict[str, Any]) -> str:
     return f"rubrique:{article.get('categorie') or article.get('nom')}"
 
 
-def phrase_de_la_rubrique(article: dict[str, Any]) -> str | None:
-    """Ce qui est servi avec, dit par le code une fois à l'ajout (conversation FOR13-B du lot 11) ; ``None`` sans inclus."""
-    from api.services.mots_dits import liste_dite_et
-
+def fait_de_la_rubrique(article: dict[str, Any]) -> dict[str, Any] | None:
+    """Ce qui est servi avec, en fait brut que le modèle dit avec ses mots, une fois à l'ajout (FOR13-B du lot 11 ; lot 7b : jamais une phrase finie) ; ``None`` sans inclus."""
     servi = [str(x) for x in article.get("servi_avec") or [] if str(x).strip()]
-    return f"C'est servi avec {liste_dite_et(servi)}." if servi else None
+    return {"servi_avec": servi} if servi else None
 
 
 def _sans(carte: dict) -> dict:

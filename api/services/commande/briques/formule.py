@@ -151,19 +151,19 @@ def article_de_la_formule(
 
 def regle_a_dire_a_l_ajout(article: dict[str, Any]) -> dict[str, Any]:
     """FOR7, FOR9, FOR13 : les faits de l'article ajouté (``condition``, ``justificatif``, ``servi_avec``) et ses règles à dire (``regle_a_dire`` : une liste de
-    ``{id, texte}``, jamais montrée au modèle : la porte dit chaque règle une fois par appel, avant la phrase du modèle, et la note au journal par son identifiant).
-    Rien pour un article qui n'en a pas."""
+    ``{id, fait}``, retirée du retour par la porte : le ``fait`` brut (``{condition: {age_max}}``, ``{justificatif}``, ``{servi_avec}``) est donné au modèle une fois par appel, qui l'écrit
+    avec ses mots, et la règle est notée au journal par son identifiant). Jamais une phrase finie. Rien pour un article qui n'en a pas."""
     from api.services.commande.briques import menu_enfant, menu_etudiant, inclus_par_rubrique
 
     faits = {k: article[k] for k in ("condition", "justificatif", "servi_avec") if article.get(k)}
     nom = article.get("nom")
     regles = [
-        {"id": identifiant, "texte": texte}
-        for identifiant, texte in (
-            (f"condition:{nom}", menu_enfant.phrase_de_la_condition(article)),
-            (f"justificatif:{nom}", menu_etudiant.phrase_du_justificatif(article)),
-            (inclus_par_rubrique.id_de_la_rubrique(article), inclus_par_rubrique.phrase_de_la_rubrique(article)),
-        ) if texte
+        {"id": identifiant, "fait": fait}
+        for identifiant, fait in (
+            (f"condition:{nom}", menu_enfant.fait_de_la_condition(article)),
+            (f"justificatif:{nom}", menu_etudiant.fait_du_justificatif(article)),
+            (inclus_par_rubrique.id_de_la_rubrique(article), inclus_par_rubrique.fait_de_la_rubrique(article)),
+        ) if fait
     ]
     return {**faits, "regle_a_dire": regles} if regles else faits
 

@@ -12,6 +12,7 @@ from api.services.actions_communes.du import CLE_DU, CLE_FAITS_A_DIRE, RETRAIT_D
 from api.services.actions_communes.parole import A_DIRE_SEUL, MANQUE, QUESTION_DEJA_DONNEE, REFUS, SECOND_PASSAGE, EtatDuTour
 
 QUESTION_NEE = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "nee_au_tour": 3, "texte": "Quelle taille ?"}}}
+AMBIGUITE_NEE = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "ambiguite", "nee_au_tour": 3, "texte": "Laquelle ?"}}}
 RETOUR_QUESTION = {"question": {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?"}}
 
 
@@ -25,14 +26,13 @@ def _joue(retour: dict, phrase: str = "Très bien.", textes: dict | None = None,
 
 CAS = [
     ("texte du code (exception § 2)", {}, "Oui.", {"avant": "Je vous relis la commande."}, None, {}, A_DIRE_SEUL),
-    ("maximum atteint ou doute né dans le tour", {"resultats": [{"statut_du_module": "MAXIMUM_ATTEINT"}]}, "Oui.", {"prefixe": "Pas plus."}, None, {}, A_DIRE_SEUL),
+    ("doute né dans le tour", {"question": {"id": "Q-2", "type": "ambiguite", "texte": "Laquelle ?"}}, "Oui.", {}, AMBIGUITE_NEE, {}, A_DIRE_SEUL),
     ("refus", {}, "Oui.", {}, None, {"apres_refus": True}, SECOND_PASSAGE),
     ("faits à dire sur une fiche vide", {RIEN_CHANGE: True, CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("rien n'a changé", {RIEN_CHANGE: True}, "Oui.", {}, {"lignes": [{}]}, {}, SECOND_PASSAGE),
     ("fait bloquant", {"statut": "PARTIEL"}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("faits à dire", {CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("question née ou prix à dire", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
-    ("règle chiffrée qui bloque", {}, "Oui.", {"prefixe": "Règle."}, None, {}, SECOND_PASSAGE),
     ("ligne retirée", {CLE_DU: {"faits_qui_engagent": [RETRAIT_D_UNE_LIGNE]}}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("formule ajoutée", {"resultats": [{"operation": "ajouter", "faits": {"composition": ["x"]}}]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("phrase vide", {}, "", {}, None, {}, SECOND_PASSAGE),
@@ -82,7 +82,7 @@ def test_une_ligne_retiree_de_la_table_change_la_decision(monkeypatch, nom, reto
     reste = tuple(ligne for ligne in T.LIGNES if ligne[0] != nom)
     monkeypatch.setattr(T, "LIGNES", reste + ((("autre", lambda e: True, T._texte),) if nom == "phrase dite" else ()))
     _, sans, _ = _joue(copy.deepcopy(retour), phrase, copy.deepcopy(textes), copy.deepcopy(p), **copy.deepcopy(etat))
-    assert (avec.mode, avec.motif, avec.a_dire, avec.prefixe) != (sans.mode, sans.motif, sans.a_dire, sans.prefixe), "la table sans cette ligne décide pareil : la ligne ne sert à rien"
+    assert (avec.mode, avec.motif, avec.a_dire) != (sans.mode, sans.motif, sans.a_dire), "la table sans cette ligne décide pareil : la ligne ne sert à rien"
 
 
 def test_la_table_videe_ne_decide_plus(monkeypatch):

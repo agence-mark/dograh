@@ -5,6 +5,8 @@ Allergie (A1, A3, A4), commande (C1 à C8), parole (P1 à P8), tours (T1 à T5),
 
 from __future__ import annotations
 
+import json
+
 from api.services.actions_communes import conversation as CONV
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import brique, fait, oui_au_numero_dicte  # noqa: F401
@@ -224,7 +226,7 @@ async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
     from pipecat.processors.frame_processor import FrameDirection
 
     from api.services.pipecat import avant_la_requete as AR
-    from api.services.pipecat.reponse_avalee import PHRASE_SI_LA_RELANCE_ECHOUE
+    from api.services.pipecat.reponse_avalee import phrase_de_repli_par_defaut
     from api.services.workflow.cases_selon_l_etat import CasesIllisibles
 
     e = await brique(essai_de, "INF1")
@@ -234,7 +236,7 @@ async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
     phrase = AR.phrase_si_les_cases_sont_illisibles(moteur)
     assert phrase == q["texte"].strip(), (phrase, q)  # la question en attente (la relecture), dite telle que le code la tient
     monkeypatch.setattr("api.services.actions_communes.repli.repli_dit_par_le_code", lambda *a, **k: None)
-    assert AR.phrase_si_les_cases_sont_illisibles(moteur) == PHRASE_SI_LA_RELANCE_ECHOUE  # rien à redire : « pas compris »
+    assert AR.phrase_si_les_cases_sont_illisibles(moteur) == phrase_de_repli_par_defaut()  # rien à redire : « pas compris »
     monkeypatch.undo()
     monkeypatch.setattr(AR, "preparer_la_requete", None, raising=False)
 
@@ -446,7 +448,7 @@ async def test_plafond_titres_dit_et_partage_possible(essai_de):
     assert not e.p.get("enregistree"), r
     assert r["statut"] == "PARTIEL" and r["faits"]["fait_bloquant"]["statut_du_module"] == "PLAFOND_TITRE_RESTAURANT", r
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
-    assert "plafond" in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}".casefold(), textes  # dit par le code
+    assert not textes.get("prefixe") and "plafond" in json.dumps(r["faits"]["refus_de_la_fiche"], ensure_ascii=False).casefold(), (textes, r["faits"])  # donné au modèle (lot 7b, Q1), pas dit par le code
     # le partage : 1 € en titres, le reste en espèces, porté par la fin dite
     e.p["reglement_voulu"].update({"part": 1, "moyen_reste": "especes"})
     await e.tour("un euro en titres, le reste en espèces", prenom="Léa")

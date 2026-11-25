@@ -23,12 +23,10 @@ def faits_de_la_formule(formule: dict[str, Any]) -> dict[str, Any]:
     return sortie
 
 
-def phrase_de_la_condition(article: dict[str, Any]) -> str | None:
-    """La condition d'âge, dite par le code une fois à l'ajout (conversation FOR7-B du lot 11 : le fait seul n'était jamais dit) ; ``None`` sans condition."""
-    from api.services.mots_dits import nombre_en_lettres
-
+def fait_de_la_condition(article: dict[str, Any]) -> dict[str, Any] | None:
+    """La condition d'âge, en fait brut que le modèle dit avec ses mots, une fois à l'ajout (FOR7-B du lot 11 ; lot 7b : jamais une phrase finie) ; ``None`` sans condition."""
     age = (article.get("condition") or {}).get("age_max")
-    return f"C'est pour les enfants de {nombre_en_lettres(int(age))} ans au plus." if age else None
+    return {"condition": {"age_max": int(age)}} if age else None
 
 
 def brique_for7_dire_la_condition(article: dict[str, Any], mode: str | None) -> dict[str, Any] | None:

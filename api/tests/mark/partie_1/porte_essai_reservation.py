@@ -77,3 +77,36 @@ class EssaiReservation:
 
     async def nombre_de_reservations(self) -> int:
         return await self.salle.c.fetchval("SELECT count(*) FROM mark.resto_reservation")
+
+
+async def choix_non_compris(salle, monkeypatch, configurations: dict[str, Any]) -> list[dict[str, Any]]:
+    """Deux réservations au même prénom, puis la personne répond « bleu » (jusqu'à trois fois) à « laquelle ? » : les retours de chaque réponse, jusqu'à la sortie."""
+    from api.db.bases_clients.restauration_reservation import creer_reservation
+    from api.tests.mark.test_restauration_reservation import SAMEDI_20H
+
+    for numero, debut, personnes in (("a", SAMEDI_20H, 2), ("b", SAMEDI_20H.replace(day=15, hour=19), 3)):
+        await creer_reservation(salle.c, salle.a, {"debut": debut, "couverts": personnes, "prenom": "Alice", "telephone": TEL, "appel_id": f"avant-{numero}"})
+    essai = EssaiReservation(salle, monkeypatch)
+    essai.ctx.configurations = configurations
+    r = await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
+    retours = []
+    for _ in range(3):
+        r = await essai.tour("euh bleu", reponse={"question_id": (r.get("question") or {}).get("id", ""), "sens": "autre", "valeurs": ["bleu"]})
+        retours.append(r)
+        if "question" not in r:
+            break
+    return retours
+
+
+async def la_meme_question_n_fois(salle, monkeypatch, configurations: dict[str, Any], fois: int) -> list[bool]:
+    """La personne répond à côté : la fiche porte une heure, un jour et un nom qu'elle n'a pas dits, l'agent repose « Pour quel jour ? » (même refus, rien n'avance).
+    Renvoie ``Du.boucle`` (la sortie) à chaque tour."""
+    from api.services.actions_communes import du as DU
+
+    essai = EssaiReservation(salle, monkeypatch)
+    essai.ctx.configurations = configurations
+    sorties = []
+    for _ in range(fois):
+        r = await essai.tour("je sais pas encore", personnes=4, jour="samedi", heure="trois heures du matin", nom="Alice")
+        sorties.append(bool((r.get(DU.CLE_DU) or {}).get("boucle")))
+    return sorties

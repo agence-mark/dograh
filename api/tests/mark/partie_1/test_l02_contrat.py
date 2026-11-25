@@ -259,7 +259,7 @@ def test_enveloppe_unique():
 
 
 def test_retour_sans_phrase_du_code():
-    EN.verifier({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True, "dit_avant_ta_phrase": True})
+    EN.verifier({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True})
     for faux in ({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": "Le Coca-Cola est à deux euros."},
                  {"statut": "FAIT", "faits": {"phrase_du_code": "Le minimum est de quinze euros."}}):
         with pytest.raises(EN.EnveloppeInvalide):

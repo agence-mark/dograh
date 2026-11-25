@@ -24,7 +24,9 @@ CLE_DES_CASES_MONTREES = "cases_montrees"
 
 
 class CasesIllisibles(RuntimeError):
-    """Les cases d'un outil n'ont pas pu être calculées : la requête ne part pas (D52)."""
+    """Les cases d'un outil n'ont pas pu être calculées : la requête ne part pas (D52). ``a_dire`` : la phrase du repli que le code dit à la place (posée à l'ouverture, lot 7b ligne 29)."""
+
+    a_dire: str | None = None
 
 
 def chemins_du_schema(proprietes: dict[str, Any], prefixe: str = "") -> list[str]:

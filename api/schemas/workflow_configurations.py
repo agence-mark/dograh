@@ -208,6 +208,10 @@ DEFAULT_COMMANDE_NOTES_LIBRES = True
 DEFAULT_COMMANDE_MOITIES_PRIX = "plus_chere"
 # Lot 7 (T-08, Evan 13/11): how many times the agent speaks of a discount of its own accord per call (a caller's question is always answered).
 DEFAULT_COMMANDE_MENTIONS_DE_REMISE = 1
+# Lot 7b (M6) : combien de fois la même chose se redit avant la sortie (message à l'équipe), UNE clé par métier ; ces valeurs sont les seules, le code les lit ici.
+DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE = 3
+DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE = 2
+DEFAULT_RESERVATION_BOUCLE_FOIS_AVANT_LA_SORTIE = 3  # la même chose redite sans que la réservation avance : 3, comme la commande
 # [.mark] Q11 of the plan adresses-et-epellation (Evan, 2026-09-22): both ON by
 # default. The street check only acts at the steps that already trigger the town
 # check, and the spelling reader only reports what a caller actually spelled —
@@ -834,6 +838,30 @@ class WorkflowConfigurationDefaults(BaseModel):
         description=(
             "How many times per call the agent speaks of a discount of its own accord (never to a caller in a hurry or who said no). "
             "A caller's question about the offers is always answered. Zero: only on demand."
+        ),
+    )
+    commande_fois_avant_la_sortie: int = Field(
+        default=DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE,
+        ge=2,
+        le=5,
+        description=(
+            "How many times the same refusal or the same question comes back in an order before the agent offers to leave a message for the team."
+        ),
+    )
+    reservation_fois_avant_la_sortie: int = Field(
+        default=DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE,
+        ge=2,
+        le=5,
+        description=(
+            "How many times a choice not understood, or a search without result, comes back in a reservation before the agent offers to leave a message for the team."
+        ),
+    )
+    reservation_boucle_fois_avant_la_sortie: int = Field(
+        default=DEFAULT_RESERVATION_BOUCLE_FOIS_AVANT_LA_SORTIE,
+        ge=2,
+        le=5,
+        description=(
+            "How many times the same question or the same refusal comes back in a reservation, with nothing moving forward, before the agent offers to leave a message for the team."
         ),
     )
     commande_moities_prix: Literal["plus_chere", "moyenne", "somme"] = Field(

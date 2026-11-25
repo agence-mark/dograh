@@ -32,13 +32,6 @@ async def _fermer(e, monkeypatch) -> datetime:
     return reouverture
 
 
-def _dit_par_le_code(e) -> str:
-    from api.services.commande.porte import CLE_TEXTES_DU_CODE
-
-    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
-    return f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
-
-
 async def _repondre_aux_tailles(e) -> list[str]:
     """Répond « Normale » à chaque question de taille posée, une par une ; rend les articles demandés, dans l'ordre."""
     demandes = []
@@ -59,7 +52,7 @@ async def test_ferme_annonce_au_debut_et_propose_l_ouverture(essai_de, monkeypat
     await e.tour("à emporter", mode_de_retrait="emporter")
     q = CONV.question_de(e.p) or {}
     assert q.get("type") == "heure_proposee", (q, e.retours[-1])
-    assert "Voulez-vous que je prépare votre commande pour" in _dit_par_le_code(e), _dit_par_le_code(e)
+    assert "Voulez-vous que je prépare votre commande pour" in q["texte"], q  # la question du registre, que le modèle pose (lot 7b, Q1 : le code ne la dit plus avant)
     r = await e.tour("oui, une margherita et une regina", reponse={"question_id": q["id"], "sens": "accepte"},
                      ajouter=[{"article": "Margherita", "quantite": 1}, {"article": "Regina", "quantite": 1}])
     assert e.p.get("heure_voulue") and datetime.fromisoformat(e.p["heure_voulue"]) == reouverture, e.p.get("heure_voulue")

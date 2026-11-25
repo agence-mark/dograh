@@ -57,6 +57,7 @@ class EtatDuTour:
     rattrapage_refus_joue: bool = False
     retenues: list[str] = field(default_factory=list)
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
+    faits_du_refus: list[Any] = field(default_factory=list)  # les faits que les retours de ce tour donnent au modèle pour dire un refus : leurs valeurs passent la barrière des chiffres
     suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
     suffixe_lu: str | None = None  # le prix d'une LECTURE de ce tour (PRX5) : dit après la phrase qui suit, que ce soit un texte, ou la phrase d'une fiche (même tour)
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
@@ -145,7 +146,6 @@ class Decision:
     mode: str  # ``A_DIRE_SEUL`` ou ``SECOND_PASSAGE``
     a_dire: str | None = None
     motif: str = ""  # pourquoi ce mode (jamais une raison de refus : elles sont rangées « fiche » ou « métier »)
-    prefixe: str | None = None  # dit par le code AVANT le second passage du modèle
 
 
 def question_nee_dans_ce_tour(p: dict | None, tour: Any) -> bool:
@@ -180,6 +180,9 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     etat.suffixe = None
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
+    from api.services.actions_communes.du import faits_du_refus
+
+    etat.faits_du_refus.extend(faits_du_refus(retour))
     refusee = refuse(retour)
     de_la_fiche = refusee and refus_de_la_fiche(retour)
     etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or de_la_fiche
@@ -252,7 +255,7 @@ def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, 
         # Compiègne ») : une phrase jetée sur un refus n'est jamais dite. Hors refus, la phrase redite au second passage reste dite (B12).
         etat.retenues.append(REPLI_A)
         return REPLI_A
-    if chiffre_dans_la_phrase(texte, etat.executees, paroles):
+    if chiffre_dans_la_phrase(texte, etat.executees, paroles, etat.faits_du_refus):
         etat.retenues.append(CHIFFRE)
         return CHIFFRE
     return None

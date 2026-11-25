@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
 
+
 def question_posee(e) -> dict:
     return CONV.question_de(e.p) or {}
 
@@ -59,3 +60,24 @@ async def jusqu_a_l_enregistrement(e, moyen: str = "carte_bancaire", **plus):
             break
     assert e.p.get("enregistree"), e.retours[-1]
     return e.retours[-1]
+
+
+async def jusqu_a_la_proposition(e) -> dict:
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    q = CONV.question_de(e.p) or {}
+    assert q.get("type") == "proposition", e.retours[-1]
+    return q
+
+
+async def jusqu_a_l_enregistrement_de_la_proposition(e) -> None:
+    await jusqu_a_la_proposition(e)
+    q = CONV.question_de(e.p)
+    await e.tour("non c'est tout", c_est_tout=True, reponse={"question_id": q["id"], "sens": "refuse"})
+    q = CONV.question_de(e.p)
+    assert q.get("type") == "relecture", e.retours[-1]
+    await e.tour("oui par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    q = CONV.question_de(e.p)
+    await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    await e.tour("Léa", prenom="Léa")
+    assert e.p.get("enregistree"), e.retours[-1]

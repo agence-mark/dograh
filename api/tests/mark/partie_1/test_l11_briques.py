@@ -7,6 +7,8 @@ de la fiche (B10, B11) et les trois conflits de D34. Un test = un essai à la fo
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from api.db.bases_clients import restauration_commande as RC
@@ -323,15 +325,12 @@ class TestFOR2:
 
 class TestFOR3:
     async def test_for3_refuser_hors_liste(self, essai_de):
-        """Un dessert à 3,50 € dans la formule complète : refusé (``hors_sous_ensemble``) avec les choix de l'étape ; la règle chiffrée dite par le code avant la phrase
-        du modèle, le retour porte les drapeaux, jamais la phrase."""
+        """Un dessert à 3,50 € dans la formule complète : refusé (``hors_sous_ensemble``) avec les choix de l'étape ; la règle chiffrée est un fait du retour que le modèle
+        dit avec ses mots (lot 7b, Q1) ; le code ne dit rien avant."""
         e = await brique(essai_de, "FOR3")
         r = await _ajouter(e, "la formule complète avec un tiramisu", article="formule complète", quantite=1, composition=["tacos", "tiramisu"])
         assert "hors_sous_ensemble" in fait(r) and not e.p["lignes"], fait(r)
-        assert r.get("regle_dite_par_le_code") is True and r.get("dit_avant_ta_phrase") is True and "deux euros" not in fait(r), fait(r)
-        from api.services.commande.porte import CLE_TEXTES_DU_CODE
-
-        assert e.fiche_de_l_appel[CLE_TEXTES_DU_CODE]["prefixe"] == "Dans la formule complète, le dessert se choisit parmi ceux à deux euros."
+        assert r["faits"]["regle_de_la_ligne"]["prix_max"] == 200 and set(r["faits"]["regle_de_la_ligne"]) == {"formule", "etape", "prix_max"} and not _prefixe(e), fait(r)
 
     async def test_for3_menu_bambino_mega_refusee(self, essai_de):
         """Lusitalia, Menu Bambino : la Méga écartée de la ligne (donnée posée en mémoire, la vraie au formulaire de démo du lot 18) ; la Sénior acceptée."""
@@ -603,6 +602,11 @@ def _prefixe(e) -> str:
     return str((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("prefixe") or "")
 
 
+def _regles(r: dict) -> list[dict]:
+    """Les règles de l'article que le retour donne au modèle, en faits bruts (lot 7b, Q1 ; reprise de l'audit : § 2, le modèle parle, jamais une phrase finie)."""
+    return list((r.get("faits") or {}).get("regles_a_dire") or [])
+
+
 async def test_conv_la_lecture_d_une_formule_rend_ses_etapes_ses_regles_et_son_prix(essai_de):
     """FOR9-B, FOR7 : « c'est quoi le menu étudiant ? » ; la lecture d'une formule ne rendait rien (« je ne peux pas le confirmer »). Elle rend ses étapes et
     leurs choix, son justificatif, sa condition, et son prix, dit par le code (PRX5, D33)."""
@@ -632,25 +636,25 @@ async def test_d11_ce_que_la_lecture_a_dit_n_est_pas_redit_a_l_ajout(essai_de):
     e = await brique(essai_de, "FOR13")
     await e.lecture(sujet="article", article="brochettes yakitori")
     r = await _ajouter(e, "des brochettes yakitori", article="brochettes yakitori", quantite=1)
-    assert _prefixe(e) == "" and not r.get("dit_avant_ta_phrase"), fait(r)
+    assert not _regles(r), fait(r)
 
 
 async def test_conv_la_condition_le_justificatif_et_le_servi_avec_sont_dits_par_le_code_une_fois(essai_de):
     """FOR7-B, FOR9-A, FOR13-B : le fait seul n'était jamais dit (la phrase du modèle, écrite avant le retour, est dite seule). Le code le dit avant la phrase du
-    modèle, une fois par appel ; le retour garde le fait, jamais la phrase."""
+    modèle, une fois par appel ; lot 7b (Q1) : le retour les donne au modèle (``regles_a_dire``), le code ne les dit plus."""
     e = await brique(essai_de, "FOR13")
     r = await _ajouter(e, "des brochettes yakitori", article="brochettes yakitori", quantite=1)
-    assert _prefixe(e) == "C'est servi avec 1 soupe, 1 salade et 1 riz." and r.get("dit_avant_ta_phrase") is True, fait(r)
+    assert _regles(r) == [{"servi_avec": ["1 soupe", "1 salade", "1 riz"]}] and not _prefixe(e), fait(r)
     assert r["resultats"][0]["faits"]["servi_avec"] == ["1 soupe", "1 salade", "1 riz"] and "regle_a_dire" not in r["resultats"][0]["faits"], fait(r)
     r = await _ajouter(e, "et encore une", article="brochettes yakitori", quantite=1)
-    assert _prefixe(e) == "" and not r.get("dit_avant_ta_phrase"), fait(r)  # une seule fois par appel
+    assert not _regles(r), fait(r)  # une seule fois par appel
     e9 = await brique(essai_de, "FOR9")
-    await _ajouter(e9, "un menu étudiant panini coca", article="menu étudiant", quantite=1, composition=["panini", "coca"])
-    assert _prefixe(e9) == "C'est sur présentation de la carte étudiante ou d'identité.", _prefixe(e9)
+    r9 = await _ajouter(e9, "un menu étudiant panini coca", article="menu étudiant", quantite=1, composition=["panini", "coca"])
+    assert _regles(r9) == [{"justificatif": "présentation de la carte étudiante ou d'identité"}], fait(r9)
     e7 = await brique(essai_de, "FOR7")
     await e7.tour("sur place", mode_de_retrait="sur_place")
     r = await _ajouter(e7, "un menu enfant", article="menu enfant", quantite=1, composition=["ailes de poulet", "jus de fruit"])
-    assert e7.p["lignes"] and _prefixe(e7) == "C'est pour les enfants de dix ans au plus.", fait(r)
+    assert e7.p["lignes"] and _regles(r) == [{"condition": {"age_max": 10}}], fait(r)
 
 
 async def test_conv_un_choix_decline_se_dit_declinaison_d_abord(essai_de):
@@ -690,11 +694,11 @@ async def test_conv_une_variante_sur_une_formule_sans_taille_est_refusee(essai_d
 
 async def test_conv_une_formule_et_un_choix_hors_de_sa_ligne_dans_le_nom(essai_de):
     """FOR3-A : ``article`` « formule complète avec un tiramisu », sans composition : « Tiramisu ou Formule complète ? ». Le tiramisu est dans la base de
-    l'étape Dessert, écarté par son filtre de prix : la formule est retenue, le tiramisu refusé avec la règle dite par le code."""
+    l'étape Dessert, écarté par son filtre de prix : la formule est retenue, le tiramisu refusé, la règle est un fait du retour que le modèle dit (lot 7b, Q1)."""
     e = await brique(essai_de, "FOR3")
     r = await _ajouter(e, "une formule complète avec un tiramisu", article="formule complète avec un tiramisu", quantite=1)
     assert not e.p["lignes"] and "hors_sous_ensemble" in fait(r), fait(r)
-    assert _prefixe(e) == "Dans la formule complète, le dessert se choisit parmi ceux à deux euros.", _prefixe(e)
+    assert r["faits"]["regle_de_la_ligne"]["prix_max"] == 200 and set(r["faits"]["regle_de_la_ligne"]) == {"formule", "etape", "prix_max"} and not _prefixe(e), fait(r)
 
 
 async def test_conv_le_refus_du_melange_dit_chaque_alternative_a_sa_quantite(essai_de):
@@ -758,15 +762,15 @@ async def test_conv_lot_9_une_ambiguite_est_dite_par_le_code(essai_de):
     assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and d.a_dire == r["question"]["texte"], d
 
 
-async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_code(essai_de):
-    """Lot 9 (OPT8-B) : le refus d'un maximum (« pas plus de trois ») n'était pas dit : la phrase du code remplace celle du modèle."""
+async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_modele(essai_de):
+    """Lot 9 (OPT8-B) : le refus d'un maximum (« pas plus de trois ») n'était pas dit ; lot 7b (Q1) : le modèle repasse avec le refus et son nombre, le code ne dit rien."""
     from api.services.actions_communes import parole as PAROLE
 
     e = await brique(essai_de, "OPT8")
     cases = {"ajouter": [{"article": "coupe de glace", "variante": "3 boules", "quantite": 1, "composition": ["vanille", "chocolat", "café", "pistache"]}]}
     r, d = await _parole_de(e, "C'est noté pour la coupe.", **cases)
     assert any(x.get("statut_du_module") == "MAXIMUM_ATTEINT" for x in r["resultats"]), r
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and "pas plus de trois" in (d.a_dire or ""), d
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None and "pas plus de trois" in json.dumps(r["faits"]["refus_de_la_fiche"], ensure_ascii=False), (d, r["faits"])
 
 
 async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de):
@@ -807,7 +811,9 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
     """Lot 19, D33 (conversation 7, run 208) : « changez l'heure… et c'est tout » ; la réponse ouvre la relecture, puis l'heure posée est refusée par son
     créneau (``ARGUMENT_INVALIDE``, manque ``heure_voulue`` : « Je ne prends pas de commande pour plus tard. », la réponse vue dans l'appel). Avant : le
     refus écrasait la relecture (aucune question, l'appel tournait en rond) et sa phrase n'était jamais dite (le modèle confirmait l'heure). Le refus de
-    l'heure est dit par le code ; la question posée reste la relecture."""
+    l'heure est dit par le code ; la question posée reste la relecture.
+    Lot 7b, ligne 12 (fiche relue, Q1) : l'attente d'avant (« le code dit l'heure devant la relecture ») contredit Q1 (le code ne dit plus rien avant la phrase du modèle) ; l'heure
+    refusée reste un manque, la question posée est l'heure (avant la relecture), le modèle la dit."""
     from api.services.commande import moteur
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
@@ -822,16 +828,15 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
     r = await e.dit("non merci, mettez-les pour vingt et une heures, c'est tout").fiche(
         c_est_tout=True, heure="vingt et une heures", **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     assert any(x.get("manque") == "heure_voulue" for x in r["resultats"]), r["resultats"]
-    assert (CONV.question_de(e.p) or {}).get("type") == "relecture", (CONV.question_de(e.p), r["resultats"])
+    assert (CONV.question_de(e.p) or {}).get("type") == "heure_proposee", (CONV.question_de(e.p), r["resultats"])
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
-    dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
-    assert dit.strip().startswith("Je ne prends pas de commande pour plus tard."), textes  # dit avant la relecture
+    assert not textes.get("prefixe") and not textes.get("avant"), textes  # le code ne dit rien : le refus de l'heure est un fait que le modèle dit, avant la relecture
 
 
 async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai_de, monkeypatch):
     """Lot 19, D34 (point 5 de Pierre, 3e partie, 20/11 après 14 h, Casa fermée jusqu'à 18 h, commande pour plus tard permise) : « c'est tout » rend
     ``FERME_PLANIFIABLE`` (D15 : l'heure voulue est LA question) ; sa phrase n'était pas dite (l'agent : « Très bien, voici votre récapitulatif. »). Elle
-    est dite par le code, comme le refus d'une heure (D33)."""
+    est un fait que le modèle dit avec ses mots, comme le refus d'une heure (D33 ; lot 7b, Q1)."""
     from api.services.commande import moteur, porte
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
@@ -844,9 +849,10 @@ async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai
         return _socle._avec(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, phrase, "heure_voulue"), p)
 
     monkeypatch.setattr(porte, "mener_a_la_fin", ferme)
-    await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
+    r = await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
-    assert phrase in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}", textes
+    assert not textes.get("prefixe") and phrase not in str(textes), textes  # le code ne dit rien (lot 7b, Q1)
+    assert r["faits"]["heure_a_dire"][0]["faits"]["a_planifier"] is True and porte.A_FAIRE_DE_L_HEURE in r["a_faire"], r  # le modèle demande le jour et l'heure avec ses mots
 
 
 async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, monkeypatch):
@@ -854,8 +860,6 @@ async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, 
     telle heure, et de faire confirmer par le client ». Fermé mais planifiable au « c'est tout » : le code propose l'heure de la réouverture et pose la
     question ; « oui » pose cette heure et la relecture suit."""
     from datetime import datetime, timedelta
-
-    from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
     e = await essai_de("casa-italia")
     await e.dit("deux reines à emporter").fiche(ajouter=[{"article": "regina", "quantite": 2, "variante": "Normale"}], mode_de_retrait="emporter")
@@ -874,9 +878,7 @@ async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, 
     monkeypatch.setattr(e.source, "etat", ferme)
     await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     q = CONV.question_de(e.p) or {}
-    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
-    dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
-    assert q.get("type") == "heure_proposee" and "Je vous la prépare pour" in dit and "Pour quel jour" not in dit, (q, textes)
+    assert q.get("type") == "heure_proposee" and "Je vous la prépare pour" in q["texte"] and "Pour quel jour" not in q["texte"], q  # la question du registre porte l'heure de la réouverture
     monkeypatch.setattr(e.source, "etat", vrai_etat)
     r = await e.dit("oui").fiche(reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("heure_voulue"), r["resultats"]

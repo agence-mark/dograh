@@ -6,6 +6,7 @@ Une classe par brique (``TestOPT1`` ...), chacune avec sa règle, son aller-reto
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
 
@@ -340,12 +341,13 @@ async def test_briques_jamais_vues_sans_case_nouvelle(essai_de):
 
 async def test_maximum_atteint_est_dit_par_le_code(essai_de):
     """Conversation DEC2-B (19/11) : « un XL avec quatre viandes » : le code refuse la quatrième, mais ne le disait pas (le modèle annonçait « c'est noté »). Un refus de maximum est un
-    refus : retour PARTIEL, dit par le code avant la phrase du modèle, avec le nombre au plus."""
+    refus : retour PARTIEL, donné au modèle avec le nombre au plus (lot 7b, Q1 : le code ne le dit plus)."""
 
     e = await brique(essai_de, "DEC2")
     r = await e.tour("un XL avec quatre viandes", ajouter=[{"article": "tacos", "quantite": 1, "variante": "XL", "composition": ["poulet", "merguez", "steak", "kefta"]}])
-    assert r["statut"] == "PARTIEL" and r.get("dit_avant_ta_phrase") is True, r
+    assert r["statut"] == "PARTIEL" and "refus_de_la_fiche" in r["faits"], r
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
-    dit = e.fiche_de_l_appel[CLE_TEXTES_DU_CODE]["prefixe"]
+    assert not e.fiche_de_l_appel[CLE_TEXTES_DU_CODE].get("prefixe"), "le code ne dit rien avant la phrase du modèle"
+    dit = json.dumps(r["faits"]["refus_de_la_fiche"], ensure_ascii=False)
     assert "trois" in dit.lower() and "Viandes" in dit, dit

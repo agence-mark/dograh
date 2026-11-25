@@ -159,8 +159,8 @@ async def test_un_article_en_doute_et_un_article_refuse_dans_la_meme_fiche_le_mo
     await e.tour("à emporter", mode_de_retrait="emporter")
     r = await e.tour("deux articles", ajouter=[{"article": "salmone", "quantite": 1}, {"article": "zzzquoi", "quantite": 1}])
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
-    assert not textes.get("prefixe") and not textes.get("avant"), textes  # le code ne dit pas le refus
-    assert not r.get("dit_avant_ta_phrase") and "sans le redire" not in r["a_faire"], r  # et ne dit pas au modèle que c'est dit
+    assert not textes.get("avant"), textes  # le code ne dit pas le refus
+    assert "sans le redire" not in r["a_faire"], r  # et ne dit pas au modèle que c'est dit
     refus = (r.get("faits") or {}).get("refus_de_la_fiche") or []
     assert len(refus) == 1 and refus[0]["faits"]["dit"] == "zzzquoi", refus  # le modèle sait QUOI est refusé
     assert (CONV.question_de(e.p) or {}).get("type") == "ambiguite" and (r.get("question") or {}).get("type") == "ambiguite", (CONV.question_de(e.p), r.get("question"))
@@ -169,8 +169,8 @@ async def test_un_article_en_doute_et_un_article_refuse_dans_la_meme_fiche_le_mo
 
 
 async def test_l_heure_refusee_est_dite_par_le_code_et_le_modele_recoit_le_refus_d_article_et_la_question(essai_de, monkeypatch):
-    """D33 + B (Evan, 24/11) : un article refusé, un article flou et une heure refusée dans la même fiche : le code dit l'heure (D33) ; le refus de l'article et la question sont des faits
-    donnés au modèle, avec une consigne qui combine les deux : l'heure est dite (ne la redis pas), dis les autres refus puis pose la question."""
+    """D33 + B (Evan, 24/11), lot 7b (Q1) : un article refusé, un article flou et une heure refusée dans la même fiche : le code ne dit RIEN ; l'heure refusée, le refus de l'article et la
+    question sont des faits donnés au modèle, avec une consigne qui combine les deux : dis les refus puis pose la question."""
     from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
     from api.services.commande import porte
 
@@ -184,11 +184,13 @@ async def test_l_heure_refusee_est_dite_par_le_code_et_le_modele_recoit_le_refus
     monkeypatch.setattr(moteur, "poser_l_heure", refusee)
     r = await e.tour("une salmone et un zzzquoi pour vingt-trois heures trente", ajouter=[{"article": "salmone", "quantite": 1}, {"article": "zzzquoi", "quantite": 1}], heure="vingt-trois heures trente")
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
-    assert phrase in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}" and "zzzquoi" not in str(textes), textes  # le code dit l'heure, rien d'autre
-    refus = [x for x in (r.get("faits") or {}).get("refus_de_la_fiche") or [] if x["manque"] != "heure_voulue"]
+    assert not textes.get("prefixe") and not textes.get("avant"), textes  # le code ne dit rien
+    toutes = (r.get("faits") or {}).get("refus_de_la_fiche") or []
+    assert any(x["manque"] == "heure_voulue" for x in toutes), toutes  # l'heure refusée est un fait donné au modèle
+    refus = [x for x in toutes if x["manque"] != "heure_voulue"]
     assert len(refus) == 1 and refus[0]["faits"]["dit"] == "zzzquoi", r  # le modèle sait QUOI est refusé
     assert (r.get("question") or {}).get("type") == "ambiguite", r.get("question")
-    assert r.get("dit_avant_ta_phrase") and porte.A_FAIRE_DU_REFUS_DIT in r["a_faire"] and porte.A_FAIRE_DES_REFUS_A_DIRE in r["a_faire"], r["a_faire"]  # les deux consignes, ensemble
+    assert porte.A_FAIRE_DES_REFUS_A_DIRE in r["a_faire"] and porte.A_FAIRE_DE_LA_QUESTION in r["a_faire"], r["a_faire"]  # les deux consignes, ensemble
 
 
 async def test_un_refus_dit_par_le_modele_est_au_journal_et_le_second_echec_propose_une_issue_puis_la_sortie(essai_de):
@@ -202,7 +204,7 @@ async def test_un_refus_dit_par_le_modele_est_au_journal_et_le_second_echec_prop
     r1 = await e.tour("une salmone et un zzzquoi", ajouter=[{"article": "salmone", "quantite": 1}, {"article": "zzzquoi", "quantite": 1}])
     assert porte.A_FAIRE_DES_REFUS_A_DIRE in r1["a_faire"], r1["a_faire"]  # tour 1 : le modèle dit le refus, en entier
     r2 = await e.tour("un zzzquoi quand même", ajouter=[{"article": "zzzquoi", "quantite": 1}])
-    assert J.A_FAIRE_ISSUE in r2["a_faire"] and not r2.get("dit_avant_ta_phrase"), r2["a_faire"]  # tour 2 : déjà dit, une issue
+    assert J.A_FAIRE_ISSUE in r2["a_faire"] and porte.A_FAIRE_DES_REFUS_A_DIRE not in r2["a_faire"], r2["a_faire"]  # tour 2 : déjà dit, une issue
     r3 = await e.tour("encore un zzzquoi", ajouter=[{"article": "zzzquoi", "quantite": 1}])
     assert J.A_FAIRE_SORTIE in r3["a_faire"], r3["a_faire"]  # tour 3 (second échec) : la sortie
 
@@ -221,7 +223,8 @@ async def test_au_second_refus_avec_une_question_nee_l_issue_est_donnee_et_la_qu
 
 
 async def test_l_heure_refusee_deux_tours_de_suite_n_est_dite_qu_une_fois_et_le_second_tour_ne_dit_pas_qu_elle_l_est(essai_de, monkeypatch):
-    """D33 + B3 : au second refus de la même heure le code ne la redit pas ; le modèle ne reçoit donc pas « le code vient de lui dire ce qui est refusé »."""
+    """D33 + B3 : au second refus de la même heure, le modèle reçoit l'issue (déjà dit), pas la consigne de la dire en entier comme une première fois."""
+    from api.services.actions_communes import journal_du_dit as J
     from api.services.commande import porte
 
     e = await essai_de()
@@ -232,9 +235,9 @@ async def test_l_heure_refusee_deux_tours_de_suite_n_est_dite_qu_une_fois_et_le_
 
     monkeypatch.setattr(moteur, "poser_l_heure", refusee)
     r1 = await e.tour("pour vingt-trois heures trente", heure="vingt-trois heures trente")
-    assert r1.get("dit_avant_ta_phrase") and porte.A_FAIRE_DU_REFUS_DIT in r1["a_faire"], r1
+    assert porte.A_FAIRE_DES_REFUS_A_DIRE in r1["a_faire"], r1
     r2 = await e.tour("toujours vingt-trois heures trente", heure="vingt-trois heures trente")
-    assert not r2.get("dit_avant_ta_phrase") and porte.A_FAIRE_DU_REFUS_DIT not in r2["a_faire"], r2["a_faire"]
+    assert J.A_FAIRE_ISSUE in r2["a_faire"] and porte.A_FAIRE_DES_REFUS_A_DIRE not in r2["a_faire"], r2["a_faire"]
 
 
 def test_les_consignes_du_journal_ne_disent_pas_qui_a_dit_le_refus():

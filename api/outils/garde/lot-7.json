@@ -1,22 +1,22 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "0024216991e959352d6dc52c69d8ebd9bee4fc04",
- "base_de_comparaison": "507cc458ac90f56f8db05816ece0ccbec5eeacc4",
- "poste": "sa13",
+ "commit_teste": "101526a65785984c3b3041a3a42e4bd976141de3",
+ "base_de_comparaison": "e36536d89927d0018afe6b87e2e0348fdd89ab93",
+ "poste": "sa12",
  "vert": true,
  "controles": {
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 35
+   "fichiers_de_la_zone": 32
   },
   "linter": {
    "vert": true,
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1116 files, 3338 dependencies.",
+    "Analyzed 1118 files, 3358 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.94s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.80s ========================"
   },
   "noqa": {
    "vert": true,
@@ -35,20 +35,57 @@
   "donnes": {
    "vert": true,
    "tests": [
+    "tests/mark/partie_1/test_cloture_b2_du.py",
+    "tests/mark/partie_1/test_controle_caisse_reservation.py",
+    "tests/mark/partie_1/test_inventaire_rustines.py",
+    "tests/mark/partie_1/test_l06_parole.py",
+    "tests/mark/partie_1/test_l11_briques.py",
+    "tests/mark/partie_1/test_l19bis_parole.py",
+    "tests/mark/partie_1/test_l20_complet_dit_par_le_code.py",
+    "tests/mark/partie_1/test_l20_lecture_apres_refus.py",
+    "tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py",
+    "tests/mark/partie_1/test_p1f_lot7_allergie.py",
+    "tests/mark/partie_1/test_p1f_lot7_cases_illisibles.py",
+    "tests/mark/partie_1/test_p1f_lot7_conversation_vue.py",
+    "tests/mark/partie_1/test_p1f_lot7_du.py",
+    "tests/mark/partie_1/test_p1f_lot7_envoi_a_l_accueil.py",
+    "tests/mark/partie_1/test_p1f_lot7_envoi_parti_ou_refuse.py",
+    "tests/mark/partie_1/test_p1f_lot7_erreurs_journalisees.py",
+    "tests/mark/partie_1/test_p1f_lot7_fait_accompli.py",
+    "tests/mark/partie_1/test_p1f_lot7_ferme.py",
+    "tests/mark/partie_1/test_p1f_lot7_g3.py",
     "tests/mark/partie_1/test_p1f_lot7_inventaire_phrases.py",
     "tests/mark/partie_1/test_p1f_lot7_non_garanti.py",
+    "tests/mark/partie_1/test_p1f_lot7_outil.py",
+    "tests/mark/partie_1/test_p1f_lot7_phrase_jetee.py",
+    "tests/mark/partie_1/test_p1f_lot7_prix_lu.py",
+    "tests/mark/partie_1/test_p1f_lot7_question_finale.py",
+    "tests/mark/partie_1/test_p1f_lot7_question_gardee.py",
+    "tests/mark/partie_1/test_p1f_lot7_refus_en_deux_morceaux.py",
+    "tests/mark/partie_1/test_p1f_lot7_regle_de_l_action.py",
     "tests/mark/partie_1/test_p1f_lot7_regle_de_l_article.py",
-    "tests/mark/partie_1/test_p1f_lot7_envoi_parti_ou_refuse.py",
-    "tests/mark/partie_1/test_p1f_lot7_envoi_a_l_accueil.py",
-    "tests/mark/test_restauration_envois.py",
-    "tests/mark/test_restauration_voir_produit_sans_m104.py",
-    "tests/mark/partie_1/test_l11_briques.py",
-    "tests/mark/partie_1/test_l15_briques.py",
-    "tests/mark/partie_1/test_l19bis_parole.py",
-    "tests/mark/partie_1/test_l02_contrat.py",
-    "tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py"
+    "tests/mark/partie_1/test_p1f_lot7_seuil.py",
+    "tests/mark/partie_1/test_p1f_lot7_suite_du_tour.py",
+    "tests/mark/partie_1/test_p1f_lot7_table.py",
+    "tests/mark/partie_1/test_p1f_lot7_table_egale_cascade.py",
+    "tests/mark/partie_1/test_p1f_lot7b_barriere_des_faits.py",
+    "tests/mark/partie_1/test_p1f_lot7b_boucle_une_source.py",
+    "tests/mark/partie_1/test_p1f_lot7b_dc4.py",
+    "tests/mark/partie_1/test_p1f_lot7b_envoi_refuse_dit_par_le_modele.py",
+    "tests/mark/partie_1/test_p1f_lot7b_heure_avant_la_relecture.py",
+    "tests/mark/partie_1/test_p1f_lot7b_phrase_de_repli.py",
+    "tests/mark/partie_1/test_p1f_lot7b_prefixe.py",
+    "tests/mark/partie_1/test_p1f_lot7b_refus_de_la_reservation.py",
+    "tests/mark/partie_1/test_p1f_lot7b_regles_en_faits.py",
+    "tests/mark/partie_1/test_p1f_lot7b_seuil_de_sortie.py",
+    "tests/mark/partie_1/test_p1f_lot7b_une_consigne.py",
+    "tests/mark/partie_1/test_pc7_corrections.py",
+    "tests/mark/test_declenchement_de_l_action.py",
+    "tests/mark/test_verite_des_actions.py",
+    "tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py",
+    "tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_l02_contrat.py::test_service_fiche_schema\nPASSED tests/mark/partie_1/test_l02_contrat.py::test_retrouver_par_telephone_dicte_exige_le_numero\nPASSED tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py::test_l_heure_sans_mode_demande_le_mode\nPASSED tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py::test_l_heure_dont_le_calcul_manque_n_est_pas_un_envoi_indisponible\nPASSED tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py::test_la_livraison_en_pause_est_lue_comme_fermee\n=========== 248 passed, 10 xfailed, 7 warnings in 114.99s (0:01:54) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_le_seuil_est_obligatoire_et_aucune_constante_ne_le_double\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_la_commande_sans_reglages_de_l_appel_lit_le_defaut_du_schema\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_seuils_d_avant.py::test_la_consigne_de_sortie_ne_donne_aucun_nombre_en_dur\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py::test_transmission_faite_la_consigne_dit_transmise_et_ne_dit_pas_passe\nPASSED tests/mark/partie_1/test_p1f_lot7b_b3_consigne_transmise.py::test_transmission_non_faite_rien_n_est_promis\n=========== 574 passed, 16 xfailed, 2 warnings in 239.42s (0:03:59) ==========="
   }
  }
 }

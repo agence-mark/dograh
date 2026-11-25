@@ -3,6 +3,7 @@ parole. Le constat reste interne : la copie que le modèle lit ne le porte pas."
 
 from __future__ import annotations
 
+from api.services.actions_communes import consignes as C
 from api.services.actions_communes import enveloppe_legere
 from api.services.actions_communes.du import CLE_DU, Du, du_du_retour
 from api.tests.mark import test_restauration_reservation as RESERVATION
@@ -65,12 +66,12 @@ def test_le_prix_du_poids_et_la_regle_de_la_ligne_rendent_chacun_un_element_de_d
     ctx = _contexte()
     prix = porte.poser_le_prix_du_poids(ctx, [{"faits": {"prix_a_dire": "Le prix suit."}}])
     assert prix == DU.Du(prix_apres=True)
-    regle = porte.poser_la_regle_de_la_ligne(ctx, [{"faits": {"raison": ligne_de_formule_limitee.RAISON, "regle_prix_max": 300, "article": "x", "etape": "y"}}])
-    assert regle == DU.Du(dit_avant=True, faits_au_modele=(DU.REGLE_DITE,))
-    retour: dict = {"statut": "FAIT"}
+    retour: dict = {"statut": "FAIT", "faits": {}}
+    regle = porte.poser_la_regle_de_la_ligne([{"faits": {"raison": ligne_de_formule_limitee.RAISON, "regle_prix_max": 300, "article": "x", "etape": "y"}}], retour)
+    assert regle == DU.Du(consignes=((C.REFUS_A_DIRE, porte.A_FAIRE_DE_LA_REGLE),)) and retour["faits"]["regle_de_la_ligne"]  # la règle est un fait du retour, que le modèle dit
     DU.assembler(retour, prix, regle)
-    assert DU.du_du_retour(retour).prix_apres and DU.du_du_retour(retour).dit_avant and DU.REGLE_DITE in DU.du_du_retour(retour).faits_au_modele
-    assert retour["prix_dit_par_le_code_apres_ta_phrase"] and retour["dit_avant_ta_phrase"] and retour["regle_dite_par_le_code"]
+    assert DU.du_du_retour(retour).prix_apres and retour["prix_dit_par_le_code_apres_ta_phrase"] and "regle_dite_par_le_code" not in retour and "dit_avant_ta_phrase" not in retour
+    assert porte.A_FAIRE_DE_LA_REGLE in retour["a_faire"] and DU.faits_du_refus(retour), retour
 
 
 async def test_le_minimum_et_le_poids_arrivent_dans_le_meme_du(essai_de):
@@ -78,9 +79,9 @@ async def test_le_minimum_et_le_poids_arrivent_dans_le_meme_du(essai_de):
     from api.services.actions_communes import du as DU
 
     retour: dict = {"statut": "FAIT"}
-    DU.assembler(retour, DU.Du(dit_avant=True), DU.Du(prix_apres=True), None)
+    DU.assembler(retour, DU.Du(faits_qui_engagent=("x",)), DU.Du(prix_apres=True), None)
     du = DU.du_du_retour(retour)
-    assert du.dit_avant and du.prix_apres, du
+    assert du.faits_qui_engagent == ("x",) and du.prix_apres, du
 
 
 def test_r6_chaque_constante_du_constat_a_une_seule_source_et_un_seul_sens():
@@ -103,5 +104,5 @@ def test_un_constat_qui_ne_peut_pas_se_poser_ne_leve_pas_le_retour_reste_tel_que
 
     monkeypatch.setattr(DU, "du_du_retour", casse)
     retour = {"statut": "FAIT"}
-    sortie = DU.constater(retour, None, {}, lambda _d: None)
+    sortie = DU.constater(retour, None, {}, lambda _d: None, 3)
     assert sortie["statut"] == "FAIT" and DU.CLE_DU not in sortie

@@ -7,34 +7,14 @@ branche de panne, le modèle recevait la panne (« indisponible ») au lieu du f
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
 from api.services.apres_appel.rappels import CLE_RAPPEL
-from api.services.commande import porte
-from api.services.restauration.envois_et_sms import sms_restauration as sms_resto
 from api.services.restauration.envois_et_sms.sms_restauration import Envoi
 
-from .aides_briques import brique
+from .aides_briques import commande_et_envoi as _commande_et_envoi
 
 MOBILE = "+33612345678"
-
-
-async def _commande_et_envoi(essai_de, monkeypatch, envoi_allume: bool, reponse: Envoi | None):
-    e = await brique(essai_de, "INF4")
-    await e.tour("une margherita", ajouter=[{"article": "Sandwich poulet", "quantite": 1}])
-    if envoi_allume:
-        await e.monde.c.execute("INSERT INTO mark.resto_envoi (site_id, type, declencheur, texte, actif) VALUES ($1, 'sms', 'carte', 'Notre carte', true)", e.monde.a)
-    e.ctx.appel = {**(e.ctx.appel or {}), "caller_number": MOBILE}
-    e.ctx.organization_id = 7
-
-    async def envoyer_un_sms(*_a, **_k):
-        return reponse
-
-    monkeypatch.setattr(sms_resto, "envoyer_un_sms", envoyer_un_sms)
-    r = await porte.executer(SimpleNamespace(nom="envoyer_un_sms"), {"quoi": "carte"}, e.ctx, 5.0)
-    return e, r
 
 
 @pytest.mark.parametrize(

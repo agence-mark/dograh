@@ -11,10 +11,11 @@ from .aides_briques import brique
 ARTICLE = {"nom": "Menu du petit", "categorie": "Menus", "condition": {"age_max": 10}, "servi_avec": ["des frites"]}
 
 
-def test_chaque_regle_porte_son_identifiant_et_son_texte():
+def test_chaque_regle_porte_son_identifiant_et_son_fait():
+    """Lot 7b, reprise 1 (§ 2, le modèle parle) : le fait brut, jamais une phrase finie du code."""
     regles = FO.regle_a_dire_a_l_ajout(ARTICLE)["regle_a_dire"]
     assert [r["id"] for r in regles] == ["condition:Menu du petit", "rubrique:Menus"], regles
-    assert all(r["texte"] for r in regles), regles
+    assert all(r["fait"] and "texte" not in r for r in regles), regles
 
 
 def test_un_article_sans_regle_n_en_rend_aucune():

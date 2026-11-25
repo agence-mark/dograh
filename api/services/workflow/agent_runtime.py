@@ -303,6 +303,8 @@ class AgentRuntime:
                 trame = await preparer(trame)
             except CasesIllisibles as erreur:
                 logger.debug(f"[cases] requête d'ouverture retenue ; le journal est écrit par ``avant_la_requete.requete_retenue`` : {erreur}")
+                if erreur.a_dire:
+                    await self.speak(erreur.a_dire)  # lot 7b, ligne 29 : jamais une ouverture muette, la phrase du repli est dite comme au tour
                 return
             except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
                 logger.warning(f"[passage] requête d'ouverture non préparée : {erreur!r}")

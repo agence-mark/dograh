@@ -18,6 +18,7 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
+from api.services.actions_communes.consignes import en_une_phrase
 from api.services.actions_communes.forme import (
     CASES_DE_L_ARGENT,
     CASE_DU_TELEPHONE,
@@ -66,7 +67,7 @@ def a_faire_des_refus(refus_: list[dict[str, Any]], executees: Iterable[str]) ->
     if not refus_:
         return None
     suite = [str(r["a_faire"]) for r in refus_[1:] if r.get("a_faire")]
-    return " ; ".join(dict.fromkeys([a_faire_du_refus_partiel(refus_[0], executees), *suite]))
+    return en_une_phrase([a_faire_du_refus_partiel(refus_[0], executees), *suite])
 
 
 def ecarter_les_cases_sans_objet(fiche: dict[str, Any], cases_montrees: Iterable[str]) -> tuple[dict[str, Any], dict | None, dict | None]:
@@ -202,11 +203,11 @@ def format(fiche: dict[str, Any], proprietes: dict[str, Any], cases_montrees: It
         dites = [f"{c} est obligatoire, écris-la {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in manques]
         # la réponse à la question en attente n'est rappelée que si ce tour montre sa case : sans question, rien à dire sur ``reponse``
         suite = " ; ce que la personne répond à la question en attente va dans reponse" if "reponse" in set(cases_montrees or ()) else ""
-        return refus("format", manques, reste="refais la même fiche, " + " ; ".join(dites) + suite)
+        return refus("format", manques, reste="refais la même fiche, " + (en_une_phrase(dites) or "") + suite)
     if not fautes:
         return None
     dites = [f"{c} {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in fautes]
-    return refus("format", fautes, reste="refais la même fiche, écris " + " ; ".join(dites))
+    return refus("format", fautes, reste="refais la même fiche, écris " + (en_une_phrase(dites) or ""))
 
 
 def reponse_manquante(fiche: dict[str, Any], question: dict | None, question_posee: bool) -> dict | None:

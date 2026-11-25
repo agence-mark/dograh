@@ -21,10 +21,10 @@ def brique_for9_dire_le_justificatif(article: dict[str, Any]) -> dict[str, Any]:
     return {"justificatif": article["justificatif"]} if article.get("justificatif") else {}
 
 
-def phrase_du_justificatif(article: dict[str, Any]) -> str | None:
-    """Le justificatif, dit par le code une fois à l'ajout (conversation FOR9 du lot 11) ; ``None`` sans justificatif."""
+def fait_du_justificatif(article: dict[str, Any]) -> dict[str, Any] | None:
+    """Le justificatif, en fait brut que le modèle dit avec ses mots, une fois à l'ajout (FOR9 du lot 11 ; lot 7b : jamais une phrase finie) ; ``None`` sans justificatif."""
     texte = str(article.get("justificatif") or "").strip().rstrip(".")
-    return f"C'est sur {texte}." if texte else None
+    return {"justificatif": texte} if texte else None
 
 
 def _sans(carte: dict) -> dict:

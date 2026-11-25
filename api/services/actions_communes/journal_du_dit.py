@@ -22,7 +22,7 @@ from api.services.actions_communes import conversation as CONV
 CLE = "journal_du_dit"
 FERMETURE = "fermeture"
 A_FAIRE_ISSUE = "elle a déjà entendu ce refus : ne le redis pas mot pour mot ; propose-lui une issue avec tes mots"
-A_FAIRE_SORTIE = "elle y revient pour la troisième fois sans issue : propose-lui de laisser un message à l'équipe"  # B4 (M8) : passage vers le service
+A_FAIRE_SORTIE = "elle revient sur la même chose sans issue : propose-lui de laisser un message à l'équipe"  # B4 (M8) : passage vers le service
 
 PREMIERE, ISSUE, SORTIE, DEJA_DANS_CE_TOUR = "premiere", "issue", "sortie", "deja_dans_ce_tour"
 
@@ -125,23 +125,22 @@ def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:
     return True
 
 
-def fait_redit(dossier: dict[str, Any], cle: str, tour: Any) -> str:
+def fait_redit(dossier: dict[str, Any], cle: str, tour: Any, seuil: int) -> str:
     """Un refus ou un fait bloquant de plus sur la même clé : ``PREMIERE`` (le code le dit en entier), ``ISSUE`` (déjà dit : le modèle propose une
-    issue), ``SORTIE`` (au seuil ``FOIS_AVANT_LA_SORTIE``, le même que ``boucle`` : proposer un message à l'équipe), ``DEJA_DANS_CE_TOUR`` (une seconde fiche du même tour : rien de plus)."""
+    issue), ``SORTIE`` (au ``seuil`` : le réglage du restaurant, que l'appelant donne ; proposer un message à l'équipe), ``DEJA_DANS_CE_TOUR`` (une seconde fiche du même tour : rien de plus)."""
     e = _lu(dossier).get(cle)
     if isinstance(e, dict) and tour is not None and e.get("tour") == tour:
         return DEJA_DANS_CE_TOUR
     n = noter(dossier, cle, tour)
-    return PREMIERE if n == 1 else (ISSUE if n < FOIS_AVANT_LA_SORTIE else SORTIE)
+    return PREMIERE if n == 1 else (ISSUE if n < seuil else SORTIE)
 
 
 CLE_BOUCLE = "boucle"
-FOIS_AVANT_LA_SORTIE = 3
 
 
-def boucle(dossier: dict[str, Any], signature: Any, lignes_inchangees: bool) -> bool:
-    """RC6 (contrôle long, lot 3) : la MÊME chose (la même question posée, le même fait bloquant, le même refus) rendue ``FOIS_AVANT_LA_SORTIE`` fois de suite sans que la
-    commande avance : vrai à la troisième, et ensuite tant que ça dure : la sortie (proposer un message à l'équipe, ``A_FAIRE_SORTIE``). Une signature vide (rien de répété),
+def boucle(dossier: dict[str, Any], signature: Any, lignes_inchangees: bool, seuil: int) -> bool:
+    """RC6 (contrôle long, lot 3) : la MÊME chose (la même question posée, le même fait bloquant, le même refus) rendue ``seuil`` fois de suite (le réglage du restaurant, que l'appelant donne) sans que la
+    commande avance : vrai au ``seuil``, et ensuite tant que ça dure : la sortie (proposer un message à l'équipe, ``A_FAIRE_SORTIE``). Une signature vide (rien de répété),
     une autre signature ou une commande qui avance remet le compte à zéro. Le compte vit dans le dossier, comme le journal."""
     if not isinstance(dossier, dict):
         return False
@@ -153,7 +152,7 @@ def boucle(dossier: dict[str, Any], signature: Any, lignes_inchangees: bool) -> 
         e["fois"] = int(e.get("fois") or 0) + 1
     else:
         e = CONV.de(dossier)[CLE_BOUCLE] = {"signature": signature, "fois": 1}
-    return int(e["fois"]) >= FOIS_AVANT_LA_SORTIE
+    return int(e["fois"]) >= seuil
 
 
 def consigne(etape: str) -> str | None:
