@@ -32,6 +32,7 @@ CASES_DE_TEXTE = ("prenom", "adresse", "commune", "consigne_livreur", "heure")
 CASE_DU_TELEPHONE = "telephone"
 CASE_DE_L_ARGENT = "rendu_sur"
 CASES_DE_L_ARGENT = (CASE_DE_L_ARGENT, "part")  # C2 bis : la part d'un règlement partagé se dit en argent comme le billet
+SEPARATEUR = "|"  # C6 : la ponctuation qui sépare deux nombres dans les mots d'une valeur (``_mots_de_valeur``)
 CASE_D_UN_NOMBRE = "nombre"  # lot 6 : une valeur de la phrase du modèle qui n'est pas de l'argent (heure, nombre de personnes)
 
 
@@ -107,7 +108,9 @@ def _mots_de_valeur(texte: object) -> list[str]:
     # Pierre 12 (C2) : le signe « € » est gardé AVANT la mise sous forme ASCII, qui le supprimait (« 25 € » se lisait « 25 » sans unité d'argent, refusé)
     s = unicodedata.normalize("NFD", str(texte or "").replace("€", " euros ")).encode("ascii", "ignore").decode().lower().replace("€", " € ")
     s = re.sub(r"(\d)[,.](\d)", r"\1 virgule \2", s)
-    return re.sub(r"[^a-z0-9€ ]", " ", s).split()
+    # C6 : une ponctuation entre deux nombres les sépare (« pour quatre, vingt heures » : 4 puis 20, jamais 80) ; elle reste un mot (``SEPARATEUR``), qui n'est pas un nombre
+    s = re.sub(r"[,;.!?]", f" {SEPARATEUR} ", s)
+    return re.sub(r"[^a-z0-9€| ]", " ", s).split()
 
 
 def _est_nombre(w: str) -> bool:
