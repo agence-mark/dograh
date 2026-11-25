@@ -29,6 +29,7 @@ from api.db.bases_clients import capacite
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
 from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.instantane import stable, vivant
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.mots_dits import nombre_en_lettres
 from api.services.reservation import textes_de_secours as TS
 from api.db.bases_clients.restauration_commande import E164, _quand_dit
@@ -305,7 +306,7 @@ async def creer_reservation(
         )
     faits = _fait(ligne, noms, fuseau, maintenant_)
     personnes = f"{nombre_en_lettres(couverts)} personne" + ("s" if couverts > 1 else "")
-    return Resultat("ENREGISTREE", faits, f"C'est réservé pour {personnes}, {faits['quand_dit']}, au nom de {prenom}.")
+    return Resultat("ENREGISTREE", faits, PHRASES_DITES.reservation_enregistree(personnes=personnes, quand=faits["quand_dit"], prenom=prenom))
 
 
 async def modifier_reservation(
@@ -375,7 +376,7 @@ async def modifier_reservation(
             numero, etablissement_id, nouveau_debut, duree, couverts, prenom, note, tables,
         )
     faits = _fait(ligne, noms, fuseau, maintenant_)
-    return Resultat("OK", faits, f"C'est modifié : {faits['quand_dit']}, {couverts} personne" + ("s" if couverts > 1 else "") + ".")
+    return Resultat("OK", faits, PHRASES_DITES.reservation_modifiee(quand=faits["quand_dit"], personnes=f"{couverts} personne" + ("s" if couverts > 1 else "")))
 
 
 async def annuler_reservation(
@@ -406,7 +407,7 @@ async def annuler_reservation(
         if r["debut"] <= maintenant_:
             return _refus("passee")
         ligne = await connexion.fetchrow("UPDATE mark.resto_reservation SET statut = 'annulee' WHERE numero = $1 AND site_id = $2 RETURNING *", numero, etablissement_id)
-    return Resultat("OK", _fait(ligne, noms, fuseau, maintenant_), "C'est annulé.")
+    return Resultat("OK", _fait(ligne, noms, fuseau, maintenant_), PHRASES_DITES.reservation_annulee())
 
 
 async def telephone_de_la_reservation(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> str | None:

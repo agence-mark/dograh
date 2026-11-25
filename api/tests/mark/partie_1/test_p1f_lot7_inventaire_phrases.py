@@ -19,7 +19,6 @@ from api.outils import inventaire_rustines as I
 
 FICHIERS_DU_LOT = (
     "db/bases_clients/restauration_commande.py",
-    "db/bases_clients/restauration_reservation.py",
     "services/actions_communes/parole.py",
     "services/actions_communes/repli.py",
     "services/commande/moteur/articles.py",
@@ -65,7 +64,6 @@ A_RENDRE_C2: frozenset[str] = frozenset()  # rendu par la 7b-C2 : la base et la 
 
 # C3 réservation et allergie : ``services/reservation/*``, ``db/bases_clients/restauration_reservation.py``, ``restauration/carte_et_allergenes/*``
 A_RENDRE_C3 = frozenset({
-    "db/bases_clients/restauration_reservation.py",
     "services/reservation/lire.py",
     "services/reservation/moteur.py",
 })
