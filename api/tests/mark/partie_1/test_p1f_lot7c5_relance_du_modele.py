@@ -82,7 +82,6 @@ async def test_s3_une_relance_en_echec_dit_la_phrase_reglee_pas_le_refus():
     assert dit == REGLEE, dit
 
 
-@G2
 def test_s4_des_cases_illisibles_disent_la_phrase_reglee_pas_le_refus():
     """Aucune requête possible : le fait accompli s'il y en a un, sinon la phrase réglée ; jamais le refus ni la question composés par le code."""
     moteur = SimpleNamespace(_gathered_context=_fiche(fait_bloquant=HOMARD, question=_question()))
@@ -300,3 +299,37 @@ async def test_s2_mini_dialogue_la_relance_du_fait_repare_la_reponse():
     bonne = "Désolé, on ne livre pas là-bas ; vous préférez venir la chercher ?"
     dit, consignes = await _tour_avec_texte(_fiche_du_homard(), "Ça vous fera 15 euros.", ["C'est 15 euros.", bonne])
     assert dit == bonne and len(consignes) == 2, (dit, consignes)
+
+
+# --------------------------------------------------------------------------- commit 6 : S3 et S4, l'échec dit le fait accompli ou la phrase réglée
+
+
+def _avec_fait_accompli(fiche: dict) -> dict:
+    from api.services.actions_communes import journal_du_dit as J
+
+    J.dire_le_fait(P.du_dossier(fiche), "Votre commande est enregistrée.", 1)
+    return fiche
+
+
+async def test_s3_la_relance_en_echec_dit_le_fait_accompli_et_garde_la_relance_du_tour():
+    """Réplique retenue (chiffre), 429 sur la relance : le fait accompli que le code a dit (§ 2), pas la phrase réglée ; la relance du fait n'est pas consommée par ce repli."""
+    fiche = _avec_fait_accompli(_fiche_du_homard())
+
+    async def flux():
+        yield _morceau("Ça vous fera 15 euros.")
+
+    async def relance_429(_retenue):
+        raise RuntimeError("429 Too Many Requests")
+
+    verificateur = _verificateur(fiche)
+    verifie = RepliqueVerifiee(flux(), verificateur.controler, relance_429, None, verificateur.controler_la_relance,
+                               lambda *a, **k: verificateur.controler_le_silence(None, **k), lambda: REGLEE)
+    dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in verifie])
+    assert dit == "Votre commande est enregistrée.", dit
+    assert PAROLE.etat_du_tour(fiche).relance_du_fait is False
+
+
+def test_s4_des_cases_illisibles_disent_le_fait_accompli_s_il_y_en_a_un():
+    moteur = SimpleNamespace(_gathered_context=_avec_fait_accompli(_fiche(fait_bloquant=HOMARD)))
+    llm = SimpleNamespace(**{ATTRIBUT_PHRASE_DE_REPLI: lambda: REGLEE})
+    assert AR.phrase_si_les_cases_sont_illisibles(moteur, llm) == "Votre commande est enregistrée."

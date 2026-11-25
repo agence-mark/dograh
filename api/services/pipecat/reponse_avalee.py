@@ -806,10 +806,11 @@ class RepliqueVerifiee:
         return morceaux
 
     def _phrase_du_code(self) -> str:
-        """Ce que dit le code quand une réplique retenue n'a pas de remplaçant : le repli du point de contact (la question en attente), sinon neutre."""
+        """Ce que dit le code quand une réplique retenue n'a pas de remplaçant et que la relance a échoué (C5, décision d'Evan 25/11 8 h 45) : le fait accompli qu'il a déjà dit
+        (§ 2 du plan, jusqu'à C6), sinon la phrase réglée de l'agent. Jamais le refus ni la question composés par le code."""
         if self._silence is not None:
             try:
-                repli = getattr(self._silence(), "a_dire", None)
+                repli = getattr(self._silence(sans_relance=True), "a_dire", None)
                 if isinstance(repli, str) and repli.strip():
                     return repli.strip()
             except Exception as erreur:  # noqa: BLE001
@@ -1092,7 +1093,7 @@ class RepriseSansFluxMixin:
                 la_relance = lambda texte: verificateur.controler_la_relance(texte, messages)  # noqa: E731
             le_silence = None
             if verificateur is not None and hasattr(verificateur, "controler_le_silence"):
-                le_silence = lambda: verificateur.controler_le_silence(messages)  # noqa: E731
+                le_silence = lambda sans_relance=False: verificateur.controler_le_silence(messages, sans_relance=sans_relance)  # noqa: E731
             repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence, lambda: phrase_de_repli_reglee(self))
         # SA-38 (M89) : en dernier, sur ce que l'agent dirait vraiment (relances comprises) ; sans phrase du code dans ce tour, rien.
         dites = phrases_dites_par_le_code(self, getattr(context, "messages", None))

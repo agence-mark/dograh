@@ -147,11 +147,11 @@ class VerificateurDeLaFiche:
             logger.warning(f"[parole] relance non contrôlée : {erreur!r}")
             return None
 
-    def controler_le_silence(self, messages: Any = None) -> Retenue | None:
+    def controler_le_silence(self, messages: Any = None, sans_relance: bool = False) -> Retenue | None:
         """Point de contrôle du lot 7 (conversation 2, tour muet hors zone) : sur une étape qui porte la fiche, le modèle n'a rendu ni texte ni
         appel au bout de ses passes (le flux, puis sa relance sans flux). Jamais un tour muet. C5 (décision d'Evan 25/11 8 h 45) : le code ne compose pas
         de phrase, il RELANCE le modèle avec le fait (``consigne_de_relance``) ; sans rien à relancer, le fait accompli que le code a déjà dit, sinon ``None`` (la phrase réglée de
-        l'agent est dite par ``RepliqueVerifiee``). Ailleurs : le contrôle d'avant, s'il en a un."""
+        l'agent est dite par ``RepliqueVerifiee``). ``sans_relance`` : la relance du modèle a échoué ou n'est plus permise, seul le fait accompli reste. Ailleurs : le contrôle d'avant, s'il en a un."""
         try:
             if not porte_la_fiche(self._fiche()):
                 autre = getattr(self.autre, "controler_le_silence", None)
@@ -160,7 +160,7 @@ class VerificateurDeLaFiche:
             connecteur = _connecteur_de_l_etape(self.moteur)
             p = dossier_de_la_parole(fiche, connecteur)
             etat = PAROLE.etat_du_tour(fiche)
-            consigne = consigne_de_relance(p, fiche, etat, connecteur)
+            consigne = None if sans_relance else consigne_de_relance(p, fiche, etat, connecteur)
             if consigne:
                 PAROLE.garder(fiche, etat)
                 tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="relance du fait")
