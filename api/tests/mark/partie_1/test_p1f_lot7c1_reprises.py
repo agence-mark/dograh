@@ -104,3 +104,14 @@ async def test_une_quantite_trop_haute_a_la_modification_garde_la_meme_identite(
         assert r.statut == "ARGUMENT_INVALIDE", r
         identites.add(J.identite_du_refus(r))
     assert len(identites) == 1, identites
+
+
+# ── R6 : « une phrase écrite par une personne, prête à être dite » n'est écrite qu'une fois dans le catalogue de secours ─────
+
+def test_le_catalogue_de_secours_ne_fait_qu_une_fois_phrase_nette_de_chiffres_en_lettres():
+    from pathlib import Path
+
+    source = Path(TS.__file__).read_text(encoding="utf-8")
+    assert source.count("phrase_nette(chiffres_en_lettres(") == 1  # dans ``_dit`` seulement ; ``code_de_remise_bon`` l'appelle
+    assert source.index("def _dit(") < source.index("def code_de_remise_bon(")
+    assert TS.code_de_remise_bon({"code": "BIEN10", "remise": "2 pizzas offertes"}) == "Le code BIEN10 est bon, deux pizzas offertes s'appliquera dès que votre commande y donne droit."

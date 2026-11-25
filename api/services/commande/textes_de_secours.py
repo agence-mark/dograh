@@ -36,6 +36,11 @@ def _noms(valeurs: list[Any]) -> list[str]:
     return [str(v["nom"] if isinstance(v, Mapping) else v) for v in valeurs]
 
 
+def _dit(texte: str) -> str:
+    """Une phrase écrite par une personne (une offre, un nom d'offre), prête à être dite : chiffres en lettres, un seul point final."""
+    return phrase_nette(chiffres_en_lettres(texte))
+
+
 # --------------------------------------------------------------------------- #
 # articles.py : choisir, ajouter, retirer
 # --------------------------------------------------------------------------- #
@@ -141,7 +146,7 @@ def code_inconnu(faits: Faits) -> str:
 
 def code_de_remise_bon(faits: Faits) -> str:
     """Le code est bon mais la remise ne s'applique pas encore. Faits : ``code`` et ``remise`` (le nom de l'offre tel qu'écrit : le texte le dit)."""
-    return f"Le code {faits['code']} est bon, {phrase_nette(chiffres_en_lettres(faits['remise']))} s'appliquera dès que votre commande y donne droit."
+    return f"Le code {faits['code']} est bon, {_dit(faits['remise'])} s'appliquera dès que votre commande y donne droit."
 
 
 # --------------------------------------------------------------------------- #
@@ -295,11 +300,6 @@ def billet_insuffisant(faits: Faits) -> str:
 # --------------------------------------------------------------------------- #
 # lecture.py : la commande lue, les offres, retrouver une commande
 # --------------------------------------------------------------------------- #
-
-
-def _dit(texte: str) -> str:
-    """Une phrase écrite par une personne (une offre, un nom d'offre), prête à être dite : chiffres en lettres, un seul point final."""
-    return phrase_nette(chiffres_en_lettres(texte))
 
 
 def commande_vide_a_lire(faits: Faits) -> str:
