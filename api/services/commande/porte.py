@@ -1393,7 +1393,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
             if r.statut == "OK" and r.faits.get("statut"):
                 fiche[CLE_COMMANDE_RETROUVEE] = r.faits["statut"]
-                if r.faits["statut"] in STATUTS_PERDUS:
+                if r.faits["statut"] in STATUTS_PERDUS and not fiche.get(CLE_MESSAGE_LAISSE):  # 7b-C4 : un message déjà laissé dans l'appel n'est plus proposé (la porte le refuserait)
                     perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
             if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
                 a_preciser = {"manque": r.manque or "reference"}  # 7b-C4 : la phrase du module n'est plus donnée au modèle
