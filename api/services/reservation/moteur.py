@@ -170,21 +170,20 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
         return libres
     creneaux = libres.faits.get("creneaux") or []
     if not creneaux:
-        return _r("OK", {"jour": le_jour.isoformat(), "creneaux": [], "complet": True}, "Nous sommes complets ce jour-là.")
+        return _r("OK", {"jour": le_jour.isoformat(), "creneaux": [], "complet": True}, TS.complets_ce_jour({}))
     partie = _partie_du_jour(jour, heure) if "heure_voulue" not in resolu.faits else None
     if partie is not None:
         # « samedi soir » : seuls les créneaux de ce moment-là sont proposés, jamais ceux du midi.
         mot, (de, a) = partie
         dans_la_partie = [c for c in creneaux if de <= c["debut"].hour < a]
         if not dans_la_partie:
-            return _r("OK", {"jour": le_jour.isoformat(), "creneaux": [], "complet": True, "partie": mot}, f"Nous sommes complets ce jour-là, pour le {mot}.")
+            faits = {"jour": le_jour.isoformat(), "creneaux": [], "complet": True, "partie": mot}
+            return _r("OK", faits, TS.complets_ce_jour(faits))
         creneaux = dans_la_partie
     souhaite = datetime.fromisoformat(resolu.faits["heure_voulue"]) if resolu.faits.get("heure_voulue") else None
     choisis, dit = _creneaux_dits(creneaux, souhaite)
-    return _r(
-        "OK", {"jour": le_jour.isoformat(), "creneaux": [{"debut": c["debut"], "heure_dite": _heure_dite(c["debut"])} for c in choisis], "complet": False},
-        f"Il y a de la place à {dit}.",
-    )
+    faits = {"jour": le_jour.isoformat(), "creneaux": [{"debut": c["debut"], "heure_dite": _heure_dite(c["debut"])} for c in choisis], "complet": False}
+    return _r("OK", faits, TS.il_y_a_de_la_place(faits))
 
 
 # --------------------------------------------------------------------------- #
@@ -208,7 +207,7 @@ async def reserver(
         # R01 : « on sera cinq » après l'enregistrement ne crée jamais une seconde table : un changement passe par modifier
         if deja in (etat.get("annulees") or []):
             return _une_seule_par_appel_annulee(deja, jour=gestes.get("jour"), heure=gestes.get("heure"), personnes=gestes.get("personnes"), prenom=gestes.get("prenom"))
-        return _r("DEJA_FAIT", {"reservation": deja, "raison": "deja_une_reservation_dans_cet_appel"}, "Vous avez déjà une réservation dans cet appel : pour la changer, dites ce qui change.", "modification")
+        return _r("DEJA_FAIT", {"reservation": deja, "raison": "deja_une_reservation_dans_cet_appel"}, TS.deja_une_reservation_dans_cet_appel({}), "modification")
     r = await _reserver(source, etat, appelant, question_numero_affiche=question_numero_affiche, **gestes)
     b = etat.get("brouillon") or {}
     if appelant.telephone_affiche and _vers_e164(b.get("telephone_dit") or appelant.telephone_affiche) == appelant.telephone_affiche:
@@ -278,12 +277,11 @@ async def _reserver(
     creneaux = libres.faits.get("creneaux") or []
     if not any(c["debut"] == debut for c in creneaux):
         if not creneaux:
-            return _r("REFUSEE", {"raison": "autre", "detail": "complet", "propositions": []}, "Nous sommes complets ce jour-là.")
-        choisis, dit = _creneaux_dits(creneaux, debut)
-        return _r(
-            "REFUSEE", {"raison": "autre", "detail": "complet", "propositions": [{"debut": c["debut"], "heure_dite": _heure_dite(c["debut"])} for c in choisis]},
-            f"Nous ne pouvons pas à cette heure-là. Je peux vous proposer {dit}.",
-        )
+            faits = {"raison": "autre", "detail": "complet", "propositions": []}
+            return _r("REFUSEE", faits, TS.refus_complet_du_moteur(faits))
+        choisis, _ = _creneaux_dits(creneaux, debut)
+        faits = {"raison": "autre", "detail": "complet", "propositions": [{"debut": c["debut"], "heure_dite": _heure_dite(c["debut"])} for c in choisis]}
+        return _r("REFUSEE", faits, TS.refus_complet_du_moteur(faits))
     empreinte = _empreinte(b["personnes"], debut.isoformat(), b["prenom"], numero_e164, b.get("note"))
     relue = etat.get("lecture")
     if not confirmer and relue and relue.get("empreinte") == empreinte:
@@ -335,7 +333,7 @@ async def _la_reservation(source: Source, etat: dict[str, Any]) -> tuple[dict | 
     trouve = await source.retrouver(numero=numero)
     liste = (trouve.faits.get("reservations") or []) if trouve.statut == "OK" else []
     if not liste:
-        return None, _r("INTROUVABLE", {}, "Je ne trouve pas de réservation à venir.")
+        return None, _r("INTROUVABLE", {}, TS.aucune_reservation_a_venir({}))
     return liste[0], None
 
 
@@ -376,16 +374,15 @@ async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appela
             liste += trouve.faits.get("reservations") or []
     if not liste:
         J.noter(etat, RECHERCHE_SANS_RESULTAT)  # P2 (B6, rustine 38 : au journal de ce qui est dit) : la recherche ne se redemande pas sans fin
-        return _r("INTROUVABLE", {}, "Je ne trouve pas de réservation à venir.")
+        return _r("INTROUVABLE", {}, TS.aucune_reservation_a_venir({}))
     etat["recherche"] = False
     if len(liste) == 1:
         etat["cible"] = liste[0]["numero"]
-        return _r("OK", {"reservation": _resume(liste[0])}, f"Vous avez une réservation {liste[0]['quand_dit']} pour {_personnes_dites(liste[0]['personnes'])}.")
+        faits = {"reservation": _resume(liste[0])}
+        return _r("OK", faits, TS.une_reservation_trouvee(faits))
     dites = [f"{r['quand_dit']}, pour {_personnes_dites(r['personnes'])}" for r in liste]
-    return _r(
-        "AMBIGU", {"candidats": [{**_resume(r), "debut": r.get("debut"), "dit": d} for r, d in zip(liste, dites)]},
-        "Vous en avez plusieurs : " + liste_dite(dites) + ". Laquelle ?", "reservation",
-    )
+    faits = {"candidats": [{**_resume(r), "debut": r.get("debut"), "dit": d} for r, d in zip(liste, dites)]}
+    return _r("AMBIGU", faits, TS.plusieurs_a_choisir(faits), "reservation")
 
 
 _RANGS = (("premiere", "premier", "1"), ("deuxieme", "seconde", "second", "2"), ("troisieme", "3"))
@@ -439,7 +436,7 @@ async def modifier(
     if numero and numero in (etat.get("annulees") or []):
         if numero == reservation_de_l_appel(etat):  # ce qu'elle dit après avoir annulé la réservation de CET appel est une nouvelle demande, pas un changement (E30)
             return _une_seule_par_appel_annulee(numero, jour=jour, heure=heure, personnes=personnes, prenom=prenom)
-        return _r("DEJA_FAIT", {"deja_annulee": True}, "Cette réservation est déjà annulée.")
+        return _r("DEJA_FAIT", {"deja_annulee": True}, TS.deja_annulee({}))
     r, refus = await _la_reservation(source, etat)
     if refus is not None:
         return refus
@@ -488,7 +485,8 @@ async def modifier(
         dit.append("avec votre note")
     if not changements and m:
         etat.pop("modification", None)
-        return _r("DEJA_FAIT", {"reservation": r["numero"], "inchangee": True}, f"Rien ne change : votre réservation reste {r['quand_dit']} pour {_personnes_dites(r['personnes'])}.")
+        faits = {"reservation": r["numero"], "inchangee": True, "quand_dit": r["quand_dit"], "personnes": r["personnes"]}
+        return _r("DEJA_FAIT", faits, TS.rien_ne_change(faits))
     if not changements:
         return _r("INCOMPLETE", {"reservation": r["quand_dit"]}, TS.que_change_je({}), "changement")
     empreinte = _empreinte(r["numero"], {k: str(v) for k, v in changements.items()})
@@ -508,7 +506,7 @@ async def annuler(source: Source, etat: dict[str, Any], appelant: Appelant, *, c
     réservation) on annule. Un second « oui » rend ``DEJA_FAIT`` ; une réservation passée est figée."""
     numero = etat.get("cible")
     if numero and numero in (etat.get("annulees") or []):
-        return _r("DEJA_FAIT", {"deja_annulee": True}, "Cette réservation est déjà annulée.")
+        return _r("DEJA_FAIT", {"deja_annulee": True}, TS.deja_annulee({}))
     r, refus = await _la_reservation(source, etat)
     if refus is not None:
         return refus

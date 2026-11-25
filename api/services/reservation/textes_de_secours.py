@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from api.services.mots_dits import nombre_en_lettres
+from api.services.mots_dits import liste_dite, nombre_en_lettres
 
 Faits = Mapping[str, Any]
 
@@ -166,3 +166,45 @@ def quelle_heure(faits: Faits) -> str:
 
 def que_change_je(faits: Faits) -> str:
     return "Qu'est-ce que je change : l'heure, le nombre de personnes ?"
+
+
+# --------------------------------------------------------------------------- #
+# Ce que le moteur rend après un geste (disponibilités, recherche, changement, annulation)
+# --------------------------------------------------------------------------- #
+
+
+def complets_ce_jour(faits: Faits) -> str:
+    """Aucun créneau libre ce jour-là, ou dans la partie du jour dite (``partie``)."""
+    return f"Nous sommes complets ce jour-là, pour le {faits['partie']}." if faits.get("partie") else "Nous sommes complets ce jour-là."
+
+
+def il_y_a_de_la_place(faits: Faits) -> str:
+    return f"Il y a de la place à {liste_dite([c['heure_dite'] for c in faits['creneaux']])}."
+
+
+def refus_complet_du_moteur(faits: Faits) -> str:
+    """Le créneau demandé n'est pas libre : ses plus proches (``propositions``), sinon rien de libre ce jour-là."""
+    dites = [p["heure_dite"] for p in faits.get("propositions") or []]
+    return f"Nous ne pouvons pas à cette heure-là. Je peux vous proposer {liste_dite(dites)}." if dites else "Nous sommes complets ce jour-là."
+
+
+def deja_une_reservation_dans_cet_appel(faits: Faits) -> str:
+    return "Vous avez déjà une réservation dans cet appel : pour la changer, dites ce qui change."
+
+
+def aucune_reservation_a_venir(faits: Faits) -> str:
+    return "Je ne trouve pas de réservation à venir."
+
+
+def une_reservation_trouvee(faits: Faits) -> str:
+    seule = faits["reservation"]
+    return f"Vous avez une réservation {seule['quand_dit']} pour {personnes_dites(seule['personnes'])}."
+
+
+def plusieurs_a_choisir(faits: Faits) -> str:
+    """Le choix : les candidats que le code a dits (``candidats[].dit``), donc le résultat entier et non ses faits publics."""
+    return "Vous en avez plusieurs : " + liste_dite([c["dit"] for c in faits["candidats"]]) + ". Laquelle ?"
+
+
+def rien_ne_change(faits: Faits) -> str:
+    return f"Rien ne change : votre réservation reste {faits['quand_dit']} pour {personnes_dites(faits['personnes'])}."
