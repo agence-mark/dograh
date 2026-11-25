@@ -75,7 +75,7 @@ async def test_heure_hors_des_creneaux_refusee_avec_sa_raison_et_l_heure_voisine
 async def test_nom_et_jour_avec_une_recherche_n_ouvrent_pas_de_reservation(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch, appelant=None)                               # numéro masqué
     r = await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
-    assert r["manque"] == "nom_et_jour_de_la_reservation" and r[CLE_DU]["manque"] == "À quel nom et pour quel jour était votre réservation ?", r
+    assert r["manque"] == "nom_et_jour_de_la_reservation" and r[CLE_DU]["manque"] == "le nom et le jour de sa réservation d'avant", r  # lot 7b-C5 : la valeur fermée de ce qui manque, jamais sa phrase
     r = await essai.tour("au nom de Martin, pour jeudi", jour="jeudi", nom="Martin", retrouver_une_reservation_enregistree={"jour": "jeudi", "nom": "Martin"})
     assert not essai.etat.get("brouillon"), r                                                 # aucune réservation commencée
     assert [x["operation"] for x in r["resultats"]] == ["retrouver_une_reservation_enregistree"], r

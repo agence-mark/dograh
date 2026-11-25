@@ -36,7 +36,7 @@ SECOND_PASSAGE = "second_passage"
 RAPPEL_SANS_OUTIL = "- Ta réponse précédente n'avait pas d'appel d'outil : elle n'a pas été dite, et rien n'est changé."
 # Raisons de retenue d'une phrase libre (liste fermée, au glossaire)
 SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refus", "repli_a", "chiffre"
-SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le repli du code est dit
+SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le modèle est relancé avec le fait (C5)
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
 QUESTION_DEJA_DONNEE = "question_deja_donnee"  # motif : la question née dans le tour, déjà donnée au modèle, posée par la phrase de sa fiche (lot 19)
@@ -118,7 +118,7 @@ def noter_la_lecture_rendue(fiche_de_l_appel: Any) -> None:
         etat = etat_du_tour(fiche_de_l_appel)
         etat.lecture_pas_vue = True
         # Lot 20 (n11) : la lecture est la dernière chose rendue au modèle : sa phrase répond à la lecture, elle n'est plus un rattrapage du refus d'une
-        # fiche d'avant (« La Napoli contient des anchois… » retenue puis remplacée par le repli). Une fiche refusée APRÈS elle repose le refus.
+        # fiche d'avant (« La Napoli contient des anchois… » retenue puis relancée avec le fait). Une fiche refusée APRÈS elle repose le refus.
         etat.suite.append(LECTURE)  # ligne 23 : le refus n'est pas effacé, la lecture vient après lui
         garder(fiche_de_l_appel, etat)
 

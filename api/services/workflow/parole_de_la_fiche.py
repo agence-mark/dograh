@@ -137,7 +137,7 @@ class VerificateurDeLaFiche:
             retenue = self._retenue(texte, relance=True)
             if retenue is not None:
                 # P2 (lot 19 bis) : une relance retenue n'est jamais dite, même quand le code n'a pas de phrase de remplacement (``a_dire`` vide : ``RepliqueVerifiee`` dit alors sa phrase neutre)
-                tracer_une_retenue(self.moteur, retenue.raison, detail="repli du code")
+                tracer_une_retenue(self.moteur, retenue.raison, detail="relance du fait ou fait accompli")
                 return retenue
             return None
         except Exception as erreur:  # noqa: BLE001

@@ -114,7 +114,7 @@ def _question(e: Entrees) -> Decision:
     etat, phrase = e.etat, e.phrase
     if e.question_donnee_dite:
         e.etat.jetee = None
-        if (relance := _relancer_le_fait(e, QUESTION_DEJA_DONNEE)) is not None:
+        if (relance := _relancer_le_fait(e, MANQUE)) is not None:
             return relance
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id

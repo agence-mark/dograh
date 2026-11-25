@@ -775,7 +775,7 @@ class RepliqueVerifiee:
             return None
         try:
             return self._controler_la_relance(texte_repris)
-        except Exception as erreur:  # noqa: BLE001
+        except Exception as erreur:
             logger.warning(f"[cerveau] relance non contrôlée : {erreur!r}")
             return None
 
@@ -795,7 +795,7 @@ class RepliqueVerifiee:
             if rang == 0 and getattr(seconde, "consigne", None):
                 try:
                     reprise = await self._relancer(seconde)
-                except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
+                except Exception as erreur:  # jamais à la place du service
                     logger.warning(f"[cerveau] relance du fait en échec : {erreur!r}")
                     reprise = None
                 if reprise is not None:
@@ -1093,7 +1093,10 @@ class RepriseSansFluxMixin:
                 la_relance = lambda texte: verificateur.controler_la_relance(texte, messages)  # noqa: E731
             le_silence = None
             if verificateur is not None and hasattr(verificateur, "controler_le_silence"):
-                le_silence = lambda sans_relance=False: verificateur.controler_le_silence(messages, sans_relance=sans_relance)  # noqa: E731
+
+                def le_silence(sans_relance=False):
+                    return verificateur.controler_le_silence(messages, sans_relance=sans_relance)
+
             repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence, lambda: phrase_de_repli_reglee(self))
         # SA-38 (M89) : en dernier, sur ce que l'agent dirait vraiment (relances comprises) ; sans phrase du code dans ce tour, rien.
         dites = phrases_dites_par_le_code(self, getattr(context, "messages", None))

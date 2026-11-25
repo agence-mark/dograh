@@ -71,7 +71,7 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
             if not P.pose_une_question(phrase) and not etat.relance_du_fait:  # lot 7b-C5 : le modèle repasse une fois au lieu que le code complète sa phrase
                 etat.relance_du_fait = True
                 etat.suffixe = suffixe_avant
-                return Decision(SECOND_PASSAGE, motif=P.QUESTION_DEJA_DONNEE)
+                return Decision(SECOND_PASSAGE, motif=P.MANQUE)
             return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suffixe_avant) if x), motif=P.QUESTION_DEJA_DONNEE)
         etat.question_donnee = question_id
         etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or None
