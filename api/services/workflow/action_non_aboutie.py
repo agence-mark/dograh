@@ -401,7 +401,7 @@ def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
             from api.services.groupe.passations import porteur_de_l_action_ouverte
 
             agent = getattr(moteur, "active_agent", None)
-            if porteur_de_l_action_ouverte(fiche, sauf=getattr(agent, "workflow_id", None)) is not None:
+            if porteur_de_l_action_ouverte(fiche, sauf=getattr(agent, "workflow_id", None), parmi=[o["connecteur"] for o in ouvertes]) is not None:
                 # Clôture, lot B4 (M8, audit du code) : l'action est tenue par un collègue ; l'outil « fiche » de CETTE étape n'est pas le sien (au
                 # service, c'est celle des messages) : le refus dit de lui rendre l'appel, jamais d'appeler un outil d'ici
                 retour["message"] = f"{message} Elle est ouverte chez un collègue : rends-lui la main pour la finir."

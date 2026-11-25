@@ -119,3 +119,30 @@ def test_une_action_sans_la_cle_a_finir_reste_a_finir_la_reservation_ferme_la_po
     fiche = {CLE: {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}}}}
     assert portes_fermees.portes_fermees(_moteur_a_porte(fiche)) == {"fin"}
     assert fin.actions_ouvertes(_moteur(fiche))[0].get("a_finir") is not False
+
+
+def _deux_actions(agent: int) -> SimpleNamespace:
+    """Commande au mode seul tenue par 300 (rien à perdre), réservation commencée tenue par 301, ``agent`` demande la fin."""
+    from api.services.actions_communes import conversation as CONV
+    from api.services.groupe.passations import CLE_PORTEURS
+    from api.services.reservation.moteur import CLE
+
+    p = panier.nouveau()
+    p["mode"] = "emporter"
+    reservation = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}}}
+    moteur = _moteur({panier.CLE: p, CLE: reservation, "conversation": {CLE_PORTEURS: {"commande": 300, "reservation": 301}}})
+    moteur.active_agent.workflow_id = agent
+    return moteur
+
+
+def test_le_refus_de_fin_ne_regarde_que_les_actions_qui_retiennent_la_fin():
+    """G36 (audit) : la commande au mode seul est chez 300 mais ne retient pas la fin ; la réservation de 301 la retient : 301 finit sa réservation avec sa fiche, on ne lui dit pas de rendre la main."""
+    refus = fin.verifier_la_fin(_deux_actions(301))
+    assert refus is not None and refus["outils_a_appeler"] == ["fiche"], refus
+    assert "collègue" not in refus["message"]
+
+
+def test_a_l_accueil_une_reservation_commencee_chez_un_collegue_reste_a_lui_rendre_la_main():
+    """Voisin : l'agent actif n'est pas celui qui tient l'action qui retient la fin, le message « chez un collègue » reste."""
+    refus = fin.verifier_la_fin(_deux_actions(299))
+    assert refus is not None and "collègue" in refus["message"] and "outils_a_appeler" not in refus, refus
