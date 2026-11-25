@@ -23,7 +23,7 @@ def test_le_schema_porte_une_valeur_par_defaut_pour_chaque_seuil_comme_avant():
 
 
 async def test_la_boucle_de_la_reservation_sort_a_trois_sans_reglage(salle, monkeypatch):
-    """« Pour combien de personnes ? » / « Je sais pas encore » / « Je vais voir » : avant, une troisième fois ; la sortie vient à la troisième."""
+    """« Pour quel jour ? » redemandé sans que rien avance : avant la reprise, la sortie venait à la troisième fois ; sans réglage, elle revient à la troisième."""
     assert await la_meme_question_n_fois(salle, monkeypatch, {}, 3) == [False, False, True]
 
 
