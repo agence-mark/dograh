@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "c6e383cb692cc01a538128f4de38806d2e5788c0",
+ "commit_teste": "33e64c456b44ec7ea39705342b037cbc65f042d1",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa13",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.72s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 25.51s ========================"
   },
   "noqa": {
    "vert": true,
@@ -35,12 +35,32 @@
   "donnes": {
    "vert": true,
    "tests": [
-    "tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py",
+    "tests/mark/partie_1/test_cloture_b2_du.py",
+    "tests/mark/partie_1/test_cloture_b6_controle_long.py",
+    "tests/mark/partie_1/test_l07_point_de_controle.py",
+    "tests/mark/partie_1/test_l07_reservation.py",
+    "tests/mark/partie_1/test_l08_briques.py",
+    "tests/mark/partie_1/test_l09_briques.py",
+    "tests/mark/partie_1/test_l11_briques.py",
+    "tests/mark/partie_1/test_l20_laquelle_dit_les_reservations.py",
+    "tests/mark/partie_1/test_p1f_lot3_execution.py",
+    "tests/mark/partie_1/test_p1f_lot7_inventaire_phrases.py",
+    "tests/mark/partie_1/test_p1f_lot7_table.py",
+    "tests/mark/partie_1/test_p1f_lot7_table_egale_cascade.py",
+    "tests/mark/partie_1/test_p1f_lot7b_heure_avant_la_relecture.py",
+    "tests/mark/partie_1/test_p1f_lot7c1_reprises.py",
+    "tests/mark/partie_1/test_p1f_lot7c1_secours_lu_par_le_repli.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_creneau_et_zone.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_manque_sans_phrase.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_question_sans_phrase.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_zone_et_une_seule_source.py",
     "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
+    "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
+    "tests/mark/partie_1/test_l03_porte.py",
     "tests/mark/partie_1/test_l06_parole.py",
-    "tests/mark/partie_1/test_l03_porte.py"
+    "tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_l03_porte.py::test_banc_a_passe_par_la_fiche\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv1-livraison-refus]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv6-recommencer-annuler]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv7-heure]\nPASSED tests/mark/partie_1/test_l03_porte.py::test_egalite_banc_et_fork[conv8-apres-enregistrement]\n============ 128 passed, 10 xfailed, 1 warning in 92.71s (0:01:32) ============"
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py::test_commande_une_question_dite_par_le_code_garde_son_texte[relecture]\nPASSED tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py::test_reservation_la_phrase_de_secours_du_choix_n_est_pas_dans_l_etat\nPASSED tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py::test_reservation_une_question_dite_par_le_code_garde_son_texte[annulation]\nPASSED tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py::test_reservation_une_question_dite_par_le_code_garde_son_texte[recapitulatif]\nPASSED tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py::test_commande_l_heure_proposee_est_dite_en_mots_jamais_en_format_machine\n=========== 499 passed, 10 xfailed, 6 warnings in 527.46s (0:08:47) ==========="
   }
  }
 }
