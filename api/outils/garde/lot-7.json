@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "423e778c433a41f0e4ed3710803c7bedbb97a0de",
+ "commit_teste": "ff88991907d25d71991afd23115928ce4d46e3ae",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa12",
  "vert": true,
@@ -9,7 +9,7 @@
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 5
+   "fichiers_de_la_zone": 7
   },
   "linter": {
    "vert": true,
@@ -24,13 +24,13 @@
     "Contracts: 1 kept, 0 broken."
    ]
   },
-  "inventaire": {
-   "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.32s ========================"
-  },
   "noqa": {
    "vert": true,
    "ajoutes": []
+  },
+  "inventaire": {
+   "vert": true,
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.89s ========================"
   },
   "donnes": {
    "vert": true,
@@ -87,9 +87,11 @@
     "tests/mark/partie_1/test_p1f_lot7c_cle_du_journal.py",
     "tests/mark/partie_1/test_p1f_lot7c_seuils_de_sortie.py",
     "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
-    "tests/mark/partie_1/test_p1f_lot7c_deja_enregistree.py"
+    "tests/mark/partie_1/test_p1f_lot7c_deja_enregistree.py",
+    "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
+    "tests/mark/partie_1/test_p1f_lot7c_plus_proches_sans_doublon.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py::test_scenario_question_atteint_le_canal\nPASSED tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py::test_scenario_texte_a_dire_atteint_le_canal\nPASSED tests/mark/partie_1/test_p1f_lot7c_deja_enregistree.py::test_la_phrase_est_au_registre_comme_fait_accompli_et_dite_comme_avant\nPASSED tests/mark/partie_1/test_p1f_lot7c_deja_enregistree.py::test_la_fin_de_la_commande_dit_la_phrase_du_registre\nPASSED tests/mark/partie_1/test_p1f_lot7c_deja_enregistree.py::test_l_anti_doublon_de_la_source_dit_la_phrase_du_registre_avec_l_heure\n=========== 586 passed, 26 xfailed, 2 warnings in 205.15s (0:03:25) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py::test_collision_articles_panier_vide_contre_nom_absent\nPASSED tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py::test_collision_articles_numero_absent_contre_nom_absent_et_deux_numeros_entre_eux\nPASSED tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py::test_collision_reglement_montant_exact_contre_billet\nPASSED tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py::test_deux_quantites_changees_sur_des_lignes_absentes_sont_deux_refusants\nPASSED tests/mark/partie_1/test_p1f_lot7c_plus_proches_sans_doublon.py::test_les_plus_proches_d_un_article_introuvable_n_ont_pas_de_doublon\n=========== 595 passed, 26 xfailed, 2 warnings in 259.72s (0:04:19) ==========="
   }
  }
 }
