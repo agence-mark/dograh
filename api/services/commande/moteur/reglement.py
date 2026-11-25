@@ -134,7 +134,7 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
         # Un billet n'a de sens que pour le règlement qui se paie en main ; la monnaie est calculée sur ce qui est payé avec lui.
         cible = next((m for m in moyens if m["moyen"] == brut.get("moyen_du_billet", "especes")), None)
         if cible is None:
-            return None, _r("ARGUMENT_INVALIDE", {}, "Sur quel règlement le billet ?", "paiement")
+            return None, _r("ARGUMENT_INVALIDE", {"moyen_du_billet": brut.get("moyen_du_billet", "especes")}, "Sur quel règlement le billet ?", "paiement")
         if rendu_sur < cible["montant"]:
             return None, _r("ARGUMENT_INVALIDE", {"montant": cible["montant"], "billet": rendu_sur}, "Le billet ne couvre pas ce règlement.", "paiement")
         paiement["rendu_sur"], paiement["monnaie"] = rendu_sur, rendu_sur - cible["montant"]

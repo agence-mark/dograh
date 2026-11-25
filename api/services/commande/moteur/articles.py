@@ -1029,7 +1029,7 @@ async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | 
     if texte.isdigit():
         n = int(texte)
         ligne = next((l for l in p["lignes"] if l["n"] == n), None)
-        return (ligne, None) if ligne else (None, _r("INTROUVABLE", {"lignes": len(p["lignes"])}, f"Il n'y a pas de ligne {n}."))
+        return (ligne, None) if ligne else (None, _r("INTROUVABLE", {"lignes": len(p["lignes"]), "ligne": n}, f"Il n'y a pas de ligne {n}."))
     if not texte:
         return None, _r("INCOMPLETE", {}, "Laquelle voulez-vous changer ?", "ligne")
     # SA-52 (appel 2604) : « X deux couleurs » désigne la ligne « X 2 couleurs » (les nombres lus des deux côtés).
@@ -1046,7 +1046,7 @@ async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | 
     trouve = _chercher_dans([Element(str(l["n"]), l["nom"]) for l in p["lignes"]], texte)  # une faute de transcription : le moteur, à zéro faux sûr
     if trouve["statut"] == "RETENU":
         return next(l for l in p["lignes"] if str(l["n"]) == trouve["retenu"]), None
-    return None, _r("INTROUVABLE", {"lignes": noms}, f"Je ne trouve pas « {texte} » dans la commande.")
+    return None, _r("INTROUVABLE", {"lignes": noms, "dit": texte}, f"Je ne trouve pas « {texte} » dans la commande.")
 
 
 async def lots_des_quantites_hautes(source: Source, p: dict[str, Any], regles: Reglages, fiche: dict[str, Any]) -> dict[int, int]:

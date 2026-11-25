@@ -34,9 +34,10 @@ _FAITS_DE_TENUE = (R.CLE_NUMERO_RETENU, R.CLE_SECOND_NUMERO_RETENU, R.CLE_NUMERO
 
 
 def identite_du_refus(refus: Any) -> str:
-    """La clé du journal pour un refus d'un module : son statut, son manque et son objet (les faits qui sont une valeur, jamais une liste de propositions ni la
-    suggestion), si bien qu'un texte de suggestion qui change ne remet jamais le compteur à zéro."""
-    objet = {k: v for k, v in sorted((refus.faits or {}).items()) if k not in _FAITS_DE_TENUE and isinstance(v, (str, int)) and not isinstance(v, bool)}
+    """La clé du journal pour un refus d'un module : son statut, son manque et ses faits. Une valeur simple (texte, nombre, vrai/faux) entre avec sa valeur ; une liste ou un
+    dictionnaire (des propositions qui changent d'un tour à l'autre) entre par son seul NOM : deux refus qui n'ont pas les mêmes faits ne se confondent jamais, et un texte
+    de suggestion qui change ne remet jamais le compteur à zéro."""
+    objet = {k: (v if isinstance(v, (str, int, float)) else None) for k, v in sorted((refus.faits or {}).items()) if k not in _FAITS_DE_TENUE}
     return f"refus {json.dumps([refus.statut, refus.manque, objet], ensure_ascii=False)}"
 
 

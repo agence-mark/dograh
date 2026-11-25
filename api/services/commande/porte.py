@@ -902,10 +902,17 @@ async def _case_reponse(f: LaFiche) -> tuple[Resultat, str | None]:
     return r, "reponse"
 
 
+def _garder_le_refus(f: LaFiche, r: Resultat) -> None:
+    """Une case qui boucle sur plusieurs lignes (retirer, changer une quantité) : chaque refus est gardé, pas seulement le dernier, pour que ``refusants_de_la_fiche`` les dise tous."""
+    if r.statut in STATUTS_QUI_REFUSENT:
+        f.bruts.append(r)
+
+
 async def _case_retirer(f: LaFiche) -> tuple[Resultat, None]:
     for n in f.fiche["retirer_article"]:
         r = await moteur.retirer(f.source, f.p, f.regles, ligne=str(n))
         f.resultats.append(_resultat_public("retirer_article", r))
+        _garder_le_refus(f, r)
     f.dernier = r
     return r, None
 
@@ -917,6 +924,7 @@ async def _case_changer_quantite(f: LaFiche) -> tuple[Resultat, None]:
         r = await moteur.modifier(f.source, f.p, f.regles, ligne=str(c.get("ligne")), quantite=c.get("quantite"), choix=choix, variante=variante,
                                   sans=", ".join(c.get("sans") or []) or None, note=c.get("precision_article"))
         f.resultats.append(_resultat_public("changer_quantite", r))
+        _garder_le_refus(f, r)
     f.dernier = r
     return r, None
 
