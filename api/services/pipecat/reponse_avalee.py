@@ -637,8 +637,9 @@ class RepliqueVerifiee:
     - un flux qui porte un appel d'outil passe tel quel, dans son ordre ;
     - une réplique de texte seul est contrôlée (``controler(texte)`` rend ``None`` ou une retenue) ; sans retenue,
       elle passe telle quelle ;
-    - retenue : le modèle est relancé UNE fois, sans flux, avec la consigne de la retenue (``relancer(retenue)``) ;
-      la relance est rendue telle quelle, quoi qu'elle dise. Relance vide ou en erreur : la réplique d'origine passe.
+    - retenue : le modèle est relancé UNE fois, sans flux, avec la consigne de la retenue (``relancer(retenue)``) ; une relance retenue à son tour avec le fait à redonner
+      est relancée au plus UNE fois encore (la relance du fait). Sinon, ou sans réponse : le texte que porte la retenue, le fait accompli ou la phrase réglée de l'agent ;
+      jamais la réplique retenue, jamais un tour muet (une retenue sans consigne ni appel exigé n'a pas de requête de plus : elle va droit à la phrase du code).
     - SA-36 (M87) : une retenue qui porte un texte à dire à la place (``a_dire``) est remplacée par lui, sans relance ; une relance
       qui affirme comme fait ce qu'aucun outil du tour n'a fait (``controler_la_relance``) est remplacée de même.
 
@@ -733,6 +734,11 @@ class RepliqueVerifiee:
                 # SA-36 (M87) : la retenue sait ce qu'il faut dire à la place (la question du dernier outil) : dit sans relance.
                 logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : remplacée par le texte de l'outil")
                 for morceau in self._a_dire(a_dire.strip(), usage):
+                    yield morceau
+                return
+            if not getattr(retenue, "consigne", None) and not getattr(retenue, "outil", None):
+                # Rien à redonner au modèle (ni fait, ni appel exigé) : pas de requête de plus, la phrase du code (le fait accompli ou la phrase réglée) : jamais un tour muet.
+                async for morceau in self._sans_reponse_de_la_relance(retenue, appel, tenus, usage):
                     yield morceau
                 return
             reprise = None

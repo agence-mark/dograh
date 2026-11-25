@@ -254,11 +254,62 @@ async def test_s1_la_relance_muette_dit_la_phrase_reglee_sans_second_essai():
 
 
 async def test_s1_deux_silences_dans_le_meme_tour_une_relance():
-    """Le plafond est celui du tour de la personne : un second silence du même tour ne relance plus."""
+    """Le plafond est celui du tour de la personne : un second silence du même tour ne relance plus, et ne laisse pas le tour muet (reprise R5) : la phrase réglée est dite."""
     fiche = _fiche_du_homard()
     await _tour_muet(fiche, [None])
-    _, consignes = await _tour_muet(fiche, [None])
+    dit, consignes = await _tour_muet(fiche, [None])
     assert consignes == [], consignes
+    assert dit == REGLEE, dit
+
+
+def test_r5_sur_la_fiche_le_silence_ne_rend_jamais_none_meme_sans_rien_a_relancer():
+    """Reprise R5 : le second silence du tour n'a ni consigne ni fait accompli : une retenue vide (``RepliqueVerifiee`` dit la phrase réglée), jamais ``None``."""
+    fiche = _fiche_du_homard()
+    v = _verificateur(fiche)
+    assert v.controler_le_silence().consigne  # la première fois : la relance du fait
+    seconde = v.controler_le_silence()
+    assert seconde is not None and not seconde.consigne and not seconde.a_dire and seconde.outil is None, seconde
+
+
+async def _avec_retenue(retenue, reponses: list):
+    """Un flux de texte seul, ``retenue`` rendue par le contrôle ; ``reponses`` sont les relances. Rend (ce qui est dit, les retenues reçues par ``relancer``)."""
+    recues: list = []
+
+    async def flux():
+        yield _morceau("Je lance la commande.")
+
+    async def relancer(r):
+        recues.append(r)
+        return _reprise(reponses[len(recues) - 1])
+
+    verifie = RepliqueVerifiee(flux(), lambda texte: retenue, relancer, None, None, None, lambda: REGLEE)
+    return "".join(m.choices[0].delta.content or "" for m in [m async for m in verifie]), recues
+
+
+async def test_r5_une_retenue_sans_consigne_ni_outil_dit_la_phrase_reglee_sans_requete_de_plus():
+    from api.services.workflow.verite_des_actions import Retenue
+
+    dit, recues = await _avec_retenue(Retenue("silence", "", ""), ["Un texte qui ne doit jamais partir."])
+    assert dit == REGLEE and recues == [], (dit, recues)
+
+
+async def test_r5_voisin_k8_l_outil_exige_garde_son_outil_et_sa_relance():
+    """Le chemin de l'outil exigé (K8) : consigne vide mais ``outil`` : la requête part, avec l'outil, et la réponse de la relance est rendue."""
+    from api.services.workflow.verite_des_actions import Retenue
+
+    dit, recues = await _avec_retenue(Retenue("relance", "enregistrer", "", outil="enregistrer"), ["C'est noté."])
+    assert dit == "C'est noté." and len(recues) == 1 and recues[0].outil == "enregistrer", (dit, recues)
+
+
+async def test_r5_voisin_une_relance_retenue_apres_la_relance_du_fait_dit_la_phrase_reglee():
+    """``_au_bout`` avec ``relance=True`` (la relance du fait est déjà faite) : consigne vide, rien à dire ; la phrase réglée, aucune requête de plus."""
+    fiche = _fiche_du_homard()
+    v = _verificateur(fiche)
+    assert v.controler_le_silence().consigne  # la relance du fait de ce tour est prise
+    retenue = v.controler_la_relance("Ça vous fera 15 euros.")
+    assert retenue is not None and not retenue.consigne and not retenue.a_dire, retenue
+    dit, consignes = await _tour_avec_texte(fiche, "Ça vous fera 15 euros.", ["C'est 15 euros."])
+    assert dit == REGLEE and len(consignes) == 1, (dit, consignes)
 
 
 # --------------------------------------------------------------------------- commit 5 : S2, la relance retenue relance avec le fait
