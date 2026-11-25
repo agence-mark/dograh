@@ -16,10 +16,12 @@ import pytest
 
 from api.services.actions_communes.enveloppe_legere import pour_le_modele
 
+from api.services.commande import etat_pour_le_modele as ETAT_COMMANDE
 from api.services.commande import moteur, porte
 from api.services.commande.phrases_dites_par_le_code import PHRASES as PHRASES_DU_PLAN
 from api.services.commande.moteur import socle as _socle
 from api.services.commande.resultat import Resultat
+from api.services.reservation import etat_pour_le_modele as ETAT_RESERVATION
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark import test_base_client as _BASE
 from api.tests.mark import test_restauration_reservation as _RESA
@@ -80,13 +82,18 @@ def _fuites(r: dict, du_tour: list[str]) -> list[str]:
     return _qui_figurent(du_tour, _hors_du_plan(_valeurs(pour_le_modele(r))))  # la copie que le modèle lit : le constat caché (``CLE_DU``) n'en fait pas partie
 
 
+def _fuites_de_l_etat(etat: str | None, du_tour: list[str]) -> list[str]:
+    """G1 sur l'état que le modèle lit à chaque tour (5e canal, audit C4) : même règle que pour le retour, une suggestion du tour n'y figure pas."""
+    return _qui_figurent(du_tour, (etat or "").splitlines())
+
+
 async def _explication(essai_de, suggestions):
     """Client « Une pizza au homard. » : l'article n'existe pas, le module refuse (introuvable) et donne sa phrase."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     suggestions.clear()
     r = await e.tour("une pizza au homard", ajouter=[{"article": "pizza au homard", "quantite": 1}])
-    return r, [x["explication"] for x in r["faits"].get("refus_de_la_fiche", []) if "explication" in x], _du_tour(suggestions)
+    return r, [x["explication"] for x in r["faits"].get("refus_de_la_fiche", []) if "explication" in x], _du_tour(suggestions), ETAT_COMMANDE.texte(e.fiche_de_l_appel)
 
 
 async def _heure_a_dire(essai_de, suggestions, monkeypatch):
@@ -100,7 +107,7 @@ async def _heure_a_dire(essai_de, suggestions, monkeypatch):
     monkeypatch.setattr(porte, "mener_a_la_fin", ferme)
     suggestions.clear()
     r = await e.dit("non merci, c'est tout").fiche(c_est_tout=True)
-    return r, [x["explication"] for x in r["faits"].get("heure_a_dire", []) if "explication" in x], _du_tour(suggestions)
+    return r, [x["explication"] for x in r["faits"].get("heure_a_dire", []) if "explication" in x], _du_tour(suggestions), ETAT_COMMANDE.texte(e.fiche_de_l_appel)
 
 
 async def _question(essai_de, suggestions):
@@ -109,7 +116,7 @@ async def _question(essai_de, suggestions):
     await e.tour("à emporter", mode_de_retrait="emporter")
     suggestions.clear()
     r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-    return r, [r["question"]["texte"]] if isinstance(r.get("question"), dict) and r["question"]["texte"] else [], _du_tour(suggestions)
+    return r, [r["question"]["texte"]] if isinstance(r.get("question"), dict) and r["question"]["texte"] else [], _du_tour(suggestions), ETAT_COMMANDE.texte(e.fiche_de_l_appel)
 
 
 async def _texte_a_dire(salle, monkeypatch, suggestions):
@@ -117,29 +124,29 @@ async def _texte_a_dire(salle, monkeypatch, suggestions):
     essai = EssaiReservation(salle, monkeypatch)
     suggestions.clear()
     r = await essai.tour("quatre personnes", personnes=4)
-    return r, [r["texte_a_dire"]] if r.get("texte_a_dire") else [], _du_tour(suggestions)
+    return r, [r["texte_a_dire"]] if r.get("texte_a_dire") else [], _du_tour(suggestions), ETAT_RESERVATION.texte(essai.fiche_de_l_appel)
 
 
 # ── le scénario atteint le canal (vert) ─────────────────────────────────────────────────────────────────────────────────
 
 async def test_scenario_explication_atteint_le_canal(essai_de, suggestions):
     """Le refus est bien dans ``refus_de_la_fiche`` (ses faits, sans phrase) et le module a bien écrit sa suggestion : le canal est fermé, pas absent."""
-    r, valeurs, du_tour = await _explication(essai_de, suggestions)
+    r, valeurs, du_tour, _ = await _explication(essai_de, suggestions)
     assert r["faits"]["refus_de_la_fiche"] and du_tour and not valeurs, (r["faits"], du_tour)
 
 
 async def test_scenario_heure_a_dire_atteint_le_canal(essai_de, suggestions, monkeypatch):
-    r, valeurs, du_tour = await _heure_a_dire(essai_de, suggestions, monkeypatch)
+    r, valeurs, du_tour, _ = await _heure_a_dire(essai_de, suggestions, monkeypatch)
     assert r["faits"]["heure_a_dire"] and FERME in du_tour and not valeurs, (r["faits"], du_tour)
 
 
 async def test_scenario_question_atteint_le_canal(essai_de, suggestions):
-    r, valeurs, du_tour = await _question(essai_de, suggestions)
+    r, valeurs, du_tour, _ = await _question(essai_de, suggestions)
     assert r["question"]["type"] == "variante" and du_tour and not valeurs, (r["question"], du_tour)  # la question est posée, sans phrase
 
 
 async def test_scenario_texte_a_dire_atteint_le_canal(salle, monkeypatch, suggestions):
-    r, valeurs, du_tour = await _texte_a_dire(salle, monkeypatch, suggestions)
+    r, valeurs, du_tour, _ = await _texte_a_dire(salle, monkeypatch, suggestions)
     assert r["manque"] and du_tour and not valeurs, (r, du_tour)  # le manque est un fait (« jour »), sa phrase est dans le constat caché
 
 
@@ -147,21 +154,25 @@ async def test_scenario_texte_a_dire_atteint_le_canal(salle, monkeypatch, sugges
 
 async def test_g1_canal_explication(essai_de, suggestions):
     """Client « Une pizza au homard. » : le retour ne dit ni la phrase du module ni « pas de pizza » ; le modèle dit le refus avec ses mots, d'après les faits."""
-    r, _, du_tour = await _explication(essai_de, suggestions)
+    r, _, du_tour, etat = await _explication(essai_de, suggestions)
     assert not _fuites(r, du_tour), _fuites(r, du_tour)
+    assert not _fuites_de_l_etat(etat, du_tour), _fuites_de_l_etat(etat, du_tour)
     assert not [v for v in _valeurs(r) if "pas de pizza" in v], r
 
 
 async def test_g1_canal_heure_a_dire(essai_de, suggestions, monkeypatch):
-    r, _, du_tour = await _heure_a_dire(essai_de, suggestions, monkeypatch)
+    r, _, du_tour, etat = await _heure_a_dire(essai_de, suggestions, monkeypatch)
     assert not _fuites(r, du_tour), _fuites(r, du_tour)
+    assert not _fuites_de_l_etat(etat, du_tour), _fuites_de_l_etat(etat, du_tour)
 
 
 async def test_g1_canal_question_texte(essai_de, suggestions):
-    r, _, du_tour = await _question(essai_de, suggestions)
+    r, _, du_tour, etat = await _question(essai_de, suggestions)
     assert not _fuites(r, du_tour), _fuites(r, du_tour)
+    assert not _fuites_de_l_etat(etat, du_tour), _fuites_de_l_etat(etat, du_tour)
 
 
 async def test_g1_canal_texte_a_dire(salle, monkeypatch, suggestions):
-    r, _, du_tour = await _texte_a_dire(salle, monkeypatch, suggestions)
+    r, _, du_tour, etat = await _texte_a_dire(salle, monkeypatch, suggestions)
     assert not _fuites(r, du_tour), _fuites(r, du_tour)
+    assert not _fuites_de_l_etat(etat, du_tour), _fuites_de_l_etat(etat, du_tour)
