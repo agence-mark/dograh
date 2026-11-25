@@ -29,8 +29,6 @@ PHRASES = {
     "annulation_confirmee": PhraseDuCode("Je vous confirme l'annulation de votre commande.", EXCEPTION_FAIT_ACCOMPLI),  # DC4, second temps : l'annulation faite engage
     "annulee_en_cours": PhraseDuCode("Je ne l'enregistre pas.", EXCEPTION_FAIT_ACCOMPLI),  # L2 : la commande en cours est annulée avant son enregistrement : le fait qui engage
     "annulation_demandee": PhraseDuCode("Vous êtes sûr de vouloir annuler votre commande{de_montant} ?", EXCEPTION_DC4),  # texte de secours du repli seulement (Q2 = A : le modèle pose la question) ; sa place dépend de la question R
-    "changement_avec_total": PhraseDuCode("C'est changé : votre commande fait maintenant {total}.", EXCEPTION_TOTAL),
-    "changement_sans_total": PhraseDuCode("C'est changé dans votre commande.", EXCEPTION_FAIT_ACCOMPLI),
     "reservation_enregistree": PhraseDuCode("C'est réservé pour {personnes}, {quand}, au nom de {prenom}.", EXCEPTION_FAIT_ACCOMPLI),  # 7b-C3 : la réservation faite engage ; dite par le code (``avant``)
     "reservation_modifiee": PhraseDuCode("C'est modifié : {quand}, {personnes}.", EXCEPTION_FAIT_ACCOMPLI),
     "reservation_annulee": PhraseDuCode("C'est annulé.", EXCEPTION_FAIT_ACCOMPLI),
@@ -53,11 +51,6 @@ TEXTE_ANNULEE_EN_COURS = PHRASES["annulee_en_cours"].texte
 def annulation_demandee(montant: str | None) -> str:
     """DC4, premier temps : le total de la commande enregistrée, en lettres."""
     return PHRASES["annulation_demandee"].texte.format(de_montant=f" de {montant}" if montant else "")
-
-
-def changement(total: str | None) -> str:
-    """La commande enregistrée vient d'être changée en caisse : son nouveau total quand il est connu."""
-    return PHRASES["changement_avec_total"].texte.format(total=total) if total else PHRASES["changement_sans_total"].texte
 
 
 def prix_au_poids(*, arrondi: bool, fois: str | None, grammes: str, nom: str, prix: str) -> str:

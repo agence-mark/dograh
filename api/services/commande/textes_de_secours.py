@@ -384,6 +384,11 @@ def commande_retrouvee(faits: Faits) -> str:
     return f"Votre commande est enregistrée pour {faits['quand_dit']}." if faits.get("quand_dit") else "Votre commande est enregistrée."
 
 
+def commande_changee(faits: Faits) -> str:
+    """C6 n° 6 : la commande enregistrée vient d'être changée : avec son nouveau total quand il est connu (``total``, en centimes). Gardé au journal du dit, jamais dit à la place du modèle."""
+    return f"C'est changé : votre commande fait maintenant {montant_en_lettres(int(faits['total']))}." if faits.get("total") is not None else "C'est changé dans votre commande."
+
+
 def deja_enregistree(faits: Faits) -> str:
     """C6 n° 5 : le panier (ou l'anti-doublon de la source) retombe sur une commande déjà prise : avec son heure quand elle est connue (``quand_dit``)."""
     return f"Votre commande est déjà enregistrée pour {faits['quand_dit']}." if faits.get("quand_dit") else "Votre commande est déjà enregistrée."

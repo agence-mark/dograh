@@ -42,12 +42,14 @@ def test_reglage_vide_le_fait_est_dit_seul_meme_avec_une_question_en_attente():
 
 
 def test_le_changement_garde_sa_question_et_une_question_en_attente_la_remplace():
-    p = {"enregistree": {"total": 21.8}}
-    dit = textes_du_code(p, Resultat("ENREGISTREE", {"remplace": 12}, FAIT), None, [], True, 10.9, QUESTION)["avant"]
-    assert dit.endswith(f" {QUESTION}") and dit.count("?") == 1
+    # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le modèle dit le changement ; le code dit le nouveau total (motif réglé) puis M108, que la question en attente remplace (le modèle la pose)
+    p = {"enregistree": {"total": 2180}}
+    total = "Votre commande fait maintenant vingt et un euros quatre-vingts."
+    textes = textes_du_code(p, Resultat("ENREGISTREE", {"remplace": 12}, FAIT), None, [], True, 1090, QUESTION, phrase_du_changement=total)
+    assert not textes.get("avant") and textes["suffixe"] == f"{total} {QUESTION}", textes
     CONV.poser_question(p, {"id": "Q-2", "type": "variante", "texte": "Quelle taille ?"})
-    pose = textes_du_code(p, Resultat("ENREGISTREE", {"remplace": 12}, FAIT), None, [], True, 10.9, QUESTION)["avant"]
-    assert pose == dit[: -len(QUESTION)] + "Quelle taille ?"
+    pose = textes_du_code(p, Resultat("ENREGISTREE", {"remplace": 12}, FAIT), None, [], True, 1090, QUESTION, phrase_du_changement=total)
+    assert pose["suffixe"] == total, pose
 
 
 async def test_de_bout_en_bout_la_confirmation_porte_sa_question_une_fois(essai_de):

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import parole as PAROLE
+from api.services.actions_communes import table_de_parole as T
 from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
@@ -114,7 +115,8 @@ async def test_tf2_un_changement_d_une_commande_enregistree_se_dit_par_le_code(e
     await _jusqu_a_l_enregistrement(e)
     r = await e.tour("en fait deux", changer_quantite=[{"ligne": 1, "quantite": 2}])
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, "changer_quantite": [{"ligne": 1, "quantite": 2}]})
-    assert d.motif == "texte_du_code" and "vingt et un euros quatre-vingts" in d.a_dire, d
+    # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le modèle dit le changement, le code dit le nouveau total juste après sa phrase
+    assert d.motif == T.FAIT_ACCOMPLI and d.a_dire.startswith(ANNONCE) and "vingt et un euros quatre-vingts" in d.a_dire, d
 
 
 async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):

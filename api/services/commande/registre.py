@@ -63,22 +63,6 @@ def texte_de_l_annulation(p: dict[str, Any]) -> str:
     return PHRASES_DITES.annulation_demandee(montant)
 
 
-def texte_du_changement(p: dict[str, Any], question: str | None = None, montant: bool = True) -> str:
-    """B2 (M3, TF2) : la commande enregistrée vient d'être changée en caisse : son nouveau total, dit par le code ; puis la question réglée après
-    l'enregistrement (M108), comme la confirmation : la parole revient à la personne."""
-    total = _montant_enregistre(p) if montant else None
-    fait = PHRASES_DITES.changement(total)
-    return " ".join(x for x in (fait, (question or "").strip()) if x)
-
-
-def texte_dit_de_la_question(q: dict[str, Any], p: dict[str, Any]) -> str | None:
-    """Ce que le code dit pour poser cette question : son texte ; la proposition, son repli (son texte n'est qu'une consigne). L'annulation n'a plus de forme à part (DC4, Q2 = A) :
-    son texte, mis à jour avec le total d'AUJOURD'HUI de la commande, est celui que le code dit (§ 2 du plan, jusqu'à C6)."""
-    if q.get("type") == "proposition":
-        return q.get("repli") or None
-    return str(q.get("texte") or "").strip() or None
-
-
 def demander_l_annulation(p: dict[str, Any]) -> None:
     """DC4 : « annulez ma commande » sur une commande enregistrée ouvre la question de confirmation ; rien n'est annulé avant le « oui »."""
     ouvrir(p, {"type": TYPE_ANNULATION, "texte": texte_de_l_annulation(p)})

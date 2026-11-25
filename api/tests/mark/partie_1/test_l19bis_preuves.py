@@ -137,6 +137,6 @@ async def test_l19bis_v2_du_modele_a_la_phrase_dite(essai_de):
     recues = e.source.prise.recues
     assert [c["numero"] for c in recues] == [numero], recues
     assert [(l["code_caisse"], l["quantite"]) for l in recues[0]["lignes"]] == [("PIZ-MARGHERITA-NORMALE", 1)] and recues[0]["total"] == 1090
-    # 3. la phrase dite à l'appelant : celle du code, posée par la porte, qui dit l'heure annoncée par la commande
-    dite = e.fiche_de_l_appel[CLE_TEXTES_DU_CODE]["avant"]
-    assert "enregistrée" in dite and e.p["enregistree"]["annonce"]["dite"] in dite, dite
+    # 3. la phrase dite à l'appelant. C6 n° 5 (décision d'Evan 25/11 9 h 30) : le modèle dit la confirmation ; le code en exige l'heure annoncée par la commande et dit la suite
+    textes = e.fiche_de_l_appel[CLE_TEXTES_DU_CODE]
+    assert textes["chiffres_exiges"] == {"quand": e.p["enregistree"]["annonce"]["dite"]} and "enregistrée" in textes["fait_accompli"], textes

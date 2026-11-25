@@ -207,8 +207,11 @@ def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
     assert PD.TEXTE_ANNULATION_CONFIRMEE == "Je vous confirme l'annulation de votre commande."
     assert PD.annulation_demandee("vingt et un euros quatre-vingts") == "Vous êtes sûr de vouloir annuler votre commande de vingt et un euros quatre-vingts ?"
     assert PD.annulation_demandee(None) == "Vous êtes sûr de vouloir annuler votre commande ?"
-    assert PD.changement("douze euros") == "C'est changé : votre commande fait maintenant douze euros."
-    assert PD.changement(None) == "C'est changé dans votre commande."
+    # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le changement passe au modèle ; son texte d'avant n'est plus qu'un texte de secours, le nouveau total est le motif réglé
+    from api.services.commande import textes_de_secours as TS_C
+
+    assert TS_C.commande_changee({"total": 1200}) == "C'est changé : votre commande fait maintenant douze euros."
+    assert TS_C.commande_changee({}) == "C'est changé dans votre commande."
     # C6 n° 5 (décision d'Evan 25/11 9 h 30) : la confirmation passe au modèle ; ses textes d'avant ne sont plus que des textes de secours (gardés au journal, jamais dits à sa place)
     from api.db.bases_clients import textes_de_secours_commande as TSC
     from api.services.commande import textes_de_secours as TS
@@ -224,7 +227,7 @@ def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
     p = {"enregistree": {"total": 2180}}
     assert registre.TEXTE_NOUVELLE_COMMANDE == INFO.NOUVELLE_COMMANDE_PROPOSEE and registre.TEXTE_ANNULATION_CONFIRMEE == PD.TEXTE_ANNULATION_CONFIRMEE
     assert registre.texte_de_l_annulation(p).startswith("Vous êtes sûr de vouloir annuler votre commande de ") and registre.texte_de_l_annulation({}).endswith("commande ?")
-    assert registre.texte_du_changement(p) == f"{PD.changement('vingt et un euros quatre-vingts')}"
+    assert not hasattr(registre, "texte_du_changement")  # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le code ne compose plus le changement
 
 
 def test_une_phrase_du_registre_n_est_ecrite_nulle_part_ailleurs():
