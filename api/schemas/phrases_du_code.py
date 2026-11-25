@@ -86,6 +86,13 @@ def _phrases_propres(phrases: list[str] | None) -> list[str]:
     return propres
 
 
+def _exiger_les_variables(motif: object, variantes: list[str], active: bool) -> None:
+    """C6 (Q1 = A) : une règle allumée garde, dans chacune de ses phrases, les variables que le motif déclare (« {total} ») : sans elle, le code dirait une phrase sans le fait."""
+    perdues = sorted({v for v in motif.variables for phrase in variantes if "{" + v + "}" not in phrase}) if active else []
+    if perdues:
+        raise ValueError(f"every sentence of '{motif.id}' must keep " + ", ".join("{" + v + "}" for v in perdues))
+
+
 class Sortie(BaseModel):
     """« Ensuite » : dire, noter dans la fiche, puis une action finale, toujours dans cet ordre.
     Chaque élément est facultatif ; ``action`` vide : l'action par défaut du motif (le comportement
@@ -260,6 +267,7 @@ class ReglePhrase(BaseModel):
             self.etape_id = None
         if self.active and not self.variantes and not self.texte_de_l_agent:
             raise ValueError("an active rule needs at least one sentence")
+        _exiger_les_variables(motif, self.variantes, self.active)
         if not motif.a_un_delai:
             self.delai_s = None
         elif self.delai_s is not None and self.delai_s < motif.delai_min_s:

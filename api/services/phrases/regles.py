@@ -282,19 +282,20 @@ def texte_dans_un_resultat(
     *,
     resolue: Any = None,
     configurations: Mapping[str, Any] | None = None,
+    rang: int = 0,
 ) -> str | None:
     """M98 : le texte d'une phrase du code qu'un OUTIL met dans son résultat (la question qui finit une relecture), réglable comme les autres :
     ``resolue``, la phrase que le moteur de l'appel a résolue à l'endroit de l'appel (agent qui a la main, étape en cours) ; sinon les règles de
     ``configurations`` (agent et groupe) ; sinon le défaut du catalogue. ``None`` : la phrase est éteinte (ou vide), l'outil dit sa forme courte.
-    La première variante est prise (le texte d'un résultat est stable d'un tour à l'autre). ⛔ Ne lève jamais."""
+    ``rang`` : la variante prise, en tournant (C6, Q3 = A : les phrases du total tournent comme le diseur) ; 0 par défaut, la première (le texte d'un résultat est stable d'un tour à l'autre). ⛔ Ne lève jamais."""
     try:
         phrase = resolue if isinstance(resolue, PhraseResolue) and resolue.motif.id == motif_id else None
         if phrase is None:
             phrase = resoudre(motif_id, reglages_agent=configurations, reglages_principal=configurations)
         if phrase is None or not phrase.dite:
             return None
-        texte = next((v.strip() for v in phrase.variantes if isinstance(v, str) and v.strip()), None)
-        return texte or None
+        propres = [v.strip() for v in phrase.variantes if isinstance(v, str) and v.strip()]
+        return propres[rang % len(propres)] if propres else None
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[phrases] texte de {motif_id} illisible : {erreur!r}")
         motif = MOTIFS.get(motif_id)

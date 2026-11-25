@@ -81,6 +81,9 @@ class Motif:
     sortie_par_le_code: bool = False
     # L3e : un motif verrouillé ne s'éteint jamais et n'est jamais vide (l'annonce « vous parlez à une IA ») : on change son texte, pas son existence.
     verrouille: bool = False
+    # C6 (Q1 = A, Pierre 25/11) : les variables que le CODE remplace dans la phrase (« {total} »). Une variante réglée qui en perd une est refusée (schemas.phrases_du_code) ;
+    # l'écran les montrera comme étiquettes avec la ligne S de la Partie 2 (la Partie 1 ne touche pas l'écran, F14).
+    variables: tuple[str, ...] = ()
 
 
 PASSATION_TARDE = "passation_tarde"
@@ -114,6 +117,9 @@ NUMERO_AFFICHE_GARDE = "numero_affiche_garde"
 # M108 : la question qui finit la confirmation d'un enregistrement dite par le code : la personne répond avant que l'appel se termine (une question
 # du code rend la parole, M92 ; la fin d'appel attend sa réponse). Dite DANS le résultat de l'outil, jamais en plus.
 APRES_ENREGISTREMENT = "apres_enregistrement"
+# C6 (décision d'Evan 25/11 9 h 30, § 8 bis) : le total reste dit par le code, mot pour mot, après la phrase du modèle (la relecture, puis la correction) ; le modèle ne le dit jamais.
+TOTAL_RELECTURE = "total_relecture"
+TOTAL_APRES_CORRECTION = "total_apres_correction"
 NUMERO_DICTE_RELU = "numero_dicte_relu"  # DC10 (Evan, 22/11) : le numéro dicté relu avant l'enregistrement, réglable, allumé par défaut
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
@@ -534,6 +540,40 @@ MOTIFS: dict[str, Motif] = {
             moment=MOMENT_ACTION,
         ),
         Motif(
+            id=TOTAL_RELECTURE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Relecture de la commande : le total et la question",
+            libelle_en="Order read-back: the total and the question",
+            quand_fr="Après la phrase de relecture de l'agent, le code dit le total puis pose la question (« c'est bon ? »). « {total} » est remplacé par le montant en lettres : une phrase sans « {total} » est refusée.",
+            quand_en="After the agent's read-back sentence, the code says the total then asks the question (« is that right? »). « {total} » is replaced by the amount in words: a sentence without « {total} » is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Cela fait {total}, c'est bon pour vous ?", "Ça fait {total}, c'est bon ?"),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne ne saurait pas le total. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the total. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("total",),
+        ),
+        Motif(
+            id=TOTAL_APRES_CORRECTION,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Relecture après une correction : le nouveau total et la question",
+            libelle_en="Read-back after a correction: the new total and the question",
+            quand_fr="Après la phrase de l'agent qui dit ce qui a changé, le code dit le nouveau total puis pose la question. « {total} » est remplacé par le montant en lettres : une phrase sans « {total} » est refusée.",
+            quand_en="After the agent's sentence about what changed, the code says the new total then asks the question. « {total} » is replaced by the amount in words: a sentence without « {total} » is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Ça fait maintenant {total}, c'est bon ?", "Cela fait maintenant {total}, c'est bon pour vous ?"),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne ne saurait pas le nouveau total. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the new total. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("total",),
+        ),
+        Motif(
             id=NUMERO_DICTE_RELU,
             famille=FAMILLE_ANNONCE,
             libelle_fr="Avant l'enregistrement : le numéro dicté relu",
@@ -547,11 +587,15 @@ MOTIFS: dict[str, Motif] = {
             eteinte_fr="Le numéro dicté est enregistré dès qu'il est dit, sans relecture.",
             eteinte_en="The dictated number is saved as soon as it is said, without read-back.",
             moment=MOMENT_ACTION,
+            variables=("numero",),
         ),
     )
 }
 
 # Les motifs d'un problème (déclenchés par un fait) : un compteur dans l'appel, jamais de délai.
+# C6 : la liste FERMÉE des phrases que le code dit encore mot pour mot (les autres sont dites par le modèle d'après les faits). Complétée par chaque commit de C6 qui rend un motif neuf.
+PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE, APRES_ENREGISTREMENT})
+
 MOTIFS_DE_PROBLEME = tuple(m.id for m in MOTIFS.values() if m.moment == MOMENT_PROBLEME)
 
 
@@ -611,6 +655,7 @@ def catalogue_pour_l_ecran() -> dict[str, Any]:
                 "silence_de_l_appelant": m.silence_de_l_appelant,
                 "sortie_par_le_code": m.sortie_par_le_code,
                 "verrouille": m.verrouille,
+                "variables": list(m.variables),
             }
             for m in MOTIFS.values()
         ],
