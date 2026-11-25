@@ -251,20 +251,21 @@ async def creer_reservation(
     couverts, debut = brouillon.get("couverts"), brouillon.get("debut")
     prenom, telephone = (brouillon.get("prenom") or "").strip(), brouillon.get("telephone")
     if not isinstance(couverts, int) or isinstance(couverts, bool) or couverts < 1:
-        return Resultat("INCOMPLETE", {}, "Pour combien de personnes ?", "couverts")
+        return Resultat("INCOMPLETE", {}, TS.combien_de_personnes({}), "couverts")
     if not isinstance(debut, datetime) or debut.tzinfo is None:
-        return Resultat("INCOMPLETE", {}, "Pour quel jour et à quelle heure ?", "debut")
+        return Resultat("INCOMPLETE", {}, TS.quel_jour_et_quelle_heure({}), "debut")
     if not prenom:
-        return Resultat("INCOMPLETE", {}, "À quel nom je mets la réservation ?", "prenom")
+        return Resultat("INCOMPLETE", {}, TS.a_quel_nom_je_mets_la_reservation({}), "prenom")
     if len(prenom) > PRENOM_MAX:
-        return Resultat("ARGUMENT_INVALIDE", {}, "Ce nom est trop long.", "prenom")
+        return Resultat("ARGUMENT_INVALIDE", {}, TS.nom_trop_long({}), "prenom")
     if telephone is not None and not (isinstance(telephone, str) and E164.match(telephone)):
-        return Resultat("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone")
+        faits = {"numero_illisible": True}
+        return Resultat("ARGUMENT_INVALIDE", faits, TS.numero_illisible(faits), "telephone")
     if telephone is None and cree_par == "agent":
-        return Resultat("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone")
+        return Resultat("INCOMPLETE", {}, TS.quel_numero({}), "telephone")
     note = (brouillon.get("note") or "").strip() or None
     if note and len(note) > NOTE_MAX:
-        return Resultat("ARGUMENT_INVALIDE", {}, "Cette note est trop longue.", "note")
+        return Resultat("ARGUMENT_INVALIDE", {}, TS.note_trop_longue({}), "note")
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     maintenant_ = await maintenant(connexion)
     duree = brouillon.get("duree_minutes") or await duree_du_groupe(connexion, etablissement_id, couverts)
@@ -339,9 +340,9 @@ async def modifier_reservation(
         prenom = (changements["prenom"].strip() if isinstance(changements.get("prenom"), str) else r["prenom"]) or r["prenom"]
         note = (changements["note"].strip() or None) if isinstance(changements.get("note"), str) else r["note"]
         if not isinstance(couverts, int) or isinstance(couverts, bool) or couverts < 1:
-            return Resultat("ARGUMENT_INVALIDE", {}, "Pour combien de personnes ?", "couverts")
+            return Resultat("ARGUMENT_INVALIDE", {}, TS.combien_de_personnes({}), "couverts")
         if not isinstance(nouveau_debut, datetime) or nouveau_debut.tzinfo is None:
-            return Resultat("ARGUMENT_INVALIDE", {}, "Pour quel jour et à quelle heure ?", "debut")
+            return Resultat("ARGUMENT_INVALIDE", {}, TS.quel_jour_et_quelle_heure({}), "debut")
         if len(prenom) > PRENOM_MAX or (note and len(note) > NOTE_MAX):
             return Resultat("ARGUMENT_INVALIDE", manque="prenom" if len(prenom) > PRENOM_MAX else "note")
         place_change = nouveau_debut != r["debut"] or couverts != r["couverts"]

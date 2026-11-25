@@ -69,3 +69,43 @@ def refus_de_la_base(faits: Faits) -> str:
     texte = DU_DETAIL[faits["detail"]](faits)
     dites = [p["quand_dit"] for p in faits.get("propositions") or []]
     return f"{texte} Je peux vous proposer {' ou '.join(dites)}." if dites else texte
+
+
+# --------------------------------------------------------------------------- #
+# Ce qui manque, ou ne se lit pas, à la base (``creer_reservation``, ``modifier_reservation``) ; les six premiers textes sont aussi ceux de ``phrases_du_manque``
+# --------------------------------------------------------------------------- #
+
+PERSONNES = "Pour combien de personnes ?"
+JOUR = "Pour quel jour ?"
+HEURE = "À quelle heure ?"
+NOM = "À quel nom ?"
+TELEPHONE = "Quel est votre numéro de téléphone ?"
+NOM_ET_JOUR_D_AVANT = "À quel nom et pour quel jour était votre réservation ?"
+
+
+def combien_de_personnes(faits: Faits) -> str:
+    return PERSONNES
+
+
+def quel_jour_et_quelle_heure(faits: Faits) -> str:
+    return "Pour quel jour et à quelle heure ?"
+
+
+def a_quel_nom_je_mets_la_reservation(faits: Faits) -> str:
+    return "À quel nom je mets la réservation ?"
+
+
+def nom_trop_long(faits: Faits) -> str:
+    return "Ce nom est trop long."
+
+
+def numero_illisible(faits: Faits) -> str:
+    return "Je n'ai pas bien compris le numéro : vous pouvez le redire ?"
+
+
+def quel_numero(faits: Faits) -> str:
+    return TELEPHONE
+
+
+def note_trop_longue(faits: Faits) -> str:
+    return "Cette note est trop longue."
