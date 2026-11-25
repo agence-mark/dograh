@@ -11,19 +11,22 @@ from api.db.bases_clients import horloge
 from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_commande import SourceClasseur
-from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
-from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
+from api.tests.mark import test_base_client as BASE
+from api.tests.mark import test_restauration_classeur_commande as CLASSEUR
+
+# Les fixtures du classeur, reprises par affectation (jamais d'import qui ne sert qu'à les enregistrer).
+base_essai, base_prete, commerce = BASE.base_essai, BASE.base_prete, CLASSEUR.commerce
 
 PROPOSE = " Je peux prendre votre commande pour plus tard, sur un créneau de la prochaine ouverture."
 
 
 @pytest.fixture
-def source(commerce):  # noqa: F811
+def source(commerce):
     return SourceClasseur(commerce.c, Lieu(commerce.base, commerce.a, 1), nom_prise="test")
 
 
-async def _regler(commerce, colonne: str, valeur, type_: str = "emporter"):  # noqa: F811
+async def _regler(commerce, colonne: str, valeur, type_: str = "emporter"):
     await commerce.c.execute(f"UPDATE mark.resto_reglage_type SET {colonne} = $3 WHERE site_id = $1 AND type = $2", commerce.a, type_, valeur)
 
 
@@ -32,7 +35,7 @@ async def test_ouvert_ne_dit_ni_phrase_ni_reprise(source):
     assert (etat["ouvert"], etat["reprise_dite"], etat["phrase"]) == (True, None, "")
 
 
-async def test_pause_a_reprise_connue_dit_la_reprise(commerce, source):  # noqa: F811
+async def test_pause_a_reprise_connue_dit_la_reprise(commerce, source):
     await _regler(commerce, "pause_jusqu_a", JEUDI_MIDI + timedelta(minutes=30))
     etat = await source.etat("emporter")
     assert (etat["statut"], etat["en_pause"], etat["reprise_dite"]) == ("PAUSE_TYPE", True, "douze heures trente")
@@ -40,7 +43,7 @@ async def test_pause_a_reprise_connue_dit_la_reprise(commerce, source):  # noqa:
     assert etat["phrase"] == TSC.fermeture(etat)
 
 
-async def test_pause_sans_reprise_connue_ne_dit_jamais_la_prochaine_ouverture(commerce, source):  # noqa: F811
+async def test_pause_sans_reprise_connue_ne_dit_jamais_la_prochaine_ouverture(commerce, source):
     await commerce.c.execute("UPDATE mark.site SET etat_force = 'PAUSE', etat_force_jusqu_a = NULL WHERE id = $1", commerce.a)
     etat = await source.etat("emporter")
     assert etat["en_pause"] is True and etat["reprise"] is None
@@ -49,14 +52,14 @@ async def test_pause_sans_reprise_connue_ne_dit_jamais_la_prochaine_ouverture(co
     assert etat["phrase"] == "Nous sommes en pause pour le moment." == TSC.fermeture(etat)
 
 
-async def test_hors_horaires_dit_la_prochaine_ouverture(commerce, source):  # noqa: F811
+async def test_hors_horaires_dit_la_prochaine_ouverture(commerce, source):
     with horloge.remplacer(commerce.base, JEUDI_MIDI.replace(hour=16)):
         etat = await source.etat("emporter")
     assert (etat["statut"], etat["en_pause"], etat["reprise"], etat["reprise_dite"]) == ("FERME", False, None, "dix-huit heures")
     assert etat["phrase"] == "Nous sommes fermés pour le moment. Nous reprenons à dix-huit heures." == TSC.fermeture(etat)
 
 
-async def test_commande_pour_plus_tard_permise_la_propose(commerce, source):  # noqa: F811
+async def test_commande_pour_plus_tard_permise_la_propose(commerce, source):
     await _regler(commerce, "planifiee_permise", True)
     with horloge.remplacer(commerce.base, JEUDI_MIDI.replace(hour=16)):
         etat = await source.etat("emporter")
@@ -64,7 +67,7 @@ async def test_commande_pour_plus_tard_permise_la_propose(commerce, source):  # 
     assert etat["phrase"] == "Nous sommes fermés pour le moment. Nous reprenons à dix-huit heures." + PROPOSE == TSC.fermeture(etat)
 
 
-async def test_livraison_terminee_dit_sa_phrase(commerce, source):  # noqa: F811
+async def test_livraison_terminee_dit_sa_phrase(commerce, source):
     await _regler(commerce, "fin_par_jour", '{"4": "11:30"}', "livraison")
     etat = await source.etat("livraison")
     assert etat["statut"] == "LIVRAISON_TERMINEE" and etat["phrase"].startswith("Les livraisons sont terminées pour aujourd'hui.")

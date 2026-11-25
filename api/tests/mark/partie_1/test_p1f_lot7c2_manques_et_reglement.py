@@ -9,8 +9,12 @@ from zoneinfo import ZoneInfo
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
-from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
-from api.tests.mark.test_restauration_classeur_commande import brouillon, commerce, enregistrer  # noqa: F401
+from api.tests.mark import test_base_client as BASE
+from api.tests.mark import test_restauration_classeur_commande as CLASSEUR
+
+# Les fixtures du classeur, reprises par affectation (jamais d'import qui ne sert qu'à les enregistrer).
+base_essai, base_prete, commerce = BASE.base_essai, BASE.base_prete, CLASSEUR.commerce
+brouillon, enregistrer = CLASSEUR.brouillon, CLASSEUR.enregistrer
 
 MAINTENANT = datetime(2026, 11, 12, 12, 0, tzinfo=ZoneInfo("Europe/Paris"))
 TEL = "+33612345678"
@@ -131,13 +135,13 @@ def test_le_reglement_ne_couvre_pas_le_total():
 # --- la remise et la commande introuvable ------------------------------------------------------------------------------------------------------------
 
 
-async def test_remise_qui_ne_s_applique_pas(commerce):  # noqa: F811
+async def test_remise_qui_ne_s_applique_pas(commerce):
     r = await enregistrer(commerce, brouillon(remises=[{"ref": "INCONNUE"}]))
     _verifie(r, "REFUSEE", "Cette remise ne s'applique pas à votre commande.", TSC.remise_non_applicable)
     assert r.faits == {"raison": "remise_inconnue"}
 
 
-async def test_commande_introuvable(commerce):  # noqa: F811
+async def test_commande_introuvable(commerce):
     r = await RC.statut_commande(commerce.c, commerce.a, telephone="+33600000000")
     _verifie(r, "INTROUVABLE", "Je ne trouve pas cette commande.", TSC.commande_introuvable)
     assert r.faits == {}
