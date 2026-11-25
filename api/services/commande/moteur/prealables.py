@@ -222,15 +222,15 @@ async def garder_l_heure(source: Source, p: dict[str, Any], texte: str | None) -
 # Lot 6 : l'ouverture, l'heure annoncée, l'adresse, la date
 # --------------------------------------------------------------------------- #
 
-# Ce que le modèle reçoit de l'état d'un mode fermé (``reprise_dite`` : l'heure de reprise déjà dite, posée par la source). La phrase de fermeture de la source n'en fait PAS partie :
-# elle est le texte de secours du repli, jamais une valeur donnée au modèle.
+# Ce que le modèle reçoit de l'état d'un mode fermé (``reprise_dite`` : l'heure de reprise déjà dite, posée par la source). La source n'écrit plus de phrase de fermeture (lot 7b-C7a) :
+# le modèle dit la fermeture d'après ces faits et le statut.
 CLES_DE_L_ETAT = ("raison", "reprise", "reprise_dite", "prochaine_ouverture", "planifiee_permise")
 
 
 async def lire_l_ouverture(source: Source, mode: str | None = None) -> dict[str, Any]:
     """Lot 4 (Q10, audit § 3.3, appel 2648) : LA lecture de l'ouverture, une seule, pour le décroché, l'état et les outils : les horaires, l'état
     du lieu (pause, débordé) et le forçage de l'organisation, lus par la source (``etat`` ; ``en_pause`` : une pause, dont la reprise seule compte).
-    Rend ``{ouvert, etat (OUVERT, PAUSE, FERME), reprise, phrase, modes}``. Une pause sans fin connue n'a AUCUNE reprise (jamais inventée)."""
+    Rend ``{ouvert, etat (OUVERT, PAUSE, FERME), reprise, phrase, modes}`` (``phrase`` est toujours vide : la source n'écrit plus la phrase de fermeture, lot 7b-C7a ; la clé part avec ses lecteurs en C7). Une pause sans fin connue n'a AUCUNE reprise (jamais inventée)."""
     modes = [mode] if mode else list(source.modes)
     etats = {m: await source.etat(m) for m in modes}
     ouverts = [m for m, e in etats.items() if e["ouvert"]]
