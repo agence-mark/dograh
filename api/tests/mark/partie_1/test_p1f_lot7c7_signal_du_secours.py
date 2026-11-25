@@ -19,6 +19,7 @@ import pytest
 
 from api.db.bases_clients import restauration_zone as Z
 from api.db.bases_clients import textes_de_secours_commande as TSC
+from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes.forme import norm
 from api.services.commande import moteur, panier as P, porte, textes_de_secours as TS
 from api.services.commande.briques import formule as FO
@@ -27,6 +28,7 @@ from api.services.commande.moteur.socle import Appelant, Reglages
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as A_
 from api.services.restauration.carte_et_allergenes import textes_de_secours as TSA
+from api.services.restauration.carte_et_allergenes import voir_un_article as V_
 from api.services.restauration.source_commande import SourceClasseur, resolution_du_jour_et_de_l_heure
 from api.tests.mark import test_base_client as _BASE
 from api.tests.mark import test_restauration_classeur_commande as _CLASSEUR
@@ -34,8 +36,9 @@ from api.tests.mark import test_restauration_commande_panier as _PANIER
 from api.tests.mark import test_restauration_zones as ZONES
 from api.tests.mark.commande_sur_la_fiche import article as ART
 from api.tests.mark.partie_1.aides_briques import brique
-from api.tests.mark.partie_1.aides_signal import etape_de_boissons, formule_du_menu, valeurs_absentes
+from api.tests.mark.partie_1.aides_signal import etape_de_boissons, feuilles, formule_du_menu, signal, valeurs_absentes
 from api.tests.mark.partie_1.test_p1f_lot7c3_allergie_secours import Source as SourceAllergie, fiche, option
+from api.tests.mark.partie_1.test_p1f_lot7c3_voir_un_article_secours import Carte, article as article_de_carte
 from api.tests.mark import test_commande_kebab_sa52 as _KEBAB
 
 base_essai, base_prete, commerce = _BASE.base_essai, _BASE.base_prete, _CLASSEUR.commerce  # les fixtures du classeur, reprises sans import inutile
@@ -567,3 +570,157 @@ async def test_r1_le_non_garanti_dit_que_l_equipe_peut_confirmer(scenario, monke
 async def test_r1_une_reponse_sure_ne_renvoie_pas_a_l_equipe(scenario, monkeypatch):
     r = await _jouer(scenario, monkeypatch)
     assert not r.faits.get("a_confirmer_par_l_equipe"), r.faits
+
+
+# ── R2 : les textes vidés qui n'avaient pas de cas ──────────────────────────────────────────────────────────────────────────
+
+REGLES = Reglages()
+PANIER_VIDE = {"mode": "sur_place", "lignes": []}
+
+
+class CarteQuiRenvoie(Carte):
+    """Une carte dont le restaurant renvoie toute question d'allergène vers lui (D22)."""
+
+    async def regles_d_information(self):
+        return {"allergies_renvoyees_au_restaurant": True}
+
+
+def _en_etat(statut: str, texte: Callable[[dict], str] = TSC.fermeture):
+    """La fermeture d'avant se refait de ``statut``, ``reprise_dite`` et ``planifiee_permise`` : le statut est celui du retour, pas un fait."""
+    return lambda faits: texte({"statut": statut, **(faits["modes"][0] if "modes" in faits else faits)})  # la lecture de l'ouverture range l'état sous ``modes``
+
+
+def _pause(appel, mp):
+    mp.setattr(appel.source, "etat", _etat_ferme(statut="PAUSE_TYPE", raison="pause_type", en_pause=True))
+    return moteur.etat_ouverture(appel.source, appel.p, appel.regles, "emporter")
+
+
+def _livraison_terminee(appel, mp):
+    mp.setattr(appel.source, "etat", _etat_ferme(statut="LIVRAISON_TERMINEE", raison="livraison_terminee", reprise_dite=None))
+    return moteur.etat_ouverture(appel.source, appel.p, appel.regles, "livraison")
+
+
+async def _fermee_et_planifiable(appel, mp):
+    await _planifiable(appel, mp)
+    return await moteur.choisir_mode(appel.source, appel.p, appel.regles, "emporter")
+
+
+CAS_DE_LA_FERMETURE: list[Cas] = [
+    Cas("fermeture_planifiable", _en_etat("FERME"), _fermee_et_planifiable, "F",
+        [("dix-huit heures", "dix-huit heures"), ("planifiee_permise", "Je peux prendre votre commande pour plus tard")], "FERME_PLANIFIABLE"),
+    Cas("fermeture_en_pause", _en_etat("PAUSE_TYPE"), _pause, "L", [("dix-huit heures", "dix-huit heures")], "PAUSE_TYPE"),
+    Cas("fermeture_livraison_terminee", _en_etat("LIVRAISON_TERMINEE"), _livraison_terminee, "L", [], "LIVRAISON_TERMINEE"),
+]
+
+
+def _source_de_la_commande(mp, allume, envoi=None):
+    from api.services.restauration.source_commande import SourceClasseur as S
+
+    async def envoi_actif(*_):
+        return allume
+
+    async def envoyer_et_dire_pourquoi(*_):
+        return envoi
+
+    mp.setattr("api.services.restauration.source_commande.envois.liaison_db.envoi_actif", envoi_actif)
+    mp.setattr("api.services.restauration.source_commande.envois.envoyer_et_dire_pourquoi", envoyer_et_dire_pourquoi)
+    return S(None, Lieu("base", 1, 1), nom_prise="test")
+
+
+def _envoi_eteint(mp):
+    return _source_de_la_commande(mp, None).envoyer("carte", "+33612345678", "cle", 7)
+
+
+def _envoi_parti(mp):
+    from api.services.restauration.envois_et_sms.sms_restauration import Envoi
+    return _source_de_la_commande(mp, object(), Envoi.PARTI).envoyer("carte", "+33612345678", "cle", 7)
+
+
+CAS_DE_L_ENVOI: list[Cas] = [
+    Cas("envoi_indisponible", TSC.envoi_indisponible, _envoi_eteint, "F", [], "INDISPONIBLE"),
+    Cas("envoye", TSC.envoye, _envoi_parti, "F", [("envoye", "envoye")], "envoye"),
+]
+
+
+def _sans(articles_de_la_carte, produit="pizzas sans lait", signale=None):
+    return lambda: V_._chercher_ce_qui_est_sans(Carte(articles_de_la_carte), {}, REGLES, produit, signale)
+
+
+def _par_ingredient(articles_de_la_carte, chose="thon", *, contient=True):
+    return lambda: V_.chercher_par_ingredient(Carte(articles_de_la_carte), {}, REGLES, chose, contient=contient)
+
+
+_SELON = {**article_de_carte("Burger", []), "obligatoires": [[{"nom": "pain", "signalements": [{"code": "gluten"}]}, {"nom": "salade", "signalements": []}]]}
+
+CAS_DE_LA_RECHERCHE: list[Cas] = [
+    Cas("article_sans_une_chose", TSA.article_sans_une_chose,
+        _sans([article_de_carte("Reine", ["lait"]), article_de_carte("Margherita", ["gluten"]), article_de_carte("Veggie", [])]), "L",
+        [("Margherita", "Margherita"), ("Veggie", "Veggie"), ("lait", "lait")], "OK"),
+    Cas("article_sans_une_chose_selon_le_choix", TSA.article_sans_une_chose, _sans([article_de_carte("Reine", []), _SELON], "sans gluten"), "L",
+        [("Reine", "Reine"), ("Burger", "Burger"), ("gluten", "gluten")], "OK"),
+    Cas("article_sans_une_chose_et_des_inconnus", TSA.article_sans_une_chose, _sans([article_de_carte("Reine", []), article_de_carte("Maison", None)], "pizzas sans gluten"), "L",
+        [("Reine", "Reine"), ("1", INFO.POUR_LES_AUTRES_NON_GARANTI)], "OK"),
+    Cas("articles_par_ingredient", TSA.articles_par_ingredient,
+        _par_ingredient([article_de_carte("Reine", None, ["jambon"]), article_de_carte("Marine", None, ["thon"]), article_de_carte("Maison", None, None)]), "L",
+        [("Marine", "Marine"), ("thon", "thon"), ("1", INFO.POUR_LES_AUTRES_NON_CONFIRMABLE)], "OK"),
+    Cas("articles_par_ingredient_sans_la_chose", TSA.articles_par_ingredient, _par_ingredient([article_de_carte("Reine", None, ["jambon"])], contient=False), "L",
+        [("Reine", "Reine"), ("thon", "thon")], "OK"),
+    Cas("de_quel_article", TSA.de_quel_article, lambda: V_.voir_produit(Carte([article_de_carte("Reine", [])]), PANIER_VIDE, REGLES, ""), "F", [], "ARGUMENT_INVALIDE"),
+    Cas("article_introuvable_de_la_fiche", TSA.article_introuvable, lambda: V_.voir_produit(Carte([article_de_carte("Reine", [])], fiche=None), PANIER_VIDE, REGLES, "Reine"), "F",
+        [], "INTROUVABLE"),
+    Cas("l_equipe_le_confirme", TSA.l_equipe_le_confirme,
+        lambda: V_.voir_produit(CarteQuiRenvoie([article_de_carte("Reine", [])], fiche=fiche([])), PANIER_VIDE, REGLES, "Reine", "lait"), "F",
+        [("equipe_confirme", "L'équipe vous le confirme")], "renvoye_au_restaurant"),
+]
+
+CAS_DE_L_ALLERGIE_AVEC_OPTION: list[Cas] = [
+    Cas("inconnu_avec_option", TSA.signalement_dit, _allergie(signalements=[], option_=option("sauce maison", None)), "L", [("sauce maison", "sauce maison")], "inconnu"),
+]
+
+
+@pytest.mark.parametrize("cas", _params(CAS_DE_LA_FERMETURE))
+async def test_le_signal_porte_ce_que_la_fermeture_disait(cas, appel, monkeypatch):
+    _controle(cas, await _jouer(cas.scenario, appel, monkeypatch))
+
+
+@pytest.mark.parametrize("cas", _params(CAS_DE_L_ENVOI))
+async def test_le_signal_porte_ce_que_l_envoi_disait(cas, monkeypatch):
+    _controle(cas, await _jouer(cas.scenario, monkeypatch))
+
+
+@pytest.mark.parametrize("cas", _params(CAS_DE_LA_RECHERCHE))
+async def test_le_signal_porte_ce_que_la_recherche_d_un_article_disait(cas):
+    _controle(cas, await _jouer(cas.scenario))
+
+
+@pytest.mark.parametrize("cas", _params(CAS_DE_L_ALLERGIE_AVEC_OPTION))
+async def test_le_signal_porte_ce_que_le_secours_d_une_option_disait(cas, monkeypatch):
+    _controle(cas, await _jouer(cas.scenario, monkeypatch))
+
+
+async def test_f1_voisin_une_commune_hors_zone_porte_son_departement(commerce):
+    """Le voisin de F1 : le refus « hors zone » donne lui aussi le département de la commune (``commune.departement``), ce que le modèle peut dire sans question."""
+    await _senlis(commerce)
+    r = await Z.verifier_adresse(commerce.c, commerce.a, "7 rue Victor Hugo, Compiègne")
+    assert norm("Oise") in feuilles(signal(r, "F")), r.faits
+
+
+# Commit R2, retirés avec les textes (C7) : la table dit bien ce que disaient les textes.
+@pytest.mark.parametrize("cas", CAS_DE_LA_FERMETURE, ids=lambda c: c.nom)
+async def test_la_table_de_la_fermeture_est_fidele_au_texte(cas, appel, monkeypatch):
+    _fidele(cas, await _jouer(cas.scenario, appel, monkeypatch))
+
+
+@pytest.mark.parametrize("cas", CAS_DE_L_ENVOI, ids=lambda c: c.nom)
+async def test_la_table_de_l_envoi_est_fidele_au_texte(cas, monkeypatch):
+    _fidele(cas, await _jouer(cas.scenario, monkeypatch))
+
+
+@pytest.mark.parametrize("cas", CAS_DE_LA_RECHERCHE, ids=lambda c: c.nom)
+async def test_la_table_de_la_recherche_est_fidele_au_texte(cas):
+    _fidele(cas, await _jouer(cas.scenario))
+
+
+@pytest.mark.parametrize("cas", CAS_DE_L_ALLERGIE_AVEC_OPTION, ids=lambda c: c.nom)
+async def test_la_table_de_l_option_est_fidele_au_texte(cas, monkeypatch):
+    _fidele(cas, await _jouer(cas.scenario, monkeypatch))
