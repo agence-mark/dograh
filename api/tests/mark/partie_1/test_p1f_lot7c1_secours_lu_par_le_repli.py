@@ -31,6 +31,7 @@ PERMIS = {
     ("services/commande/textes_de_secours.py", "services/commande/porte.py", TOUS),  # la porte refuse elle-même une heure proposée sans autre heure (``_repondre_a_l_heure_proposee``)
     # C2 : la base de la commande et sa source refusent elles-mêmes, avec leurs catalogues de secours
     ("db/bases_clients/textes_de_secours_commande.py", "db/bases_clients/restauration_commande.py", TOUS),  # la base qui refuse écrit le texte de secours de son refus
+    ("db/bases_clients/textes_de_secours_commande.py", "db/bases_clients/restauration_zone.py", TOUS),  # C4 : la zone de livraison qui refuse écrit le texte de secours de son refus
     ("db/bases_clients/textes_de_secours_commande.py", "services/restauration/source_commande.py", TOUS),  # la fermeture de l'état et l'envoi indisponible : texte de secours de la source
     ("services/commande/phrases_du_manque.py", "db/bases_clients/restauration_commande.py", "phrase_du_manque"),  # le manque que la base relaie, mot pour mot du catalogue
     ("services/commande/phrases_du_manque.py", "services/restauration/source_commande.py", "phrase_du_manque"),  # idem pour la source

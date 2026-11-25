@@ -19,6 +19,7 @@ from api.outils import inventaire_rustines as I
 
 FICHIERS_DU_LOT = (
     "db/bases_clients/restauration_commande.py",
+    "db/bases_clients/restauration_zone.py",
     "services/actions_communes/parole.py",
     "services/actions_communes/repli.py",
     "services/commande/moteur/articles.py",

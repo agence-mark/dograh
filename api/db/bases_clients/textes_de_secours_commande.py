@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from api.services.commande import textes_de_secours as TS
-from api.services.mots_dits import montant_en_lettres
+from api.services.mots_dits import liste_dite_et, montant_en_lettres
 
 Faits = Mapping[str, Any]
 
@@ -141,7 +141,25 @@ def prix_different(faits: Faits) -> str:
 
 
 def hors_zone(faits: Faits) -> str:
-    return "Nous ne livrons pas à cette adresse."
+    """Faits : ``commune`` (``nom``) et ``communes_livrees`` quand l'adresse est reconnue, sinon rien (aucune zone, ou zone introuvable)."""
+    commune = faits.get("commune")
+    if not commune:
+        return "Nous ne livrons pas à cette adresse."
+    livrees = list(faits.get("communes_livrees") or [])
+    return f"Nous ne livrons pas à {commune['nom']}." + (f" Nous livrons {liste_dite_et(livrees)}." if livrees else "")
+
+
+def adresse_non_comprise(faits: Faits) -> str:
+    return "Je n'ai pas compris l'adresse, pouvez-vous la répéter ?"
+
+
+def quelle_commune(faits: Faits) -> str:
+    return "Dans quelle commune se trouve l'adresse ?"
+
+
+def commune_ambigue(faits: Faits) -> str:
+    """Faits : ``candidats`` (chacun avec ``nom`` et ``departement``)."""
+    return "Est-ce " + " ou ".join(f"{c['nom']} ({c['departement']})" for c in faits["candidats"]) + " ?"
 
 
 def minimum_non_atteint(faits: Faits) -> str:
