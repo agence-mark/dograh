@@ -158,16 +158,19 @@ def noter_le_porteur(gathered: Any, connecteur: str | None, workflow_id: Any) ->
         logger.exception("[groupe] écriture en échec dans noter_le_porteur : le porteur de l'action n'est pas noté")
 
 
-def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = None) -> int | None:
+def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = None, parmi: Iterable[str] | None = None) -> int | None:
     """Clôture, lot B4 (M8, audit des textes § 3 point 3) : l'agent qui tient une action OUVERTE de l'appel (une commande commencée), s'il n'est pas
     ``sauf`` : au retour d'un détour, le code y ramène seul l'appel (avant : l'accueil devait penser à le proposer). Lu par la déclaration de chaque
-    connecteur (``action_ouverte``) et la note de l'agent qui a écrit sa fiche ; aucun mot de métier. ⛔ Ne lève jamais (doute = ``None``)."""
+    connecteur (``action_ouverte``) et la note de l'agent qui a écrit sa fiche ; aucun mot de métier. ``parmi`` : ne regarder que ces connecteurs (le refus de fin ne cherche que parmi les actions qui retiennent la fin). ⛔ Ne lève jamais (doute = ``None``)."""
     try:
         from api.services.integrations.connectors.catalogue import connecteurs
 
         fiche = dict(gathered or {})
         porteurs = (fiche.get(CONV.CLE) or {}).get(CLE_PORTEURS) or {}
+        retenus = None if parmi is None else set(parmi)
         for c in connecteurs():
+            if retenus is not None and c.nom not in retenus:
+                continue
             porteur = porteurs.get(c.nom)
             if porteur is not None and porteur != _entier(sauf) and c.action_ouverte is not None and c.action_ouverte(fiche):
                 return int(porteur)

@@ -6,7 +6,7 @@ Un garde-fou au sens du registre (``reference/29-garde-fous.md``, section B) : i
 - **Il détecte** : pendant l'appel, un outil marqué « doit aboutir avant la fin » a été appelé et son DERNIER résultat n'est
   pas un succès, ou il est encore en cours (appelé dans le même tour que la fin, résultat pas revenu).
 - **Il détecte aussi** une ACTION OUVERTE : un connecteur déclare ce qu'il a commencé dans l'appel et pas fini (``Connecteur.action_ouverte``) ;
-  la fin est refusée une fois de la même façon, et le résultat nomme l'outil qui la finit (``outils_a_appeler``).
+  la fin est refusée une fois de la même façon, et le résultat nomme l'outil qui la finit (``outils_a_appeler``). Une action qui déclare ``a_finir: False`` (commencée mais sans rien à perdre) reste ouverte pour le retour d'un détour, mais ne retient pas la fin.
 - **Il fait** : quand l'agent demande la fin (une porte vers un nœud de fin, l'outil « fin d'appel »), le code refuse UNE
   fois et rend au modèle un résultat neutre (« une action n'a pas abouti : termine-la ou dis ce qu'il en est »). Au second
   essai la fin passe : jamais un appel coincé (G2). Un appel sain ne déclenche rien (G1).
@@ -224,7 +224,7 @@ def actions_non_abouties(moteur: Any) -> list[str]:
 
 def actions_ouvertes(moteur: Any) -> list[dict]:
     """Les actions commencées dans l'appel et pas finies, selon les connecteurs (``Connecteur.action_ouverte`` lit la fiche de l'appel ; c'est le
-    connecteur qui dit ce qui est ouvert, ce mécanisme ne le sait pas). Chaque entrée : ``{"connecteur", "outil"}`` (l'action qui la finit). ⛔ Ne lève jamais."""
+    connecteur qui dit ce qui est ouvert, ce mécanisme ne le sait pas). Chaque entrée : ``{"connecteur", "outil"}`` (l'action qui la finit). Une action qui déclare ``a_finir: False`` (rien à perdre encore) n'en est pas ; une clé absente vaut « à finir ». ⛔ Ne lève jamais."""
     try:
         fiche = getattr(moteur, "_gathered_context", None)
         if not isinstance(fiche, dict):
@@ -240,7 +240,7 @@ def actions_ouvertes(moteur: Any) -> list[dict]:
             except Exception as erreur:  # noqa: BLE001
                 logger.debug(f"[fin] action ouverte illisible ({c.nom}) : {erreur!r}")
                 continue
-            if isinstance(trouvee, Mapping):
+            if isinstance(trouvee, Mapping) and trouvee.get("a_finir") is not False:  # une action qui dit n'avoir rien à perdre ne retient ni la porte ni la fin
                 from api.services.integrations.connectors.outil import nom_vu
 
                 # Appel 2631 : l'outil à finir est nommé au modèle sous le nom qu'il voit, pas sous celui de son action.
@@ -401,7 +401,7 @@ def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
             from api.services.groupe.passations import porteur_de_l_action_ouverte
 
             agent = getattr(moteur, "active_agent", None)
-            if porteur_de_l_action_ouverte(fiche, sauf=getattr(agent, "workflow_id", None)) is not None:
+            if porteur_de_l_action_ouverte(fiche, sauf=getattr(agent, "workflow_id", None), parmi=[o["connecteur"] for o in ouvertes]) is not None:
                 # Clôture, lot B4 (M8, audit du code) : l'action est tenue par un collègue ; l'outil « fiche » de CETTE étape n'est pas le sien (au
                 # service, c'est celle des messages) : le refus dit de lui rendre l'appel, jamais d'appeler un outil d'ici
                 retour["message"] = f"{message} Elle est ouverte chez un collègue : rends-lui la main pour la finir."
