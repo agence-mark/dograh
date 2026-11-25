@@ -227,4 +227,5 @@ def consigne_de_relance(p: dict[str, Any] | None, fiche: Any, etat: Any, connect
     if not faits:
         return None
     etat.relance_du_fait = True
+    etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True  # la relance du fait EST le rattrapage de ce tour : sa réponse n'est pas retenue une seconde fois pour la même raison
     return CONSIGNE_DE_RELANCE + json.dumps(faits, ensure_ascii=False, default=str)

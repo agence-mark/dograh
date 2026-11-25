@@ -54,7 +54,6 @@ def _morceau(texte):
     return SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=texte, tool_calls=None), finish_reason=None)], usage=None)
 
 
-@G2
 def test_s1_le_silence_ne_dit_pas_le_texte_du_refus():
     """Client « Une pizza au homard. », le modèle ne rend rien : le code relance avec le fait, il ne dit pas « Nous n'avons pas de pizza au homard. »."""
     retenue = _verificateur(_fiche(fait_bloquant=HOMARD)).controler_le_silence()
@@ -68,7 +67,6 @@ def test_s2_une_relance_retenue_ne_dit_pas_le_texte_du_refus():
     assert retenue is not None and retenue.a_dire is None
 
 
-@G2
 async def test_s3_une_relance_en_echec_dit_la_phrase_reglee_pas_le_refus():
     """429 sur la relance d'une réplique retenue : la phrase réglée de l'agent (P3), jamais le texte du refus composé par le code."""
     verificateur = _verificateur(_fiche(fait_bloquant=HOMARD))
@@ -165,7 +163,7 @@ def _faits_de_la_consigne(consigne: str) -> dict:
 
 
 def _refus_de_homard() -> dict:
-    return {"statut_du_module": "HORS_CARTE", "manque": None, "faits": {"article": "pizza au homard", "plus_proches": ["4 fromages", "Regina"]}}
+    return {"statut_du_module": "HORS_CARTE", "manque": None, "faits": {"article": "pizza au homard", "plus_proches": ["Margherita", "Regina"]}}
 
 
 def test_c3_la_consigne_porte_les_refus_et_la_question_en_faits_jamais_en_phrases():
@@ -212,3 +210,60 @@ def test_c3_rien_a_dire_rien_a_relancer():
     etat = PAROLE.etat_du_tour(fiche)
     sans_manque = SimpleNamespace(valeur_du_manque=lambda _dossier, _fiche: None)
     assert consigne_de_relance(P.du_dossier(fiche), fiche, etat, sans_manque) is None and etat.relance_du_fait is False
+
+
+# --------------------------------------------------------------------------- commit 4 : S1, le silence relance avec le fait
+
+
+def _reprise(texte: str | None):
+    message = SimpleNamespace(content=texte, tool_calls=None)
+    return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")], usage=None)
+
+
+async def _tour_muet(fiche: dict, reponses: list):
+    """Le modèle ne rend rien ; ``reponses`` sont ses relances successives. Rend (ce qui est dit, les consignes reçues)."""
+    verificateur = _verificateur(fiche)
+    consignes: list[str] = []
+
+    async def flux():
+        return
+        yield  # pragma: no cover
+
+    async def relancer(retenue):
+        consignes.append(retenue.consigne)
+        return _reprise(reponses[len(consignes) - 1])
+
+    verifie = RepliqueVerifiee(flux(), verificateur.controler, relancer, None, verificateur.controler_la_relance,
+                               lambda *a, **k: verificateur.controler_le_silence(None, **k), lambda: REGLEE)
+    return "".join(m.choices[0].delta.content or "" for m in [m async for m in verifie]), consignes
+
+
+def _fiche_du_homard() -> dict:
+    fiche = _fiche()
+    refus = {"statut_du_module": "INTROUVABLE", "manque": None, "faits": {"article": "pizza au homard", "plus_proches": ["Margherita", "Regina"]}}
+    poser_le_fait_bloquant(fiche, 1, HOMARD, "commande", [refus])
+    etat = PAROLE.etat_du_tour(fiche)
+    etat.faits_du_refus.append(refus)  # ce que la fiche a donné au modèle : ses valeurs passent la barrière des chiffres (« Regina »)
+    PAROLE.garder(fiche, etat)
+    return fiche
+
+
+async def test_s1_mini_dialogue_homard_le_modele_muet_est_relance_avec_le_refus():
+    """Client « Une pizza au homard. » / modèle muet / avant : code « Nous n'avons pas de pizza au homard. » / après : le modèle, relancé avec le refus, dit « On n'a pas de homard ; une Margherita ou une Regina ? »."""
+    dit, consignes = await _tour_muet(_fiche_du_homard(), ["On n'a pas de homard ; une Margherita ou une Regina ?"])
+    assert dit == "On n'a pas de homard ; une Margherita ou une Regina ?", dit
+    assert len(consignes) == 1 and "INTROUVABLE" in consignes[0] and HOMARD not in consignes[0], consignes
+
+
+async def test_s1_la_relance_muette_dit_la_phrase_reglee_sans_second_essai():
+    """Muet, relance muette : la phrase réglée de l'agent (P3) ; une seule relance du fait."""
+    dit, consignes = await _tour_muet(_fiche_du_homard(), [None, None])
+    assert dit == REGLEE and len(consignes) == 1, (dit, consignes)
+
+
+async def test_s1_deux_silences_dans_le_meme_tour_une_relance():
+    """Le plafond est celui du tour de la personne : un second silence du même tour ne relance plus."""
+    fiche = _fiche_du_homard()
+    await _tour_muet(fiche, [None])
+    _, consignes = await _tour_muet(fiche, [None])
+    assert consignes == [], consignes

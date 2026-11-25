@@ -93,17 +93,16 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
 
     from api.tests.mark.partie_1.aides_du_cerveau import flux_du_cerveau
 
+    # Décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne compose plus le refus ; le modèle muet est relancé avec le fait (le refus, les communes livrées, l'autre mode),
+    # et si la relance échoue la phrase réglée de l'agent est dite : jamais un tour muet.
     v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
-    dit = await flux_du_cerveau("", v)  # le vrai cerveau : un modèle qui ne rend rien, la fiche a un fait bloquant
-    assert dit.strip(), dit
-    # Point de contrôle du lot 7, suite (coordinateur) : la personne apprend qu'on ne la livre pas. Le fait bloquant se dit d'abord (la phrase du
-    # module : la raison et les communes livrées), puis ce qu'on propose (l'autre mode) ; jamais la proposition de vente en plus seule.
-    # Lot 7b (Q1) : le code ne dit plus rien avant la phrase du modèle ; quand le modèle se tait, le repli (texte de secours) dit tout : la raison, puis l'autre mode.
     hors_zone = next(x for x in r["resultats"] if x.get("statut_du_module") == "HORS_ZONE")
-    assert dit.startswith("Nous ne livrons pas à Compiègne."), dit
-    assert all(c in dit for c in hors_zone["faits"]["communes_livrees"]), dit
-    assert dit.endswith("À emporter ?"), dit
-    assert "propose" not in dit, dit
+    retenue = v.controler_le_silence()
+    assert retenue is not None and retenue.a_dire is None and "HORS_ZONE" in retenue.consigne, retenue
+    assert all(c in retenue.consigne for c in hors_zone["faits"]["communes_livrees"]), retenue.consigne
+    assert "Nous ne livrons pas" not in retenue.consigne, retenue.consigne
+    dit = await flux_du_cerveau("", PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)))  # le vrai cerveau : un modèle qui ne rend rien, la relance aussi
+    assert dit.strip() and "Compiègne" not in dit, dit
 
 
 async def test_le_fait_bloquant_d_une_fiche_d_avant_n_est_jamais_redit(essai_de):

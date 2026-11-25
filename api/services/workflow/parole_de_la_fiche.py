@@ -16,7 +16,8 @@ from loguru import logger
 
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import parole as PAROLE
-from api.services.actions_communes.repli import repli_dit_par_le_code
+from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes.repli import consigne_de_relance, repli_dit_par_le_code
 from api.services.commande import panier as P
 from api.services.workflow.verite_des_actions import Retenue, tracer_une_retenue
 
@@ -138,8 +139,9 @@ class VerificateurDeLaFiche:
 
     def controler_le_silence(self, messages: Any = None) -> Retenue | None:
         """Point de contrôle du lot 7 (conversation 2, tour muet hors zone) : sur une étape qui porte la fiche, le modèle n'a rendu ni texte ni
-        appel au bout de ses passes (le flux, puis sa relance sans flux). Jamais un tour muet : la phrase du code est dite (la question en
-        attente, sinon ce qui manque, ``repli_dit_par_le_code``), comme pour une relance retenue. Ailleurs : le contrôle d'avant, s'il en a un."""
+        appel au bout de ses passes (le flux, puis sa relance sans flux). Jamais un tour muet. C5 (décision d'Evan 25/11 8 h 45) : le code ne compose pas
+        de phrase, il RELANCE le modèle avec le fait (``consigne_de_relance``) ; sans rien à relancer, le fait accompli que le code a déjà dit, sinon ``None`` (la phrase réglée de
+        l'agent est dite par ``RepliqueVerifiee``). Ailleurs : le contrôle d'avant, s'il en a un."""
         try:
             if not porte_la_fiche(self._fiche()):
                 autre = getattr(self.autre, "controler_le_silence", None)
@@ -147,10 +149,16 @@ class VerificateurDeLaFiche:
             fiche = self._fiche()
             connecteur = _connecteur_de_l_etape(self.moteur)
             p = dossier_de_la_parole(fiche, connecteur)
-            a_dire = repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche)
+            etat = PAROLE.etat_du_tour(fiche)
+            consigne = consigne_de_relance(p, fiche, etat, connecteur)
+            if consigne:
+                PAROLE.garder(fiche, etat)
+                tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="relance du fait")
+                return Retenue(PAROLE.SILENCE, "", consigne)
+            a_dire = J.fait_accompli(p)
             if not a_dire:
                 return None
-            tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="repli du code")
+            tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="fait accompli")
             return Retenue(PAROLE.SILENCE, "", "", a_dire=a_dire)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[parole] silence non contrôlé : {erreur!r}")
