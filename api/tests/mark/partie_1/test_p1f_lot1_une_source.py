@@ -191,6 +191,8 @@ def test_la_decision_autre_chose_lit_le_membre_pas_un_texte():
 
 
 # --------------------------------------------------------------------------- L2, n° 82, 86 : les phrases du code
+# 7b-C6 (décision d'Evan, 25/11 9 h 30) : les cinq tests qui suivent disent les phrases d'avant ; ils sont réécrits au commit 12 avec la liste fermée PHRASES_DU_CODE
+# (garde : test_p1f_lot7c6_phrases_du_code.py).
 
 def test_chaque_phrase_du_code_nomme_une_exception_du_plan():
     assert PD.PHRASES and all(ph.exception in PD.EXCEPTIONS_DU_PLAN for ph in PD.PHRASES.values())
