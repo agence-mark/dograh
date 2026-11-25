@@ -6,7 +6,7 @@ Sans réglage : la commande garde 3, la réservation garde 2 pour le choix non c
 from __future__ import annotations
 
 from api.services.actions_communes import journal_du_dit as J
-from api.services.actions_communes.seuil_de_sortie import CLE_FOIS_AVANT_LA_SORTIE, seuil_de_sortie
+from api.services.actions_communes.seuil_de_sortie import CLE_FOIS_AVANT_LA_SORTIE, CLE_RESERVATION, seuil_de_sortie
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark import test_restauration_reservation as _RESA
 from api.tests.mark.test_restauration_reservation import SAMEDI_20H
@@ -14,12 +14,23 @@ from api.tests.mark.test_restauration_reservation import SAMEDI_20H
 salle = _RESA.salle  # la fixture de la salle, reprise sans import inutile
 
 
-def test_le_reglage_se_lit_avec_le_defaut_du_metier_et_ignore_ce_qui_est_faux():
-    assert seuil_de_sortie({}, 3) == 3 and seuil_de_sortie(None, 2) == 2
-    assert seuil_de_sortie({CLE_FOIS_AVANT_LA_SORTIE: None}, 2) == 2  # champ non réglé : la valeur du métier
-    assert seuil_de_sortie({CLE_FOIS_AVANT_LA_SORTIE: 4}, 2) == 4
+def test_le_schema_expose_une_valeur_par_defaut_par_metier():
+    """Reprise 3 de l'audit : une clé par métier, sa valeur par défaut dans le schéma (le formulaire la lit là), aucune constante cachée dans le code."""
+    from api.schemas.workflow_configurations import WorkflowConfigurationDefaults as W
+
+    assert W.model_fields[CLE_FOIS_AVANT_LA_SORTIE].default == 3
+    assert W.model_fields[CLE_RESERVATION].default == 2
+    assert CLE_FOIS_AVANT_LA_SORTIE != CLE_RESERVATION
+
+
+def test_le_reglage_se_lit_par_metier_avec_le_defaut_du_schema_et_ignore_ce_qui_est_faux():
+    assert seuil_de_sortie({}, CLE_FOIS_AVANT_LA_SORTIE, 3) == 3 and seuil_de_sortie(None, CLE_RESERVATION, 2) == 2
+    assert seuil_de_sortie({CLE_RESERVATION: None}, CLE_RESERVATION, 2) == 2  # champ non réglé : la valeur par défaut du schéma
+    assert seuil_de_sortie({CLE_RESERVATION: 4}, CLE_RESERVATION, 2) == 4
+    assert seuil_de_sortie({CLE_FOIS_AVANT_LA_SORTIE: 4}, CLE_RESERVATION, 2) == 2  # mettre la commande à 4 ne change pas la réservation
+    assert seuil_de_sortie({CLE_RESERVATION: 4}, CLE_FOIS_AVANT_LA_SORTIE, 3) == 3  # et inversement
     for faux in (1, 9, "3", True, 2.5):
-        assert seuil_de_sortie({CLE_FOIS_AVANT_LA_SORTIE: faux}, 3) == 3, faux
+        assert seuil_de_sortie({CLE_FOIS_AVANT_LA_SORTIE: faux}, CLE_FOIS_AVANT_LA_SORTIE, 3) == 3, faux
 
 
 def test_le_journal_lit_le_seuil_qu_on_lui_donne_et_garde_trois_par_defaut():
@@ -75,5 +86,11 @@ async def test_reservation_sans_reglage_le_choix_non_compris_s_arrete_au_second(
 
 
 async def test_reservation_reglee_a_trois_pose_une_question_de_plus(salle, monkeypatch):
-    retours = await _choix_non_compris_deux_fois(salle, monkeypatch, {CLE_FOIS_AVANT_LA_SORTIE: 3})
+    retours = await _choix_non_compris_deux_fois(salle, monkeypatch, {CLE_RESERVATION: 3})
     assert len(retours) == 3 and retours[-1]["raison"] == "choix_non_compris_deux_fois", retours
+
+
+async def test_reservation_ne_lit_pas_la_cle_de_la_commande(salle, monkeypatch):
+    """Mettre la commande à 4 ne change rien à la réservation : le choix non compris s'arrête toujours au second."""
+    retours = await _choix_non_compris_deux_fois(salle, monkeypatch, {CLE_FOIS_AVANT_LA_SORTIE: 4})
+    assert len(retours) == 2 and retours[-1]["raison"] == "choix_non_compris_deux_fois", retours

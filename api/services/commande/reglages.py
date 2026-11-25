@@ -18,7 +18,8 @@ from api.schemas.workflow_configurations import (
     DEFAULT_COMMANDE_SUR_CATALOGUE,
     DEFAULT_COMMANDE_VENTE_EN_PLUS,
 )
-from api.services.actions_communes.seuil_de_sortie import seuil_de_sortie
+from api.schemas.workflow_configurations import DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE
+from api.services.actions_communes.seuil_de_sortie import CLE_FOIS_AVANT_LA_SORTIE, seuil_de_sortie
 from api.services.commande.moteur import Reglages
 
 CLE_INTERRUPTEUR = "commande_sur_catalogue"
@@ -58,7 +59,7 @@ def reglages_de_la_commande(configurations: Mapping | None) -> Reglages | None:
         relecture_en_deux_temps=_booleen(configs, "commande_relecture_deux_temps", DEFAULT_COMMANDE_RELECTURE_DEUX_TEMPS),
         vente_en_plus=_booleen(configs, "commande_vente_en_plus", DEFAULT_COMMANDE_VENTE_EN_PLUS),
         notes_libres=_booleen(configs, "commande_notes_libres", DEFAULT_COMMANDE_NOTES_LIBRES),
-        fois_avant_la_sortie=seuil_de_sortie(configs, Reglages.fois_avant_la_sortie),
+        fois_avant_la_sortie=seuil_de_sortie(configs, CLE_FOIS_AVANT_LA_SORTIE, DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE),
         mentions_de_remise=_entier(configs, "commande_mentions_de_remise", DEFAULT_COMMANDE_MENTIONS_DE_REMISE, 0, 5),
         mots_de_taille=_mots_de_taille(configs),
     )

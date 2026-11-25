@@ -281,6 +281,7 @@ RESTAURATION = Module(
     None,
     connecteurs=("reservation", "service"),
     signal=("commande",),
+    construction=(Reglage("reservation_fois_avant_la_sortie"),),  # lot 7b (M6) : la clé de la réservation ; celle de la commande est au module commande
     fournisseur_d_etiquettes="api.services.restauration.appel_et_memoire.etiquettes:valeurs",
     interrupteur_des_etiquettes="commande",
     # § 3.3 : ce qui est court, stable et utile à presque chaque appel. Le nom, l'adresse, l'état d'ouverture et la prochaine ouverture sont déjà
