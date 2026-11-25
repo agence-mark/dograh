@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "229c223b7c76d49a94193a97ebe70aa43503bd71",
+ "commit_teste": "adbf56ad87207dcbaf81960cc5e4bf85d77c1bb8",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa10",
  "vert": true,
@@ -30,7 +30,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.36s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 16.52s ========================"
   },
   "donnes": {
    "vert": true,
@@ -65,9 +65,26 @@
     "tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py",
     "tests/mark/test_action_ouverte_fin_d_appel.py",
     "tests/mark/partie_1/test_p1f_lot7c7_signal_du_secours.py",
-    "tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py"
+    "tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py",
+    "tests/mark/partie_1/test_l04_cuisine.py",
+    "tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_envoi.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_fermeture.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_source.py",
+    "tests/mark/partie_1/test_p1f_lot7c3_allergie_secours.py",
+    "tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py",
+    "tests/mark/test_commande_minimum_dit_a_l_adresse.py",
+    "tests/mark/test_restauration_commande_finaliser.py",
+    "tests/mark/test_restauration_commande_lot6.py",
+    "tests/mark/test_restauration_commande_panier.py",
+    "tests/mark/test_restauration_lot26_demo.py",
+    "tests/mark/test_restauration_precommande_ferme.py",
+    "tests/mark/test_restauration_remises_classeur.py",
+    "tests/mark/test_restauration_voir_produit_options.py",
+    "tests/mark/test_restauration_voir_produit_sans_m104.py",
+    "tests/mark/test_restauration_zones.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f8_des_articles_etiquetes_portent_autres_a_confirmer\nPASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f8_voisin_la_case_halal_du_restaurant_seule_n_a_rien_a_confirmer\nPASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f9_un_melange_d_alternatives_donne_la_quantite_et_les_options_de_chacune\nPASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f9_la_brique_refuse_avec_les_memes_faits_pour_la_commande_de_la_base\nPASSED tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py::test_f9_voisin_une_valeur_sans_la_taille_garde_ses_choix_en_noms\n=========== 723 passed, 10 xfailed, 8 warnings in 600.96s (0:10:00) ==========="
+   "sortie": "PASSED tests/mark/test_restauration_zones.py::test_l_adresse_dite_donne_la_zone_de_l_etablissement\nPASSED tests/mark/test_restauration_zones.py::test_les_zones_d_un_autre_etablissement_ne_servent_jamais\nPASSED tests/mark/test_restauration_zones.py::test_les_communes_autour_de_l_etablissement_pour_regler_une_zone\nPASSED tests/mark/test_restauration_zones.py::test_banc_de_dictees_zero_faux_sur\nPASSED tests/mark/test_restauration_zones.py::test_aucun_mot_de_restaurant_dans_le_mecanisme_des_zones\n========== 1053 passed, 10 xfailed, 8 warnings in 1174.51s (0:19:34) =========="
   }
  }
 }
