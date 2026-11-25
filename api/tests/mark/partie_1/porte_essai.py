@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from api.db.bases_clients.instantane import Instantane
+from api.services.actions_communes import parole as PAROLE
 from api.services.commande import contrat, porte
 from api.services.commande import panier as P
 from api.services.integrations.connectors.actions.commande import COMMANDE
@@ -33,6 +34,9 @@ class Essai:
                                    configurations={})
         self.paroles: list[str] = []
         self.retours: list[dict] = []
+        # C6 (décision d'Evan 25/11 9 h 30) : la voix. La phrase réglée que le code dit après celle du modèle (le total de la relecture) part à la voix, comme en production
+        # quand le modèle relit sans le total : l'accord à la relecture vaut. ``False`` : rien ne part (relance échouée), le « oui » ne vaut pas accord.
+        self.voix = True
 
         self.instantane: Instantane | None = None
         self.listes_du_contexte: dict[str, list[str]] = {}
@@ -79,6 +83,11 @@ class Essai:
             self.montrer()
         retour = await porte.executer(SimpleNamespace(nom="fiche"), {"a_dire": "x", **cases}, self.ctx, 5.0)
         self.retours.append(retour)
+        suffixe = (self.fiche_de_l_appel.get(porte.CLE_TEXTES_DU_CODE) or {}).get("suffixe")
+        if self.voix and suffixe:
+            etat = PAROLE.etat_du_tour(self.fiche_de_l_appel)
+            PAROLE.noter_le_total_dit(self.p, etat, str(suffixe))
+            PAROLE.garder(self.fiche_de_l_appel, etat)
         return retour
 
     async def lecture(self, **arguments: Any) -> dict[str, Any]:

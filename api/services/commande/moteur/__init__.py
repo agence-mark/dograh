@@ -57,6 +57,7 @@ from api.services.commande.moteur.articles import (
 from api.services.commande.moteur.reglement import (
     dire_le_rendu_de_monnaie,
     poser_la_relecture,
+    relecture_entendue,
 )
 from api.services.commande.moteur.proposition import (
     proposer_un_article_en_plus,
@@ -124,6 +125,7 @@ __all__ = [
     "placer_les_choix",
     "poser_l_heure",
     "poser_la_relecture",
+    "relecture_entendue",
     "poser_le_code_de_remise",
     "proposer_un_article_en_plus",
     "question_de_la_ligne_en_attente",

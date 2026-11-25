@@ -587,18 +587,22 @@ def test_le_rendu_de_monnaie_et_les_relectures_se_disent_par_les_phrases_du_code
     assert PHRASES_DITES.relecture_complete(corps="une Reine, à emporter", total="douze euros") == "Je vous relis : une Reine, à emporter. Cela fait douze euros. C'est bon ?"
     assert PHRASES_DITES.relecture_apres_changement(changes="On retire la Reine. ", total="dix euros") == "On retire la Reine. Cela fait maintenant dix euros. C'est bon ?"
     assert PHRASES_DITES.relecture_apres_changement(changes="", total="dix euros") == "Cela fait maintenant dix euros. C'est bon ?"
-    assert PHRASES_DITES.ligne_passe_a(nom="Reine", quantite="deux") == "Reine passe à deux"
 
 
-async def test_la_relecture_entiere_puis_apres_changement_gardent_leur_texte(appel):
+async def test_la_relecture_entiere_puis_apres_changement_rendent_des_faits(appel):
+    """Réécrit par C6 n° 3b et 4 (décision d'Evan 25/11 9 h 30) : la relecture ne compose plus de phrase ; elle rend des faits, et le motif du total que le code dira après le modèle."""
+    from api.services.phrases.catalogue import TOTAL_APRES_CORRECTION, TOTAL_RELECTURE
+
     await appel.ajouter("coca")
     await appel.mode()
     appel.p["heure_voulue_dite"] = "demain à vingt heures"
     r = reglement.poser_la_relecture(appel.source, appel.p, await prealables.chiffrer_le_panier(appel.source, appel.p, appel.regles))
-    assert r.suggestion.startswith("Je vous relis : un Coca-Cola, à emporter, pour demain à vingt heures. Cela fait deux euros. C'est bon ?")
+    assert r.suggestion == "" and r.faits["heure"] == "demain à vingt heures" and r.faits["mode_dit"], r
+    assert [(l["nom"], l["quantite"]) for l in r.faits["lignes"]] == [("Coca-Cola", 1)] and appel.p["relecture"]["motif_du_total"] == TOTAL_RELECTURE, r
     await appel.ajouter("coca")
     r = reglement.poser_la_relecture(appel.source, appel.p, await prealables.chiffrer_le_panier(appel.source, appel.p, appel.regles))
-    assert r.suggestion.startswith("Coca-Cola passe à deux. Cela fait maintenant ") and r.suggestion.endswith(". C'est bon ?")
+    assert r.suggestion == "" and r.faits["ce_qui_a_change"] == [{"geste": reglement.QUANTITE, "nom": "Coca-Cola", "quantite": 2}], r
+    assert appel.p["relecture"]["motif_du_total"] == TOTAL_APRES_CORRECTION
 
 
 # ── commit 9 : lire la commande, les offres, retrouver une commande (lecture.py) ─────────────────────────────────────────

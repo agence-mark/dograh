@@ -174,7 +174,9 @@ async def test_m106_une_vraie_correction_relit_toujours_ce_qui_change(commerce):
     await F.ajouter(a.source, a.p, a.regles, "tiramisu")  # lot 4 (D49) : par la case ``ajouter`` de la fiche
     await F.repondre(a.source, a.p, a.regles, "classic")  # le parfum est une question du code : sa réponse
     r = await a.finaliser()
-    assert r.manque == "relecture" and "On ajoute un tiramisu" in r.suggestion and "Cela fait maintenant" in r.suggestion
+    # C6 n° 4 (décision d'Evan 25/11 9 h 30) : ce qui a changé est un fait que le modèle dit ; le code dira la phrase réglée du nouveau total
+    assert r.manque == "relecture" and any(c["geste"] == "ajoutee" and "iramisu" in c["nom"] for c in r.faits["ce_qui_a_change"]), r
+    assert a.p["relecture"]["motif_du_total"] == "total_apres_correction"
     # lot 4 (M38, M39, D49) : le règlement vient après la relecture, un autre moyen ne la refait plus ; sens repris par partie_1/test_l04_cuisine.py::test_une_seule_relecture
 
 

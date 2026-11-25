@@ -760,8 +760,9 @@ def rc10(partie: Partie, o: Observation) -> list[Faute]:
         voulu = q["texte"] if q.get("type") == "relecture" and q.get("texte") else None
         if voulu is not None and voulu not in dit:
             return [("RC10", f"relecture marquée faite dans ce tour, son texte n'a pas été dit dans ce tour (dit : « {dit} »)")]
-        if voulu is None and "cela fait" not in dit.casefold():
-            return [("RC10", f"relecture marquée faite dans ce tour, aucune relecture dite dans ce tour (dit : « {dit} »)")]
+        # C6 (décision d'Evan 25/11 9 h 30) : le modèle relit, le code dit la phrase réglée du total (ses variantes tournent) ; « dite » = notée partie à la voix, au jeton de la relecture
+        if voulu is None and not PAROLE.total_dit(o.apres, rel.get("jeton")):
+            return [("RC10", f"relecture marquée faite dans ce tour, sa phrase du total n'est pas partie dans ce tour (dit : « {dit} »)")]
     return []
 
 

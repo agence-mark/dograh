@@ -82,7 +82,7 @@ async def test_regina_et_coca_de_bout_en_bout_jusqu_a_la_prise(appel_de_test, pr
         relecture = await jouer("finaliser")
         if relecture.get("manque") == "relecture":
             break
-    assert relecture["suggestion"].startswith("Je vous relis : une Regina Normale et un Coca-Cola")
+    assert not relecture["suggestion"] and [l["nom"] for l in relecture["faits"]["lignes"]] == ["Regina Normale", "Coca-Cola"], relecture  # C6 (décision d'Evan 25/11 9 h 30) : des faits
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0  # rien n'est enregistré avant le « oui »
     assert prise.recues == []  # ni envoyé
     fait = await oui(jouer)

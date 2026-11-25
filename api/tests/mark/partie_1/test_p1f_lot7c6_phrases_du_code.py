@@ -55,7 +55,7 @@ def _xfail(famille: str, raison: str):
 
 
 @pytest.mark.parametrize("famille", [
-    _xfail("relecture_de_la_commande", "la relecture passe au modèle ; le code ne dit que le motif du total (commits 3 et 4)"),
+    pytest.param("relecture_de_la_commande", id="relecture_de_la_commande"),  # fermée par les commits 3b et 4
     _xfail("rendu_de_monnaie", "le rendu devient le motif rendu_de_monnaie du catalogue (commit 5)"),
     _xfail("confirmation_de_la_commande", "la confirmation passe au modèle, faits et heure exigée (commit 5)"),
     _xfail("changement_apres_l_enregistrement", "le modèle dit le changement, le code le motif total_apres_changement (commit 6)"),

@@ -20,6 +20,7 @@ Critères structurels seulement (D1) : l'état de l'action et du tour, jamais le
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes import journal_du_dit as J
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
@@ -65,8 +66,26 @@ class EtatDuTour:
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
     jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
+    total_a_dire: dict | None = None  # C6 : la phrase du total que le code dit après la relecture du modèle (``{"jeton", "texte"}``) ; notée au journal quand elle part à la voix (``noter_le_total_dit``)
     relance_du_fait: bool = False  # C5 : le modèle a été relancé avec le fait dans ce tour (une fois par tour de la personne, remis à zéro avec l'état)
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
+
+
+CLE_TOTAL_DIT = "total_de_la_relecture_dit"  # entrée du journal du dit : ``jeton`` = la relecture dont la phrase du total a été dite (l'accord ne vaut que pour elle)
+
+
+def noter_le_total_dit(p: Any, etat: EtatDuTour, dit: str | None) -> None:
+    """C6 : ``dit`` part à la voix ; s'il porte la phrase réglée du total de la relecture (``etat.total_a_dire``), la relecture est notée au journal du dit, à son jeton. Un « oui » ne vaut
+    accord que pour une relecture ainsi entendue (``total_dit``) : relance échouée sans la phrase, phrase réglée « pas compris », la phrase n'est pas notée, aucun accord."""
+    attendu = etat.total_a_dire if isinstance(etat.total_a_dire, dict) else None
+    if attendu and isinstance(p, dict) and dit and sans_balisage(str(attendu.get("texte") or "")) in sans_balisage(dit):
+        J.poser(p, CLE_TOTAL_DIT, etat.tour, jeton=attendu.get("jeton"))
+        etat.total_a_dire = None
+
+
+def total_dit(p: Any, jeton: Any) -> bool:
+    """C6 : la phrase du total de la relecture de ce ``jeton`` a-t-elle été dite ? Lu au journal du dit."""
+    return bool(jeton) and (J.entree(p, CLE_TOTAL_DIT) or {}).get("jeton") == jeton
 
 
 REFUS, REFUS_DE_LA_FICHE, LECTURE, FAIT = "refus", "refus_de_la_fiche", "lecture", "fait"  # les genres de la suite du tour
@@ -202,12 +221,13 @@ def pose_une_question(phrase: str) -> bool:
 MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du modèle ne le demande pas ; il repasse avec lui (B2, M3)
 
 
-def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
-    """La phrase du modèle suivie du prix que le code dit après elle (D33) ; ``None`` sans prix en attente. Le prix n'est dit qu'une fois."""
+def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
+    """La phrase du modèle suivie du prix que le code dit après elle (D33) ; ``None`` sans prix en attente. Le prix n'est dit qu'une fois. ``p`` : le dossier, pour noter la phrase du total dite (C6)."""
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
     etat.suffixe = etat.suffixe_lu = None
+    noter_le_total_dit(p, etat, dit)
     return dit
 
 

@@ -142,10 +142,9 @@ async def test_la_relecture_dit_tout_en_toutes_lettres_et_ne_sauve_rien(commerce
     a = await Appel(commerce).pret()
     r = await a.jusqu_a_la_relecture()
     assert r.statut == "INCOMPLETE" and r.manque == "relecture" and r.faits["a_confirmer"] is True
-    assert r.suggestion.startswith("Je vous relis : une Regina Normale et un Coca-Cola")  # les quantités sont dites en lettres
-    # Lot 4 (M38, D49) : la relecture est le récapitulatif et le total seulement ; le règlement se demande ensuite (``regler``, M39)
-    assert "à emporter" in r.suggestion and "euro" in r.suggestion and "Vous réglez" not in r.suggestion
-    assert not any(c.isdigit() for c in r.suggestion)  # aucun chiffre à lire : tout est dit en lettres
+    # C6 n° 3b (décision d'Evan 25/11 9 h 30) : la relecture rend des faits, le modèle la dit ; le code dira la phrase réglée du total. Lot 4 (M38, D49) : le règlement se demande ensuite
+    assert r.suggestion == "" and [(l["nom"], l["quantite"]) for l in r.faits["lignes"]] == [("Regina Normale", 1), ("Coca-Cola", 1)], r
+    assert "emporter" in r.faits["mode_dit"] and "moyens" not in r.faits
     assert r.faits["total"] == 1290 + 200
     assert await a.commandes() == []
 
@@ -175,8 +174,8 @@ async def test_apres_une_correction_seul_ce_qui_change_est_relu(commerce):
     await a.ajouter(A("tiramisu", supplements=["classic"]))
     r = await a.confirmer()  # le « oui » ne vaut plus : la commande a changé
     assert r.manque == "relecture" and await a.commandes() == []
-    assert "Je vous relis" not in r.suggestion  # pas toute la commande
-    assert "On ajoute un tiramisu" in r.suggestion and "Cela fait maintenant" in r.suggestion
+    # C6 n° 4 (décision d'Evan 25/11 9 h 30) : pas toute la commande, seulement ce qui a changé, en faits
+    assert "lignes" not in r.faits and any(c["geste"] == "ajoutee" and "iramisu" in c["nom"] for c in r.faits["ce_qui_a_change"]), r
     assert r.faits["total"] == premiere.faits["total"] + 490
     assert (await a.confirmer()).statut == "ENREGISTREE"
 
@@ -193,8 +192,8 @@ async def test_apres_une_correction_seul_ce_qui_change_est_relu(commerce):
 async def test_le_numero_affiche_n_est_pas_lu_dans_la_relecture(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
-    assert r.suggestion.count("?") == 1 and "numéro" not in r.suggestion
-    assert "0612" not in r.suggestion and "612345678" not in r.suggestion and "+33" not in r.suggestion
+    # C6 (décision d'Evan 25/11 9 h 30) : la relecture n'a plus de phrase ; ses faits ne portent pas le numéro dicté
+    assert r.suggestion == "" and "612345678" not in str(r.faits.get("lignes")) and "telephone" not in r.faits
 
 
 async def test_un_numero_masque_est_demande_puis_pris(commerce):

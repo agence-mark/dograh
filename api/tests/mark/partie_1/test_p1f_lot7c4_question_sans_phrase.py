@@ -7,8 +7,8 @@ from api.services.commande import phrases_dites_par_le_code as PD
 from api.services.commande import registre as RQ
 
 # Chaque type de la liste fermée, lié à son exception du plan (§ 2 de phrases_dites_par_le_code) : une question dite par le code est une exception écrite.
+# C6 n° 3b (décision d'Evan 25/11 9 h 30) : la relecture de la commande n'y est plus, le modèle la dit.
 EXCEPTION_DU_TYPE = {
-    "relecture": PD.EXCEPTION_RELECTURE,
     RQ.TYPE_DU_NUMERO_DICTE: PD.EXCEPTION_NUMERO,
     "recapitulatif": PD.EXCEPTION_RELECTURE,
     "recap_modif": PD.EXCEPTION_RELECTURE,
@@ -24,7 +24,7 @@ def test_chaque_type_dit_par_le_code_a_son_exception_du_plan():
 def test_une_question_dite_par_le_code_garde_son_texte_les_autres_n_en_ont_plus():
     for type_ in E.QUESTIONS_DITES_PAR_LE_CODE:
         assert E.Question("Q-1", type_, "Je vous relis.").vers_json()["texte"] == "Je vous relis."
-    for type_ in ("variante", "ambiguite", "choix", "heure_proposee", RQ.TYPE_ANNULATION, "proposition", "etape", "plusieurs_choix"):
+    for type_ in ("relecture", "variante", "ambiguite", "choix", "heure_proposee", RQ.TYPE_ANNULATION, "proposition", "etape", "plusieurs_choix"):
         assert E.Question("Q-1", type_, "Quelle taille ?").vers_json()["texte"] == "", type_
 
 

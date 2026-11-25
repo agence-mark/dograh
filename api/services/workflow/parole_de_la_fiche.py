@@ -93,11 +93,12 @@ class VerificateurDeLaFiche:
             a_dire = None
             if not consigne:
                 a_dire, etat.suffixe, etat.suffixe_lu = etat.suffixe, None, None
+                PAROLE.noter_le_total_dit(p, etat, a_dire)  # la phrase du total est dite, seule : la relecture est entendue
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "", a_dire=a_dire)
         if raison is None:
             # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33)
-            dit = PAROLE.avec_le_suffixe(texte, etat)
+            dit = PAROLE.avec_le_suffixe(texte, etat, p)
             if not dit and PAROLE.question_oubliee(texte, etat, p) and (consigne := consigne_de_relance(p, fiche, etat, connecteur)):
                 # Lot 20 : rien n'a changé dans ce tour et une question attend, la phrase (« je n'ai pas compris ») ne la pose pas : le modèle repasse avec elle (C5)
                 PAROLE.garder(fiche, etat)
@@ -123,6 +124,7 @@ class VerificateurDeLaFiche:
             # Conversation du lot 12 (PRX5-A) : le prix lu que le code devait dire après la phrase n'est pas perdu quand la phrase (au chiffre) est retenue jusqu'au bout
             a_dire = " ".join(x for x in (etat.suffixe, a_dire) if x)
             etat.suffixe = etat.suffixe_lu = None
+            PAROLE.noter_le_total_dit(p, etat, a_dire)
         PAROLE.garder(fiche, etat)
         return Retenue(raison, texte[:80], "" if relance else PAROLE.RAPPELS[raison], a_dire=a_dire or None)
 
@@ -301,6 +303,8 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
             from api.services.commande.moteur import noter_les_faits_donnes
 
             noter_les_faits_donnes(p)
+        if decision.mode == PAROLE.A_DIRE_SEUL:
+            PAROLE.noter_le_total_dit(p, etat, decision.a_dire)  # C6 : la phrase du total part avec celle du modèle (question déjà donnée) : la relecture est entendue
         PAROLE.garder(fiche_de_l_appel, etat)
         return decision
     except Exception as erreur:  # noqa: BLE001

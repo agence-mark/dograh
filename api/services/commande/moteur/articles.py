@@ -318,6 +318,8 @@ def _moities_choisies(article: dict, ligne: dict) -> list[str]:
     return noms
 
 
+# C6 n° 4 : la note d'un retrait sur une moitié, écrite sur la ligne pour la cuisine (caisse, ticket) ; jamais dite par le code : la relecture la donne au modèle en fait (``note`` de la ligne).
+NOTE_DE_MOITIE = "sans {ingredient} sur la moitié {moitie}"
 # Ce qui relie « X » à la moitié dans « sans X sur la moitié A » : retiré pour ne garder que l'ingrédient.
 _LIAISON_AVANT_MOITIE = re.compile(
     r"(?:^|\s)(?:sur|de|pour|dans|cote|a)\s+(?:(?:la|le|l)\s*'?\s*)?(?:moitie\s+)?(?:(?:de|du|la|le|l)\s*'?\s*)?$"
@@ -354,7 +356,7 @@ def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) ->
         if moitie is None:
             faits = {"candidats": list(moities), "dit": ingredient}
             return _r("AMBIGU", faits, TS.sur_quelle_moitie(faits))
-        notes.append(PHRASES_DITES.note_de_moitie(ingredient=ingredient, moitie=moitie))
+        notes.append(NOTE_DE_MOITIE.format(ingredient=ingredient, moitie=moitie))
     for note in notes:
         if note not in (ligne.get("note") or ""):
             ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]

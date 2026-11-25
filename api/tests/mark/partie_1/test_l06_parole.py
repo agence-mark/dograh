@@ -6,6 +6,8 @@ bancs B10 à B12 (cas cités par leur nom). Aucun test n'appelle un fournisseur 
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from api.services.actions_communes import conversation as CONV
 from api.services.gabarits.restauration.textes import banc as B
 
@@ -86,12 +88,11 @@ def _puis(p, fiche=None):
 
 
 def test_relance_question_en_attente():
-    """L06-28, décision d'Evan 25/11 8 h 45 (lot 7b-C5) : au bout des passes, le code relance le modèle avec la question en attente en faits (conv3 t2) ; la relecture, phrase du § 2, garde son texte
-    jusqu'à C6 ; une proposition n'est jamais redite par sa phrase."""
-    relecture = ("Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. Cela fait vingt-sept euros quatre-vingts. "
-                 "C'est bon ?")
+    """L06-28, décision d'Evan 25/11 8 h 45 (lot 7b-C5) : au bout des passes, le code relance le modèle avec la question en attente en faits (conv3 t2) ; C6 (décision d'Evan 25/11 9 h 30) :
+    la relecture est dite par le modèle, elle est relancée par son type, sans texte ; une proposition n'est jamais redite par sa phrase."""
+    relecture = "Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. C'est bon ?"  # un texte d'avant C6 resté au registre : jamais rendu
     puis, _ = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []})
-    assert puis == {"question": {"id": "Q-2", "type": "relecture", "texte": relecture}}
+    assert puis == {"question": {"id": "Q-2", "type": "relecture"}}
     proposition = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
     puis, consigne = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition, "article_propose": "Coca-Cola"}}})
     assert puis == {"question": {"id": "Q-1", "type": "proposition", "article_propose": "Coca-Cola"}} and proposition not in consigne
@@ -208,7 +209,7 @@ async def test_minimum_donne_au_modele_puis_issue(essai_de):
 
 
 async def test_recapitulatif_dit_par_le_code(essai_de):
-    """L06-01 (b) (K4 du banc) : le récapitulatif est dit par le code, mot pour mot ; la phrase du modèle est jetée et le tour s'arrête."""
+    """L06-01 (b) (K4 du banc), réécrit par C6 (décision d'Evan 25/11 9 h 30) : le récapitulatif est dit par le modèle ; le code ne dit que la phrase réglée du total, après la sienne."""
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
@@ -216,10 +217,12 @@ async def test_recapitulatif_dit_par_le_code(essai_de):
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     r = await e.tour("c'est tout", c_est_tout=True)
-    recap = (CONV.question_de(e.p) or {}).get("texte")
-    assert (CONV.question_de(e.p) or {}).get("type") == "relecture" and recap, r
+    total = (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("suffixe")
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture" and total, r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, je vous relis la commande."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == PAROLE.sans_balisage(recap), d
+    assert d.mode == PAROLE.SECOND_PASSAGE, d  # la relecture née : le modèle repasse avec ses faits
+    dit = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler("Alors une Margherita à emporter.")
+    assert dit is not None and dit.a_dire == f"Alors une Margherita à emporter. {total}", dit
 
 
 def test_prix_dit_apres_la_question_du_modele():

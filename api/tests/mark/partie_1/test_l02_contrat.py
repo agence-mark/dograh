@@ -382,7 +382,8 @@ def test_etat_lignes_numerotees():
                         question={"id": "Q-3", "type": "relecture", "texte": "C'est bon ?", "nee_au_tour": 0})
     t = _etat(fiche)
     assert "- Lignes : ligne 1 : 2 × Margherita Normale." in t, t
-    assert "- Question en attente : Q-3 (récapitulatif) : « C'est bon ? » ; réponses : accepte, refuse, autre." in t, t
+    # C6 n° 3b (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle ; l'état la donne par son type, sans texte
+    assert "- Question en attente : Q-3 (récapitulatif) ; réponses : accepte, refuse, autre." in t, t
 
 
 def test_etat_rien_n_est_change_sans_fiche():

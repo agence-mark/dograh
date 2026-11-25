@@ -165,7 +165,7 @@ async def test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit
 
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
-    assert r.suggestion.endswith("C'est bon ?") and "numéro" not in r.suggestion
+    assert r.suggestion == "" and a.p["relecture"]["motif_du_total"] == "total_relecture"  # C6 (décision d'Evan 25/11 9 h 30) : le modèle relit, le code dit le total et la question
     assert (await a.finaliser(confirmer=True, prenom="Alice")).manque == "paiement"
     r = await a.finaliser(moyen="carte", prenom="Alice")
     assert r.manque == "confirmer_numero" and r.suggestion == QUESTION, r.suggestion
