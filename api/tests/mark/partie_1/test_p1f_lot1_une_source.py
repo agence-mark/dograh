@@ -209,9 +209,13 @@ def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
     assert PD.annulation_demandee(None) == "Vous êtes sûr de vouloir annuler votre commande ?"
     assert PD.changement("douze euros") == "C'est changé : votre commande fait maintenant douze euros."
     assert PD.changement(None) == "C'est changé dans votre commande."
-    assert PD.enregistree_avec_delai("prête", "pour dix-neuf heures trente") == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente."
-    assert PD.enregistree_retrouvee("ce soir") == "Votre commande est enregistrée pour ce soir."
-    assert PD.enregistree_retrouvee(None) == "Votre commande est enregistrée."
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : la confirmation passe au modèle ; ses textes d'avant ne sont plus que des textes de secours (gardés au journal, jamais dits à sa place)
+    from api.db.bases_clients import textes_de_secours_commande as TSC
+    from api.services.commande import textes_de_secours as TS
+
+    assert TSC.commande_enregistree({"mode": "emporter", "quand_dit": "pour dix-neuf heures trente"}) == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente."
+    assert TS.commande_retrouvee({"quand_dit": "ce soir"}) == "Votre commande est enregistrée pour ce soir."
+    assert TS.commande_retrouvee({}) == "Votre commande est enregistrée."
 
 
 def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():

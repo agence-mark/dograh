@@ -120,6 +120,7 @@ APRES_ENREGISTREMENT = "apres_enregistrement"
 # C6 (décision d'Evan 25/11 9 h 30, § 8 bis) : le total reste dit par le code, mot pour mot, après la phrase du modèle (la relecture, puis la correction) ; le modèle ne le dit jamais.
 TOTAL_RELECTURE = "total_relecture"
 TOTAL_APRES_CORRECTION = "total_apres_correction"
+RENDU_DE_MONNAIE = "rendu_de_monnaie"  # C6 n° 5 : le rendu calculé par le code, dit après la confirmation du modèle et avant la question M108
 NUMERO_DICTE_RELU = "numero_dicte_relu"  # DC10 (Evan, 22/11) : le numéro dicté relu avant l'enregistrement, réglable, allumé par défaut
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
@@ -574,6 +575,23 @@ MOTIFS: dict[str, Motif] = {
             variables=("total",),
         ),
         Motif(
+            id=RENDU_DE_MONNAIE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Après un enregistrement : le rendu de monnaie",
+            libelle_en="After a save: the change to give back",
+            quand_fr="Après la phrase de l'agent qui confirme l'enregistrement, quand la personne paie en espèces avec un billet : le code dit la monnaie à rendre, puis la question qui suit l'enregistrement. « {billet} » et « {monnaie} » sont remplacés par les montants en lettres : une phrase sans l'un d'eux est refusée.",
+            quand_en="After the agent's sentence confirming the save, when the person pays cash with a note: the code says the change to give back, then the follow-up question. « {billet} » and « {monnaie} » are replaced by the amounts in words: a sentence without either is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Sur votre billet de {billet}, on vous rend {monnaie}.", "Sur votre billet de {billet}, on vous rendra {monnaie}."),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne ne saurait pas la monnaie à rendre. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the change. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("billet", "monnaie"),
+        ),
+        Motif(
             id=NUMERO_DICTE_RELU,
             famille=FAMILLE_ANNONCE,
             libelle_fr="Avant l'enregistrement : le numéro dicté relu",
@@ -594,7 +612,7 @@ MOTIFS: dict[str, Motif] = {
 
 # Les motifs d'un problème (déclenchés par un fait) : un compteur dans l'appel, jamais de délai.
 # C6 : la liste FERMÉE des phrases que le code dit encore mot pour mot (les autres sont dites par le modèle d'après les faits). Complétée par chaque commit de C6 qui rend un motif neuf.
-PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE, APRES_ENREGISTREMENT})
+PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, RENDU_DE_MONNAIE, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE, APRES_ENREGISTREMENT})
 
 MOTIFS_DE_PROBLEME = tuple(m.id for m in MOTIFS.values() if m.moment == MOMENT_PROBLEME)
 

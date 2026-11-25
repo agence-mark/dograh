@@ -379,6 +379,16 @@ def commande_annulee(faits: Faits) -> str:
     return "Cette commande est annulée."
 
 
+def commande_retrouvee(faits: Faits) -> str:
+    """C6 n° 5 : une commande retrouvée, enregistrée : avec son heure quand elle est connue (``quand_dit``)."""
+    return f"Votre commande est enregistrée pour {faits['quand_dit']}." if faits.get("quand_dit") else "Votre commande est enregistrée."
+
+
+def deja_enregistree(faits: Faits) -> str:
+    """C6 n° 5 : le panier (ou l'anti-doublon de la source) retombe sur une commande déjà prise : avec son heure quand elle est connue (``quand_dit``)."""
+    return f"Votre commande est déjà enregistrée pour {faits['quand_dit']}." if faits.get("quand_dit") else "Votre commande est déjà enregistrée."
+
+
 # --------------------------------------------------------------------------- #
 # changement.py, porte.py : changer une commande enregistrée, l'heure proposée refusée
 # --------------------------------------------------------------------------- #

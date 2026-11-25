@@ -68,7 +68,7 @@ async def test_ferme_et_planifiable_une_precommande_est_enregistree_a_l_heure_vo
     relecture = await _jusqu_a_la_relecture(jouer, quand["faits"]["heure_voulue"])
     assert relecture["manque"] == "relecture" and relecture["faits"]["heure"] == "dix-neuf heures trente", relecture  # C6 (décision d'Evan 25/11 9 h 30) : l'heure est un fait
     fin = await jouer("finaliser", prenom="Alice", moyen="carte", confirmer=True)
-    assert fin["statut"] == "ENREGISTREE" and fin["suggestion"] == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente. Puis-je faire autre chose pour vous ?", fin  # M108
+    assert fin["statut"] == "ENREGISTREE" and fin["suggestion"] == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente.", fin  # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le fait, sans M108 (la porte la dit après la phrase du modèle)
     ligne = await commerce.c.fetchrow("SELECT heure_voulue FROM mark.resto_commande WHERE site_id = $1", commerce.a)
     assert ligne["heure_voulue"].astimezone(ZoneInfo("Europe/Paris")).strftime("%H:%M") == "19:30"
 

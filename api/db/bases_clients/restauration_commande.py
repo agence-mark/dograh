@@ -28,7 +28,6 @@ import asyncpg
 from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.commande import textes_de_secours as TS
 from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.mots_dits import heure_en_lettres
@@ -829,15 +828,18 @@ async def _remises_et_total(
 
 
 def _enregistree(faits: dict, annonce: dict | None, mode: str, maintenant_: datetime, fuseau: ZoneInfo) -> Resultat:
-    """La réponse d'une commande enregistrée : la phrase de l'annonce du délai (format réglé), ou l'heure voulue."""
+    """La réponse d'une commande enregistrée : ses faits, dont ``quand_dit`` (l'annonce du délai dans le format réglé, ou l'heure voulue) et le mode. C6 n° 5 (décision d'Evan
+    25/11 9 h 30) : le modèle dit la confirmation d'après ces faits ; la suggestion n'est qu'un texte de secours, jamais dit."""
     # M121 : l'heure annoncée d'une livraison compte le délai de la zone en entier (E-42) : c'est son ARRIVÉE, pas l'heure où elle est prête.
-    etat = "livrée" if mode == "livraison" else "prête"
+    faits["mode"] = mode
     if annonce is None:
-        # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` ``_enregistrer``) : la même phrase que l'annonce d'un délai.
-        return Resultat("ENREGISTREE", faits, PHRASES_DITES.enregistree_avec_delai(etat, f"pour {_quand_dit(faits['heure_annoncee'], maintenant_, fuseau)}"))
+        # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` ``_enregistrer``) : la même forme que l'annonce d'un délai.
+        faits["quand_dit"] = f"pour {_quand_dit(faits['heure_annoncee'], maintenant_, fuseau)}"
+        return Resultat("ENREGISTREE", faits, TSC.commande_enregistree(faits))
     a = annonce["annonce"]
     faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
-    return Resultat("ENREGISTREE", faits, PHRASES_DITES.enregistree_avec_delai(etat, dite(a, fuseau)))
+    faits["quand_dit"] = dite(a, fuseau)
+    return Resultat("ENREGISTREE", faits, TSC.commande_enregistree(faits))
 
 
 @dataclass
@@ -887,11 +889,9 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
             "SELECT numero, numero_court, heure_annoncee, total FROM mark.resto_commande WHERE site_id = $1 AND cle_doublon = $2 AND statut <> 'annulee'",
             etablissement_id, cle)
         if existante is not None:
-            return Resultat(
-                "DEJA_FAIT",
-                {"numero": str(existante["numero"]), "numero_court": existante["numero_court"], "heure_annoncee": existante["heure_annoncee"], "total": existante["total"]},
-                PHRASES_DITES.deja_enregistree(_heure_dite(existante["heure_annoncee"], fuseau) if existante["heure_annoncee"] else None),
-            ), numero, ""
+            deja = {"numero": str(existante["numero"]), "numero_court": existante["numero_court"], "heure_annoncee": existante["heure_annoncee"], "total": existante["total"],
+                    "quand_dit": _heure_dite(existante["heure_annoncee"], fuseau) if existante["heure_annoncee"] else None}
+            return Resultat("DEJA_FAIT", deja, TS.deja_enregistree(deja)), numero, ""
         prefixe = _prefixe_du_numero(
             module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,
             reglages["prefixe_numero_court"],

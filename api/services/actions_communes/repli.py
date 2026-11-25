@@ -126,6 +126,22 @@ CONSIGNE_DE_CE_QUE_LE_CODE_DIT = (
 )
 
 
+CONSIGNE_DES_CHIFFRES_EXIGES = (
+    "- Ta réponse précédente n'a pas été dite : elle ne disait pas ces valeurs du fait accompli. Redis-la avec ces valeurs, telles que les faits les donnent, sans prix et sans question "
+    "(le code dit la suite juste après ta phrase) : "
+)
+
+
+def consigne_des_chiffres_exiges(etat: Any) -> str | None:
+    """C6 n° 5 : la consigne qui relance le modèle quand sa phrase ne dit pas les valeurs que le code exige du fait accompli (``etat.exiges``, l'heure de la commande enregistrée) ;
+    ``None`` quand la relance du tour est déjà faite (même compteur que les autres relances, C5). Les valeurs sont du JSON, jamais de la prose. L'appelant garde l'état."""
+    if etat.relance_du_fait:
+        return None
+    etat.relance_du_fait = True
+    etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True
+    return CONSIGNE_DES_CHIFFRES_EXIGES + json.dumps(etat.exiges or {}, ensure_ascii=False, default=str)
+
+
 def consigne_de_ce_que_le_code_dit(etat: Any) -> str | None:
     """La consigne qui relance le modèle quand sa phrase dit ce que le code dit après elle ; ``None`` quand la relance du tour est déjà faite. L'appelant garde l'état."""
     if etat.relance_du_fait:

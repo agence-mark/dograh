@@ -10,7 +10,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.commande import panier as P
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES, textes_de_secours as TS
+from api.services.commande import textes_de_secours as TS
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -172,5 +172,5 @@ async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages
     elif c["statut"] in STATUTS_PERDUS:
         phrase = TS.commande_pas_passee(faits)
     else:
-        phrase = PHRASES_DITES.enregistree_retrouvee(c.get("quand_dit"))
+        phrase = TS.commande_retrouvee(faits)
     return _avec(_r("OK", faits, phrase), p)

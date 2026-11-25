@@ -21,8 +21,7 @@ from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CL
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
-CLE_CONFIRMATION = "confirmation_sans_question"  # le fait accompli que le code dit, sans la question qui le suit ; gardé avec le résultat, jamais montré au modèle
-from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, poser_la_relecture, regler
+from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, poser_la_relecture, regler, rendu_de_monnaie
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
 
@@ -166,8 +165,8 @@ def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: di
 
 
 async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, chiffre: Resultat, paiement: dict[str, Any]) -> Resultat:
-    """Lot 4 (M39, M40) : l'enregistrement, une fois par appel (E30) ; le récapitulatif approuvé en est la preuve (son jeton). La confirmation est dite
-    par le code mot pour mot, avec le rendu de monnaie (C11) et la question qui rend la parole (M108)."""
+    """Lot 4 (M39, M40) : l'enregistrement, une fois par appel (E30) ; le récapitulatif approuvé en est la preuve (son jeton). C6 n° 5 (décision d'Evan 25/11 9 h 30) : le résultat
+    porte des faits (l'heure dite ``quand_dit``, le mode, le rendu de monnaie ``rendu``) ; le modèle dit la confirmation, la porte dit ensuite le rendu (motif réglé) et la question M108."""
     client = p["client"]
     if p.get("habitude"):
         if not await retenir_une_habitude(source, client["telephone"], p["habitude"]):
@@ -177,16 +176,12 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
     r = await source.enregistrer(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
         faits = {**r.faits, "monnaie": paiement["monnaie"]}
+        rendu = rendu_de_monnaie(paiement)
+        if rendu:
+            faits["rendu"] = rendu
         ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits=P.serialisable(faits), empreinte=P.empreinte(p))
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
-        suggestion = " ".join(t for t in (r.suggestion.strip(), dire_le_rendu_de_monnaie(paiement)) if t)
-        question = (regles.question_apres_enregistrement or "").strip()
-        confirmation = suggestion
-        if statut != "DEJA_FAIT" and question and suggestion:
-            # M108 (appels 2592, 2593) : la confirmation finit par une question : la parole revient à la personne.
-            suggestion = f"{suggestion} {question}"
-        # Le fait accompli sans la question finale, à part : la porte lui donne la question qui est due (celle en attente, sinon la réglée), jamais en coupant le texte.
-        return _avec(Resultat(statut, {**faits, CLE_CONFIRMATION: confirmation} if statut != "DEJA_FAIT" and confirmation else faits, suggestion), p)
+        return _avec(Resultat(statut, faits, r.suggestion.strip()), p)  # la suggestion : le texte de secours de la source, jamais dit (le fait accompli gardé au journal)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)  # la relecture repart : l'accord d'avant ne vaut plus
         return poser_la_relecture(source, p, chiffre)
@@ -240,7 +235,7 @@ async def _finaliser(
     qui a changé). Le total est celui de la source."""
     deja = p.get("enregistree")
     if deja and p["lignes"]:
-        return _avec(Resultat("DEJA_FAIT", dict(deja), PHRASES_DITES.deja_enregistree(None)), p)
+        return _avec(Resultat("DEJA_FAIT", dict(deja), TS.deja_enregistree({})), p)
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque

@@ -39,6 +39,7 @@ RAPPEL_SANS_OUTIL = "- Ta réponse précédente n'avait pas d'appel d'outil : el
 SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refus", "repli_a", "chiffre"
 # C6 : la phrase du modèle (la relecture) dit déjà ce que le CODE dit juste après elle (la question, le total) : retenue, le modèle est relancé une fois (``repli.consigne_de_ce_que_le_code_dit``).
 CE_QUE_LE_CODE_DIT = "dit_ce_que_le_code_dit"
+CHIFFRES_EXIGES = "chiffres_exiges"  # C6 n° 5 : la phrase du modèle ne dit pas les valeurs exigées du fait accompli (l'heure) : relancée une fois, puis le code redit le fait accompli
 SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le modèle est relancé avec le fait (C5)
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
@@ -66,6 +67,7 @@ class EtatDuTour:
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
     jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
+    exiges: dict | None = None  # C6 n° 5 : les valeurs que la phrase du modèle doit dire avant la suite du code (l'heure de la commande enregistrée, ``porte_les_chiffres``) ; ``None`` : rien n'est exigé
     total_a_dire: dict | None = None  # C6 : la phrase du total que le code dit après la relecture du modèle (``{"jeton", "texte"}``) ; notée au journal quand elle part à la voix (``noter_le_total_dit``)
     relance_du_fait: bool = False  # C5 : le modèle a été relancé avec le fait dans ce tour (une fois par tour de la personne, remis à zéro avec l'état)
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
@@ -228,6 +230,15 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
     etat.suffixe = etat.suffixe_lu = None
     noter_le_total_dit(p, etat, dit)
+    return dit
+
+
+def fait_puis_la_suite(fait: str | None, etat: EtatDuTour) -> str | None:
+    """C6 n° 5 : quand la phrase du modèle manque, le fait accompli que le code a gardé au journal, puis la suite qu'il dit après la phrase (le rendu, la question M108) ; dans cet ordre,
+    bout à bout, sans rien composer. La suite n'est dite qu'une fois. ``None`` : rien à dire."""
+    dit = " ".join(x for x in (fait, etat.suffixe) if x) or None
+    etat.suffixe = etat.suffixe_lu = None
+    etat.exiges = None
     return dit
 
 

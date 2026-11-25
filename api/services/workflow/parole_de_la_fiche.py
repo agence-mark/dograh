@@ -16,7 +16,8 @@ from loguru import logger
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import journal_du_dit as J
-from api.services.actions_communes.repli import consigne_de_ce_que_le_code_dit, consigne_de_relance
+from api.services.actions_communes.barriere_des_chiffres import porte_les_chiffres
+from api.services.actions_communes.repli import consigne_de_ce_que_le_code_dit, consigne_des_chiffres_exiges, consigne_de_relance
 from api.services.commande import panier as P
 from api.services.workflow.verite_des_actions import Retenue, tracer_une_retenue
 
@@ -96,8 +97,15 @@ class VerificateurDeLaFiche:
                 PAROLE.noter_le_total_dit(p, etat, a_dire)  # la phrase du total est dite, seule : la relecture est entendue
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "", a_dire=a_dire)
+        if raison is None and etat.exiges is not None and not porte_les_chiffres(texte, etat.exiges):
+            # C6 n° 5 : la confirmation du modèle ne dit pas l'heure (valeur exigée) : relancée une fois ; ensuite le code redit le fait accompli, puis sa suite (jamais un tour muet)
+            consigne = consigne_des_chiffres_exiges(etat)
+            a_dire = None if consigne else PAROLE.fait_puis_la_suite(J.fait_accompli(p), etat)
+            PAROLE.garder(fiche, etat)
+            return Retenue(PAROLE.CHIFFRES_EXIGES, texte[:80], consigne or "", a_dire=a_dire)
         if raison is None:
-            # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33)
+            # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33), ou le rendu et la question après la confirmation (C6)
+            etat.exiges = None
             dit = PAROLE.avec_le_suffixe(texte, etat, p)
             if not dit and PAROLE.question_oubliee(texte, etat, p) and (consigne := consigne_de_relance(p, fiche, etat, connecteur)):
                 # Lot 20 : rien n'a changé dans ce tour et une question attend, la phrase (« je n'ai pas compris ») ne la pose pas : le modèle repasse avec elle (C5)
@@ -120,7 +128,9 @@ class VerificateurDeLaFiche:
             PAROLE.garder(fiche, etat)
             return Retenue(raison, texte[:80], consigne)
         a_dire = J.fait_accompli(p)
-        if etat.suffixe:
+        if etat.exiges is not None:
+            a_dire = PAROLE.fait_puis_la_suite(a_dire, etat)  # C6 n° 5 : le fait accompli, puis la suite du code (le rendu, M108), dans cet ordre
+        elif etat.suffixe:
             # Conversation du lot 12 (PRX5-A) : le prix lu que le code devait dire après la phrase n'est pas perdu quand la phrase (au chiffre) est retenue jusqu'au bout
             a_dire = " ".join(x for x in (etat.suffixe, a_dire) if x)
             etat.suffixe = etat.suffixe_lu = None
@@ -175,6 +185,9 @@ class VerificateurDeLaFiche:
                 tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="relance du fait")
                 return Retenue(PAROLE.SILENCE, "", consigne)
             a_dire = J.fait_accompli(p)
+            if etat.exiges is not None:
+                a_dire = PAROLE.fait_puis_la_suite(a_dire, etat)  # C6 n° 5 : le fait accompli, puis la suite du code (le rendu, M108)
+                PAROLE.garder(fiche, etat)
             if not a_dire:
                 tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="phrase réglée")
                 return Retenue(PAROLE.SILENCE, "", "")

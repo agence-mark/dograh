@@ -32,6 +32,7 @@ from api.db.bases_clients.restauration_commande import commande_complete
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import repli as R
+from api.services.actions_communes import table_de_parole as TABLE
 from api.services.commande import panier as P
 from api.services.groupe import passations as PASSATIONS
 from api.services.workflow import parole_de_la_fiche as PF
@@ -67,7 +68,8 @@ class Observation:
 
     @property
     def dit_par_le_code(self) -> str:
-        return " ".join(v for v in (self.textes or {}).values() if v)
+        # C6 n° 5 (décision d'Evan 25/11 9 h 30) : ce qui part à la voix par le code : ``avant`` et ``suffixe`` ; le reste des textes (valeurs exigées, fait gardé au journal) n'est pas dit
+        return " ".join(str(v) for k, v in (self.textes or {}).items() if k in ("avant", "suffixe") and v)
 
 
 def lignes_de(p: dict[str, Any]) -> Counter:
@@ -403,7 +405,8 @@ class Partie:
         o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, consigne, base, prise, nombre_de_fins if fiche is not None else 0,
                         relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait)
         self.observations.append(o)
-        self.journal.append(o.dit_par_le_code)
+        # C6 n° 5 (décision d'Evan 25/11 9 h 30) : un fait accompli neuf est dit par le modèle, suivi de la question M108 du code ; ce que la personne entend de neuf est ce fait (gardé au journal)
+        self.journal.append(" ".join(x for x in ((o.textes or {}).get("fait_accompli"), o.dit_par_le_code) if x))
         return o
 
     async def _lire_la_base(self) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -650,14 +653,14 @@ def rc4(o: Observation) -> list[Faute]:
     if o.fiche is not None and not o.avant.get("annulee") and o.apres.get("annulee"):
         fait = (("annul", "ne l'enregistre pas"), "annulée")  # les deux phrases du code pour une annulation (``annuler`` ; « Je ne l'enregistre pas. »)
     if fait:
-        dit = (o.textes or {}).get("avant") or ""
+        dit = (o.textes or {}).get("avant") or (o.textes or {}).get("fait_accompli") or ""  # C6 n° 5 : la confirmation dite par le modèle ; le fait gardé au journal
         if not dit:
             f.append(("RC4", f"la commande est {fait[1]} et le code ne le dit pas (aucune phrase du fait accompli ; dit : « {o.dit_par_le_code} »)"))
         elif not any(m in dit.casefold() for m in fait[0]):
             f.append(("RC4", f"la commande est {fait[1]} : la phrase dite par le code « {dit} » n'est pas celle du fait accompli"))
         elif J.fait_accompli(o.apres) != dit:
             f.append(("RC4", f"la commande est {fait[1]} : la phrase dite « {dit} » n'est pas celle que le code garde comme dernier fait dit (« {J.fait_accompli(o.apres)} »)"))
-        elif d is not None and d.mode == PAROLE.A_DIRE_SEUL and dit not in (d.a_dire or "") and d.motif != "texte_du_code":
+        elif d is not None and d.mode == PAROLE.A_DIRE_SEUL and dit not in (d.a_dire or "") and d.motif not in ("texte_du_code", TABLE.FAIT_ACCOMPLI):
             f.append(("RC4", f"la commande est {fait[1]} : la parole décidée (« {d.a_dire} ») n'est pas la phrase du fait accompli"))
     return f
 

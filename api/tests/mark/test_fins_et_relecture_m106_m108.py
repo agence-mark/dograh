@@ -80,20 +80,28 @@ async def test_m108_la_confirmation_de_la_commande_finit_par_la_question(commerc
     a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
     r = await a.confirmer()
-    assert r.statut == "ENREGISTREE" and r.suggestion.startswith("Votre commande est enregistrée") and r.suggestion.endswith(". " + QUESTION)
-    assert r.suggestion.count("?") == 1
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30 ; P4) : le moteur rend le fait (texte de secours, jamais dit) ; la question M108 suit la phrase du modèle, posée par la porte
+    from api.services.commande.porte import textes_du_code
+
+    assert r.statut == "ENREGISTREE" and r.suggestion.startswith("Votre commande est enregistrée") and "?" not in r.suggestion
+    assert textes_du_code({}, r, None, [], False, None, QUESTION)["suffixe"] == QUESTION
     deja = await a.confirmer()
     assert deja.statut == "DEJA_FAIT" and "?" not in deja.suggestion
 
 
 async def test_m108_la_question_reglee_ou_eteinte(commerce):
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : la question réglée est dite par la porte après la phrase du modèle (``suffixe``) ; éteinte, rien ne suit
+    from api.services.commande.porte import textes_du_code
+
     a = await Appel(commerce, vente_en_plus=False, question_apres_enregistrement="Autre chose pour vous ?").pret()
     await a.jusqu_a_la_relecture()
-    assert (await a.confirmer()).suggestion.endswith(". Autre chose pour vous ?")
+    r = await a.confirmer()
+    assert textes_du_code({}, r, None, [], False, None, a.regles.question_apres_enregistrement)["suffixe"] == "Autre chose pour vous ?"
     b = await Appel(commerce, vente_en_plus=False, affiche="+33699999999", question_apres_enregistrement=None).pret(A("coca", 2))
     await b.jusqu_a_la_relecture()
     r = await b.confirmer()
-    assert r.statut == "ENREGISTREE" and r.suggestion.endswith(".") and "?" not in r.suggestion
+    assert r.statut == "ENREGISTREE" and "?" not in r.suggestion
+    assert textes_du_code({}, r, None, [], False, None, b.regles.question_apres_enregistrement)["suffixe"] == ""
 
 
 async def test_m108_la_confirmation_dite_par_le_code_rend_la_parole_et_note_la_question():

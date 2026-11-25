@@ -36,7 +36,6 @@ from api.services.commande.moteur.mode_et_adresse import (
     choisir_mode,
     verifier_adresse,
 )
-from api.services.commande.moteur.enregistrement import CLE_CONFIRMATION
 from api.services.commande.moteur.articles import (
     CLE_CANDIDATS,
     CLE_OPTION_DITE,
@@ -55,7 +54,7 @@ from api.services.commande.moteur.articles import (
     vider_commande,
 )
 from api.services.commande.moteur.reglement import (
-    dire_le_rendu_de_monnaie,
+    rendu_de_monnaie,
     poser_la_relecture,
     relecture_entendue,
 )
@@ -91,7 +90,6 @@ __all__ = [
     "Appelant",
     "CLE_NOTES_DU_GREFFIER",
     "CLE_CANDIDATS",
-    "CLE_CONFIRMATION",
     "CLE_OPTION_DITE",
     "CLE_REF_CHOISIE",
     "METIER",
@@ -108,7 +106,7 @@ __all__ = [
     "cle_de_la_remise",
     "commande_de_l_appel",
     "contenu_dit",
-    "dire_le_rendu_de_monnaie",
+    "rendu_de_monnaie",
     "envoyer_un_message",
     "etat_apres_ajout",
     "etat_ouverture",

@@ -12,9 +12,8 @@ from typing import Any
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes import parole as PAROLE
 from api.services.commande import etape as ETAPE
-from api.services.commande import lecture, panier as P, phrases_dites_par_le_code as PHRASES_DITES, textes_de_secours as TS
+from api.services.commande import lecture, panier as P, textes_de_secours as TS
 from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
-from api.services.mots_dits import montant_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import _avec, _r
@@ -141,12 +140,13 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
     return paiement, None
 
 
-def dire_le_rendu_de_monnaie(paiement: dict[str, Any]) -> str:
-    """Lot 4 (C11) : le rendu calculé par le code, dit mot pour mot dans la confirmation ; rien quand il n'y a pas de monnaie à rendre."""
+def rendu_de_monnaie(paiement: dict[str, Any]) -> dict[str, int] | None:
+    """Lot 4 (C11) : le rendu calculé par le code, en faits (``billet``, ``monnaie``, en centimes) ; ``None`` quand il n'y a pas de monnaie à rendre. C6 n° 5 (décision d'Evan 25/11 9 h 30) :
+    la porte le dit par le motif réglé ``rendu_de_monnaie``, après la confirmation du modèle."""
     monnaie = int(paiement.get("monnaie") or 0)
     if monnaie <= 0 or not paiement.get("rendu_sur"):
-        return ""
-    return PHRASES_DITES.rendu_de_monnaie(billet=montant_en_lettres(paiement["rendu_sur"]), monnaie=montant_en_lettres(monnaie))
+        return None
+    return {"billet": int(paiement["rendu_sur"]), "monnaie": monnaie}
 
 
 def _relecture_deja_dite(p: dict[str, Any], total: int) -> Resultat:

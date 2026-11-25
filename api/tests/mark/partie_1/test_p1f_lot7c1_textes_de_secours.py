@@ -583,7 +583,9 @@ async def test_un_billet_sans_reglement_en_main_demande_lequel(appel):
 
 
 def test_le_rendu_de_monnaie_et_les_relectures_se_disent_par_les_phrases_du_code():
-    assert moteur.dire_le_rendu_de_monnaie({"monnaie": 500, "rendu_sur": 2500}) == PHRASES_DITES.rendu_de_monnaie(billet="vingt-cinq euros", monnaie="cinq euros") == "Sur votre billet de vingt-cinq euros, on vous rendra cinq euros."
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le rendu est un fait du moteur ; la porte le dit par le motif réglé ``rendu_de_monnaie`` (test_p1f_lot7c6_confirmation_au_modele.py)
+    assert moteur.rendu_de_monnaie({"monnaie": 500, "rendu_sur": 2500}) == {"billet": 2500, "monnaie": 500}
+    assert moteur.rendu_de_monnaie({"monnaie": 0, "rendu_sur": 2500}) is None
     assert PHRASES_DITES.relecture_complete(corps="une Reine, à emporter", total="douze euros") == "Je vous relis : une Reine, à emporter. Cela fait douze euros. C'est bon ?"
     assert PHRASES_DITES.relecture_apres_changement(changes="On retire la Reine. ", total="dix euros") == "On retire la Reine. Cela fait maintenant dix euros. C'est bon ?"
     assert PHRASES_DITES.relecture_apres_changement(changes="", total="dix euros") == "Cela fait maintenant dix euros. C'est bon ?"
