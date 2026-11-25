@@ -132,7 +132,7 @@ async def test_l_adresse_dite_donne_la_zone_de_l_etablissement(commerce):  # noq
     r = await verifier_adresse(commerce.c, commerce.a, "je suis à Chantilly")
     assert (r.statut, r.faits["zone"]["id"]) == ("RETENU", ids["Chantilly"])  # l'ordre : la zone nommée avant le rayon
     r = await verifier_adresse(commerce.c, commerce.a, "7 rue Victor Hugo, Compiègne")
-    assert r.statut == "HORS_ZONE" and r.faits["commune"]["nom"] == "Compiègne" and "Compiègne" in r.suggestion
+    assert r.statut == "HORS_ZONE" and r.faits["commune"]["nom"] == "Compiègne" and r.suggestion == ""
     assert (await verifier_adresse(commerce.c, commerce.a, "rue de Paris")).statut == "INTROUVABLE"
     assert (await verifier_adresse(commerce.c, commerce.a, "  ")).statut == "ARGUMENT_INVALIDE"
 

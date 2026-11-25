@@ -119,7 +119,7 @@ def _livrees(base: BaseCommunes, lignes: list[dict], centre: tuple[float, float]
 def _hors_zone(base: BaseCommunes, commune: zs.Commune, lignes: list[dict], centre: tuple[float, float] | None) -> Resultat:
     livrees = _livrees(base, lignes, centre)
     faits = {"commune": _commune_dite(base, commune), "communes_livrees": livrees}
-    return Resultat("HORS_ZONE", faits, TSC.hors_zone(faits))
+    return Resultat("HORS_ZONE", faits, "")
 
 
 def commune_et_departement_dits(base: BaseCommunes, texte: str) -> zs.Commune | None:
@@ -147,11 +147,11 @@ async def verifier_adresse(connexion: asyncpg.Connection, etablissement_id: int,
     ``HORS_ZONE`` quand elle est sûre mais hors de toutes les zones ; ``AMBIGU`` pour tout ce qui est à confirmer (jamais une zone) ; ``INTROUVABLE`` sans
     commune entendue. Rend ``ARGUMENT_INVALIDE`` pour un texte vide."""
     if len((texte or "").strip()) < MOT_LONG_MIN:
-        return Resultat("ARGUMENT_INVALIDE", {}, TSC.adresse_non_comprise({}), "adresse")
+        return Resultat("ARGUMENT_INVALIDE", {}, "", "adresse")
     base = base or await obtenir_base()
     lignes = await zones_de_l_etablissement(connexion, etablissement_id)
     if not lignes:
-        return Resultat("HORS_ZONE", {"raison": "aucune_zone"}, TSC.hors_zone({"raison": "aucune_zone"}))
+        return Resultat("HORS_ZONE", {"raison": "aucune_zone"}, "")
     par_id = {r["id"]: r for r in lignes}
     centre = await centre_de_l_etablissement(connexion, etablissement_id, base)
     nommee = commune_et_departement_dits(base, texte)
@@ -170,7 +170,7 @@ async def verifier_adresse(connexion: asyncpg.Connection, etablissement_id: int,
             return Resultat("AMBIGU", faits, TSC.commune_ambigue(faits), "commune")
         if voisine is not None and zs.zone_de_la_commune([_zone_pure(r) for r in lignes], voisine, centre) is None:
             return _hors_zone(base, voisine, lignes, centre)
-        return Resultat("INTROUVABLE", {}, TSC.quelle_commune({}), "commune")
+        return Resultat("INTROUVABLE", {}, "", "commune")
     if verdict.statut == zs.AMBIGU:
         candidats = [{**_commune_dite(base, c.commune), "dans_une_zone": c.zone is not None} for c in verdict.candidats]
         faits = {"candidats": candidats}

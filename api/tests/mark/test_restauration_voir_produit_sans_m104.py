@@ -44,7 +44,7 @@ async def test_pizzas_sans_gluten_nomme_seulement_celles_que_la_donnee_prouve(co
     assert r.statut == "OK", r
     assert r.faits["recherche"] == "sans" and r.faits["code"] == "gluten" and len(r.faits["categories"]) == 3
     assert r.faits["sans"] == ["Margherita"] and r.faits["inconnus"] == 1
-    assert r.suggestion == "D'après la fiche, Margherita ne contient pas de gluten. Pour les autres, je ne peux pas le garantir."
+    assert r.suggestion == ""  # C7a : les articles sans gluten et ``inconnus`` sont des faits
     # même question, par le paramètre : « pizzas » et « gluten » séparés
     assert (await vu("des pizzas", "sans gluten")).faits["sans"] == ["Margherita"]
 
@@ -77,7 +77,7 @@ async def test_toute_la_carte_quand_rien_n_est_nomme(commerce):
     assert r.statut == "OK" and r.faits["code"] == "lait" and r.faits["categories"] == []
     assert r.faits["sans"], r  # les boissons de la carte d'essai portent leur donnée
     assert not any(n in r.faits["sans"] for n in ("Margherita", "Regina"))
-    assert "ne contiennent pas de lait" in r.suggestion
+    assert r.suggestion == ""
     # « un plat sans lactose » : « plat » ne nomme aucune catégorie de cette carte, la carte entière
     assert (await vu("un plat sans lactose")).faits["sans"] == r.faits["sans"]
 

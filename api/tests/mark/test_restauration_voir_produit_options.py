@@ -40,7 +40,7 @@ async def test_tiramisu_pistache_retenu_avec_l_option_et_contient_les_fruits_a_c
     r = await vu("tiramisu pistache", "fruits à coque")
     assert r.statut == "OK", r
     assert r.faits["signalement"] == "present" and r.faits["code"] == "fruits_a_coque" and r.faits["option"] == "Pistache"
-    assert r.suggestion.startswith("Oui") and "Pistache" in r.suggestion
+    assert r.suggestion == ""  # C7a : la réponse est dans les faits (signalement, code, option)
     # la composition aussi : plus de doute sur l'article
     assert (await vu("tiramisu pistache")).statut == "OK"
 
@@ -50,19 +50,19 @@ async def test_tiramisu_sans_option_dit_que_ca_depend_et_nomme_l_option(commerce
     r = await vu("tiramisu", "fruits à coque")
     assert r.statut == "OK" and r.faits["signalement"] == "selon_option"
     assert r.faits["options_qui_contiennent"] == ["Pistache"]
-    assert "Pistache" in r.suggestion and "ne contient pas" not in r.suggestion
-    # les autres parfums n'ont aucune donnée : jamais garantis
-    assert "garantir" in r.suggestion
+    assert r.suggestion == ""
+    # les autres parfums n'ont aucune donnée : jamais garantis (fait ``autres_a_confirmer``)
+    assert r.faits["autres_a_confirmer"] is True
 
 
 async def test_option_sans_donnee_jamais_ne_contient_pas(commerce):
     vu = _vu(await _appel(commerce))
     r = await vu("tiramisu classic", "fruits à coque")
     assert r.statut == "OK" and r.faits["signalement"] == "inconnu" and r.faits["option"] == "Classic"
-    assert "ne contient pas" not in r.suggestion and "garantir" in r.suggestion and "équipe" in r.suggestion
+    assert r.suggestion == "" and r.faits["signalement"] == "inconnu"  # C7a : « non garanti » est le signalement inconnu
     # la liste des signalements, demandée sans en nommer un : la réserve de l'option est dite
     liste = await vu("tiramisu classic", "des allergies")
-    assert liste.faits["signalement"] == "liste" and "garantir" in liste.suggestion
+    assert liste.faits["signalement"] == "liste" and liste.suggestion == ""
 
 
 async def test_option_dont_la_donnee_existe_est_lue(commerce):
@@ -79,7 +79,7 @@ async def test_option_dont_la_donnee_existe_est_lue(commerce):
     appel.source.article = article_avec_donnee
     vu = _vu(appel)
     r = await vu("tiramisu classic", "fruits à coque")
-    assert r.faits["signalement"] == "absent_de_la_fiche" and r.suggestion.startswith("D'après la fiche")
+    assert r.faits["signalement"] == "absent_de_la_fiche" and r.suggestion == ""
 
 
 async def test_un_reste_qui_n_est_pas_une_option_reste_un_doute(commerce):

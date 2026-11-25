@@ -20,7 +20,7 @@ async def test_m1_le_minimum_est_dit_des_l_adresse(kebab):
     await moteur.choisir_mode(a.source, a.p, a.regles, "livraison")
     r = await moteur.verifier_adresse(a.source, a.p, a.regles, ADRESSE)
     assert r.statut == "RETENU", r
-    assert "minimum" in (r.suggestion or "") and "quinze euros" in r.suggestion, r.suggestion
+    assert r.faits["minimum_dit"] == "quinze euros", r.faits  # C7a : un fait, le modèle le dit
 
 
 async def test_m2_sans_minimum_rien_n_est_ajoute(kebab):
@@ -28,4 +28,4 @@ async def test_m2_sans_minimum_rien_n_est_ajoute(kebab):
     await moteur.choisir_mode(a.source, a.p, a.regles, "livraison")
     r = await moteur.verifier_adresse(a.source, a.p, a.regles, ADRESSE)
     assert r.statut == "RETENU", r
-    assert "minimum" not in (r.suggestion or ""), r.suggestion
+    assert "minimum_dit" not in r.faits and "minimum" not in (r.suggestion or ""), r.faits
