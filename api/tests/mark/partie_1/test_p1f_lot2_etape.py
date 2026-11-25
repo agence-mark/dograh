@@ -178,14 +178,14 @@ def test_aucun_module_ne_lit_le_drapeau_de_l_accord_sous_son_nom():
 
 def test_les_connecteurs_lisent_l_etape_et_gardent_la_forme_de_leurs_retours():
     """n° 108 : ``_etat_final`` rend toujours ``{"enregistree": bool, "articles", "mode"}`` (les tests générés stockés chez les clients le comparent) et
-    ``_action_ouverte`` s'éteint à la fin de la commande, tous deux lus de l'étape."""
+    ``_action_ouverte`` (ouverte dès un mode ou une ligne, éteinte à la fin de la commande) sont lus de l'étape."""
     from api.services.integrations.connectors.actions import commande as A
 
     p = P.nouveau()
     p["lignes"] = [{"nom": "Regina", "quantite": 2}]
     p["mode"] = "emporter"
     fiche = {P.CLE: p}
-    assert A._action_ouverte(fiche) == {"outil": "fiche", "attend_une_reponse": False}
+    assert A._action_ouverte(fiche) == {"outil": "fiche", "attend_une_reponse": False, "a_finir": True}
     assert A._etat_final(fiche) == {"enregistree": False, "articles": {"Regina": 2}, "mode": "emporter"}
     E.transition(p, E.ACCORD_DONNE)
     E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")

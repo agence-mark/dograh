@@ -80,7 +80,7 @@ def du_dossier(fiche: dict | None) -> dict[str, Any]:
 
 
 def repartir_de_zero(fiche: dict | None) -> dict[str, Any]:
-    """Un panier neuf (après une commande enregistrée : la suivante est une autre commande). Le client reste connu."""
+    """Un panier neuf (après une commande enregistrée : la suivante est une autre commande). Le client reste connu, et le mode aussi : le panier neuf est donc une commande commencée (``_action_ouverte`` la voit dès le mode)."""
     ancien = du_dossier(fiche)
     neuf = nouveau()
     neuf["client"] = dict(ancien.get("client") or {})

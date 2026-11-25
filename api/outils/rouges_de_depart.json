@@ -1,11 +1,5 @@
 {
-  "commit_de_depart": "7bdfd515",
-  "note": "vus rouges à la base 7bdfd515 dans une copie propre, avant toute modification du lot 1 ; à corriger par le lot qui tient leur fichier (lots 2 et 3 : étape et exécution) ; lot 7b-C5 : test_profondeur_1[E1, E2, E3, E6, E9] rouges depuis cc3f71b4 (G36 : l'appel doit revenir à l'agent de la commande ouverte), à corriger au lot 8 ; les combinaisons hors longues sont jouées par la garde du lot 7",
-  "tests": [
-    "tests/mark/partie_1/test_combinaisons.py::test_profondeur_1[E1]",
-    "tests/mark/partie_1/test_combinaisons.py::test_profondeur_1[E2]",
-    "tests/mark/partie_1/test_combinaisons.py::test_profondeur_1[E3]",
-    "tests/mark/partie_1/test_combinaisons.py::test_profondeur_1[E6]",
-    "tests/mark/partie_1/test_combinaisons.py::test_profondeur_1[E9]"
-  ]
+ "commit_de_depart": "7bdfd515",
+ "note": "vus rouges à la base 7bdfd515 dans une copie propre, avant toute modification du lot 1 ; à corriger par le lot qui tient leur fichier (lots 2 et 3 : étape et exécution)",
+ "tests": []
 }
