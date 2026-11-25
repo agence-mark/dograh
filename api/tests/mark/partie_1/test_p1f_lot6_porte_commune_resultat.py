@@ -36,7 +36,7 @@ def test_le_premier_cas_vrai_donne_son_texte_et_aucun_autre_n_est_calcule():
 def test_les_deux_metiers_disent_leur_texte_par_le_meme_mecanisme(monkeypatch):
     monkeypatch.setattr(PC, "premier_cas", lambda cas: "dit par le mecanisme commun")
     refus = Resultat("REFUSEE", {"detail": "complet"}, "Plus de place.")
-    assert reservation.textes_du_code({}, refus, "reserver", None, False) == {"avant": "dit par le mecanisme commun"}
+    assert reservation.textes_du_code({}, refus, "reserver", None, False) == {}  # C6 n° 9 (décision d'Evan 25/11 9 h 30) : la réservation ne dit plus rien mot pour mot (n° 8 et 9)
     # C6 n° 5 (décision d'Evan 25/11 9 h 30) : la confirmation est dite par le modèle ; le mécanisme commun se voit sur un fait que le code dit encore (l'annulation, jusqu'au n° 7)
     ok = Resultat("OK", {"commande_annulee": "A1"}, "")
     assert commande.textes_du_code({}, ok, None, [], False) == {"avant": "dit par le mecanisme commun"}

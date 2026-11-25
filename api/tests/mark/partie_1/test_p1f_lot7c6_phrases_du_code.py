@@ -61,7 +61,7 @@ def _xfail(famille: str, raison: str):
     pytest.param("changement_apres_l_enregistrement", id="changement_apres_l_enregistrement"),  # fermée par le commit 6
     _xfail("annulation_de_la_commande", "la question et les deux faits accomplis passent au modèle (commit 7)"),
     pytest.param("relectures_de_la_reservation", id="relectures_de_la_reservation"),  # fermée par le commit 8
-    _xfail("reservation_faite", "réservée, modifiée, annulée passent au modèle (commit 9)"),
+    pytest.param("reservation_faite", id="reservation_faite"),  # fermée par le commit 9
     _xfail("numero_demande", "« quel numéro je note » et le numéro qui s'affiche passent au modèle (commit 10)"),
     _xfail("prix_au_poids", "le prix d'un article au poids passe au modèle, vérifié par la barrière (commit 11)"),
 ])

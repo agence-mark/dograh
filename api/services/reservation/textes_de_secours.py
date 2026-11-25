@@ -121,6 +121,19 @@ def personnes_dites(n: int) -> str:
     return f"{nombre_en_lettres(n)} personne" + ("s" if n > 1 else "")
 
 
+def reservation_enregistree(faits: Faits) -> str:
+    """C6 n° 9 (décision d'Evan 25/11 9 h 30) : le fait accompli que le MODÈLE dit ; ce texte n'est gardé qu'au journal du dit, que le repli redit quand le modèle se tait."""
+    return f"C'est réservé pour {personnes_dites(faits['couverts'])}, {faits['quand_dit']}, au nom de {faits['prenom']}."
+
+
+def reservation_modifiee(faits: Faits) -> str:
+    return f"C'est modifié : {faits['quand_dit']}, {personnes_dites(faits['couverts'])}."
+
+
+def reservation_annulee(faits: Faits) -> str:
+    return "C'est annulé."
+
+
 def deja_reservee(faits: Faits) -> str:
     return f"C'est déjà réservé pour {faits['quand_dit']}."
 

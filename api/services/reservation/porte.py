@@ -6,9 +6,9 @@
 
 Même forme que ``commande/porte.py`` : les barrières de la fiche entière (``actions_communes/barrieres.py``, aucune copie), l'idempotence, les valeurs
 libres qu'elle n'a pas dites, puis les cases ; la porte traduit le retour du moteur en enveloppe (``actions_communes/enveloppe.py``) et numérote la
-question (« Q-n ») que le modèle posera : ``recapitulatif``, ``recap_modif``, ``annulation``, ``choix``. C6 n° 8 (décision d'Evan 25/11 9 h 30) : les relectures
-sont dites par le modèle d'après les faits, les personnes et l'heure exigées de sa phrase (P2) ; le code ne dit que la question réglée du numéro après elle. Le code dit
-encore mot pour mot la confirmation (``textes_du_code``) ; le reste est dit par le modèle. L'issue de l'appel est posée par l'opération qui la fait (C10).
+question (« Q-n ») que le modèle posera : ``recapitulatif``, ``recap_modif``, ``annulation``, ``choix``. C6 n° 8 et 9 (décision d'Evan 25/11 9 h 30) : les relectures
+et les faits accomplis (réservée, changée, annulée) sont dits par le modèle d'après les faits, les personnes et l'heure exigées de sa phrase (P2) ; le code ne dit que la
+question réglée du numéro après une relecture (``textes_du_code``). L'issue de l'appel est posée par l'opération qui la fait (C10).
 """
 
 from __future__ import annotations
@@ -66,6 +66,11 @@ A_FAIRE_DE_LA_RELECTURE = "relis-lui la réservation avec tes mots d'après les 
 SANS_QUESTION = "sans question : le code pose la question juste après ta phrase"
 AVEC_QUESTION = "puis demande-lui si c'est bon, en une question"
 A_FAIRE_DU_CHANGEMENT = "dis-lui avec tes mots ce qui change dans sa réservation d'après les faits du retour (ce_qui_change), puis demande-lui si c'est bon, en une question"
+A_FAIRE_DU_FAIT_ACCOMPLI = {  # C6 n° 9 : le modèle dit le fait accompli d'après les faits du retour (le code n'en dit plus la phrase)
+    "reserver": "dis-lui avec tes mots que sa réservation est enregistrée, avec le jour, l'heure et le nombre de personnes des faits",
+    "modifier": "dis-lui avec tes mots que sa réservation est changée, avec le jour, l'heure et le nombre de personnes des faits",
+    "annuler": "dis-lui avec tes mots que sa réservation est annulée",
+}
 A_FAIRE_DE_L_ANNULATION = ("demande-lui avec tes mots si elle veut vraiment annuler sa réservation, en disant le jour, l'heure et le nombre de personnes des faits, et propose-lui "
                            "de la déplacer plutôt, en une question ; rien n'est annulé avant son « oui »")
 
@@ -228,17 +233,26 @@ def question_du_code(ctx: Any, dernier: Resultat | None) -> str | None:
     return None
 
 
+def _textes_du_fait_accompli(dernier: Resultat, operation: str | None) -> dict[str, Any]:
+    """C6 n° 9 (décision d'Evan 25/11 9 h 30 ; P2) : la réservation enregistrée, changée ou annulée est dite par le MODÈLE ; sa phrase doit dire les personnes et l'heure (``chiffres_exiges`` ;
+    rien pour une annulation). ``fait_accompli`` : le texte de secours de la base, gardé au journal du dit (le repli le redit quand le modèle se tait), jamais dit à la place du modèle."""
+    faits = dernier.faits or {}
+    geste = "reserver" if dernier.statut in STATUTS_ENREGISTRES else operation
+    exiges = {} if geste == "annuler" else {k: str(v) for k, v in (("personnes", faits.get("personnes")), ("heure", faits.get("heure_dite"))) if v not in (None, "")}
+    return {"chiffres_exiges": exiges, "fait_accompli": dernier.suggestion, "a_faire": A_FAIRE_DU_FAIT_ACCOMPLI.get(geste or "", A_FAIRE_DU_FAIT_ACCOMPLI["reserver"])}
+
+
 def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str | None, nee: dict[str, Any] | None, deja_enregistree: bool,
                    question_du_code: str | None = None) -> dict[str, Any]:
-    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : la confirmation de l'enregistrement, du changement ou de l'annulation (D5, banc :
-    ``deja_dit_par_le_code``). C6 n° 8 : une relecture née dans ce tour est dite par le modèle (``_textes_de_la_relecture``) ; ``question_du_code`` la suit."""
+    """Ce que le code dit lui-même au retour de cette fiche, et ce que le modèle doit dire (C6, décision d'Evan 25/11 9 h 30) : une relecture née dans ce tour (n° 8,
+    ``_textes_de_la_relecture``, ``question_du_code`` la suit) ou le fait accompli (n° 9, ``_textes_du_fait_accompli`` : enregistrée, changée, annulée) sont dits par le modèle ;
+    vide : rien."""
     if nee is not None and nee.get("type") in TYPES_DE_QUESTION.values() and dernier is not None:
         return _textes_de_la_relecture(nee, dernier, question_du_code)
-    avant = PC.premier_cas((
-        (dernier is not None and bool(dernier.suggestion) and (
-            dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)), lambda: dernier.suggestion),
-    ))
-    return {} if avant is None else {"avant": avant}
+    if dernier is not None and bool(dernier.suggestion) and (
+            dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)):
+        return _textes_du_fait_accompli(dernier, operation)
+    return {}
 
 
 def _refus_de_la_fiche(fiche: dict[str, Any], question_avant: dict | None, ctx: Any, montrees: Any) -> dict | None:
@@ -491,6 +505,8 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
             a_faire = "dis-lui qu'il n'y a pas de réservation à ce nom et ce jour ; propose une autre recherche (un autre nom ou un autre jour) ou l'équipe"
     if isinstance(ctx.fiche, dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
+        if textes.get("fait_accompli"):
+            J.dire_le_fait(e, str(textes["fait_accompli"]), tour)  # C6 n° 9 : le fait accompli dit par le modèle ; le journal en garde le texte de secours, que le repli redit
         if "chiffres_exiges" in textes and nee is not None:
             # C6 n° 8 : ce qui prouve que la relecture est entendue (les valeurs exigées, la question du code) ; un « oui » ne vaut accord que pour elle
             etat = PAROLE.etat_du_tour(ctx.fiche)
