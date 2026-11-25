@@ -648,7 +648,7 @@ async def _un_article(
     if trouve.statut != "RETENU" and trouve.faits.get("rangements"):
         return _question_de_rangement(texte, trouve.faits["rangements"])
     if trouve.statut != "RETENU":
-        proches = [c["libelle"] for c in trouve.faits.get("candidats", [])][:3]
+        proches = list(dict.fromkeys(c["libelle"] for c in trouve.faits.get("candidats", [])))[:3]  # deux entrées de la carte au même libellé : un seul nom proposé
         return _r(
             "INTROUVABLE", {"dit": texte, "plus_proches": proches},
             f"Je ne trouve pas « {texte} »." + (f" Le plus proche : {liste_dite(proches)}." if proches else ""),
