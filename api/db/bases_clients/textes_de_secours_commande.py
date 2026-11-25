@@ -48,3 +48,19 @@ def quelle_heure_exactement(faits: Faits) -> str:
 
 def heure_passee(faits: Faits) -> str:
     return "Cette heure est déjà passée, pour quelle heure ?"
+
+
+# --------------------------------------------------------------------------- #
+# La fermeture (``SourceClasseur.etat``) : l'état ne dit que ``statut``, ``reprise_dite`` et ``planifiee_permise``
+# --------------------------------------------------------------------------- #
+
+
+def fermeture(etat: Faits) -> str:
+    reprise = f" Nous reprenons à {etat['reprise_dite']}." if etat.get("reprise_dite") else ""
+    # D15 : quand le réglage du type permet de commander pour plus tard, la fermeture le propose (un créneau de la prochaine ouverture).
+    propose = " Je peux prendre votre commande pour plus tard, sur un créneau de la prochaine ouverture." if etat.get("planifiee_permise") else ""
+    if etat["statut"] == "LIVRAISON_TERMINEE":
+        return "Les livraisons sont terminées pour aujourd'hui." + reprise + propose
+    if etat["statut"] == "PAUSE_TYPE":
+        return "Nous sommes en pause pour le moment." + reprise + propose
+    return "Nous sommes fermés pour le moment." + reprise + propose

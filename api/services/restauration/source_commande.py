@@ -270,29 +270,23 @@ class SourceClasseur:
         sortie = {
             "ouvert": etat["ouvert"], "statut": None if etat["ouvert"] else statut_de_fermeture(etat["raison"]), "raison": etat["raison"],
             "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"], "delai_minutes": etat["delai_minutes"],
-            "planifiee_permise": bool(reglage and reglage["planifiee_permise"]), "phrase": "",
+            "planifiee_permise": bool(reglage and reglage["planifiee_permise"]), "reprise_dite": None, "phrase": "",
             # une pause (de la caisse, du type, forcée) : seule sa reprise compte, jamais la prochaine ouverture des horaires (lot 4, audit § 3.3)
             "en_pause": etat["raison"] in ("caisse_pause", "pause_type", "pause_force"),
         }
         if not etat["ouvert"]:
-            sortie["phrase"] = await self._phrase_de_fermeture(sortie, mode)
+            sortie["reprise_dite"] = await self._reprise_dite(sortie)
+            sortie["phrase"] = TSC.fermeture(sortie)
         return sortie
 
-    async def _phrase_de_fermeture(self, etat: dict[str, Any], mode: str) -> str:
-        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
-        # Lot 4 (audit caisse § 3.3) : une pause dit sa reprise seulement quand elle est connue ; jamais la prochaine ouverture des horaires à sa place.
-        quand = etat["reprise"] if etat.get("en_pause") else (etat["reprise"] or etat["prochaine_ouverture"])
-        reprise = ""
-        if isinstance(quand, datetime):
-            local = quand.astimezone(fuseau)
-            reprise = f" Nous reprenons à {heure_en_lettres(local.hour, local.minute)}."
-        # D15 : quand le réglage du type permet de commander pour plus tard, la fermeture le propose (un créneau de la prochaine ouverture).
-        propose = " Je peux prendre votre commande pour plus tard, sur un créneau de la prochaine ouverture." if etat.get("planifiee_permise") else ""
-        if etat["statut"] == "LIVRAISON_TERMINEE":
-            return "Les livraisons sont terminées pour aujourd'hui." + reprise + propose
-        if etat["statut"] == "PAUSE_TYPE":
-            return "Nous sommes en pause pour le moment." + reprise + propose
-        return "Nous sommes fermés pour le moment." + reprise + propose
+    async def _reprise_dite(self, etat: dict[str, Any]) -> str | None:
+        """L'heure de reprise que dit la fermeture, ``None`` quand aucune n'est connue. Lot 4 (audit caisse § 3.3) : une pause dit sa reprise seulement quand elle est connue ;
+        jamais la prochaine ouverture des horaires à sa place."""
+        quand = etat["reprise"] if etat["en_pause"] else (etat["reprise"] or etat["prochaine_ouverture"])
+        if not isinstance(quand, datetime):
+            return None
+        local = quand.astimezone(ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id)))
+        return heure_en_lettres(local.hour, local.minute)
 
     async def verifier_un_creneau(self, mode: str, voulue: datetime) -> Resultat | None:
         """D15 : l'heure voulue tient-elle (réglage du type, jours à l'avance, délai minimal, ouvert à cette heure, place) ? ``None`` si oui,
