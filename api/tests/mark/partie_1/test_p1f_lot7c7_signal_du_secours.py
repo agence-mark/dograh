@@ -436,7 +436,7 @@ CAS_DE_LA_ZONE: list[Cas] = [
     Cas("quelle_commune", TSC.quelle_commune, lambda c: Z.verifier_adresse(c.c, c.a, "rue de Paris"), "F", [], "commune"),
     Cas("commune_ambigue", TSC.commune_ambigue, lambda c: Z.verifier_adresse(c.c, c.a, "5 rue de la Mairie, Saint-Just"), "F",
         lambda r: pareilles(*{c["nom"] for c in r.faits["candidats"]}, *{c["departement"] for c in r.faits["candidats"]}), "commune",
-        manque="F1 : le département des candidats est retiré de la copie du modèle"),
+        ),
 ]
 
 
