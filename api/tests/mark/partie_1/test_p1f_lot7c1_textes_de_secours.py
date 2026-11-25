@@ -371,3 +371,69 @@ def test_le_minimum_de_l_adresse_se_lit_de_la_zone_quand_rien_n_est_pris():
     faits = {"zone": {"nom": "Senlis", "minimum": 1500}}
     assert prealables._minimum_de_l_adresse(faits, P.nouveau()) == TS.minimum_de_l_adresse(faits) == "Le minimum de commande pour cette adresse est de quinze euros."
     assert prealables._minimum_de_l_adresse({"zone": {"minimum": 0}}, P.nouveau()) == ""
+
+
+# ── commit 5 (comportement) : les phrases de fermeture sortent des faits, les clés de l'état n'ont plus qu'une liste ────
+PHRASE_DE_FERMETURE = "Les livraisons sont terminées pour aujourd'hui. Nous reprenons à dix-huit heures."
+
+
+def _valeurs(x):
+    if isinstance(x, dict):
+        for v in x.values():
+            yield from _valeurs(v)
+    elif isinstance(x, (list, tuple)):
+        for v in x:
+            yield from _valeurs(v)
+    else:
+        yield x
+
+
+def _etat_ferme_a_la_main(**en_plus):
+    async def etat(_mode):
+        return {"ouvert": False, "statut": "FERME", "phrase": PHRASE_DE_FERMETURE, "raison": "ferme", "reprise": None, "reprise_dite": "dix-huit heures",
+                "prochaine_ouverture": None, "planifiee_permise": False, **en_plus}
+    return etat
+
+
+async def test_la_phrase_de_fermeture_n_est_dans_aucun_fait_de_l_ouverture(appel, monkeypatch):
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main())
+    r = await moteur.etat_ouverture(appel.source, appel.p, appel.regles)
+    faits = porte.faits_vus_par_le_modele(r)
+    assert not [v for v in _valeurs(faits) if isinstance(v, str) and "reprenons" in v], faits
+    for mode in faits["modes"]:
+        assert "phrase" not in mode and mode["reprise_dite"] == "dix-huit heures" and {"ouvert", "raison", "reprise"} <= set(mode), mode
+    r = await moteur.etat_ouverture(appel.source, appel.p, appel.regles, "emporter")
+    assert r.suggestion == PHRASE_DE_FERMETURE  # le secours reste la phrase de la source
+    assert not [v for v in _valeurs(porte.faits_vus_par_le_modele(r)) if isinstance(v, str) and "reprenons" in v]
+
+
+async def test_un_mode_ferme_planifiable_ne_met_pas_la_phrase_dans_les_faits_et_dit_l_heure_gardee(appel, monkeypatch):
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True))
+    r = await moteur.choisir_mode(appel.source, appel.p, appel.regles, "emporter")
+    assert r.statut == "FERME_PLANIFIABLE"
+    faits = porte.faits_vus_par_le_modele(r)
+    assert "fermeture" not in faits and not [v for v in _valeurs(faits) if isinstance(v, str) and "reprenons" in v], faits
+    assert faits["reprise_dite"] == "dix-huit heures" and faits["raison"] == "ferme"
+    assert PHRASE_DE_FERMETURE in r.suggestion  # le texte de secours est celui d'avant
+
+
+async def test_une_heure_gardee_se_dit_en_fait(appel, monkeypatch):
+    async def quand_dit(_h):
+        return "demain à dix-neuf heures"
+    monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True))
+    monkeypatch.setattr(appel.source, "quand_dit", quand_dit, raising=False)
+    appel.p["heure_voulue"] = "2026-11-26T19:00:00+01:00"
+    r = await moteur.choisir_mode(appel.source, appel.p, appel.regles, "emporter")
+    assert r.statut == "FERME_PLANIFIABLE"
+    faits = porte.faits_vus_par_le_modele(r)
+    assert faits["heure_voulue_dite"] == "demain à dix-neuf heures" and "fermeture" not in faits
+    assert "Commande pour demain à dix-neuf heures." in r.suggestion
+
+
+def test_les_cles_de_l_etat_sont_posees_a_un_seul_endroit():
+    import inspect
+    from api.services.commande.moteur import mode_et_adresse, prealables
+
+    assert prealables.CLES_DE_L_ETAT == ("raison", "reprise", "reprise_dite", "prochaine_ouverture", "planifiee_permise")
+    for module in (prealables, mode_et_adresse):
+        assert '("raison", "reprise", "prochaine_ouverture", "planifiee_permise")' not in inspect.getsource(module)

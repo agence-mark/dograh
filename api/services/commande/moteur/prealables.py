@@ -38,7 +38,7 @@ async def question_du_mode(source: Source, p: dict[str, Any], statut: str) -> Re
         etats = [await source.etat(m) for m in source.modes]
         if etats and not any(e["ouvert"] for e in etats):
             ferme = etats[0]
-            faits.update({k: ferme.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")})
+            faits.update({k: ferme.get(k) for k in CLES_DE_L_ETAT})
             phrase = annoncer_la_fermeture(p, ferme)
             if not any(e.get("planifiee_permise") for e in etats):
                 return _r(ferme.get("statut") or "FERME", faits, phrase)
@@ -222,7 +222,9 @@ async def garder_l_heure(source: Source, p: dict[str, Any], texte: str | None) -
 # Lot 6 : l'ouverture, l'heure annoncée, l'adresse, la date
 # --------------------------------------------------------------------------- #
 
-CLES_DE_L_ETAT = ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")
+# Ce que le modèle reçoit de l'état d'un mode fermé (``reprise_dite`` : l'heure de reprise déjà dite, posée par la source). La phrase de fermeture de la source n'en fait PAS partie :
+# elle est le texte de secours du repli, jamais une valeur donnée au modèle.
+CLES_DE_L_ETAT = ("raison", "reprise", "reprise_dite", "prochaine_ouverture", "planifiee_permise")
 
 
 async def lire_l_ouverture(source: Source, mode: str | None = None) -> dict[str, Any]:
@@ -254,7 +256,7 @@ async def etat_ouverture(source: Source, p: dict[str, Any], regles: Reglages, mo
     lignes = []
     for m in modes:
         etat = await source.etat(m)
-        lignes.append({"mode": m, "libelle": source.libelles_des_modes.get(m, m), "ouvert": etat["ouvert"], **{k: etat.get(k) for k in CLES_DE_L_ETAT}, "phrase": etat.get("phrase") or ""})
+        lignes.append({"mode": m, "libelle": source.libelles_des_modes.get(m, m), "ouvert": etat["ouvert"], **{k: etat.get(k) for k in CLES_DE_L_ETAT}})
     if mode and not lignes[0]["ouvert"]:
         etat = await source.etat(modes[0])
         return _r(etat["statut"], {"modes": lignes}, etat.get("phrase") or TS.pas_de_commande_en_ce_moment({}))
