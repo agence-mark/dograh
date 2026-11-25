@@ -38,6 +38,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from loguru import logger
+from openai import OpenAIError
 
 # L'attribut du service où le moteur pose la phrase de repli de son agent (``brancher_les_phrases``).
 ATTRIBUT_PHRASE_DE_REPLI = "mark_phrase_de_repli"
@@ -774,11 +775,7 @@ class RepliqueVerifiee:
         appel_repris = any(getattr(_delta(m), "tool_calls", None) for m in morceaux if _delta(m) is not None)
         if not texte_repris or appel_repris:
             return None
-        try:
-            return self._controler_la_relance(texte_repris)
-        except Exception as erreur:
-            logger.warning(f"[cerveau] relance non contrôlée : {erreur!r}")
-            return None
+        return self._controler_la_relance(texte_repris)  # ``controler_la_relance`` ne lève jamais (contrat du contrôle de la fiche)
 
     async def _morceaux_de_la_relance(self, reprise: Any, usage: Any) -> list[Any]:
         """La réponse de la relance, rendue telle quelle ; retenue à son tour (D26), elle n'est jamais dite : le texte que la retenue porte, sinon (C5, décision d'Evan
@@ -796,7 +793,7 @@ class RepliqueVerifiee:
             if rang == 0 and getattr(seconde, "consigne", None):
                 try:
                     reprise = await self._relancer(seconde)
-                except Exception as erreur:  # jamais à la place du service
+                except (OpenAIError, OSError, RuntimeError, TimeoutError, ValueError) as erreur:  # une requête refusée ou coupée : jamais à la place du service
                     logger.warning(f"[cerveau] relance du fait en échec : {erreur!r}")
                     reprise = None
                 if reprise is not None:
