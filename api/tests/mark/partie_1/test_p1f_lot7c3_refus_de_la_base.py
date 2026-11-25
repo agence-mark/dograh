@@ -58,19 +58,19 @@ async def test_type_ferme(salle):
 
 async def test_groupe_trop_grand_a_l_enregistrement_garde_son_maximum(salle):
     r = await creer(salle, couverts=7)
-    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, il faut appeler le restaurant.", TS.groupe_trop_grand)
+    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, c'est l'équipe qui s'en occupe : je lui laisse un message pour qu'elle vous rappelle ?", TS.groupe_trop_grand)
     assert r.faits["maximum"] == 6
 
 
 async def test_groupe_trop_grand_dit_avant_le_jour_est_le_meme_texte_et_le_meme_fait(salle):
     r = await RR.groupe_trop_grand(salle.c, salle.a, 25)
-    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, il faut appeler le restaurant.", TS.groupe_trop_grand)
+    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, c'est l'équipe qui s'en occupe : je lui laisse un message pour qu'elle vous rappelle ?", TS.groupe_trop_grand)
     assert r.faits["maximum"] == 6 and "personnes_max" not in r.faits
 
 
 async def test_groupe_trop_grand_de_la_capacite_du_jour(salle):
     r = await RR.capacite_du_jour(salle.c, salle.a, SAMEDI_20H.date(), 7)
-    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, il faut appeler le restaurant.", TS.groupe_trop_grand)
+    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, c'est l'équipe qui s'en occupe : je lui laisse un message pour qu'elle vous rappelle ?", TS.groupe_trop_grand)
     assert r.faits["maximum"] == 6
 
 

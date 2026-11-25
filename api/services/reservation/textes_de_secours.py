@@ -37,7 +37,7 @@ def hors_service(faits: Faits) -> str:
 
 
 def groupe_trop_grand(faits: Faits) -> str:
-    return "Pour un groupe de cette taille, il faut appeler le restaurant."
+    return "Pour un groupe de cette taille, c'est l'équipe qui s'en occupe : je lui laisse un message pour qu'elle vous rappelle ?"
 
 
 def ferme(faits: Faits) -> str:
@@ -222,7 +222,7 @@ def une_seule_par_appel(faits: Faits) -> str:
 
 
 def capacite_non_reglee(faits: Faits) -> str:
-    return "Je ne peux pas confirmer une place pour l'instant. Je peux laisser un message à l'équipe."
+    return "Je ne peux pas confirmer une place pour l'instant : je laisse un message à l'équipe pour qu'elle vous rappelle ?"
 
 
 def du_refus(dernier: Any, transmise: bool) -> str:

@@ -39,6 +39,7 @@ def test_une_seule_par_appel_ne_promet_la_transmission_que_si_elle_est_faite():
 
 def test_la_capacite_non_reglee_dit_qu_il_n_y_a_pas_de_place_confirmee():
     assert "ne peux pas confirmer une place" in TS.du_refus(r("INCOMPLETE", manque="capacite"), False)
+    assert TS.du_refus(r("INCOMPLETE", manque="capacite"), False) == TS.capacite_non_reglee({})
 
 
 def test_le_reste_ne_dit_rien():
@@ -75,3 +76,23 @@ async def test_une_lecture_de_reservation_ne_touche_pas_au_fait_bloquant_d_une_c
     essai.fiche_de_l_appel[CLE_FAIT_BLOQUANT] = dict(commande)
     r = await essai.tour(MOTS, personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
     assert r["statut"] != "REFUSEE" and essai.fiche_de_l_appel[CLE_FAIT_BLOQUANT] == commande
+
+
+async def test_mini_dialogue_groupe_trop_grand_le_repli_offre_un_message_a_l_equipe(salle, monkeypatch):
+    """R = A. Client « On sera vingt-cinq. », le modèle se tait deux fois : le repli ne renvoie pas la personne au restaurant qu'elle a déjà au téléphone, il pose l'offre en question."""
+    essai = EssaiReservation(salle, monkeypatch)
+    await essai.tour(MOTS, personnes=25, jour="samedi", heure="vingt heures", nom="Alice")
+    dit = repli_dit_par_le_code(None, None, essai.fiche_de_l_appel)
+    assert dit and "appeler le restaurant" not in dit and dit.endswith("?"), dit
+
+
+async def test_mini_dialogue_capacite_non_reglee_la_consigne_et_le_texte_nomment_le_meme_geste(salle, monkeypatch):
+    """Client « Une table pour quatre samedi. », ni table ni capacité réglées : la consigne du modèle et le texte du repli offrent le même geste, un message à l'équipe."""
+    await salle.c.execute("DELETE FROM mark.resto_table WHERE site_id = $1", salle.a)
+    await salle.c.execute("UPDATE mark.resto_regle_reservation SET couverts_simultanes = NULL, couverts_max_creneau = NULL WHERE site_id = $1", salle.a)
+    essai = EssaiReservation(salle, monkeypatch)
+    r = await essai.tour(MOTS, personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
+    consigne = str(r.get("a_faire")).lower()
+    dit = repli_dit_par_le_code(None, None, essai.fiche_de_l_appel)
+    assert "message" in consigne and "passer" not in consigne, consigne
+    assert dit and "message" in dit and dit.endswith("?"), dit
