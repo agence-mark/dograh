@@ -86,6 +86,7 @@ ORDRE_DES_CASES = (
     "code_de_remise", "reduction_annoncee", "c_est_tout",
 )
 INFORMATIONS = ORDRE_DES_CASES[ORDRE_DES_CASES.index("mode_de_retrait"):ORDRE_DES_CASES.index("c_est_tout")]
+METIER_DU_FAIT_BLOQUANT = "commande"  # la case du fait bloquant de la fiche est partagée avec la réservation : chaque porte n'écrit et ne retire que la sienne
 CLE_DES_PAROLES = "paroles_de_la_personne"
 CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
@@ -727,7 +728,7 @@ async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex
     CONV.de(p)["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
-        poser_le_fait_bloquant(ctx.fiche, None, None)
+        poser_le_fait_bloquant(ctx.fiche, None, None, METIER_DU_FAIT_BLOQUANT)
     f = await _lire(fiche_du_modele, ctx, ex)
     if isinstance(f, dict):
         return f  # l'enveloppe d'un refus entier, ou d'une fiche déjà faite
@@ -1175,7 +1176,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
         J.dire_le_fait(p, textes["avant"], tour)  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
-    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r) for r in refusants) if x) or None)
+    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r) for r in refusants) if x) or None, METIER_DU_FAIT_BLOQUANT)
     return consignes
 
 
@@ -1640,7 +1641,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         if action.nom == "fiche" and isinstance(ctx.fiche, dict):
             # R = A : le modèle dit la panne avec ses mots ; le texte de secours (``TS.panne_de_la_porte``) n'est dit que par le repli, s'il se tait deux fois. Il ne promet un rappel que si
             # la commande a bien été jointe à l'équipe (le fait ``transmise_a_l_equipe``, la même consigne).
-            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne))
+            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne), METIER_DU_FAIT_BLOQUANT)
             a_faire = A_FAIRE_DE_LA_PANNE_TRANSMISE if transmise else A_FAIRE_DE_LA_PANNE
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
         faites = getattr(erreur, "cases_executees", None) if action.nom == "fiche" else None

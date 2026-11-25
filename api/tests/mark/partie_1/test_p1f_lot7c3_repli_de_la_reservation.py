@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from api.services.actions_communes.repli import CLE_FAIT_BLOQUANT, phrase_du_fait_bloquant, repli_dit_par_le_code
+from api.services.actions_communes.repli import CLE_DU_TOUR, CLE_FAIT_BLOQUANT, phrase_du_fait_bloquant, poser_le_fait_bloquant, repli_dit_par_le_code
 from api.db.bases_clients.restauration_reservation import creer_reservation
 from api.services.reservation import moteur
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
@@ -72,7 +72,7 @@ async def test_mini_dialogue_une_seule_par_appel_dit_la_transmission_faite(salle
 
 async def test_une_lecture_de_reservation_ne_touche_pas_au_fait_bloquant_d_une_commande_refusee(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch)
-    commande = {"tour": 1, "texte": "Il n'y a plus de pizza."}
+    commande = {"tour": 1, "textes": {"commande": "Il n'y a plus de pizza."}}
     essai.fiche_de_l_appel[CLE_FAIT_BLOQUANT] = dict(commande)
     r = await essai.dit(MOTS).lecture(sujet="places_libres", jour="samedi", personnes=4)  # une lecture ne passe pas par la fiche de réservation
     assert r["statut"] == "LU" and essai.fiche_de_l_appel[CLE_FAIT_BLOQUANT] == commande
@@ -106,3 +106,48 @@ async def test_dans_un_meme_tour_un_refus_puis_une_reservation_enregistree_le_re
     r = await essai.fiche(personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
     assert r["statut"] != "REFUSEE" and r["question"]["type"] == "recapitulatif", r
     assert phrase_du_fait_bloquant(essai.fiche_de_l_appel) is None, phrase_du_fait_bloquant(essai.fiche_de_l_appel)
+
+
+HOMARD = "Nous n'avons pas de pizza au homard."
+
+
+async def test_mini_dialogue_pizza_au_homard_et_table_la_commande_refusee_reste_dite_apres_la_reservation(salle, monkeypatch):
+    """R5 (a). Client « Une pizza au homard et une table pour deux ce soir. », le modèle se tait deux fois : le repli dit le homard refusé ET la réservation, la personne ne croit pas sa pizza commandée."""
+    essai = EssaiReservation(salle, monkeypatch)
+    essai.dit(MOTS)
+    poser_le_fait_bloquant(essai.fiche_de_l_appel, essai.fiche_de_l_appel[CLE_DU_TOUR], HOMARD, "commande")  # la commande refuse le homard dans ce tour
+    r = await essai.fiche(personnes=2, jour="samedi", heure="vingt heures", nom="Paul")
+    assert r["statut"] not in ("REFUSEE", "INTROUVABLE"), r  # la réservation avance dans le même tour, sans refus
+    dit = phrase_du_fait_bloquant(essai.fiche_de_l_appel)
+    assert dit and HOMARD in dit, dit
+
+
+async def test_une_fiche_de_commande_sans_refus_ne_retire_pas_le_refus_de_la_table(salle, monkeypatch):
+    """R5 (b), ordre inverse : le refus de la réservation reste quand la porte de la commande pose « aucun »."""
+    essai = EssaiReservation(salle, monkeypatch)
+    await essai.dit(MOTS).fiche(personnes=25, jour="samedi", heure="vingt heures", nom="Alice")
+    refus = phrase_du_fait_bloquant(essai.fiche_de_l_appel)
+    assert refus
+    poser_le_fait_bloquant(essai.fiche_de_l_appel, None, None, "commande")  # ce que fait la porte de la commande au début d'une fiche (porte.py)
+    assert phrase_du_fait_bloquant(essai.fiche_de_l_appel) == refus
+
+
+async def test_les_deux_refus_du_tour_sont_dits_ensemble_dans_l_ordre_d_ecriture(salle, monkeypatch):
+    """R5 : le repli dit les faits bloquants du tour des deux métiers, joints d'une espace."""
+    essai = EssaiReservation(salle, monkeypatch)
+    essai.dit(MOTS)
+    poser_le_fait_bloquant(essai.fiche_de_l_appel, essai.fiche_de_l_appel[CLE_DU_TOUR], HOMARD, "commande")
+    await essai.fiche(personnes=25, jour="samedi", heure="vingt heures", nom="Alice")
+    dit = phrase_du_fait_bloquant(essai.fiche_de_l_appel)
+    assert dit.startswith(HOMARD) and dit.endswith(TS.groupe_trop_grand({})), dit
+
+
+async def test_au_tour_suivant_aucun_fait_bloquant_n_est_dit(salle, monkeypatch):
+    """R5 (d) : les faits du tour d'avant ne sont jamais redits."""
+    essai = EssaiReservation(salle, monkeypatch)
+    essai.fiche_de_l_appel[CLE_DU_TOUR] = 1
+    poser_le_fait_bloquant(essai.fiche_de_l_appel, 1, HOMARD, "commande")
+    poser_le_fait_bloquant(essai.fiche_de_l_appel, 1, "Non.", "reservation")
+    assert phrase_du_fait_bloquant(essai.fiche_de_l_appel)
+    essai.fiche_de_l_appel[CLE_DU_TOUR] = 2
+    assert phrase_du_fait_bloquant(essai.fiche_de_l_appel) is None
