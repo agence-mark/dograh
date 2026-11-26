@@ -780,6 +780,7 @@ class LaFiche:
     resultats: list[dict] = field(default_factory=list)
     bruts: list[Resultat] = field(default_factory=list)  # les résultats des opérations de la fiche, dans l'ordre : ``refusants_de_la_fiche`` et ``heures_a_dire`` les lisent
     dernier: Resultat | None = None
+    cle: str = ""  # la clé de la fiche DITE (``_cle_de_la_fiche``) : ``_case_ajouter`` la range quand un article est pris, ``_fiche_identique_au_tour_d_avant`` la relit au tour d'après
 
     @property
     def source(self):
@@ -966,11 +967,15 @@ def _cle_de_la_fiche(tour: Any, fiche: dict[str, Any]) -> str:
     return cle_d_idempotence(tour, "fiche", dite)
 
 
+CLE_DES_FICHES_AJOUTEES = "fiches_ajoutees"  # les clés des fiches dont un article a été pris (le tour d'avant en fait partie) ; un article refusé n'y entre pas
+
+
 def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[str, Any]) -> dict[str, Any] | None:
     """Q1/Q2 (c, Pierre 26/11) : une fiche qui AJOUTE et que le tour d'avant a déjà lue, mot pour mot (réponse comprise : un ``reponse`` différent est une autre fiche), n'est ni
-    ignorée (« un Coca... et un autre Coca » perdrait le second) ni ajoutée tout de suite : rien n'est appliqué, elle n'est PAS notée exécutée (le tour suivant, « un autre » la
-    même, passe), et le fait (les articles lus dans la fiche) revient au modèle, qui demande au client si c'est un de plus ou le même. Rend l'enveloppe du refus, ou ``None``."""
-    if not fiche.get("ajouter") or not isinstance(tour, int) or _cle_de_la_fiche(tour - 1, fiche) not in (CONV.de(p).get("fiches_executees") or []):
+    ignorée (« un Coca... et un autre Coca » perdrait le second) ni ajoutée tout de suite : rien n'est appliqué, elle n'est PAS notée (le tour suivant, « un autre » la même, passe), et
+    le fait (les articles lus dans la fiche) revient au modèle, qui demande au client si c'est un de plus ou le même. Seule une fiche dont un article a été PRIS compte (``_case_ajouter`` la
+    range) : le même article inconnu redit n'est pas « un de plus », il reste refusé comme avant (journal des refus, sortie). Rend l'enveloppe du refus, ou ``None``."""
+    if not fiche.get("ajouter") or not isinstance(tour, int) or _cle_de_la_fiche(tour - 1, fiche) not in (CONV.de(p).get(CLE_DES_FICHES_AJOUTEES) or []):
         return None
     articles = [{"article": a.get("article"), "quantite": a.get("quantite", 1)} for a in fiche["ajouter"] if isinstance(a, dict)]
     refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire="rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)")
@@ -989,9 +994,10 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
     identique = _fiche_identique_au_tour_d_avant(p, tour, fiche)
     if identique is not None:
         return identique
-    if deja_executee(p, _cle_de_la_fiche(tour, fiche)):  # rejouée à l'identique dans ce tour : rien ne change (E11)
+    cle = _cle_de_la_fiche(tour, fiche)
+    if deja_executee(p, cle):  # rejouée à l'identique dans ce tour : rien ne change (E11)
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
-    f = LaFiche(ctx=ctx, ex=ex, fiche=fiche, tour=tour, reponse_ecartee=reponse_ecartee, case_ecartee=case_ecartee,
+    f = LaFiche(ctx=ctx, ex=ex, fiche=fiche, tour=tour, cle=cle, reponse_ecartee=reponse_ecartee, case_ecartee=case_ecartee,
                 reponse=fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None)
     f.refus = [x for x in (reponse_ecartee, case_ecartee) if x is not None]
     await _refus_des_cases(f, f.refus)
@@ -1072,10 +1078,12 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     publics: list[dict[str, Any]] = []
     premiere_demande: Resultat | None = None
     derniere_prise: Resultat | None = None
+    pris = False  # un article est pris (ligne posée, sa taille encore à demander comprise) : la fiche compte pour « la même au tour d'après »
     place_de_la_prise = -1
     for article in f.fiche["ajouter"]:
         r = await ajouter_un_article(f.source, f.p, f.regles, article)
         publics.append(_resultat_public("ajouter", r))
+        pris = pris or r.statut in ("OK", "CHOIX_OBLIGATOIRE")
         if r.statut == "OK":
             derniere_prise, place_de_la_prise = r, len(publics) - 1
         f.bruts.append(r)  # chaque article est un résultat de la fiche : ses refus se lisent sur l'ensemble (``refusants_de_la_fiche``)
@@ -1091,6 +1099,10 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     # Le résultat de la fiche ne dépend pas de l'ordre des articles : le premier article qui demande est le fait de la fiche ; sinon, dès qu'un article est pris, c'est l'état du
     # panier après le dernier article PRIS (total, proposition), qu'un refus placé avant ou après ne recouvre pas ; les refus se lisent sur tous les résultats (``refusants_de_la_fiche``)
     r = premiere_demande or derniere_prise or r
+    if pris:
+        ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
+        ajoutees.append(f.cle)
+        del ajoutees[:-4]
     if r.statut == "OK" and "garde" not in (r.faits or {}):
         etat = await moteur.etat_apres_ajout(f.source, f.p, f.regles, dict(r.faits or {}))
         r = Resultat(etat.statut, etat.faits, etat.suggestion, etat.manque)

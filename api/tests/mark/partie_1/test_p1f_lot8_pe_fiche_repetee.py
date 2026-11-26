@@ -79,3 +79,22 @@ async def test_le_modele_qui_a_ecrit_c_est_note_n_est_pas_dit_et_il_est_relance(
     r = await e.tour("je répète", ajouter=[REGINA])
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est noté.", "ajouter": [REGINA]})
     assert (r.get("raison"), d.a_dire, d.mode) == (RAISON, None, SECOND_PASSAGE), d
+
+
+async def test_le_meme_article_inconnu_redit_n_est_pas_un_de_plus_il_reste_refuse_comme_avant(essai_de):
+    """Le cas voisin (``test_p1f_lot7c_seuils_de_sortie.py``, refus 11) : un article que la carte ne connaît pas n'est jamais « pris » ; le redire au tour d'après reste le refus de l'article
+    (journal des refus, sortie), jamais « une deuxième, ou la même ? »."""
+    e = await essai_de()
+    await a_emporter(e)
+    for _ in range(2):
+        r = await e.tour("un zzzquoi", ajouter=[{"article": "zzzquoi", "quantite": 1}])
+        assert r.get("raison") != RAISON, r
+
+
+async def test_le_meme_article_sans_sa_taille_redit_est_un_de_plus_demande(essai_de):
+    """Une ligne posée dont la taille attend (``CHOIX_OBLIGATOIRE``) est prise : la même fiche redite au tour d'après est la même question que le cas de la regina complète."""
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
+    r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
+    assert r.get("raison") == RAISON, r
