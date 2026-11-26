@@ -114,6 +114,7 @@ INVENTAIRE: dict[str, dict[str, tuple[str, str]]] = {
         "halal_restaurant": (C, "consigne_allergie"), "conservation_client_mois": (C, "reglages_du_module"), "prefixe_numero_court": (C, "reglages_du_module"),
         "numero_mode": (C, "reglages_du_module"), "prefixe_mixte": (C, "reglages_du_module"), "notes_libres": (C, "reglages_du_module"),
         "pause_caisse_pause_telephone": (C, "reglages_du_module"), "sources": (C, "reglages_du_module"), "moities_prix": (C, "reglages_du_module"),
+        "filet_retenue_min": (C, "reglages_du_module"),
     },
     "resto_reglage_type": {
         "site_id": ID, "maj_le": DATE, "type": (A, "services"), "ouvert": (A, "services"), "delai_minimal": (B, "temps_de_preparation"),
