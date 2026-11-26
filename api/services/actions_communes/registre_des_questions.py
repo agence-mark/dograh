@@ -80,6 +80,16 @@ def numero(p: dict[str, Any], cle: str) -> str:
     return f"Q-{numeros[cle]}"
 
 
+def bruler_le_numero(p: dict[str, Any], question_id: Any) -> None:
+    """Q1 (b), Pierre 26/11 : le numéro cité par une réponse REFUSÉE (``question_inconnue``) n'est jamais redonné à une autre question : sans cela, un « oui » refusé puis rejoué
+    répondrait plus tard à la question qui naît sous ce numéro. Une donnée du dossier (``prochain_q``), aucun drapeau ; un numéro déjà passé, ou qui n'est pas ``Q-n``, ne change rien."""
+    texte = str(question_id or "")
+    if not (texte.startswith("Q-") and texte[2:].isdigit()):
+        return
+    conversation = CONV.de(p)
+    conversation[CLE_DU_PROCHAIN] = max(int(conversation.get(CLE_DU_PROCHAIN) or 1), int(texte[2:]) + 1)
+
+
 def _meme_question(a: dict[str, Any], b: dict[str, Any]) -> bool:
     """C7 B3 (refus 11) : deux questions sont la même par leur structure (``CONV.identite_de_la_question``, hors numéro), jamais par leur texte, vide quand le modèle la dit."""
     return CONV.identite_de_la_question({**a, "id": None}) == CONV.identite_de_la_question({**b, "id": None})

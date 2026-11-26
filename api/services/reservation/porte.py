@@ -300,6 +300,8 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
             fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9) : comme la commande
             # une fiche sans ``reponse`` quand une question attend vaut « autre » pour elle (comme la commande, RC15) : la question reste posée, rien n'est refusé
             entier = entier or _refus_de_la_fiche(fiche, question_avant, ctx, montrees)
+            if entier is not None and entier.get("raison") == "question_inconnue":
+                RC.bruler_le_numero(e, (fiche.get("reponse") or {}).get("question_id"))  # Q1 (b) : le numéro d'une réponse refusée n'est jamais redonné
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
@@ -315,6 +317,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         # Aucune question n'attend (le modèle a recopié un « manque » comme identifiant) : la réponse seule est refusée, les autres cases passent ;
         # rien ne se range à la devinette, mais l'heure ou le jour dits dans leur case ne sont jamais perdus ni redemandés.
         refus.append(B.refus("question_inconnue", ["reponse"], a_faire="aucune question n'attend : ne mets pas reponse, dis la valeur dans sa case"))
+        RC.bruler_le_numero(e, fiche["reponse"].get("question_id"))  # Q1 (b)
         fiche = {k: v for k, v in fiche.items() if k != "reponse"}
     ecartees = {c for r in refus for c in r["cases"]}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.

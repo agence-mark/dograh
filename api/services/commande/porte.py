@@ -843,6 +843,8 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
         # Pierre F (DC3 avec DC6) : un « non merci » juste après la fermeture d'une proposition (« hein ? ») répond à la proposition que le modèle redit, pas à « autre chose ? »
         non_a_autre_chose = fiche["reponse"].get("sens") == "refuse" and seul and seul_autre_chose_manque(p) and not apres_une_proposition_fermee
         reponse_ecartee = None if non_a_autre_chose else RC.question_inconnue(fiche, None)
+        if reponse_ecartee is not None:
+            RC.bruler_le_numero(p, fiche["reponse"].get("question_id"))  # Q1 (b) : le numéro d'une réponse refusée n'est jamais redonné
         fiche = {k: v for k, v in fiche.items() if k != "reponse"}
     fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9 ; RC2 : l'article dit avec elle n'est plus perdu)
     if non_a_autre_chose and entier is None:
@@ -851,7 +853,10 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
     if entier is None:
         # B1 : une réponse à une autre question (ou sans question) n'écarte que sa case, jamais le reste de la fiche (RC2) ; la question posée
         # reçoit alors « autre », comme une fiche sans réponse (une seule règle pour tous les types)
-        reponse_ecartee = reponse_ecartee or RC.question_inconnue(fiche, question)
+        refusee_ici = RC.question_inconnue(fiche, question) if reponse_ecartee is None else None
+        if refusee_ici is not None:
+            RC.bruler_le_numero(p, fiche["reponse"].get("question_id"))  # Q1 (b)
+        reponse_ecartee = reponse_ecartee or refusee_ici
         if reponse_ecartee is not None:
             fiche = {k: v for k, v in fiche.items() if k != "reponse"}
         fiche = RQ.reponse_implicite(fiche, question, posee)
