@@ -34,23 +34,24 @@ async def test_retrouvee_par_le_numero_qui_s_affiche_ou_par_son_numero_dit_enreg
     a = Appel(commerce)
     r = await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)
     assert r.statut == "OK" and r.faits["numero_court"] == faits["numero_court"]
-    assert r.suggestion.startswith("Votre commande est enregistrée pour ") and "douze heures vingt" in r.suggestion     # jeudi midi + 20 minutes
+    # C7 B4 (décision d'Evan 25/11 8 h 45 : le modèle parle) : plus de texte au retour ; il dit « enregistrée » et l'heure d'après les faits
+    assert r.suggestion == "" and r.faits["quand_dit"] and "douze heures vingt" in r.faits["quand_dit"]     # jeudi midi + 20 minutes
     par_court = await moteur.retrouver_commande(a.source, a.p, a.regles, Appelant(None, "x"), faits["numero_court"])
     par_long = await moteur.retrouver_commande(a.source, a.p, a.regles, Appelant(None, "x"), faits["numero"])
     assert par_court.faits["numero_court"] == par_long.faits["numero_court"] == faits["numero_court"]
     # une étape de la préparation ne se dit jamais
     await commerce.c.execute("UPDATE mark.resto_commande SET statut = 'en_preparation' WHERE numero = $1::uuid", faits["numero"])
     dit = await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)
-    assert dit.faits["statut"] == "en_preparation" and "préparation" not in dit.suggestion and dit.suggestion.startswith("Votre commande est enregistrée")
+    assert dit.faits["statut"] == "en_preparation" and dit.suggestion == ""  # C7 B4 : le statut lu est un fait, que le modèle recevait déjà (la phrase ne lui allait plus depuis 7b-C4)
 
 
 async def test_les_statuts_perdus_sont_dits_tels_quels(commerce):  # noqa: F811
     faits = await _passer(commerce)
     a = Appel(commerce)
-    for statut, debut_de_phrase in (("annulee", "Cette commande est annulée."), ("refusee", "Cette commande n'est pas passée"), ("echec", "Cette commande n'est pas passée")):
+    for statut in ("annulee", "refusee", "echec"):
         await commerce.c.execute("UPDATE mark.resto_commande SET statut = $2 WHERE numero = $1::uuid", faits["numero"], statut)
         r = await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)
-        assert r.faits["statut"] == statut and r.suggestion.startswith(debut_de_phrase), (statut, r.suggestion)
+        assert r.faits["statut"] == statut and r.suggestion == "", (statut, r.suggestion)  # C7 B4 (Evan 25/11 8 h 45) : le statut lu, tel quel, le modèle le dit
 
 
 async def test_plusieurs_commandes_on_demande_laquelle(commerce):  # noqa: F811
@@ -61,7 +62,7 @@ async def test_plusieurs_commandes_on_demande_laquelle(commerce):  # noqa: F811
     assert (await autre.confirmer()).statut in ("ENREGISTREE", "TRANSMISE")
     a = Appel(commerce)
     r = await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)
-    assert (r.statut, r.manque) == ("AMBIGU", "reference") and len(r.faits["candidats"]) == 2 and "Laquelle ?" in r.suggestion
+    assert (r.statut, r.manque) == ("AMBIGU", "reference") and len(r.faits["candidats"]) == 2 and r.suggestion == ""  # C7 B4 : le modèle demande laquelle (F4)
 
 
 async def test_jamais_la_commande_d_un_autre_lieu_ou_d_un_autre_numero_inconnue_ou_sans_reference(commerce):  # noqa: F811

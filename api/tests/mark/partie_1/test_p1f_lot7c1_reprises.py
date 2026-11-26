@@ -47,8 +47,9 @@ async def _retrouver(appel, monkeypatch, statut: str) -> Resultat:
 @pytest.mark.parametrize("statut", sorted(socle.STATUTS_PERDUS))
 async def test_une_commande_perdue_se_dit_par_une_offre_en_question(appel, monkeypatch, statut):
     r = await _retrouver(appel, monkeypatch, statut)
-    assert r.suggestion == TS.commande_pas_passee(porte.faits_vus_par_le_modele(r))
-    assert r.suggestion == "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe pour qu'elle vous rappelle ?"
+    # C7 B4 (Evan 25/11 8 h 45 : le modèle parle) : le retour n'a plus de texte ; ses faits refont l'offre d'avant, que la porte donne au modèle (A_FAIRE_DE_LA_COMMANDE_PERDUE)
+    assert r.suggestion == ""
+    assert TS.commande_pas_passee(porte.faits_vus_par_le_modele(r)) == "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe pour qu'elle vous rappelle ?"
 
 
 def test_les_statuts_perdus_sont_ceux_de_la_lecture():

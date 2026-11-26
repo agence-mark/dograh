@@ -1465,15 +1465,15 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             async with registre_des_sources.ouvrir((ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)) as source:
                 r = await moteur.retrouver_commande(source, p, regles, appelant, numero_dit)
             # R-d : le suivi ne montre jamais le panier (un panier vide trompe) ; ce qui manque (le numéro de la commande) ou ce qui se choisit
-            # (plusieurs commandes) est rendu avec sa phrase, jamais un « FAIT » muet que le modèle comble de lui-même.
-            faits_du_suivi = {k: v for k, v in r.faits.items() if k not in ("panier", "candidats")}
+            # (plusieurs commandes, F4 : leurs candidats, numéro court et heure dite) est rendu en faits, jamais un « FAIT » muet que le modèle comble de lui-même.
+            faits_du_suivi = {k: v for k, v in r.faits.items() if k != "panier"}
             resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
             if r.statut == "OK" and r.faits.get("statut"):
                 fiche[CLE_COMMANDE_RETROUVEE] = r.faits["statut"]
                 if r.faits["statut"] in STATUTS_PERDUS and not fiche.get(CLE_MESSAGE_LAISSE):  # 7b-C4 : un message déjà laissé dans l'appel n'est plus proposé (la porte le refuserait)
                     perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
-            if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
-                a_preciser = {"manque": r.manque or "reference"}  # 7b-C4 : la phrase du module n'est plus donnée au modèle
+            if r.statut in ("INCOMPLETE", "AMBIGU") and r.manque:
+                a_preciser = {"manque": r.manque}  # 7b-C4 : la phrase du module n'est plus donnée au modèle ; C7 B4 : lu sur le manque, plus sur le texte
             elif r.statut == "INTROUVABLE":
                 # P4 : le numéro de l'appel est connu et rien n'y est trouvé : le dire, puis chercher autrement ; jamais redemander ce numéro
                 introuvable = "dis-lui qu'il n'y a pas de commande à ce numéro ; propose de chercher autrement (le numéro de la commande, ou un autre numéro) ; ne redemande pas le numéro de l'appel"

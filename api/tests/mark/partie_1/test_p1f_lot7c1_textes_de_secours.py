@@ -45,7 +45,8 @@ VIDES = {TS.n_est_plus_disponible, TS.maximum_atteint, TS.ne_se_prend_pas_avec_d
          TS.pas_servi_maintenant, TS.beaucoup_combien_exactement, TS.taille_en_rupture, TS.combien_exactement, TS.plus_au_catalogue, TS.commande_vide, TS.pas_de_ligne, TS.quelle_ligne,
          TS.pas_dans_la_commande, TS.que_change_t_on, TS.pas_de_commande_en_ce_moment, TS.ce_sera_pret, TS.commande_vide_a_lire, TS.pas_d_offre, TS.tout_retirer_c_est_annuler,
          TS.offre_presque_atteinte, TS.seuil_presque_atteint,
-         TS.question_d_un_choix, TS.vous_voulez_dire, TS.sur_lequel, TS.sur_quelle_moitie, TS.vous_voulez_retirer, TS.laquelle}  # C7 B3
+         TS.question_d_un_choix, TS.vous_voulez_dire, TS.sur_lequel, TS.sur_quelle_moitie, TS.vous_voulez_retirer, TS.laquelle,  # C7 B3
+         TS.quel_numero_de_commande, TS.commande_introuvable, TS.commandes_plusieurs, TS.commande_annulee}  # C7 B4
 
 
 def le_texte_de_secours_suffit(r, texte_de_secours, attendu: str | None = None) -> None:

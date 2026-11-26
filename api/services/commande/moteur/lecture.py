@@ -10,11 +10,10 @@ from typing import Any
 from loguru import logger
 
 from api.services.commande import panier as P
-from api.services.commande import textes_de_secours as TS
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.moteur.socle import NON_CONFIRMABLE, Reglages, STATUTS_PERDUS, _avec, phrase_d_une_remise_appliquee, _r, cle_de_la_remise
+from api.services.commande.moteur.socle import NON_CONFIRMABLE, Reglages, _avec, phrase_d_une_remise_appliquee, _r, cle_de_la_remise
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _minimum_non_atteint
 from api.services.commande.moteur.socle import Appelant
@@ -151,26 +150,21 @@ async def remises_disponibles(
 async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages, appelant: "Appelant", numero: str | None = None) -> Resultat:
     """Retrouve une commande du jour : par son numéro (``numero``, court ou long), sinon par le numéro qui s'affiche. Le statut est LU dans le classeur,
     jamais deviné. À l'appelant on ne dit que « enregistrée » et l'heure (E-36) : les étapes de la préparation servent le suivi, pas l'appel. Une commande
-    annulée ou qui n'est pas passée est dite telle quelle ; plusieurs commandes : on demande laquelle. Aucune plainte ici : le passage de main est celui de l'équipe."""
+    annulée ou qui n'est pas passée est dite telle quelle ; plusieurs commandes : on demande laquelle. Aucune plainte ici : le passage de main est celui de l'équipe.
+    C7 B4 : le modèle dit tout cela d'après le statut et les faits (le statut de la commande, son heure, les candidats), aucun texte de secours."""
     if numero and numero.strip():
         trouve = await source.retrouver(numero=numero.strip())
     elif appelant.telephone_affiche:
         trouve = await source.retrouver(telephone=appelant.telephone_affiche)
     else:
-        return _avec(_r("INCOMPLETE", {}, TS.quel_numero_de_commande({}), "reference"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "reference"), p)
     if trouve.statut != "OK":
         faits = {"cherche_par": "numero" if numero and numero.strip() else "telephone_affiche"}
-        return _avec(_r("INTROUVABLE", faits, TS.commande_introuvable(faits)), p)
+        return _avec(_r("INTROUVABLE", faits, ""), p)
     commandes = trouve.faits.get("commandes") or []
     if len(commandes) > 1:
         faits = {"candidats": [{"numero_court": c["numero_court"], "quand_dit": c.get("quand_dit")} for c in commandes]}
-        return _avec(_r("AMBIGU", faits, TS.commandes_plusieurs(faits), "reference"), p)
+        return _avec(_r("AMBIGU", faits, "", "reference"), p)
     c = commandes[0]
     faits = {"numero_court": c["numero_court"], "statut": c["statut"], "mode": c["mode"], "quand_dit": c.get("quand_dit")}
-    if c["statut"] == "annulee":
-        phrase = TS.commande_annulee(faits)
-    elif c["statut"] in STATUTS_PERDUS:
-        phrase = TS.commande_pas_passee(faits)
-    else:
-        phrase = TS.commande_retrouvee(faits)
-    return _avec(_r("OK", faits, phrase), p)
+    return _avec(_r("OK", faits, ""), p)
