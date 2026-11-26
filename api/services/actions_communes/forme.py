@@ -107,6 +107,8 @@ def heures(mots: list[str]) -> set[tuple[int, int]]:
 def _mots_de_valeur(texte: object) -> list[str]:
     # Pierre 12 (C2) : le signe « € » est gardé AVANT la mise sous forme ASCII, qui le supprimait (« 25 € » se lisait « 25 » sans unité d'argent, refusé)
     s = unicodedata.normalize("NFD", str(texte or "").replace("€", " euros ")).encode("ascii", "ignore").decode().lower().replace("€", " € ")
+    # T17 : « 24,5 € » est 24,50 € (un seul chiffre après la virgule, devant une unité d'argent : les dixièmes), pas 24,05 ; hors argent la lecture ne change pas (« 1,5 kg »)
+    s = re.sub(r"(\d)[,.](\d)(?!\d)(?=\s*(?:euros?|centimes?)\b)", r"\1 virgule \g<2>0", s)
     s = re.sub(r"(\d)[,.](\d)", r"\1 virgule \2", s)
     # C6 : une ponctuation entre deux nombres les sépare (« pour quatre, vingt heures » : 4 puis 20, jamais 80) ; elle reste un mot (``SEPARATEUR``), qui n'est pas un nombre
     return re.sub(r"[^a-z0-9€| ]", " ", s.translate(_PONCTUATION_EN_SEPARATEUR)).split()
@@ -150,6 +152,21 @@ def lire_un_nombre(mots: list[str]) -> int | None:
     return int(_valeur(list(mots)))
 
 
+def _avec_les_centimes(mots: list[str]) -> list[str]:
+    """T17 : un nombre dit juste après l'unité d'argent est les centimes (« vingt-quatre euros cinquante » = 24,50 € = « 24 virgule 50 »), jamais une somme de plus aux euros
+    (avant : 74). Le mot ``virgule`` s'insère entre les euros et les centimes ; l'unité, « et » et une virgule déjà dite ne changent rien."""
+    out, vu_l_unite, virgule = [], False, "virgule" in mots
+    for x in mots:
+        if x in ARGENT:
+            vu_l_unite = bool(out)
+        elif x != "et":
+            if vu_l_unite and not virgule:
+                out.append("virgule")
+                virgule = True
+            out.append(x)
+    return out
+
+
 def valeurs_et_places(texte: object) -> tuple[list[tuple[int, int, str, str]], list[str]]:
     """Les valeurs d'un texte avec leur place (``valeurs_b12.valeurs``) : ``([(début, fin, valeur, genre)], mots)``, ``fin`` comprenant l'unité
     d'argent qui suit ; genre « argent » (suivie d'une unité d'argent, ou après « billet de ») ou « nombre »."""
@@ -172,7 +189,7 @@ def valeurs_et_places(texte: object) -> tuple[list[tuple[int, int, str, str]], l
                 argent = True  # Pierre 12 (C2) : « 25 en titres », « 50 en espèces » : un montant en argent, sans le mot « euros »
             if i >= 2 and w[i - 2] == "billet" and w[i - 1] == "de":
                 argent = True
-            num = [x for x in w[i:k + 1] if x not in ARGENT and x != "et"]
+            num = _avec_les_centimes(w[i:k + 1])
             if num and not (len(num) == 1 and num[0] in ("un", "une") and not argent):
                 out.append((i, k, _valeur(num), "argent" if argent else "nombre"))
             i = k + 1
