@@ -1337,7 +1337,7 @@ def _phrase_du_rendu(ctx: Any, p: dict[str, Any], dernier: Resultat | None) -> s
 
 
 def _phrase_de_confirmation(ctx: Any, p: dict[str, Any]) -> str | None:
-    """PE-2 (Q4) : la phrase réglée « C'est enregistré. » (motif ``confirmation_reglee``, aucune variable), la confirmation de secours de la commande enregistrée ; ``None`` : éteinte."""
+    """PE-2 (Q4) : la phrase réglée « C'est enregistré. » (motif ``confirmation_reglee``, aucune variable), la confirmation de secours de la commande enregistrée. Le motif est verrouillé : jamais éteint, seul son texte se règle."""
     return phrase_du_code(ctx, CONFIRMATION_REGLEE, int(p.get("version") or 0))
 
 
