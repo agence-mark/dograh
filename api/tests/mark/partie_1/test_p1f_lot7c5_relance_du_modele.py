@@ -373,7 +373,7 @@ async def test_s2_mini_dialogue_la_relance_du_fait_repare_la_reponse():
 def _avec_fait_accompli(fiche: dict) -> dict:
     from api.services.actions_communes import journal_du_dit as J
 
-    J.dire_le_fait(P.du_dossier(fiche), "Votre commande est enregistrée.", 1)
+    J.dire_le_fait(P.du_dossier(fiche), {"fait": "enregistree", "livree": False, "quand_dit": "pour midi"}, 1)  # B9 : en faits
     return fiche
 
 

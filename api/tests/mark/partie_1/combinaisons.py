@@ -32,7 +32,6 @@ from api.db.bases_clients.restauration_commande import commande_complete
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import repli as R
-from api.services.actions_communes import table_de_parole as TABLE
 from api.services.commande import panier as P
 from api.services.groupe import passations as PASSATIONS
 from api.services.workflow import parole_de_la_fiche as PF
@@ -406,7 +405,8 @@ class Partie:
                         relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait)
         self.observations.append(o)
         # C6 n° 5 (décision d'Evan 25/11 9 h 30) : un fait accompli neuf est dit par le modèle, suivi de la question M108 du code ; ce que la personne entend de neuf est ce fait (gardé au journal)
-        self.journal.append(" ".join(x for x in ((o.textes or {}).get("fait_accompli"), o.dit_par_le_code) if x))
+        fait = (o.textes or {}).get("fait_accompli")  # B9 : les faits du fait accompli (plus une phrase) ; deux fois les mêmes faits = redit
+        self.journal.append(" ".join(x for x in ((json.dumps(fait, sort_keys=True, ensure_ascii=False) if fait else None), o.dit_par_le_code) if x))
         return o
 
     async def _lire_la_base(self) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -638,8 +638,8 @@ def rc3(partie: Partie, o: Observation) -> list[Faute]:
 
 
 def rc4(o: Observation) -> list[Faute]:
-    """Jamais annoncé sans être fait, jamais fait sans être dit : le fait accompli (enregistrée, changée, annulée) est dit par SA phrase, celle que le code garde
-    comme dernier fait dit (``journal_du_dit.fait_accompli``), qui contient le mot du fait ; une autre phrase du code, même présente, ne le dit pas (Pierre 15)."""
+    """Jamais annoncé sans être fait, jamais fait sans être dit : le fait accompli (enregistrée, changée, annulée) a SES faits, ceux que le code garde comme dernier fait
+    (``journal_du_dit.fait_accompli``) et dont le modèle dit la phrase (C6 n° 5 ; B9 : plus une phrase du code) ; un autre fait, même présent, ne le dit pas (Pierre 15)."""
     f: list[Faute] = []
     d = o.decision
     seule = d is not None and d.mode == PAROLE.A_DIRE_SEUL and d.motif != "texte_du_code"
@@ -650,19 +650,17 @@ def rc4(o: Observation) -> list[Faute]:
     avant_e, apres_e = o.avant.get("enregistree") or {}, o.apres.get("enregistree") or {}
     fait = None
     if o.fiche is not None and apres_e and (not avant_e or apres_e.get("total") != avant_e.get("total") or apres_e.get("numero") != avant_e.get("numero")):
-        fait = (("enregistr",) if not avant_e else ("chang", "enregistr"), "enregistrée" if not avant_e else "changée")  # changée : « C'est changé » ou la nouvelle confirmation (l'heure)
+        fait = (("enregistree",) if not avant_e else ("changee", "enregistree"), "enregistrée" if not avant_e else "changée")  # changée : le changement ou la nouvelle confirmation (l'heure)
     if o.fiche is not None and not o.avant.get("annulee") and o.apres.get("annulee"):
-        fait = (("annul", "ne l'enregistre pas"), "annulée")  # les deux phrases du code pour une annulation (``annuler`` ; « Je ne l'enregistre pas. »)
+        fait = (("annulee", "annulee_en_cours"), "annulée")  # les deux faits d'une annulation (enregistrée puis annulée ; en cours, ``annuler``)
     if fait:
-        dit = (o.textes or {}).get("avant") or (o.textes or {}).get("fait_accompli") or ""  # C6 n° 5 : la confirmation dite par le modèle ; le fait gardé au journal
+        dit = (o.textes or {}).get("fait_accompli") or {}  # C6 n° 5 : le modèle dit le fait accompli ; le code en garde les faits au journal (B9)
         if not dit:
-            f.append(("RC4", f"la commande est {fait[1]} et le code ne le dit pas (aucune phrase du fait accompli ; dit : « {o.dit_par_le_code} »)"))
-        elif not any(m in dit.casefold() for m in fait[0]):
-            f.append(("RC4", f"la commande est {fait[1]} : la phrase dite par le code « {dit} » n'est pas celle du fait accompli"))
+            f.append(("RC4", f"la commande est {fait[1]} et le code ne la fait pas dire (aucun fait accompli ; dit : « {o.dit_par_le_code} »)"))
+        elif dit.get("fait") not in fait[0]:
+            f.append(("RC4", f"la commande est {fait[1]} : le fait donné « {dit} » n'est pas celui du fait accompli"))
         elif J.fait_accompli(o.apres) != dit:
-            f.append(("RC4", f"la commande est {fait[1]} : la phrase dite « {dit} » n'est pas celle que le code garde comme dernier fait dit (« {J.fait_accompli(o.apres)} »)"))
-        elif d is not None and d.mode == PAROLE.A_DIRE_SEUL and dit not in (d.a_dire or "") and d.motif not in ("texte_du_code", TABLE.FAIT_ACCOMPLI):
-            f.append(("RC4", f"la commande est {fait[1]} : la parole décidée (« {d.a_dire} ») n'est pas la phrase du fait accompli"))
+            f.append(("RC4", f"la commande est {fait[1]} : le fait donné « {dit} » n'est pas celui que le code garde comme dernier fait (« {J.fait_accompli(o.apres)} »)"))
     return f
 
 
@@ -799,7 +797,8 @@ def rc12(o: Observation) -> list[Faute]:
     fb = (r.get("faits") or {}).get("fait_bloquant") or {}
     if (r.get(CLE_DU) or {}).get("manque") and fb.get("manque"):
         manque, modes = manque_du_moteur(fb["manque"])
-        attendu = manque.value if manque is not None and M.phrase_du_manque(manque, modes) else None  # lot 7b-C5 : la valeur fermée de ce qui manque, plus sa phrase
+        portee = manque is None or manque in M.PORTEES_PAR_UNE_QUESTION or (manque is M.Manque.MODE and not modes)  # la question la porte, ou aucun mode ouvert
+        attendu = None if portee else manque.value  # lot 7b-C5 : la valeur fermée de ce qui manque, plus sa phrase (C7 B9 : le catalogue des phrases est supprimé)
         if attendu and attendu != r[CLE_DU]["manque"]:
             return [("RC12", f"valeur de manque « {r[CLE_DU]['manque']} », le moteur bloque sur « {fb['manque']} »")]
     return []

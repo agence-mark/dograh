@@ -188,21 +188,23 @@ async def test_un_article_compte_en_trop_dans_une_fusion_est_vu(faire_monde, mon
     assert any(regle == "RC2" for _, regle, _ in r.fautes), r.fautes
 
 
-def _fait_dit(texte):
+def _fait_dit(faits):
     p: dict = {}
-    J.dire_le_fait(p, texte, 1)
+    J.dire_le_fait(p, faits, 1)
     return p
 
 
 def test_rc4_la_phrase_dite_doit_etre_celle_du_fait_accompli_vu_rouge():
-    annulee = dict(avant={"annulee": False}, apres={"annulee": True, **_fait_dit("Je ne l'enregistre pas.")})
-    assert C.rc4(_observation(**annulee, textes={"avant": "Voulez-vous autre chose ?"})), "n'importe quelle phrase du code ne dit pas l'annulation"
-    assert C.rc4(_observation(**annulee, textes={})), "aucune phrase : faute"
-    assert C.rc4(_observation(**{**annulee, "apres": {"annulee": True, **_fait_dit("autre")}}, textes={"avant": "Je ne l'enregistre pas."})), "phrase non gardée comme fait dit"
-    assert not C.rc4(_observation(**annulee, textes={"avant": "Je ne l'enregistre pas."}))
-    enregistree = dict(avant={}, apres={"enregistree": {"numero": "n1", "total": 1200}, **_fait_dit("Votre commande est enregistrée.")})
-    assert C.rc4(_observation(**enregistree, textes={"avant": "Je vous relis : une margherita."})), "la relecture n'est pas l'enregistrement"
-    assert not C.rc4(_observation(**enregistree, textes={"avant": "Votre commande est enregistrée."}))
+    # B9 : le fait accompli est un fait (plus une phrase du code) ; le contrôle lit le fait donné et celui que le journal garde
+    en_cours, enregistree_ = {"fait": "annulee_en_cours"}, {"fait": "enregistree", "livree": False, "quand_dit": "pour midi"}
+    annulee = dict(avant={"annulee": False}, apres={"annulee": True, **_fait_dit(en_cours)})
+    assert C.rc4(_observation(**annulee, textes={"fait_accompli": {"fait": "changee", "total": 1}})), "un autre fait ne dit pas l'annulation"
+    assert C.rc4(_observation(**annulee, textes={})), "aucun fait : faute"
+    assert C.rc4(_observation(**{**annulee, "apres": {"annulee": True, **_fait_dit({"fait": "autre"})}}, textes={"fait_accompli": en_cours})), "fait non gardé au journal"
+    assert not C.rc4(_observation(**annulee, textes={"fait_accompli": en_cours}))
+    enregistree = dict(avant={}, apres={"enregistree": {"numero": "n1", "total": 1200}, **_fait_dit(enregistree_)})
+    assert C.rc4(_observation(**enregistree, textes={"fait_accompli": {"fait": "annulee"}})), "l'annulation n'est pas l'enregistrement"
+    assert not C.rc4(_observation(**enregistree, textes={"fait_accompli": enregistree_}))
 
 
 def test_rc10_la_relecture_doit_etre_dite_dans_le_tour_ou_elle_est_marquee_vu_rouge():
