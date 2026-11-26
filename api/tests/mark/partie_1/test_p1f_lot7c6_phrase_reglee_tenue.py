@@ -4,8 +4,8 @@ la porte (la question DC10, le total…) tient jusqu'à ce qu'elle soit dite. Un
 Avant : Client « Léa, au zéro six… » + un code de remise refusé / le modèle rappelle une fiche vide / modèle « Ce code n'est pas ouvert maintenant, désolé. » seul ; la relecture du
 numéro et sa question jamais dites, alors que DC10 reste ouverte et qu'un « oui » l'accepte. Après : + code « Je note le zéro six…, c'est bon ? ».
 Reprise S1 du second audit : la phrase réglée d'un passage précédent ne tient que tant qu'elle est vraie. Avant : Client « Non merci, c'est tout. » (relecture à dix euros
-quatre-vingt-dix) puis, dans le même tour, une margherita ajoutée / modèle « Voilà, deux margherita alors. » + code « Cela fait dix euros quatre-vingt-dix, c'est bon pour vous ? »
-(total faux, question sans objet). Après : modèle « Voilà, deux margherita alors. » puis la nouvelle relecture avec son total.
+quatre-vingt-dix) puis, dans le même tour, une regina ajoutée (une margherita, déjà prise au tour d'avant, serait refusée : PE-1) / modèle « Voilà, une margherita et une regina alors. » + code « Cela fait dix euros quatre-vingt-dix, c'est bon pour vous ? »
+(total faux, question sans objet). Après : modèle « Voilà, une margherita et une regina alors. » puis la nouvelle relecture avec son total.
 Vraie source, vraie porte, vraie parole et ``RepliqueVerifiee`` (les relances rendent les phrases données), sans modèle.
 """
 
@@ -24,6 +24,10 @@ from .aides_de_la_commande import a_emporter, jusqu_au_numero, premier_article, 
 
 DIT = numero_en_lettres("+33612345678")
 QUESTION_DC10 = CAT.MOTIFS[CAT.NUMERO_DICTE_RELU].variantes_defaut[0].replace("{numero}", DIT)
+# Une fiche qui ajoute et qui est identique à celle du tour d'avant est refusée, voulu (decisions-du-coordinateur.md:112, Pierre 26/11 ~17 h ; bilan-point-d-etape-7b-c.md, Q1/Q2 c corrigé) :
+# ces scénarios ajoutent donc un article DIFFÉRENT (une regina) de celui du premier tour (une margherita), pour que la fiche ajoute vraiment.
+REGINA = {"article": "regina", "quantite": 1, "variante": "Normale"}
+PHRASE_DU_MODELE = "Voilà, une margherita et une regina alors."
 REGLEE = "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"
 
 
@@ -90,7 +94,7 @@ async def test_voisin_sans_fiche_vide_la_question_dc10_part_seule_quand_le_model
 
 
 async def test_s1_un_article_ajoute_dans_le_tour_l_ancien_total_n_est_pas_dit(essai_de):
-    """La relecture naît (son total suit la phrase du modèle) ; dans le même tour, une fiche ajoute une margherita : l'ancien total et sa question ne sont pas dits."""
+    """La relecture naît (son total suit la phrase du modèle) ; dans le même tour, une fiche ajoute une regina : l'ancien total et sa question ne sont pas dits."""
     e = await essai_de("casa-italia")
     await a_emporter(e)
     await premier_article(e)
@@ -99,8 +103,8 @@ async def test_s1_un_article_ajoute_dans_le_tour_l_ancien_total_n_est_pas_dit(es
     assert question_posee(e).get("type") == "relecture", r
     ancien = montant_en_lettres(e.p["relecture"]["total"])
     assert PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Alors une margherita, ça fait douze euros."}).mode == PAROLE.SECOND_PASSAGE
-    r2 = await e.fiche(ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    phrase = "Voilà, deux margherita alors."
+    r2 = await e.fiche(ajouter=[REGINA])
+    phrase = "Voilà, une margherita et une regina alors."
     dit = await _voix(e, r2, phrase, [phrase])
     assert ancien not in dit, dit
     assert dit == phrase and question_posee(e) == {}, (dit, question_posee(e))  # la relecture est tombée avec l'ajout : rien de réglé ne suit la phrase du modèle
@@ -130,7 +134,7 @@ async def test_s1_voisin_un_numero_refuse_dans_le_tour_la_question_dc10_qui_atte
 
 
 async def test_c7_b_article_ajoute_dans_le_tour_puis_c_est_tout_la_nouvelle_relecture_dit_son_total(essai_de):
-    """C7 (b), suite de S1 de bout en bout. Client « Non merci, c'est tout. » puis, dans le même tour, une margherita ajoutée : rien de réglé ne suit la phrase du modèle. Tour
+    """C7 (b), suite de S1 de bout en bout. Client « Non merci, c'est tout. » puis, dans le même tour, une regina ajoutée : rien de réglé ne suit la phrase du modèle. Tour
     suivant, Client « C'est tout. » / voulu : la relecture reposée, puis le code « Cela fait <nouveau total>, c'est bon pour vous ? » ; jamais l'ancien total ; la phrase du
     total est notée dite au jeton de la NOUVELLE relecture (un « oui » vaut accord pour elle seule)."""
     e = await essai_de("casa-italia")
@@ -140,13 +144,13 @@ async def test_c7_b_article_ajoute_dans_le_tour_puis_c_est_tout_la_nouvelle_rele
     r = await e.tour("non merci, c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("type") == "proposition" else {}))
     ancien, jeton_ancien = montant_en_lettres(e.p["relecture"]["total"]), e.p["relecture"]["jeton"]
     PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Alors une margherita."})
-    r2 = await e.fiche(ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    assert await _voix(e, r2, "Voilà, deux margherita alors.", ["Voilà, deux margherita alors."]) == "Voilà, deux margherita alors."
+    r2 = await e.fiche(ajouter=[REGINA])
+    assert await _voix(e, r2, PHRASE_DU_MODELE, [PHRASE_DU_MODELE]) == PHRASE_DU_MODELE
     r3 = await e.tour("c'est tout", c_est_tout=True)
     assert question_posee(e).get("type") == "relecture" and e.p["relecture"]["jeton"] != jeton_ancien, (r3, question_posee(e))
     nouveau = montant_en_lettres(e.p["relecture"]["total"])
     assert nouveau != ancien
-    phrase = "Alors deux margherita à emporter."
+    phrase = "Alors une margherita et une regina à emporter."
     dit = await _voix(e, r3, phrase, [phrase])
     assert dit.startswith(phrase) and nouveau in dit and ancien not in dit and dit.rstrip().endswith("?"), dit
     assert PAROLE.total_dit(e.p, e.p["relecture"]["jeton"]) and not PAROLE.total_dit(e.p, jeton_ancien), dit
