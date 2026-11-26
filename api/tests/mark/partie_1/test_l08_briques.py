@@ -8,7 +8,7 @@ from __future__ import annotations
 from api.services.actions_communes import conversation as CONV
 from api.db.bases_clients import restauration_commande as RC
 from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
-from api.services.commande.moteur import articles as _articles
+from api.services.commande import textes_de_secours as TS
 
 
 # --------------------------------------------------------------------------- #
@@ -128,7 +128,8 @@ def test_question_de_declinaison_au_libelle_de_la_carte():
     from api.services.commande.briques import declinaison_nommee
 
     def phrase(declinaisons, article="Kefta"):
-        return _articles._phrase_de_la_question(declinaison_nommee.brique_dec1_demander_la_declinaison(declinaisons), article)
+        # C7 B3 (Evan 25/11 8 h 45) : le moteur ne compose plus la question ; ses faits (la question de la carte, l'article) refont le texte d'avant
+        return TS.question_d_un_choix({"question": declinaison_nommee.brique_dec1_demander_la_declinaison(declinaisons), "article_de_la_carte": article})
 
     assert phrase(_declinaisons("Classic", "Royal", type="variante")) == "Quelle version pour votre Kefta : Classic ou Royal ?"
     assert phrase(_declinaisons("4 pièces", "8 pièces", type="pieces"), "Nuggets") == "Combien de pièces pour votre Nuggets : 4 pièces ou 8 pièces ?"
@@ -244,9 +245,12 @@ class TestDEC1:
         """Sur la carte Kebab-like : « un Kefta » demande la version (Classic ou Royal), « une Regina » la taille ; jamais l'un pour l'autre."""
         e = await brique(essai_de, "DEC1")
         r = await e.tour("un kefta", ajouter=[{"article": "kefta", "quantite": 1}])
-        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and "Quelle version pour votre Kefta : Classic ou Royal" in CONV.question_de(e.p)["texte"] and r["question"]["texte"] == "", r  # 7b-C4 : le texte reste au registre (repli), le modèle ne le reçoit pas
+        # C7 B3 (Evan 25/11 8 h 45) : aucun texte, ni au registre ni au modèle ; les faits du retour refont la question d'avant
+        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and CONV.question_de(e.p)["texte"] == "" and r["question"]["texte"] == "", r
+        assert "Quelle version pour votre Kefta : Classic ou Royal" in TS.question_d_un_choix(r["resultats"][0]["faits"]), r
         r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-        assert "Quelle taille pour votre Regina : Junior ou Senior" in CONV.question_de(e.p)["texte"], r
+        faits = next(x["faits"] for x in r["resultats"] if "question" in (x.get("faits") or {}))  # le retour qui pose la question (la Regina)
+        assert "Quelle taille pour votre Regina : Junior ou Senior" in TS.question_d_un_choix(faits), r
 
     async def test_dec1_aller_retour_caisse(self, essai_de):
         e = await brique(essai_de, "DEC1")
@@ -262,7 +266,8 @@ class TestDEC3:
         """« un coca » sur une carte à 33 cl et à la bouteille : la contenance est demandée, jamais supposée ; la réponse la pose."""
         e = await brique(essai_de, "DEC3")
         r = await e.tour("un coca", ajouter=[{"article": "coca", "quantite": 1}])
-        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and "Quelle contenance pour votre Coca : 33 centilitres ou Bouteille" in CONV.question_de(e.p)["texte"] and r["question"]["texte"] == "", r  # 7b-C4 : texte au registre, pas au modèle
+        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and r["question"]["texte"] == "", r  # C7 B3 : aucun texte ; les faits refont la question d'avant
+        assert "Quelle contenance pour votre Coca : 33 centilitres ou Bouteille" in TS.question_d_un_choix(r["resultats"][0]["faits"]), r
         await e.tour("la bouteille", ajouter=[{"article": "coca", "quantite": 1, "variante": "Bouteille"}])
         assert [(l["nom"], l["quantite"]) for l in e.p["lignes"] if not l.get("attente")] == [("Coca Bouteille", 1)], e.retours[-1]
 
