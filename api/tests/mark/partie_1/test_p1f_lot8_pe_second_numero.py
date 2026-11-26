@@ -84,3 +84,12 @@ async def test_sur_une_commande_accordee_la_case_declenche_l_enregistrement_et_l
     assert e.p["client"]["second_numero"]["numero"] == SECOND
     assert (CONV.question_de(e.p) or {}).get("type") == "numero_affiche" and (CONV.question_de(e.p) or {}).get("id") == q["id"]
     assert not e.p.get("enregistree")
+
+
+async def test_un_second_numero_que_la_personne_n_a_pas_dit_est_refuse_comme_le_telephone(essai_de):
+    """Reprise R1 de l'audit (D57) : le second numéro suit la règle de ses chiffres comme ``telephone`` (les 9 derniers chiffres se retrouvent dans ses mots) ; un numéro inventé par le modèle
+    n'est ni gardé, ni dit, ni envoyé au restaurant. Le numéro, lui, reste noté (la case refusée seule)."""
+    e = await jusqu_au_numero(await essai_de("casa-italia"), appelant=False, configurations=DC10_ETEINT)
+    r = await e.tour("Léa, au zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678", second_numero="0799999999")
+    assert r.get("raison") == "valeur_pas_dans_ses_mots" and "second_numero" in (r.get("cases_refusees") or []), r
+    assert not (e.p["client"].get("second_numero") or {}).get("numero"), e.p["client"]
