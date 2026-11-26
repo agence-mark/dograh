@@ -400,9 +400,6 @@
    "C901": 1,
    "PLR0912": 1
   },
-  "services/commande/moteur/reglement.py": {
-   "C901": 1
-  },
   "services/commande/porte.py": {
    "C901": 4,
    "PLR0912": 1
@@ -774,7 +771,7 @@
    "C901": 7,
    "PLR0912": 4,
    "S110": 4,
-   "PLR0915": 2
+   "PLR0915": 1
   },
   "services/pipecat/responses_llm.py": {
    "C901": 3,
@@ -901,9 +898,6 @@
    "PLR0912": 1
   },
   "services/restauration/caisse/synchro_caisse.py": {
-   "C901": 1
-  },
-  "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": {
    "C901": 1
   },
   "services/restauration/carte_et_allergenes/scan_carte.py": {

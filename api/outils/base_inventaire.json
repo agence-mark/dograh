@@ -548,13 +548,6 @@
    "lecture_de_mots": 1,
    "fonctions_longues": {}
   },
-  "services/actions_communes/repli.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 2,
-   "fonctions_longues": {}
-  },
   "services/actions_communes/resultat.py": {
    "drapeaux": {},
    "erreurs_avalees": 1,
@@ -955,9 +948,9 @@
    "drapeaux": {},
    "erreurs_avalees": 0,
    "noms_prives": 0,
-   "lecture_de_mots": 4,
+   "lecture_de_mots": 2,
    "fonctions_longues": {
-    "_un_article": 153
+    "_un_article": 148
    }
   },
   "services/commande/moteur/prealables.py": {
@@ -1776,7 +1769,6 @@
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {
-    "RepliqueVerifiee._parcourir": 96,
     "RepriseSansFluxMixin.get_chat_completions": 136
    }
   },
@@ -1934,7 +1926,7 @@
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {
-    "_reserver": 87
+    "_reserver": 83
    }
   },
   "services/reservation/porte.py": {
@@ -1956,14 +1948,14 @@
   "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": {
    "drapeaux": {},
    "erreurs_avalees": 0,
-   "noms_prives": 6,
+   "noms_prives": 4,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
   "services/restauration/carte_et_allergenes/voir_un_article.py": {
    "drapeaux": {},
    "erreurs_avalees": 0,
-   "noms_prives": 7,
+   "noms_prives": 5,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
