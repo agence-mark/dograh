@@ -1162,8 +1162,11 @@ async def _proposition_apres_les_cases(f: LaFiche) -> None:
 
 async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
     p, avant = f.p, f.avant_enregistree
-    if (avant is None or moteur.commande_de_l_appel(p) is None or P.a_completer(p) or P.empreinte(p) == p.get("empreinte_enregistree")):
-        return  # une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse ; le panier redevenu la commande enregistrée ne change rien ; un panier vidé en diffère (RC8)
+    if (avant is None or moteur.commande_de_l_appel(p) is None or P.empreinte(p) == p.get("empreinte_enregistree")
+            or (P.a_completer(p) and moteur.manque_pour_remplacer(f.source, p) is None)):
+        # une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse ; le panier redevenu la commande enregistrée ne change rien ; un panier vidé en diffère (RC8).
+        # 7c (Pierre A2, B4 M2) : un manque (l'adresse d'une livraison) se constate d'abord, même quand une ligne attend : rien ne change, le panier redevient celui d'avant
+        return
     # RC8 : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2) : rien ne change, la confirmation est posée
     # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
     f.dernier = await moteur.changer_commande_enregistree(f.source, p, f.regles, f.appelant, avant)

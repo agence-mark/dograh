@@ -93,3 +93,32 @@ def test_rc4_la_question_qui_attend_est_due_comme_le_manque():
     assert (d.mode, d.a_dire) == (A_DIRE_SEUL, "C'est noté.")
     d = T.decider(T.entrees_du_retour({}, "C'est noté, on vous la prépare pour la réouverture ?", EtatDuTour(tour=3), [], p, {}, None, None))
     assert d.mode == A_DIRE_SEUL
+
+
+async def test_rc2_une_commande_enregistree_passee_en_livraison_sans_adresse_ne_garde_rien_meme_avec_une_taille_a_donner(faire_monde, monkeypatch):
+    """Pierre A2 et B4 (M2) : ce qui manque à la commande changée (l'adresse d'une livraison) se constate AVANT tout ; rien ne change, le panier redevient celui d'avant
+    (``changer_commande_enregistree``). La porte sautait ce contrôle quand une ligne de la même fiche attendait sa taille. Client (commande enregistrée, une margherita) « Une regina, et
+    finalement en livraison. » / avant : la regina entre (sa taille demandée) et le mode passe en livraison sans adresse, la caisse a toujours l'ancienne / après : rien ne change, le
+    modèle dit qu'il manque l'adresse."""
+    from api.tests.mark.partie_1 import combinaisons as C
+
+    monde = await faire_monde("casa-italia")
+    partie = C.Partie(monde, monkeypatch)
+    assert await partie.recette("E16")
+    o = await partie.fusion(("G2", "G15"))
+    assert C.lignes_de(o.apres) == C.lignes_de(o.avant) and o.apres.get("mode") == o.avant.get("mode"), (dict(C.lignes_de(o.apres)), o.apres.get("mode"))
+    assert not C.rc2(o), C.rc2(o)
+    ops = {x.get("operation"): x for x in (o.retour or {}).get("resultats") or []}
+    assert (ops.get("changer_la_commande_enregistree") or {}).get("faits", {}).get("raison") == "changement_incomplet", ops
+
+
+async def test_rc2_une_taille_a_donner_sur_une_commande_enregistree_attend_toujours_sa_reponse(faire_monde, monkeypatch):
+    """Le cas voisin ne bouge pas : sans manque, la ligne qui attend sa taille ne part pas en caisse avant sa réponse (la question de la taille est posée)."""
+    from api.tests.mark.partie_1 import combinaisons as C
+
+    monde = await faire_monde("casa-italia")
+    partie = C.Partie(monde, monkeypatch)
+    assert await partie.recette("E16")
+    o = await partie.geste("G2")
+    assert C.question(o.apres).get("type") == "variante" and C.lignes_de(o.apres)[C.REGINA] == 1 and not C.rc2(o) and not C.rc8(o)
+

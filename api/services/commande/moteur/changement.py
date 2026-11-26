@@ -56,6 +56,11 @@ def _manque_pour_remplacer(source: Source, p: dict[str, Any]) -> str | None:
     return None
 
 
+def manque_pour_remplacer(source: Source, p: dict[str, Any]) -> str | None:
+    """7c : le même constat, lu par la porte avant d'attendre la taille d'une ligne (Pierre A2 : tout ou rien, le manque d'abord)."""
+    return _manque_pour_remplacer(source, p)
+
+
 async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, avant: dict[str, Any]) -> Resultat:
     """La commande de CET appel, déjà enregistrée, vient d'être changée dans le panier (« finalement deux tiramisus », « mettez-la en mega ») :
     le changement est porté à la prise en remplaçant la commande (l'ancienne annulée, la nouvelle enregistrée à sa place : toujours une seule
