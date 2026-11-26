@@ -521,6 +521,15 @@ async def test_f5_les_jours_possibles_sont_dits_et_les_candidats_restent_caches(
     assert (m.statut, m.faits.get("jours_possibles")) == ("AMBIGU", ["jeudi dix-neuf novembre", "jeudi vingt-six novembre"]), m
 
 
+async def test_f5_la_lecture_des_places_libres_garde_les_jours_possibles():
+    """F5 par l'outil ``lire`` (le vrai chemin des disponibilités) : Client « Vous avez de la place jeudi pour deux ? » / avant « Lequel ? » (``manque`` seul) / après « Ce jeudi
+    ou le suivant ? » ; les candidats, avec leurs dates, ne sortent pas."""
+    from api.services.reservation.lire import lire
+    r = await lire(_SourceDuSamedi([], ambigu=True), {}, {"sujet": "places_libres", "jour": "jeudi", "personnes": 2})
+    assert r["statut"] == "A_PRECISER" and r["faits"]["manque"] == "jour", r
+    assert r["faits"]["jours_possibles"] == ["jeudi dix-neuf novembre", "jeudi vingt-six novembre"] and "candidats" not in r["faits"], r
+
+
 async def _une_reservation_visee(**_criteres):
     return Resultat("OK", {"reservations": [{"numero": "r1", "quand_dit": "samedi quatorze novembre à vingt heures", "jour_dit": "samedi", "personnes": 2, "prenom": "Alice"}]})
 
