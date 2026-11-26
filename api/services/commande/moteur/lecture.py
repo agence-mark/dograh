@@ -25,8 +25,8 @@ async def voir_la_carte(source: Source, p: dict[str, Any], regles: Reglages) -> 
     """``lire`` avec ``sujet: carte`` sans article (E16, ART3) : les rubriques de la carte et le texte du jour de chaque produit du moment, tel que saisi ; un texte absent est dit
     non renseigné (``renseigne`` faux, jamais inventé). C7 B5 (Evan 25/11 8 h 45) : aucun texte au retour, le modèle dit le texte du jour ou qu'il ne peut pas le confirmer."""
     carte = await source.carte_a_lire(p.get("mode") or "emporter")
-    if any(r.get("articles") for r in carte.get("rubriques") or []):
-        carte = {**carte, "a_faire": INFO.CONSIGNE_QUELQUES_NOMS}  # Q8 : la liste complète reste dans les faits, le modèle en dit quelques-uns
+    noms = [n for r in carte.get("rubriques") or [] for n in r.get("articles") or []]
+    carte = {**carte, **INFO.consigne_si_liste(noms)}  # Q8 : la liste complète reste dans les faits, le modèle en dit quelques-uns
     return _avec(_r("OK", carte, ""), p)
 
 
