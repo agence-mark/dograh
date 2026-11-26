@@ -382,7 +382,7 @@ async def test_la_fermeture_n_est_plus_dite_par_le_code_meme_quand_la_source_a_u
     assert r.suggestion == ""
     from api.services.commande.moteur import prealables
     p = {}
-    assert prealables.annoncer_la_fermeture(p, {"phrase": "Les livraisons sont terminées."}) == "" and J.deja_dit(p, J.FERMETURE)
+    assert prealables.noter_la_fermeture(p) is None and J.deja_dit(p, J.FERMETURE)  # C7 B2 (T2) : renommée, elle ne rend plus rien
 
 
 async def test_l_heure_annoncee_dit_ce_sera_pret(appel, monkeypatch):

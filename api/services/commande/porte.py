@@ -1308,8 +1308,8 @@ def _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee) -> dict[str
     """Les faits que la fiche rend au modèle : le panier, le refus du module, les refus de la fiche, l'heure qui manque, le montant d'une annulation à confirmer, le prix d'une
     proposition à poser."""
     faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
-    if J.deja_dit(p, J.FERMETURE):
-        faits["fermeture_dite"] = True  # 7b-C4 : un fait simple (plus la phrase) : la fermeture est déjà dite dans cet appel, le modèle ne la redit pas à chaque tour
+    if J.dit_a_un_tour_d_avant(p, J.FERMETURE):
+        faits["fermeture_dite"] = True  # 7b-C4 : un fait simple : déjà dite dans cet appel, le modèle ne la redit pas ; T2 (C7) : pas au tour qui l'apprend, il l'annonce
     if bloquant:
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     elif refusants:

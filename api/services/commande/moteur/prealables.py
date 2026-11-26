@@ -39,10 +39,10 @@ async def question_du_mode(source: Source, p: dict[str, Any], statut: str) -> Re
         if etats and not any(e["ouvert"] for e in etats):
             ferme = etats[0]
             faits.update({k: ferme.get(k) for k in CLES_DE_L_ETAT})
-            phrase = annoncer_la_fermeture(p, ferme)
+            noter_la_fermeture(p)
             if not any(e.get("planifiee_permise") for e in etats):
-                return _r(ferme.get("statut") or "FERME", faits, phrase)
-            return _r(statut, {**faits, "ferme_maintenant": True}, f"{phrase} {question}", "mode")
+                return _r(ferme.get("statut") or "FERME", faits, "")
+            return _r(statut, {**faits, "ferme_maintenant": True}, question, "mode")
     return _r(statut, faits, question, "mode")
 
 
@@ -375,8 +375,7 @@ async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | N
     return None
 
 
-def annoncer_la_fermeture(p: dict[str, Any], etat: dict[str, Any]) -> str:
-    """Lot 4 (M07, appel 2649) : la fermeture est marquée dite UNE fois par appel (``J.FERMETURE``, lu par la porte et par la question du mode). Lot 7b-C7a : le code n'écrit plus
-    la phrase (la source non plus) : la fermeture est dite par le modèle d'après le statut et les faits de l'état (``CLES_DE_L_ETAT``) ; la valeur rendue est donc toujours vide."""
-    J.une_fois(p, J.FERMETURE)  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part
-    return ""
+def noter_la_fermeture(p: dict[str, Any]) -> None:
+    """Lot 4 (M07, appel 2649) : la fermeture est notée UNE fois par appel (``J.FERMETURE``, lu par la porte et par la question du mode), avec le tour qui l'apprend. Le modèle
+    la dit d'après le statut et les faits de l'état (``CLES_DE_L_ETAT``, C7a) ; la porte ne lui donne ``fermeture_dite`` qu'aux tours suivants (T2, C7 : annoncée dès le début)."""
+    J.une_fois(p, J.FERMETURE, J.tour_de_l_appel(p))  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part

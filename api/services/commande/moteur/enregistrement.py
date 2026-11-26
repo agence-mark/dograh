@@ -18,7 +18,7 @@ from api.services.actions_communes import journal_du_dit as J
 from api.services.commande.etat_pour_le_modele import manque_de_l_identite
 from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
-from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
+from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, noter_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
 from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, poser_la_relecture, regler, rendu_de_monnaie
@@ -275,10 +275,13 @@ async def _finaliser(
                 # Lot 19, aparté d'Evan (20/11) : « le plus naturel, c'est de proposer une commande pour le prochain service qui commence à telle heure,
                 # et de faire confirmer par le client » : l'heure de la réouverture est proposée, la personne la confirme (question ``heure_proposee``).
                 faits = {**faits_fermes, "a_planifier": True, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
-                return _avec(_r("FERME_PLANIFIABLE", faits, f"{annoncer_la_fermeture(p, etat)} {TS.je_vous_la_prepare_pour(faits)}".strip(), "heure_proposee"), p)
+                noter_la_fermeture(p)
+                return _avec(_r("FERME_PLANIFIABLE", faits, TS.je_vous_la_prepare_pour(faits), "heure_proposee"), p)
             faits = {**faits_fermes, "a_planifier": True}
-            return _avec(_r("FERME_PLANIFIABLE", faits, f"{annoncer_la_fermeture(p, etat)} {TS.quel_jour_et_quelle_heure(faits)}".strip(), "heure_voulue"), p)
-        return _avec(_r(etat["statut"], faits_fermes, annoncer_la_fermeture(p, etat)), p)
+            noter_la_fermeture(p)
+            return _avec(_r("FERME_PLANIFIABLE", faits, TS.quel_jour_et_quelle_heure(faits), "heure_voulue"), p)
+        noter_la_fermeture(p)
+        return _avec(_r(etat["statut"], faits_fermes, ""), p)
     refus = await verifier_le_creneau(source, p)
     if refus is not None:
         return refus

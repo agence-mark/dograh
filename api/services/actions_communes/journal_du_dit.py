@@ -133,6 +133,20 @@ def fait_accompli(dossier: Any) -> str | None:
     return str((_lu(dossier).get(FAIT_ACCOMPLI) or {}).get("texte") or "").strip() or None
 
 
+TOUR_DE_L_APPEL = "tour_de_l_appel"  # le tour de la conversation, posé par la porte de chaque métier (la même clé que ``registre_des_questions.CLE_DU_TOUR``)
+
+
+def tour_de_l_appel(dossier: Any) -> Any:
+    """Le tour de la conversation du dossier (``None`` hors d'une porte)."""
+    return (dossier.get(CONV.CLE) or {}).get(TOUR_DE_L_APPEL) if isinstance(dossier, dict) else None
+
+
+def dit_a_un_tour_d_avant(dossier: Any, cle: str) -> bool:
+    """T2 (C7) : le fait est noté à un tour d'avant celui-ci (au tour qui l'apprend, le modèle le dit encore ; ensuite il est « déjà dit »)."""
+    e = entree(dossier, cle)
+    return e is not None and e.get("tour") != tour_de_l_appel(dossier)
+
+
 def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:
     """Vrai la première fois que le fait est dit dans l'appel (il est alors noté) ; ensuite, faux : il n'est jamais redit."""
     if deja_dit(dossier, cle):

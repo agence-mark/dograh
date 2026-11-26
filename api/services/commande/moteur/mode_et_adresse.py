@@ -18,11 +18,11 @@ from api.services.commande.moteur.prealables import (
     _rien_n_est_pris,
     _valider,
     adresse_verifiee,
-    annoncer_la_fermeture,
     chiffrer_le_panier,
     exiger_une_voie,
     garder_l_heure,
     mode_implique_par_l_adresse,
+    noter_la_fermeture,
     proposer_un_autre_mode_hors_zone,
     question_du_mode,
     retenir_la_seule_commune_livree,
@@ -40,7 +40,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     etat = await source.etat(choisi)
     a_planifier = not etat["ouvert"] and bool(etat.get("planifiee_permise"))
     if not etat["ouvert"] and not a_planifier:
-        annoncer_la_fermeture(p, etat)  # marque la fermeture dite : le modèle la dit d'après le statut et les faits (C7a)
+        noter_la_fermeture(p)  # le modèle la dit d'après le statut et les faits (C7a), dès ce tour (T2)
         return _avec(
             _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""),
             p,
@@ -51,7 +51,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         return r
     # Fermé mais planifiable : le résultat porte la fermeture et le créneau en faits (le modèle les dit) ; la question en cours (zone, articles) suit, sinon l'heure.
     # Appel 2610 : la fermeture est marquée dite avec la question du mode (le code ne la redit plus, elle n'est plus qu'un fait).
-    annoncer_la_fermeture(p, etat)
+    noter_la_fermeture(p)
     heure_voulue_dite = None
     dire = getattr(source, "quand_dit", None)
     if p.get("heure_voulue") and dire:
