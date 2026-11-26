@@ -132,10 +132,10 @@ async def test_commande_de_l_appel_apres_enregistrement(essai_de):
     ligne = e.p["lignes"][0]["n"]
     r = await e.tour("finalement deux margheritas", changer_quantite=[{"ligne": ligne, "quantite": 2}])
     apres = moteur.commande_de_l_appel(e.p)
-    assert r["statut"] == "ENREGISTREE" and apres is not None and apres["numero"] != avant["numero"], r
+    assert r["statut"] == "ENREGISTREE" and apres is not None and apres["numero"] == avant["numero"], r  # § 17 l.404 (8b-1b, E4) : la même ligne, réécrite
     assert e.p["lignes"][0]["quantite"] == 2 and "remplace" in _faits(r), r
     statuts = await e.monde.c.fetch("SELECT numero::text, statut FROM mark.resto_commande ORDER BY cree_le")
-    assert {s["numero"]: s["statut"] for s in statuts}[avant["numero"]] == "annulee", statuts  # une seule commande active pour l'appel (E30)
+    assert [(s["numero"], s["statut"]) for s in statuts] == [(avant["numero"], "retenue")], statuts  # une seule commande pour l'appel (E30), jamais annulée
 
 
 async def test_annuler_commande_enregistree(essai_de):
@@ -151,15 +151,18 @@ async def test_annuler_commande_enregistree(essai_de):
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and moteur.commande_de_l_appel(e.p) is None, e.retours[-1]
     assert await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", numero) == "annulee"
-    # une caisse qui ne sait pas annuler : refusé avec la raison, rien ne change
+    # § 17 l.404 (8b-1b, E6, A8) : la caisse n'a rien reçu pendant l'appel ; qu'elle sache annuler ou non, DC4 est posée et la commande s'annule
     e2 = await essai_de("l00-carte-numerotee")
     e2.source.capacites = moteur_sans_annulation(e2.source.capacites)
     await _a_emporter(e2)
     await _premier_article(e2)
     await _refuser_la_proposition(e2)
     await _jusqu_a_l_enregistrement(e2)
-    r = await e2.tour("annulez-la", annuler_une_commande_enregistree=True)
-    assert "annulation_impossible" in _faits(r) and moteur.commande_de_l_appel(e2.p) is not None, r
+    await e2.tour("annulez-la", annuler_une_commande_enregistree=True)
+    q = CONV.question_de(e2.p)
+    assert q["type"] == "annulation_enregistree", q
+    await e2.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    assert e2.p.get("annulee") and moteur.commande_de_l_appel(e2.p) is None and e2.source.prise.annulees == [], e2.retours[-1]
 
 
 def moteur_sans_annulation(capacites):

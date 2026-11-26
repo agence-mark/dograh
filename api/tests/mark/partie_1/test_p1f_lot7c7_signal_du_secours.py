@@ -254,7 +254,6 @@ async def _quel_jour_et_quelle_heure(appel, mp):
 
 
 async def _tout_retirer(appel, mp):
-    mp.setattr(changement, "_permet_l_annulation", lambda _source: True)
     avant = {**appel.p, "enregistree": {"numero": "00000000-0000-0000-0000-000000000001", "numero_court": "12", "total": 200}}
     return await changement.changer_commande_enregistree(appel.source, appel.p, appel.regles, Appelant(), avant)
 
