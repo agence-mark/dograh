@@ -94,3 +94,16 @@ def test_voisin_un_seul_chiffre_apres_la_virgule_devant_un_euro_est_les_dixiemes
     assert forme.valeurs("24,05 €") == [("2405", "argent")]
     assert forme.valeurs("1,5 kg") == [("105", "nombre")]
     assert porte_les_chiffres("Cela fait vingt-quatre euros cinquante.", {"total": "24,5 €"})
+
+
+# --------------------------------------------------------------------------- reprise R1 : toutes les virgules des centimes, et seulement elles
+
+def test_deux_prix_dits_avec_virgule_ne_se_lisent_pas_comme_un_seul():
+    """« douze, cinquante » puis « dix, cinquante » : chaque virgule suivie d'un nombre et d'une unité d'argent est celle de ses centimes ; la phrase donne 12,50 € et 10,50 €, pas 12,50 € puis 60 (sens 1 recréé)."""
+    assert not chiffre_dans_la_phrase("La Regina est à douze, cinquante euros et la Margherita à dix, cinquante euros.", faits=[{"prix": [1250, 1050]}])
+    assert chiffre_dans_la_phrase("La Regina est à douze, cinquante euros et la Margherita à dix, soixante euros.", faits=[{"prix": [1250, 1050]}])
+
+
+def test_un_point_entre_deux_nombres_les_separe_toujours():
+    """Le point de fin de phrase ne colle pas deux nombres : « quatre. Vingt-quatre, cinquante euros » = 4 puis 24,50 € (jamais 8450)."""
+    assert not chiffre_dans_la_phrase("Vous êtes quatre. Vingt-quatre, cinquante euros.", faits=[{"personnes": 4, "total": 2450}])
