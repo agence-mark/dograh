@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from api.tests.mark.partie_1.aides_de_la_commande import a_emporter, question_posee
+from api.tests.mark.partie_1.aides_de_la_commande import a_emporter, jusqu_au_recapitulatif, premier_article, question_posee, refuser_la_proposition
 
 REGINA = {"article": "regina", "quantite": 1, "variante": "Normale"}
 RAISON = "fiche_identique_au_tour_d_avant"
@@ -98,3 +98,19 @@ async def test_le_meme_article_sans_sa_taille_redit_est_un_de_plus_demande(essai
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
     r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
     assert r.get("raison") == RAISON, r
+
+
+async def test_la_fiche_refaite_dans_le_meme_tour_apres_un_refus_partiel_compte_pour_le_tour_d_apres(essai_de):
+    """Reprise R2 de l'audit : « une regina » dite avec un téléphone que la personne n'a pas dit : le téléphone est refusé, la regina entre ; la fiche refaite dans le MÊME tour (la regina
+    seule, sa case déjà faite) est la fiche que le modèle redit au tour d'après (« je répète ») : elle est refusée comme identique, jamais une seconde regina sans rien demander."""
+    e = await essai_de()
+    await a_emporter(e)
+    await premier_article(e)
+    await refuser_la_proposition(e)
+    await jusqu_au_recapitulatif(e)
+    await e.tour("une regina", ajouter=[REGINA], telephone="0699999999")
+    avant = _reginas(e)
+    await e.fiche(ajouter=[REGINA])
+    assert _reginas(e) == avant
+    r = await e.tour("je répète", ajouter=[REGINA])
+    assert _reginas(e) == avant and r.get("raison") == RAISON, r
