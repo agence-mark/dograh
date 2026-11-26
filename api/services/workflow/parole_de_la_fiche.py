@@ -101,7 +101,7 @@ class VerificateurDeLaFiche:
             consigne = consigne_de_ce_que_le_code_dit(etat)
             a_dire = None
             if not consigne:
-                a_dire, etat.suffixe = etat.suffixe, None
+                a_dire, etat.suffixe, etat.ancre = etat.suffixe, None, None
                 PAROLE.noter_le_total_dit(p, etat, a_dire)  # la phrase du total est dite, seule : la relecture est entendue
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "", a_dire=a_dire)

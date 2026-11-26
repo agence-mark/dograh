@@ -9,6 +9,7 @@ Après : code « Elle fait maintenant … Puis-je faire autre chose pour vous ? 
 
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 from api.services.actions_communes import conversation as CONV
@@ -92,3 +93,26 @@ async def test_fiche_vide_apres_l_enregistrement_la_phrase_du_modele_part_seule(
     r2 = await e.fiche()
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r2, {"a_dire": "Avec plaisir."})
     assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == "Avec plaisir.", d
+
+
+def _etat_avec_la_phrase_reglee() -> PAROLE.EtatDuTour:
+    return PAROLE.EtatDuTour(fiches=1, relance_du_fait=True, rattrapage_a_joue=True, rattrapage_refus_joue=True,
+                             suffixe="Puis-je faire autre chose pour vous ?", ancre="Q-3", exiges={})
+
+
+def test_mineur_tranche_la_phrase_reglee_dite_emporte_son_ancre():
+    """Mineur (2) de l'audit de la tranche : la phrase réglée partie à la voix (après la phrase du modèle, ou seule après une relance ratée) ne laisse pas son ancre (C7 a) derrière elle."""
+    etat = _etat_avec_la_phrase_reglee()
+    assert PAROLE.avec_le_suffixe("D'accord.", etat) == "D'accord. Puis-je faire autre chose pour vous ?" and (etat.suffixe, etat.ancre) == (None, None), etat
+    etat = _etat_avec_la_phrase_reglee()
+    assert PAROLE.la_suite_reglee(etat) == "Puis-je faire autre chose pour vous ?" and (etat.suffixe, etat.ancre) == (None, None), etat
+
+
+def test_mineur_tranche_la_relance_qui_pose_encore_la_question_vide_aussi_l_ancre():
+    """Voisin : la phrase du modèle pose encore la question que le code dit après elle, la relance du tour est prise : seule la phrase réglée part, et son ancre avec elle."""
+    fiche = {PAROLE.CLE_DU_TOUR: 1}
+    PAROLE.garder(fiche, replace(_etat_avec_la_phrase_reglee(), tour=1))
+    retenue = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=fiche))._retenue("Autre chose ?", relance=True)
+    etat = PAROLE.etat_du_tour(fiche)
+    assert retenue is not None and retenue.raison == PAROLE.CE_QUE_LE_CODE_DIT and retenue.a_dire == "Puis-je faire autre chose pour vous ?", retenue
+    assert (etat.suffixe, etat.ancre) == (None, None), etat

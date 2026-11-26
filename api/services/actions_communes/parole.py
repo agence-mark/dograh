@@ -234,7 +234,7 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
-    etat.suffixe = None
+    etat.suffixe = etat.ancre = None  # la phrase dite emporte son ancre (C7 a : une ancre sans phrase ne désigne plus rien)
     noter_le_total_dit(p, etat, dit)
     return dit
 
@@ -244,7 +244,7 @@ def la_suite_reglee(etat: EtatDuTour) -> str | None:
     (motifs de ``PHRASES_DU_CODE`` : le numéro, le total, le rendu, M108), jamais le fait accompli (gardé au journal seulement). Elle n'est dite qu'une fois. ``None`` : rien de réglé, la
     phrase réglée « pas compris » de l'agent (P3) la remplace."""
     dit = etat.suffixe or None
-    etat.suffixe = None
+    etat.suffixe = etat.ancre = None
     etat.exiges = None
     return dit
 
