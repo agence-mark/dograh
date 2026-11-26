@@ -43,7 +43,6 @@ from api.services.actions_communes.resultat import (
 )
 from api.services.phrases.catalogue import NUMERO_DICTE_RELU
 from api.services.reservation import etat_pour_le_modele, moteur
-from api.services.reservation import textes_de_secours as TS
 from api.services.reservation import source as registre_des_sources
 from api.services.reservation.lire import lire
 from api.services.actions_communes import du as DU
@@ -131,8 +130,8 @@ def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> d
     if operation == "retrouver" and r.statut == "AMBIGU" and isinstance((r.faits or {}).get("candidats"), list):
         # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
         candidats = en_json(r.faits["candidats"])
-        # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
-        return _numerotee({"type": "choix", "texte": (r.suggestion or TS.laquelle({})), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
+        # Lot 20 (n4) : la question porte les réservations (``candidats_dits``), jamais « Laquelle ? » seul ; C7 (B3) : sans texte, le modèle la dit avec ses mots
+        return _numerotee({"type": "choix", "texte": "", "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation"):
         # C6 n° 8 : la relecture est dite par le modèle, sans texte ; son JETON (neuf à chaque relecture posée) est son identité et lie le « oui » à la relecture entendue
         return _numerotee({"type": TYPES_DE_QUESTION[operation], "texte": "", "nee_au_tour": tour, "jeton": uuid.uuid4().hex}, e)
