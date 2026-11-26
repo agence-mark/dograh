@@ -32,6 +32,7 @@ CASES_DE_TEXTE = ("prenom", "adresse", "commune", "consigne_livreur", "heure")
 CASE_DU_TELEPHONE = "telephone"
 CASE_DE_L_ARGENT = "rendu_sur"
 CASES_DE_L_ARGENT = (CASE_DE_L_ARGENT, "part")  # C2 bis : la part d'un règlement partagé se dit en argent comme le billet
+FIN_DE_PHRASE = "||"  # T17 : un point, « ! » ou « ? » sépare deux nombres comme ``SEPARATEUR`` mais n'est jamais la virgule des centimes (``lecture_a_virgule_decimale``)
 SEPARATEUR = "|"  # C6 : la ponctuation qui sépare deux nombres dans les mots d'une valeur (``_mots_de_valeur``)
 CASE_D_UN_NOMBRE = "nombre"  # lot 6 : une valeur de la phrase du modèle qui n'est pas de l'argent (heure, nombre de personnes)
 
@@ -104,16 +105,17 @@ def heures(mots: list[str]) -> set[tuple[int, int]]:
     return out
 
 
-def _mots_de_valeur(texte: object) -> list[str]:
+def _mots_de_valeur(texte: object, fins_de_phrase: bool = False) -> list[str]:
     # Pierre 12 (C2) : le signe « € » est gardé AVANT la mise sous forme ASCII, qui le supprimait (« 25 € » se lisait « 25 » sans unité d'argent, refusé)
     s = unicodedata.normalize("NFD", str(texte or "").replace("€", " euros ")).encode("ascii", "ignore").decode().lower().replace("€", " € ")
-    # T17 : « 24,5 € » est 24,50 € (un seul chiffre après la virgule, devant une unité d'argent : les dixièmes), pas 24,05 ; hors argent la lecture ne change pas (« 1,5 kg »)
+    # T17 : ce seul ``re.sub`` couvre aussi le cas général (un chiffre, la virgule, un chiffre : « 24,05 ») ; « 24,5 € » est 24,50 € (un seul chiffre après la virgule, devant une unité d'argent : les dixièmes), pas 24,05 ; hors argent la lecture ne change pas (« 1,5 kg »)
     s = re.sub(r"(\d)[,.](\d)((?!\d)(?=\s*(?:euros?|centimes?)\b))?", lambda m: f"{m[1]} virgule {m[2]}" + ("" if m[3] is None else "0"), s)
     # C6 : une ponctuation entre deux nombres les sépare (« pour quatre, vingt heures » : 4 puis 20, jamais 80) ; elle reste un mot (``SEPARATEUR``), qui n'est pas un nombre
-    return re.sub(r"[^a-z0-9€| ]", " ", s.translate(_PONCTUATION_EN_SEPARATEUR)).split()
+    return re.sub(r"[^a-z0-9€| ]", " ", s.translate(_PONCTUATION_EN_SEPARATEUR_ET_FINS if fins_de_phrase else _PONCTUATION_EN_SEPARATEUR)).split()
 
 
 _PONCTUATION_EN_SEPARATEUR = str.maketrans({c: f" {SEPARATEUR} " for c in ",;.!?"})  # chaque signe devient le mot ``SEPARATEUR`` (``_mots_de_valeur``)
+_PONCTUATION_EN_SEPARATEUR_ET_FINS = str.maketrans({**{c: f" {SEPARATEUR} " for c in ",;"}, **{c: f" {FIN_DE_PHRASE} " for c in ".!?"}})  # idem, mais « . ! ? » deviennent ``FIN_DE_PHRASE``
 
 
 def _est_nombre(w: str) -> bool:
@@ -169,8 +171,8 @@ def _avec_les_centimes(mots: list[str]) -> list[str]:
 def lecture_a_virgule_decimale(texte: object) -> str | None:
     """T17 (reprise R1) : la lecture où chaque virgule qui sépare deux nombres, le second suivi d'une unité d'argent, est la virgule des centimes (« vingt-quatre, cinquante euros » = 24,50 €,
     jamais 74 ; « vingt, cinquante-quatre euros » = 20,54 €, donc pas 24,50 €). Le texte en mots, ``virgule`` à la place de chaque ponctuation retenue, les autres ponctuations restent
-    ``SEPARATEUR`` (un point ne colle pas deux nombres) ; ``None`` s'il n'y a pas de tel cas."""
-    w = _mots_de_valeur(texte)
+    ``SEPARATEUR`` (un point ne colle pas deux nombres, et n'est jamais la virgule des centimes : seules « , » et « ; » le sont) ; ``None`` s'il n'y a pas de tel cas."""
+    w = _mots_de_valeur(texte, fins_de_phrase=True)
     centimes = set()
     for s in range(1, len(w) - 1):
         if w[s] != SEPARATEUR or not _est_nombre(w[s - 1]) or w[s - 1] == "virgule":
@@ -180,7 +182,7 @@ def lecture_a_virgule_decimale(texte: object) -> str | None:
             e += 1
         if e > s + 1 and e < len(w) and w[e] in ARGENT:
             centimes.add(s)
-    return " ".join("virgule" if i in centimes else m for i, m in enumerate(w)) if centimes else None
+    return " ".join("virgule" if i in centimes else (SEPARATEUR if m == FIN_DE_PHRASE else m) for i, m in enumerate(w)) if centimes else None
 
 
 def valeurs_et_places(texte: object) -> tuple[list[tuple[int, int, str, str]], list[str]]:
