@@ -62,7 +62,7 @@ async def test_famille_2_annuler_dans_la_fiche_n_y_laisse_rien_entrer(essai_de):
     await e.tour("à emporter", mode_de_retrait="emporter")
     r = await e.tour("une regina, et annulez tout", ajouter=[REGINA], annuler_la_commande=True)
     assert e.p.get("annulee") and not e.p.get("lignes"), e.p.get("lignes")
-    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == "Je ne l'enregistre pas.", (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit
+    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit ; C7 B9 : le journal garde le fait, jamais une phrase
     assert [x["raison"] for x in r.get("refus") or []] == ["commande_annulee"] and r["refus"][0]["a_faire"], r.get("refus")
 
 
@@ -72,7 +72,7 @@ async def test_famille_2_ni_le_mode_ni_c_est_tout_ne_survivent_a_l_annulation(es
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
     await e.tour("annulez, finalement en livraison, c'est tout", annuler_la_commande=True, mode_de_retrait="livraison", c_est_tout=True)
     assert e.p.get("annulee") and e.p.get("mode") == "emporter" and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
-    assert not e.p.get("relecture") and _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == "Je ne l'enregistre pas.", (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit
+    assert not e.p.get("relecture") and _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit ; C7 B9 : le journal garde le fait, jamais une phrase
 
 
 async def test_famille_3_c_est_tout_attend_l_article_en_doute(essai_de):
@@ -98,4 +98,4 @@ async def test_famille_2_le_refus_du_reglement_n_annule_pas_l_annulation(essai_d
     assert CONV.question_de(e.p)["type"] == "relecture", CONV.question_de(e.p)
     await e.tour("annulez, par carte, c'est Léa", annuler_la_commande=True, moyen_de_paiement="carte_bancaire", prenom="Léa")
     assert e.p.get("annulee") and not e.p.get("lignes"), e.p.get("lignes")
-    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == "Je ne l'enregistre pas.", (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit
+    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit ; C7 B9 : le journal garde le fait, jamais une phrase
