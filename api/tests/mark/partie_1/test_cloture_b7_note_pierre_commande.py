@@ -458,10 +458,10 @@ async def test_une_ligne_ajoutee_qui_attend_sa_taille_puis_retiree_ne_re_enregis
     assert moteur.commande_de_l_appel(e.p)["numero"] == avant["numero"]
 
 
-async def test_c_la_caisse_refuse_la_nouvelle_version_la_commande_d_avant_n_est_jamais_annulee_en_caisse(essai_de, monkeypatch):
-    """C (Evan, 24/11) : une commande enregistrée est changée (un ajout), la caisse refuse la nouvelle version : l'ancienne n'est JAMAIS annulée en caisse tant que la nouvelle n'est pas
-    acceptée. Espion : aucune annulation n'est partie ; l'ancienne existe toujours dans la caisse de test et en base, avec le même numéro ; l'appel la garde telle quelle (étape,
-    empreinte, accord d'avant, sans nouvelle relecture) ; le modèle reçoit le fait ``changement_refuse_par_la_caisse``."""
+async def test_c_la_base_refuse_la_nouvelle_version_la_commande_d_avant_est_gardee_et_rien_n_est_annule(essai_de, monkeypatch):
+    """C (Evan, 24/11), plié au § 17 l.404 (lot 8b-1b, E4) : une commande enregistrée est changée (un ajout), la nouvelle version est refusée (la réécriture en base) : la commande
+    d'avant est gardée, jamais annulée. Espion : aucune annulation n'est partie ; elle existe toujours en base, avec le même numéro ; l'appel la garde telle quelle (étape,
+    empreinte, accord d'avant, sans nouvelle relecture) ; le modèle reçoit le fait ``changement_refuse``."""
     from api.services.commande import etape as ETAPE
     from api.services.commande.moteur import changement as CH
     from api.services.commande.resultat import Resultat
@@ -478,39 +478,17 @@ async def test_c_la_caisse_refuse_la_nouvelle_version_la_commande_d_avant_n_est_
         return await original(numero)
 
     async def refuse(*a, **k):
-        return Resultat("INTERDIT", {"raison": "refus_de_la_caisse"}, "")
+        return Resultat("INTERDIT", {"raison": "rupture"}, "")
 
     monkeypatch.setattr(e.source, "annuler_une_commande", espion_de_l_annulation)
-    monkeypatch.setattr(CH, "enregistrer", refuse)
+    monkeypatch.setattr(CH, "reecrire", refuse)
     r = await e.tour("et un coca", ajouter=[{"article": "coca", "quantite": 1}])
     assert annulations == [] and getattr(e.source.prise, "annulees", []) == [], (annulations, getattr(e.source.prise, "annulees", None))  # rien n'est parti vers la caisse
     assert getattr(e.source.prise, "recues", []) == []  # § 17 : rien en caisse pendant l'appel ; l'ancienne y part à la fin (dernière ligne)
-    assert await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", avant["numero"]) != "annulee"
+    assert await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", avant["numero"]) == "retenue"
     assert ETAPE.courante(e.p) == ETAPE.ENREGISTREE and ETAPE.accord(e.p), ETAPE.courante(e.p)
     assert {k: e.p.get(k) for k in etat_d_avant} == etat_d_avant, (etat_d_avant, {k: e.p.get(k) for k in etat_d_avant})
     assert e.p["lignes"] == lignes_d_avant and moteur.commande_de_l_appel(e.p)["numero"] == avant["numero"], e.p["lignes"]
-    assert "changement_refuse_par_la_caisse" in _faits(r), r  # le fait donné au modèle, qui le dit avec ses mots
+    assert "changement_refuse" in _faits(r), r  # le fait donné au modèle, qui le dit avec ses mots
     await e.finir_l_appel()
     assert [str(c["numero"]) for c in e.source.prise.recues] == [str(avant["numero"])], "l'ancienne est celle qui part en caisse"
-
-
-async def test_c_la_nouvelle_est_acceptee_puis_l_annulation_de_l_ancienne_echoue_le_restaurant_est_alerte(essai_de, monkeypatch):
-    """C : la nouvelle version est acceptée, puis l'annulation de l'ancienne échoue : risque de doublon en cuisine, le restaurant est alerté tout de suite ; la commande de l'appel est la nouvelle."""
-    e = await essai_de()
-    avant = await _enregistree_en_titres(e)
-    alertes: list[tuple] = []
-
-    async def annulation_qui_echoue(numero):
-        from api.services.commande.resultat import Resultat
-
-        return Resultat("INTERDIT", {"raison": "commande_deja_preparee"}, "")
-
-    async def alerte(ancien, nouveau):
-        alertes.append((str(ancien), str(nouveau)))
-
-    monkeypatch.setattr(e.source, "annuler_une_commande", annulation_qui_echoue)
-    monkeypatch.setattr(e.source, "alerter_d_un_doublon", alerte, raising=False)
-    await e.tour("et un coca", ajouter=[{"article": "coca", "quantite": 1}])
-    reste = moteur.commande_de_l_appel(e.p)
-    assert reste is not None and reste["numero"] != avant["numero"], reste  # la nouvelle est la commande de l'appel
-    assert alertes and alertes[0][0] == str(avant["numero"]) and alertes[0][1] == str(reste["numero"]), alertes
