@@ -1,5 +1,5 @@
-"""[.mark] Lot 7b-C3, commit 1 : les refus de la base de la réservation (``restauration_reservation``) ne portent plus de texte (lot 7b-C7, B7) ; le texte d'avant se refait toujours de
-leurs faits seuls (``textes_de_secours``). Le modèle lit ``resultats[].faits`` (``detail``, ``maximum``, ``propositions``) ; la raison qu'il reçoit porte le même ``detail`` (``porte._raison_du_refus``).
+"""[.mark] Lot 7b-C3, commit 1 : les refus de la base de la réservation (``restauration_reservation``) ne portent plus de texte (lot 7b-C7, B7) ; C7 B9 : le catalogue supprimé,
+ce que disait le texte d'avant est vérifié dans leurs faits. Le modèle lit ``resultats[].faits`` (``detail``, ``maximum``, ``propositions``) ; la raison qu'il reçoit porte le même ``detail`` (``porte._raison_du_refus``).
 Le groupe trop grand garde son fait ``maximum`` (refus 14 et 17 : aucun fait neuf)."""
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ from zoneinfo import ZoneInfo
 
 from api.db.bases_clients import horloge
 from api.db.bases_clients import restauration_reservation as RR
-from api.services.reservation import textes_de_secours as TS
 from api.tests.mark import test_restauration_reservation as RESA
 from api.tests.mark.partie_1.aides_secours_de_la_reservation import faits_publics
 
@@ -18,60 +17,56 @@ salle, creer, SAMEDI_20H = RESA.salle, RESA.creer, RESA.SAMEDI_20H  # les fixtur
 PARIS = ZoneInfo("Europe/Paris")
 
 
-def _verifie(r, detail: str, texte: str, secours):
-    """C7 (B7) : la base ne porte plus de texte ; le texte d'avant se refait toujours de ses seuls faits (il sort avec le catalogue, B9)."""
+def _verifie(r, detail: str, faits: dict):
+    """C7 (B7) : la base ne porte plus de texte ; B9 : ce que disait le texte d'avant est dans les faits que le modèle lit (ceux qu'il lisait, ou tous)."""
     assert (r.statut, r.faits["raison"], r.faits["detail"], r.suggestion) == ("REFUSEE", "autre", detail, ""), r
-    assert secours(faits_publics(r)) == texte, r
+    assert ({k: faits_publics(r).get(k) for k in faits} if faits else faits_publics(r)) == faits, r  # {} : le refus ne porte aucun fait
 
 
 async def test_ce_moment_est_passe(salle):
     r = await creer(salle, debut=datetime(2026, 11, 12, 11, 0, tzinfo=PARIS))
-    _verifie(r, "passe", "Ce moment est déjà passé.", TS.passe)
+    _verifie(r, "passe", {'raison': 'autre', 'detail': 'passe'})
 
 
 async def test_trop_tot(salle):
     r = await creer(salle, debut=datetime(2026, 11, 12, 12, 30, tzinfo=PARIS))
-    _verifie(r, "trop_tot", "C'est trop tôt pour moi, il me faut un peu plus de temps.", TS.trop_tot)
+    _verifie(r, "trop_tot", {'raison': 'autre', 'detail': 'trop_tot'})
 
 
 async def test_trop_loin(salle):
     r = await creer(salle, debut=datetime(2026, 12, 25, 20, 0, tzinfo=PARIS))
-    _verifie(r, "trop_loin", "C'est trop loin pour que je réserve.", TS.trop_loin)
+    _verifie(r, "trop_loin", {'raison': 'autre', 'detail': 'trop_loin'})
 
 
 async def test_hors_service_dit_ses_propositions_quand_il_y_en_a(salle):
     r = await creer(salle, debut=datetime(2026, 11, 14, 15, 0, tzinfo=PARIS))
     assert (r.statut, r.faits["detail"]) == ("REFUSEE", "hors_service"), r
     dites = [p["quand_dit"] for p in r.faits.get("propositions") or []]
-    attendu = "Nous ne prenons pas de réservation à cette heure-là." + (f" Je peux vous proposer {' ou '.join(dites)}." if dites else "")
-    assert r.suggestion == "" and TS.refus_de_la_base(faits_publics(r)) == attendu, r  # C7 (B7) : le texte se refait des faits
-
-
-async def test_ferme_est_le_texte_d_avant():
-    assert TS.ferme({}) == "Nous ne prenons pas de réservation sur ce moment."
+    publics = faits_publics(r)  # C7 (B7) puis B9 : ce que le texte d'avant disait (la raison, les heures proposées) est dans les faits que le modèle lit
+    assert r.suggestion == "" and publics["detail"] == "hors_service" and [p["quand_dit"] for p in publics.get("propositions") or []] == dites, r
 
 
 async def test_type_ferme(salle):
     await salle.c.execute("INSERT INTO mark.resto_reglage_type (site_id, type, ouvert) VALUES ($1, 'reservation', false)", salle.a)
     r = await creer(salle)
-    _verifie(r, "type_ferme", "Nous ne prenons pas de réservation en ce moment.", TS.type_ferme)
+    _verifie(r, "type_ferme", {'raison': 'autre', 'detail': 'type_ferme'})
 
 
 async def test_groupe_trop_grand_a_l_enregistrement_garde_son_maximum(salle):
     r = await creer(salle, couverts=7)
-    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, c'est l'équipe qui s'en occupe : je lui laisse un message pour qu'elle vous rappelle ?", TS.groupe_trop_grand)
+    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6, 'a_faire': RR.A_FAIRE_DU_GROUPE})
     assert r.faits["maximum"] == 6
 
 
 async def test_groupe_trop_grand_dit_avant_le_jour_est_le_meme_texte_et_le_meme_fait(salle):
     r = await RR.groupe_trop_grand(salle.c, salle.a, 25)
-    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, c'est l'équipe qui s'en occupe : je lui laisse un message pour qu'elle vous rappelle ?", TS.groupe_trop_grand)
+    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6, 'a_faire': RR.A_FAIRE_DU_GROUPE})
     assert r.faits["maximum"] == 6 and "personnes_max" not in r.faits
 
 
 async def test_groupe_trop_grand_de_la_capacite_du_jour(salle):
     r = await RR.capacite_du_jour(salle.c, salle.a, SAMEDI_20H.date(), 7)
-    _verifie(r, "groupe_trop_grand", "Pour un groupe de cette taille, c'est l'équipe qui s'en occupe : je lui laisse un message pour qu'elle vous rappelle ?", TS.groupe_trop_grand)
+    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6, 'a_faire': RR.A_FAIRE_DU_GROUPE})
     assert r.faits["maximum"] == 6
 
 
@@ -82,18 +77,18 @@ async def test_complet_dit_ses_propositions(salle):
     assert (r.statut, r.faits["detail"]) == ("REFUSEE", "complet"), r
     dites = [p["quand_dit"] for p in r.faits["propositions"]]
     assert dites and r.suggestion == "", r  # C7 (B7) : le texte se refait des faits
-    assert TS.refus_de_la_base(faits_publics(r)) == f"Nous sommes complets à cette heure-là. Je peux vous proposer {' ou '.join(dites)}.", r
-    assert TS.complet({"propositions": []}) == "Nous sommes complets à cette heure-là."
+    publics = faits_publics(r)
+    assert publics["detail"] == "complet" and [p["quand_dit"] for p in publics["propositions"]] == dites, r
 
 
 async def test_passee_et_plus_modifiable(salle):
     n = (await creer(salle)).faits["numero"]
     with horloge.remplacer(salle.base, SAMEDI_20H + timedelta(minutes=5)):
         r = await RR.modifier_reservation(salle.c, salle.a, n, {"couverts": 3})
-        _verifie(r, "passee", "Cette réservation est passée, je ne peux plus la changer.", TS.passee)
+        _verifie(r, "passee", {'raison': 'autre', 'detail': 'passee'})
     await RR.annuler_reservation(salle.c, salle.a, n)
     r = await RR.modifier_reservation(salle.c, salle.a, n, {"couverts": 3})
-    _verifie(r, "plus_modifiable", "Cette réservation n'est plus modifiable.", TS.plus_modifiable)
+    _verifie(r, "plus_modifiable", {'raison': 'autre', 'detail': 'plus_modifiable', 'statut': 'annulee'})
     assert r.faits["statut"] == "annulee"
 
 
