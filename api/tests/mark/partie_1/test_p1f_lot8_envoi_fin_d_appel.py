@@ -193,3 +193,17 @@ async def test_au_clavier_le_tour_qui_finit_la_partie_donne_son_organisation_a_l
 
 def test_le_resultat_d_un_tour_porte_son_organisation():
     assert runner.TextChatTurnExecutionResult.__dataclass_fields__["organization_id"].default is None  # le faux tour des tests 8a (sans organisation) reste accepté
+
+
+async def test_le_portail_ne_touche_pas_une_commande_retenue_pendant_l_appel(faire_monde, monkeypatch, evenements):
+    """C-1 (coordinateur) : la commande retenue appartient à l'appel en cours ; le portail ne la connaît pas encore (``commande.creee`` part à la fin). Un changement de statut
+    demandé par le portail sur elle est refusé, rien ne change, aucun événement ; elle part à la fin de l'appel comme prévu."""
+    from api.services.restauration.caisse import statut
+
+    partie = await _partie(faire_monde, monkeypatch, "E16")
+    numero = str(partie.p["enregistree"]["numero"])
+    r, informee = await statut.changer_le_statut(ORGANISATION_D_ESSAI, partie.e.monde.c, partie.e.monde.a, numero, "retenue", "annulee")
+    assert (r.statut, informee) == ("INTERDIT", False) and r.faits.get("raison") == "appel_en_cours", r
+    assert (await _lignes_de_l_appel(partie))[0]["statut"] == "retenue" and evenements["flux"] == []
+    await partie.e.finir_l_appel()
+    assert len(_recues(partie)) == 1
