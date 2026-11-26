@@ -56,7 +56,7 @@ def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | N
     second = _numero_dit(second_numero) if second_numero else None
     if numero:
         client["telephone"] = numero
-    if second:
+    if second and second != client.get("telephone"):  # le même numéro dit deux fois n'est gardé, dit et envoyé qu'une fois
         client["second_numero"] = {"numero": second, "qui": None, "pourquoi": None}
     for dit, retenu, case in ((telephone, numero, "telephone"), (second_numero, second, "second_numero")):
         if dit and retenu is None:

@@ -1,7 +1,8 @@
 """[.mark] L'idempotence d'une fiche (chantier Partie 1, lot 3 ; E11, M17, M37).
 
-Une fiche rejouée à l'identique dans le même tour ne change rien (``deja_fait``) ; la même phrase dite à deux tours différents compte deux fois
-(règle légitime « deux lignes identiques s'additionnent », ``moteur._fusionner``). La clé porte le tour, l'opération et les arguments, jamais la
+Une fiche rejouée à l'identique dans le même tour ne change rien (``deja_fait``). Au tour suivant, la fiche de la COMMANDE qui ajoute et que le tour d'avant a déjà lue
+n'est pas ajoutée tout de suite : le code la refuse avec ses articles en faits (``fiche_identique_au_tour_d_avant``, ``commande.porte``) et le modèle demande « un de plus ou le même ? » ;
+la même redite ensuite (« un autre ») compte (règle légitime « deux lignes identiques s'additionnent », ``moteur._fusionner``). La clé porte le tour, l'opération et les arguments, jamais la
 phrase du modèle (``a_dire`` change d'une passe à l'autre sans changer la fiche).
 """
 
