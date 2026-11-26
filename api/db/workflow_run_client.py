@@ -1,7 +1,8 @@
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import func
+from sqlalchemy import Integer, any_, bindparam, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -254,6 +255,19 @@ class WorkflowRunClient(BaseDBClient):
                 .where(WorkflowRunModel.id == run_id)
             )
             return result.scalars().first()
+
+    async def get_workflow_runs_completion(self, run_ids: list[int]) -> list[tuple[int, bool, str]]:
+        """[.mark] Lot 8b-1b: ``(id, is_completed, mode)`` of several runs in ONE query
+        (``id = ANY(...)``), for the restaurant catch-up net; unknown ids are absent."""
+        if not run_ids:
+            return []
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(WorkflowRunModel.id, WorkflowRunModel.is_completed, WorkflowRunModel.mode).where(
+                    WorkflowRunModel.id == any_(bindparam("run_ids", value=list(run_ids), type_=ARRAY(Integer)))
+                )
+            )
+            return [(int(r[0]), bool(r[1]), str(r[2])) for r in result.all()]
 
     async def get_workflow_run_configurations(
         self, run_id: int, organization_id: int

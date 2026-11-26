@@ -4,8 +4,9 @@ Chaque tâche parcourt les bases clientes rattachées, une par une, puis les ét
 (journal, liaison, flux). Toutes sont rejouables sans effet double :
 
 - ``rattrapage_des_envois`` (chaque minute) : une commande restée ``nouvelle`` ou ``envoyee`` dont l'envoi est à reprendre (reprise espacée) repart par
-  ``envoyer_la_commande`` : la prise cherche par NOTRE numéro avant de renvoyer ; filet (lot 8b-1a, E11) : une commande ``retenue`` dont l'appel est terminé en base
-  sans que sa fin ait été jouée (serveur redémarré) part comme à la fin de l'appel, après le délai réglé du module (``filet_retenue_min``) ;
+  ``envoyer_la_commande`` : la prise cherche par NOTRE numéro avant de renvoyer ; filet (lot 8b-1a, E11 ; lot 8b-1b, T24) : une commande ``retenue`` dont la fin de
+  l'appel n'a pas été jouée (serveur redémarré) part comme à la fin de l'appel, après le délai réglé du module (``filet_retenue_min``), dès que son appel est noté terminé
+  OU ne peut plus être en cours (un appel planté n'est jamais noté terminé) ; une ligne qui ne peut vraiment pas partir alerte le restaurant une fois ;
 - ``alerte_des_commandes_sans_reponse`` (chaque minute) : une commande que la caisse a reçue mais pas prise en charge depuis ``alerte_sans_reponse_min`` minutes
   (réglable, T-09), ou dès l'heure promise moins la marge ``MARGE_AVANT_L_HEURE`` si elle vient avant, prévient une personne, UNE fois par commande ;
 - ``relecture_de_nuit`` (la nuit) : relecture complète de la carte, des ruptures et de l'état de chaque caisse (filet de tout ce qu'un message aurait manqué) ; une
@@ -18,7 +19,7 @@ La relève des messages gardés par la caisse (mode passif) est dans ``prises/hu
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from loguru import logger
@@ -28,13 +29,21 @@ from api.db.bases_clients import restauration, restauration_liaison as liaison_d
 from api.db.bases_clients.restauration_commun import MODES, maintenant
 from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.services.base_client.rattachement import organisations_rattachees
-from api.services.restauration.appel_et_memoire.memoire_de_l_appel import appel_termine_en_base
+from api.constants import TEXT_CHAT_INACTIVITY_SWEEP_LOOKBACK_SECONDS
+from api.schemas.workflow_configurations import MAX_CALL_DURATION_SECONDS
+from api.services.restauration.appel_et_memoire.memoire_de_l_appel import EtatDeLAppel, etats_des_appels_en_base
 from api.services.restauration.caisse.envoi_a_la_fin import envoyer_la_commande_retenue
 from api.services.restauration.caisse.envoi_caisse import Secours, alerter, secours_par_defaut, envoyer_la_commande
 from api.services.restauration.caisse.prises.prise import ContexteDePrise, capacites_de, prise_de_l_etablissement
 from api.services.restauration.caisse.synchro_caisse import importer_la_caisse
 
 CLE_ALERTE = "mark:resto:sans-reponse:"
+# Lot 8b-1b (T24 (1)) : un appel à la voix ne dure jamais plus que le plafond de la plateforme ; passé ce temps après le dernier « oui », il est fini, noté ou non.
+PLUS_LONG_APPEL_A_LA_VOIX = timedelta(seconds=MAX_CALL_DURATION_SECONDS)
+# Au-delà, plus rien ne fermera l'appel (le balayage des parties au clavier ne remonte pas plus loin) : la ligne ne peut vraiment pas partir seule.
+LIMITE_DU_FILET = timedelta(seconds=TEXT_CHAT_INACTIVITY_SWEEP_LOOKBACK_SECONDS)
+RAISON_DU_FILET = "commande retenue d'un appel qui n'a jamais fini : à vérifier, à saisir à la main si le client l'attend"
+EtatsDesAppels = Callable[[list[str]], Awaitable["dict[str, EtatDeLAppel] | None"]]
 
 
 async def par_base(bases: list[tuple[int, str]] | None, travail: Callable[[Any, int, str], Awaitable[Any]]) -> dict[str, Any]:
@@ -59,12 +68,12 @@ async def par_base(bases: list[tuple[int, str]] | None, travail: Callable[[Any, 
 
 async def rattrapage_des_envois(
     _ctx=None, bases: list[tuple[int, str]] | None = None, *, transport: Any = None, secours: Secours | None = None,
-    appel_termine: Callable[[str], Awaitable[bool]] = appel_termine_en_base,
+    etats_des_appels: EtatsDesAppels = etats_des_appels_en_base,
 ) -> dict[str, Any]:
     async def travail(connexion, organization_id: int, nom_base: str) -> int:
         envoyees = 0
         for etablissement_id in await liaison_db.ids_des_sites(connexion):
-            envoyees += await _partir_les_retenues_des_appels_termines(connexion, organization_id, nom_base, etablissement_id, appel_termine)
+            envoyees += await _partir_les_retenues_des_appels_finis(connexion, organization_id, nom_base, etablissement_id, etats_des_appels, secours or secours_par_defaut)
             for numero in await liaison_db.commandes_a_reprendre(connexion, etablissement_id):
                 await envoyer_la_commande(organization_id, nom_base, etablissement_id, numero, transport=transport, secours=secours, connexion=connexion)
                 envoyees += 1
@@ -74,22 +83,44 @@ async def rattrapage_des_envois(
     return await par_base(bases, travail)
 
 
-async def _partir_les_retenues_des_appels_termines(
-    connexion, organization_id: int, nom_base: str, etablissement_id: int, appel_termine: Callable[[str], Awaitable[bool]]
+async def _partir_les_retenues_des_appels_finis(
+    connexion, organization_id: int, nom_base: str, etablissement_id: int, etats_des_appels: EtatsDesAppels, secours: Secours
 ) -> int:
-    """E11 : le panier de l'appel n'est plus lisible : la ligne telle qu'écrite au dernier « oui » part (§ 17 : appel coupé après l'accord, elle part). Un appel encore
-    en cours (ou illisible) n'est jamais touché ; rejouable sans effet double (``changer_statut`` ne laisse passer qu'un geste)."""
+    """E11, T24 (1) : le panier de l'appel n'est plus lisible : la ligne telle qu'écrite au dernier « oui » (ou réécrite par un changement) part (§ 17 : appel coupé après
+    l'accord, elle part). L'état des appels de chaque page se lit en UNE requête ; une lecture ratée ne décide rien (rejouée au passage suivant). Rejouable sans effet
+    double (``changer_statut`` ne laisse passer qu'un geste, l'alerte ne se pose qu'une fois)."""
     delai = (await reglages_du_module(connexion, etablissement_id))["filet_retenue_min"]
-    jusqu_a = await maintenant(connexion) - timedelta(minutes=delai)
+    moment = await maintenant(connexion)
     parties, apres = 0, None
-    while page := await liaison_db.commandes_retenues_a_reprendre(connexion, etablissement_id, jusqu_a=jusqu_a, apres=apres):
-        for numero, appel_id, _ in page:
-            if await appel_termine(appel_id):
-                logger.warning(f"[.mark] Order {numero}: its call {appel_id} ended without its end hook, the catch-up sends it")
-                await envoyer_la_commande_retenue(connexion, organization_id, nom_base, etablissement_id, numero)
-                parties += 1
+    while page := await liaison_db.commandes_retenues_a_reprendre(connexion, etablissement_id, jusqu_a=moment - timedelta(minutes=delai), apres=apres):
+        etats = await etats_des_appels([appel_id for _, appel_id, _ in page])
+        if etats is None:
+            break
+        for numero, appel_id, maj_le in page:
+            parties += await _une_retenue(connexion, organization_id, nom_base, etablissement_id, numero, maj_le, etats.get(appel_id), moment, secours)
         apres = (page[-1][2], page[-1][0])
     return parties
+
+
+def appel_fini(etat: EtatDeLAppel | None, dernier_oui: datetime, moment: datetime) -> bool:
+    """L'appel est-il fini ? Noté terminé ; ou, à la voix, plus long que tout appel depuis le dernier « oui » (planté sans être noté). Au clavier, le balayage des parties
+    inactives le note terminé. Inconnu : non. Un appel peut-être encore en cours n'est jamais pris pour fini (§ 17 : rien ne part pendant l'appel)."""
+    return etat is not None and (etat.termine or (not etat.au_clavier and dernier_oui <= moment - PLUS_LONG_APPEL_A_LA_VOIX))
+
+
+async def _une_retenue(
+    connexion, organization_id: int, nom_base: str, etablissement_id: int, numero: str, maj_le: datetime, etat: EtatDeLAppel | None, moment: datetime, secours: Secours
+) -> int:
+    """Une ligne de la page : elle part si son appel est fini ; sinon, au-delà de la limite du filet, le restaurant est alerté une fois (la commande jointe) et le filet la
+    laisse (ni annulée ni envoyée à l'aveugle ; la fin de l'appel, si elle arrive, l'envoie encore). Rend 1 si elle part."""
+    if appel_fini(etat, maj_le, moment):
+        logger.warning(f"[.mark] Order {numero}: its call ended without its end hook, the catch-up sends it")
+        await envoyer_la_commande_retenue(connexion, organization_id, nom_base, etablissement_id, numero)
+        return 1
+    if maj_le <= moment - LIMITE_DU_FILET and await liaison_db.marquer_l_alerte_du_filet(connexion, etablissement_id, numero):
+        logger.error(f"[.mark] Order {numero}: retained, its call never ended, the restaurant is alerted")
+        await alerter(connexion, organization_id, etablissement_id, numero, secours, RAISON_DU_FILET)
+    return 0
 
 
 async def _reprendre_les_annulations(connexion, organization_id: int, nom_base: str, etablissement_id: int, transport: Any, secours: Secours | None) -> None:
