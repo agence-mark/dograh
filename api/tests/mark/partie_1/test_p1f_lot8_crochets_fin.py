@@ -206,3 +206,15 @@ async def test_une_fin_ne_lit_pas_la_definition_d_un_run_detache_et_va_jusqu_au_
     assert service._upload_text_chat_transcript.await_count == 1 and service._enqueue_text_chat_completion.await_count == 1
     assert [(f.run_id, f.run_configs) for f in fins] == [(777, None)] and appel_ouvert.fermee
 
+
+# ---- la fermeture de la connexion de l'appel ne dépend d'aucun interrupteur (R2)
+
+
+async def test_la_connexion_de_l_appel_est_fermee_meme_commande_coupee(appel_ouvert):
+    await crochets.fin_de_l_appel(crochets.FinDeLAppel(777, {"fiche": 1}, 7, {"commande_sur_catalogue": False}))
+    assert appel_ouvert.fermee and M.appel_ouvert(777) is None
+
+
+async def test_la_connexion_de_l_appel_est_fermee_meme_commande_coupee_au_clavier(appel_ouvert):
+    await crochets.fin_de_l_appel(crochets.FinDeLAppel(777, {"fiche": 1}, 7, {"commande_sur_catalogue": False}, au_clavier=True))
+    assert appel_ouvert.fermee and M.appel_ouvert(777) is None

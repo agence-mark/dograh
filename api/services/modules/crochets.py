@@ -62,7 +62,7 @@ class FinDeLAppel:
     run_id: Any
     fiche: dict | None  # la fiche de l'appel telle qu'elle finit ; ``None`` : illisible (un montage tombé)
     organization_id: int | None = None
-    run_configs: Mapping | None = None  # ``None`` : inconnu, aucun module n'est écarté
+    run_configs: Mapping | None = None  # informatif : ``fin_de_l_appel`` n'écarte aucun module (la fermeture ne dépend d'aucun interrupteur)
     au_clavier: bool = False
 
 
@@ -115,7 +115,8 @@ async def fin_du_tour(fin: FinDeTour) -> None:
 
 
 async def fin_de_l_appel(fin: FinDeLAppel) -> None:
-    await _jouer("fin_de_l_appel", fin, fin.run_configs)
+    # Sans filtre, comme ``fin_du_tour`` : la fin ferme ce que l'appel a ouvert (connexion, direct), quel que soit l'interrupteur d'un module (la réservation ouvre la connexion sans la commande).
+    await _jouer("fin_de_l_appel", fin, None)
 
 
 def issue_de_fin(fiche: Any) -> str | None:
