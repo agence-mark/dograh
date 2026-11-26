@@ -167,6 +167,21 @@ def _avec_les_centimes(mots: list[str]) -> list[str]:
     return out
 
 
+def lecture_a_virgule_decimale(texte: object) -> str | None:
+    """T17 (reprise R3) : la lecture où la virgule qui sépare deux nombres, le second suivi d'une unité d'argent, est la virgule des centimes (« vingt-quatre, cinquante euros » = 24,50 €,
+    jamais 74 ; « vingt, cinquante-quatre euros » = 20,54 €, donc pas 24,50 €). Le texte en mots, ``virgule`` à la place de la ponctuation retenue ; ``None`` s'il n'y a pas de tel cas."""
+    w = _mots_de_valeur(texte)
+    for s in range(1, len(w) - 1):
+        if w[s] != SEPARATEUR or not _est_nombre(w[s - 1]) or w[s - 1] == "virgule":
+            continue
+        e = s + 1
+        while e < len(w) and _est_nombre(w[e]) and w[e] != "virgule":
+            e += 1
+        if e > s + 1 and e < len(w) and w[e] in ARGENT:
+            return " ".join("virgule" if i == s else m for i, m in enumerate(w) if m != SEPARATEUR or i == s)
+    return None
+
+
 def valeurs_et_places(texte: object) -> tuple[list[tuple[int, int, str, str]], list[str]]:
     """Les valeurs d'un texte avec leur place (``valeurs_b12.valeurs``) : ``([(début, fin, valeur, genre)], mots)``, ``fin`` comprenant l'unité
     d'argent qui suit ; genre « argent » (suivie d'une unité d'argent, ou après « billet de ») ou « nombre »."""
