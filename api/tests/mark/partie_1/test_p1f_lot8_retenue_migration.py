@@ -2,7 +2,7 @@
 
 | Test | Ce qu'il prouve |
 |---|---|
-| montée, descente, remontée | la 054 accepte ``retenue`` ; la descente la refuse de nouveau sans perdre une commande (une ligne ``retenue`` redevient ``nouvelle`` : ce que l'ancien code envoyait) ; la remontée remet l'état |
+| montée, descente, remontée | la 054 accepte ``retenue`` ; la descente la refuse de nouveau sans perdre une commande (une ligne ``retenue`` redevient ``nouvelle`` : ce que l'ancien code envoyait) ; la remontée remet l'état ; ses deux index (le filet, la fin de l'appel) suivent la montée et la descente |
 | transitions | ``retenue`` ne mène qu'à ``nouvelle`` (l'envoi de la fin de l'appel) ou ``annulee`` (jamais accordée) ; un pas rejoué ne passe qu'une fois |
 | rattrapage | une ligne ``retenue`` n'est ni reprise ni « sans réponse » : elle ne part que par la fin de l'appel |
 | compte du client | ``retenue → annulee`` sort la commande du compte du client, une seule fois (A6) |
@@ -28,6 +28,7 @@ base_essai = _base.base_essai
 base_prete = _base.base_prete
 commerce = _classeur.commerce
 
+INDEX = "SELECT array_agg(indexname::text ORDER BY indexname) FROM pg_indexes WHERE schemaname = 'mark' AND indexname IN ('resto_commande_retenue_idx', 'resto_commande_appel_idx')"
 AJOUT = "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, total, statut) VALUES ($1, 'C1', $2, 'emporter', 1000, $3)"
 
 
@@ -40,6 +41,7 @@ async def test_la_054_se_monte_se_descend_et_se_remonte_sans_perdre_une_commande
     c = await schema.connecter_proprietaire(base_prete)
     try:
         assert await c.fetchval("SELECT 1 FROM mark.schema_version WHERE version = 54") == 1
+        assert await c.fetchval(INDEX) == ["resto_commande_appel_idx", "resto_commande_retenue_idx"]   # audit 8b-1a, R2
         site = await _site(c)
         retenue = uuid.uuid4()
         await c.execute(AJOUT, retenue, site, "retenue")
@@ -47,11 +49,13 @@ async def test_la_054_se_monte_se_descend_et_se_remonte_sans_perdre_une_commande
         for _ in range(2):  # la descente se rejoue
             await descendre_jusqu_a(c, 54)
         assert await c.fetchval("SELECT 1 FROM mark.schema_version WHERE version = 54") is None
+        assert await c.fetchval(INDEX) is None
         assert await c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero = $1", retenue) == "nouvelle"  # rien de perdu
         with pytest.raises(asyncpg.CheckViolationError):
             await c.execute(AJOUT, uuid.uuid4(), site, "retenue")
 
         assert 54 in await schema.appliquer_migrations(c)
+        assert await c.fetchval(INDEX) == ["resto_commande_appel_idx", "resto_commande_retenue_idx"]
         await c.execute(AJOUT, uuid.uuid4(), site, "retenue")
         assert await c.fetchval("SELECT count(*) FROM mark.schema_version WHERE version = 54") == 1
     finally:
