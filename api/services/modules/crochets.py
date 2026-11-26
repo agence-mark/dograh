@@ -1,7 +1,8 @@
 """[.mark] Lot 8a : les crochets des modules, l'UNIQUE endroit par où le moteur d'appel (voix et clavier) parle aux modules.
 
-Le moteur ne nomme aucun module : il joue « les modules allumés ». Chaque module déclare ses crochets au registre (``registre.Module``) ; ce fichier sait seulement
-lesquels sont déclarés, si le module est allumé pour l'agent (même règle que les étiquettes : ``interrupteur_des_etiquettes`` ou le sien) et les résoudre.
+Le moteur ne nomme aucun module : il joue les crochets déclarés au registre (``registre.Module``). Ce fichier sait seulement lesquels sont déclarés, les résoudre et, pour
+``au_decroche`` seulement, si le module est allumé pour l'agent (même règle que les étiquettes : ``interrupteur_des_etiquettes`` ou le sien) ; ``fin_du_tour`` et
+``fin_de_l_appel`` sont joués pour tous les modules (ce qu'un appel a ouvert ou écrit se ferme quel que soit l'interrupteur : chaque crochet se garde sur ce que l'appel a fait).
 
 - ``au_demarrage()`` : une fois par processus qui joue des appels (l'API, l'ouvrier). Pas de garde : un métier qui ne s'inscrit pas doit se voir (une allergie non branchée
   ne se tait jamais), l'erreur remonte ;

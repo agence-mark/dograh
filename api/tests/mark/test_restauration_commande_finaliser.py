@@ -75,6 +75,18 @@ class Appel:
             r = await self.finaliser(**{"confirmer": True, "prenom": "Alice", "moyen": "carte", **kw})
         return r
 
+    async def finir_l_appel(self):
+        """Lot 8b-1a (§ 17) : la fin de l'appel envoie la commande accordée (la prise d'essai, nommée par la fiche de liaison de l'établissement)."""
+        from api.services.restauration.caisse.envoi_a_la_fin import envoyer_les_commandes_retenues
+        from api.services.restauration.caisse.prises.prise import poser_prise_de_test
+
+        await self.commerce.c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test') ON CONFLICT (site_id) DO NOTHING", self.commerce.a)
+        poser_prise_de_test(self.prise)
+        try:
+            await envoyer_les_commandes_retenues(self.commerce.c, None, self.commerce.base, self.appelant.appel_id, {panier.CLE: self.p})
+        finally:
+            poser_prise_de_test(None)
+
     async def commandes(self):
         return await self.commerce.c.fetch("SELECT * FROM mark.resto_commande WHERE site_id = $1", self.commerce.a)
 
@@ -165,7 +177,9 @@ async def test_le_oui_apres_la_relecture_enregistre_avec_le_total_de_la_carte(co
     (commande,) = await a.commandes()
     assert (commande["total"], commande["statut"], commande["telephone"], commande["prenom"]) == (1490, "recue" if False else commande["statut"], TEL, "Alice")
     assert commande["cree_par"] == "agent" and commande["appel_id"] == "appel-final"
-    assert len(a.prise.recues) == 1 and a.prise.recues[0]["total"] == 1490  # l'envoi est parti, une fois
+    assert a.prise.recues == [] and commande["statut"] == "retenue"  # § 17 : rien en caisse pendant l'appel
+    await a.finir_l_appel()
+    assert len(a.prise.recues) == 1 and a.prise.recues[0]["total"] == 1490  # l'envoi est parti à la fin de l'appel, une fois
 
 
 async def test_apres_une_correction_seul_ce_qui_change_est_relu(commerce):
@@ -235,6 +249,7 @@ async def test_reglement_mixte_le_code_calcule_le_reste_et_la_monnaie(commerce):
 
     assert ok.faits["rendu"]["billet"] == 5000 and montant_en_lettres(ok.faits["rendu"]["monnaie"]) == "quarante-deux euros vingt", ok.faits
     assert "quarante-deux euros vingt" not in ok.suggestion, ok.suggestion
+    await a.finir_l_appel()  # § 17 : la commande part à la fin de l'appel
     paiement = a.prise.recues[0]["paiement"]
     assert [(m["moyen"], m["montant"]) for m in paiement["moyens"]] == [("titre_restaurant", 2000), ("especes", 780)]
     assert paiement["rendu_sur"] == 5000
@@ -282,6 +297,7 @@ async def test_un_second_oui_rend_deja_fait_et_la_prise_ne_recoit_qu_une_command
     seconde = await a.confirmer()
     assert premiere.statut == "ENREGISTREE" and seconde.statut == "DEJA_FAIT"
     assert seconde.faits["numero"] == premiere.faits["numero"]
+    await a.finir_l_appel()  # § 17 : la commande part à la fin de l'appel
     assert len(await a.commandes()) == 1 and len(a.prise.recues) == 1
 
 
@@ -323,14 +339,14 @@ async def test_un_article_qui_passe_en_rupture_avant_le_oui_refuse_sans_rien_enr
     assert r.statut == "RUPTURE" and await a.commandes() == []
 
 
-async def test_une_prise_sans_etape_acceptee_rend_transmise(commerce):
+async def test_une_prise_sans_etape_acceptee_rend_enregistree(commerce):
     from api.services.restauration.caisse.prises.fiches import TEST_SANS_ACCEPTEE
 
     a = await Appel(commerce, prise=PriseTest(capacites=TEST_SANS_ACCEPTEE), vente_en_plus=False).pret()
     a.source.capacites = TEST_SANS_ACCEPTEE
     await a.jusqu_a_la_relecture()
     r = await a.confirmer()
-    assert r.statut == "TRANSMISE"  # jamais « acceptée » inventé
+    assert r.statut == "ENREGISTREE" and r.faits["envoi"] == "a_la_fin_de_l_appel"  # § 17 l.405 : enregistrée, jamais « transmise » avant la fin de l'appel ni « acceptée » inventé
 
 
 async def test_les_manques_des_lignes_ne_passent_pas_derriere_l_adresse(commerce):

@@ -77,7 +77,7 @@ class Module:
     # Où est la fonction qui lit leurs valeurs (``module.chemin:fonction``, ``async def f(organization_id, workflow_id, appel) -> dict``) et le module
     # dont l'interrupteur les allume (un module d'ensemble n'a pas le sien : il suit celui d'un module de base). ``None`` : lui-même.
     fournisseur_d_etiquettes: str | None = None
-    interrupteur_des_etiquettes: str | None = None  # aussi l'interrupteur de ses crochets (``crochets.py``)
+    interrupteur_des_etiquettes: str | None = None  # aussi l'interrupteur de son crochet ``au_decroche`` (``crochets.py`` ; les fins sont jouées pour tous les modules)
     # Lot 8a : les crochets que le moteur d'appel joue pour les modules ALLUMÉS, sans connaître aucun module (``modules/crochets.py``). Chemins ``module.chemin:fonction``,
     # résolus à l'appel (même forme que ``fournisseur_d_etiquettes``). ``au_demarrage`` : ``() -> None``, une fois par processus qui joue des appels (l'API, l'ouvrier) ;
     # les autres : ``async (Decroche | FinDeTour | FinDeLAppel) -> None``. ``None`` : le module n'a pas ce crochet.

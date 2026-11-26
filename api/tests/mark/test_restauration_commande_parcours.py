@@ -1,12 +1,12 @@
 """[.mark] Module Restauration, lot 5, étape 6 : le parcours de bout en bout, par les outils de l'agent, jusqu'à la prise de test.
 
-Le modèle ne fait que des gestes de la conversation ; l'envoi à la prise part de l'ENREGISTREMENT, en tâche de fond, par le code. Vraie base,
+Le modèle ne fait que des gestes de la conversation ; la commande est écrite au « oui » et part à la prise à la FIN DE L'APPEL, une fois, par le code (§ 17). Vraie base,
 vraie liaison de l'établissement à la prise ``test`` (tests seulement), vrai gestionnaire d'outil, vrai flux.
 
 | Test | Ce qu'il prouve |
 |---|---|
 | Regina + Coca | l'appel complet : mode, deux articles dont une taille demandée, relecture, « oui », commande enregistrée, envoyée à la prise, acceptée |
-| le modèle n'envoie jamais | aucun outil ne parle à la caisse ; l'envoi n'a lieu qu'à l'enregistrement et une seule fois |
+| le modèle n'envoie jamais | aucun outil ne parle à la caisse ; l'envoi n'a lieu qu'à la fin de l'appel et une seule fois |
 | incomplet refusé | pas de prénom, pas de règlement, pas de taille : rien n'est enregistré, le manque est dit |
 | doublon impossible | deux « oui » en même temps : une seule commande, une seule réception par la prise |
 | changement de mode | les articles sont gardés ; en livraison la zone est demandée et le minimum de la zone tient |
@@ -19,7 +19,6 @@ prénom, puis l'enregistrement. « Panier neuf après l'enregistrement » est re
 
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 
@@ -27,7 +26,6 @@ from api.db.bases_clients import horloge
 from api.services.commande import panier
 from api.services.restauration.caisse.prises.prise import poser_prise_de_test
 from api.services.restauration.caisse.prises.prise_essai import PriseTest
-from api.services.restauration import source_commande
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
@@ -36,23 +34,13 @@ from api.tests.mark.test_restauration_commande_lot6 import appel_de_test  # noqa
 
 
 @pytest.fixture
-async def prise(commerce, monkeypatch):
-    """L'établissement A branché sur la prise de test, et le vrai lanceur d'envoi (tâche de fond sur sa propre connexion)."""
+async def prise(commerce):
+    """L'établissement A branché sur la prise de test (sa fiche de liaison la nomme) ; l'envoi part à la fin de l'appel (§ 17, ``finir_l_appel``)."""
     la_prise = PriseTest()
-    # Une tâche d'envoi laissée par un test d'AVANT (sa connexion est fermée) ferait échouer le ``gather`` d'ici (PendingRollbackError, vu dans la suite entière, jamais seul) : on repart de zéro
-    source_commande._TACHES.clear()
     poser_prise_de_test(la_prise)
     await commerce.c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test')", commerce.a)
-    monkeypatch.setattr(source_commande, "LANCEUR", source_commande.lancer_l_envoi)
     yield la_prise
     poser_prise_de_test(None)
-    await attendre_les_envois()
-
-
-async def attendre_les_envois():
-    taches = list(source_commande._TACHES)
-    if taches:
-        await asyncio.gather(*taches)
 
 
 async def jusqu_a_la_relecture(jouer, articles=(A("regina", 1, "Normale"), "coca")):
@@ -88,7 +76,8 @@ async def test_regina_et_coca_de_bout_en_bout_jusqu_a_la_prise(appel_de_test, pr
     fait = await oui(jouer)
     assert fait["statut"] == "ENREGISTREE" and fait["faits"]["total"] == 1490
     assert fait["suggestion"] == "" and fait["faits"]["quand_dit"], fait  # C7 B9 (0e89e408) : plus de texte ; « enregistrée, prête/livrée … » est dans les faits mode et quand_dit
-    await attendre_les_envois()
+    assert prise.recues == [] and await commerce.c.fetchval("SELECT statut FROM mark.resto_commande") == "retenue"  # § 17 : rien en caisse pendant l'appel
+    await appel_de_test.finir_l_appel()
     (commande,) = await commerce.c.fetch("SELECT * FROM mark.resto_commande")
     assert (commande["total"], commande["statut"], commande["cree_par"]) == (1490, "acceptee", "agent")
     (recue,) = prise.recues
@@ -101,11 +90,11 @@ async def test_aucun_outil_n_envoie_a_la_prise_l_envoi_n_a_lieu_qu_a_l_enregistr
     await jusqu_a_la_relecture(jouer)
     for outil in ("voir_commande", "vider_commande"):
         await jouer(outil)
-    await attendre_les_envois()
     assert prise.recues == [] and await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0
     await jusqu_a_la_relecture(jouer, articles=["coca"])
     await oui(jouer)
-    await attendre_les_envois()
+    assert prise.recues == []  # § 17 : l'envoi n'a lieu qu'à la fin de l'appel
+    await appel_de_test.finir_l_appel()
     assert len(prise.recues) == 1
 
 
@@ -125,7 +114,7 @@ async def test_l_incomplet_est_refuse_et_le_manque_est_dit_sans_rien_enregistrer
     assert (r["statut"], r["manque"]) == ("INCOMPLETE", "relecture")
     sans_prenom = await jouer("finaliser", moyen="carte", confirmer=True)
     assert (sans_prenom["statut"], sans_prenom["manque"]) == ("INCOMPLETE", "prenom")
-    await attendre_les_envois()
+    await appel_de_test.finir_l_appel()
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0 and prise.recues == []
 
 
@@ -151,23 +140,21 @@ async def test_changer_de_mode_garde_les_articles_et_en_livraison_la_zone_et_son
 # test_apres_l_enregistrement_la_commande_suivante_repart_d_un_panier_neuf : supprimé au lot 4 (D49), une commande par appel (E30) : un changement après l'enregistrement remplace la commande de l'appel ; sens repris par partie_1/test_l04_cuisine.py::test_commande_de_l_appel_apres_enregistrement et partie_1/test_l03_porte.py::test_second_enregistrement_refuse.
 
 
-async def test_une_prise_en_panne_n_empeche_pas_l_enregistrement_et_l_envoi_reste_a_reprendre(appel_de_test, commerce, monkeypatch):
+async def test_une_prise_en_panne_n_empeche_pas_l_enregistrement_et_l_envoi_reste_a_reprendre(appel_de_test, commerce):
     panne = PriseTest("panne")
     poser_prise_de_test(panne)
     await commerce.c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test')", commerce.a)
-    monkeypatch.setattr(source_commande, "LANCEUR", source_commande.lancer_l_envoi)
     try:
         jouer = appel_de_test.jouer
         await jusqu_a_la_relecture(jouer)
         fait = await oui(jouer)
         assert fait["statut"] == "ENREGISTREE"  # l'agent dit « c'est enregistré » : la commande est dans le classeur
-        await attendre_les_envois()
+        await appel_de_test.finir_l_appel()  # § 17 : l'envoi part à la fin de l'appel
         (commande,) = await commerce.c.fetch("SELECT statut, tentatives FROM mark.resto_commande")
         assert commande["statut"] == "envoyee" and commande["tentatives"] == 1  # reste à reprendre (lot 10), jamais perdue
         assert panne.recues == []
     finally:
         poser_prise_de_test(None)
-        await attendre_les_envois()
 
 
 _ = (horloge, JEUDI_MIDI)

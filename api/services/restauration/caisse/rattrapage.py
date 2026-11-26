@@ -4,7 +4,8 @@ Chaque tâche parcourt les bases clientes rattachées, une par une, puis les ét
 (journal, liaison, flux). Toutes sont rejouables sans effet double :
 
 - ``rattrapage_des_envois`` (chaque minute) : une commande restée ``nouvelle`` ou ``envoyee`` dont l'envoi est à reprendre (reprise espacée) repart par
-  ``envoyer_la_commande`` : la prise cherche par NOTRE numéro avant de renvoyer ;
+  ``envoyer_la_commande`` : la prise cherche par NOTRE numéro avant de renvoyer ; filet (lot 8b-1a, E11) : une commande ``retenue`` dont l'appel est terminé en base
+  sans que sa fin ait été jouée (serveur redémarré) part comme à la fin de l'appel, après le délai réglé du module (``filet_retenue_min``) ;
 - ``alerte_des_commandes_sans_reponse`` (chaque minute) : une commande que la caisse a reçue mais pas prise en charge depuis ``alerte_sans_reponse_min`` minutes
   (réglable, T-09), ou dès l'heure promise moins la marge ``MARGE_AVANT_L_HEURE`` si elle vient avant, prévient une personne, UNE fois par commande ;
 - ``relecture_de_nuit`` (la nuit) : relecture complète de la carte, des ruptures et de l'état de chaque caisse (filet de tout ce qu'un message aurait manqué) ; une
@@ -17,6 +18,7 @@ La relève des messages gardés par la caisse (mode passif) est dans ``prises/hu
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from datetime import timedelta
 from typing import Any
 
 from loguru import logger
@@ -24,7 +26,10 @@ from loguru import logger
 from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration, restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commun import MODES, maintenant
+from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.services.base_client.rattachement import organisations_rattachees
+from api.services.restauration.appel_et_memoire.memoire_de_l_appel import appel_termine_en_base
+from api.services.restauration.caisse.envoi_a_la_fin import envoyer_la_commande_retenue
 from api.services.restauration.caisse.envoi_caisse import Secours, alerter, secours_par_defaut, envoyer_la_commande
 from api.services.restauration.caisse.prises.prise import ContexteDePrise, capacites_de, prise_de_l_etablissement
 from api.services.restauration.caisse.synchro_caisse import importer_la_caisse
@@ -52,10 +57,14 @@ async def par_base(bases: list[tuple[int, str]] | None, travail: Callable[[Any, 
     return sortie
 
 
-async def rattrapage_des_envois(_ctx=None, bases: list[tuple[int, str]] | None = None, *, transport: Any = None, secours: Secours | None = None) -> dict[str, Any]:
+async def rattrapage_des_envois(
+    _ctx=None, bases: list[tuple[int, str]] | None = None, *, transport: Any = None, secours: Secours | None = None,
+    appel_termine: Callable[[str], Awaitable[bool]] = appel_termine_en_base,
+) -> dict[str, Any]:
     async def travail(connexion, organization_id: int, nom_base: str) -> int:
         envoyees = 0
         for etablissement_id in await liaison_db.ids_des_sites(connexion):
+            envoyees += await _partir_les_retenues_des_appels_termines(connexion, organization_id, nom_base, etablissement_id, appel_termine)
             for numero in await liaison_db.commandes_a_reprendre(connexion, etablissement_id):
                 await envoyer_la_commande(organization_id, nom_base, etablissement_id, numero, transport=transport, secours=secours, connexion=connexion)
                 envoyees += 1
@@ -63,6 +72,24 @@ async def rattrapage_des_envois(_ctx=None, bases: list[tuple[int, str]] | None =
         return envoyees
 
     return await par_base(bases, travail)
+
+
+async def _partir_les_retenues_des_appels_termines(
+    connexion, organization_id: int, nom_base: str, etablissement_id: int, appel_termine: Callable[[str], Awaitable[bool]]
+) -> int:
+    """E11 : le panier de l'appel n'est plus lisible : la ligne telle qu'écrite au dernier « oui » part (§ 17 : appel coupé après l'accord, elle part). Un appel encore
+    en cours (ou illisible) n'est jamais touché ; rejouable sans effet double (``changer_statut`` ne laisse passer qu'un geste)."""
+    delai = (await reglages_du_module(connexion, etablissement_id))["filet_retenue_min"]
+    jusqu_a = await maintenant(connexion) - timedelta(minutes=delai)
+    parties, apres = 0, None
+    while page := await liaison_db.commandes_retenues_a_reprendre(connexion, etablissement_id, jusqu_a=jusqu_a, apres=apres):
+        for numero, appel_id, _ in page:
+            if await appel_termine(appel_id):
+                logger.warning(f"[.mark] Order {numero}: its call {appel_id} ended without its end hook, the catch-up sends it")
+                await envoyer_la_commande_retenue(connexion, organization_id, nom_base, etablissement_id, numero)
+                parties += 1
+        apres = (page[-1][2], page[-1][0])
+    return parties
 
 
 async def _reprendre_les_annulations(connexion, organization_id: int, nom_base: str, etablissement_id: int, transport: Any, secours: Secours | None) -> None:

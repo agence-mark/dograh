@@ -72,6 +72,8 @@ PAR_DEFAUT_DU_MODULE: dict = {
     "moities_prix": "plus_chere",  # lot 10 (RET6) : la règle de prix des moitiés de l'établissement
     # Lot 15 (INF4, INF6, D22) : le texte d'allergie du restaurant, le halal de l'établissement, et le choix « renvoyer vers le restaurant » (éteint par défaut)
     "consigne_allergie": None, "halal_restaurant": False, "allergies_renvoyees_au_restaurant": False,
+    # Lot 8b-1a (E11) : le délai du filet du rattrapage pour une commande « retenue » d'un appel terminé sans fin jouée ; le même défaut que la migration 054
+    "filet_retenue_min": 2,
 }
 
 

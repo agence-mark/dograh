@@ -185,6 +185,7 @@ async def test_ce_que_l_agent_dit_est_ce_qui_part_a_la_caisse(commerce):
     assert relecture.faits["total"] == 1341 and "Remise DIX" not in relecture.suggestion and montant_en_lettres(relecture.faits["total"]) == "treize euros quarante et un"
     fait = await appel.confirmer()
     assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
+    await appel.finir_l_appel()  # § 17 : la commande part à la fin de l'appel
     envoyee = appel.prise.recues[0]
     assert envoyee["total"] == 1341 and [(r["nom"], r["montant"]) for r in envoyee["remises"]] == [("Remise DIX", 149)]
     ligne = await c.fetchrow("SELECT total, remises FROM mark.resto_commande WHERE numero = $1", uuid.UUID(fait.faits["numero"]))

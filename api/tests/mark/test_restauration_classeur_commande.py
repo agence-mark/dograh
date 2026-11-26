@@ -323,11 +323,12 @@ async def test_meme_appel_meme_panier_meme_numero_meme_a_deux_connexions(commerc
 
 async def test_commande_planifiee_refusee_par_defaut_puis_permise_et_relevee(commerce):
     demain = JEUDI_MIDI + timedelta(days=1)
-    r = await enregistrer(commerce, brouillon(heure_voulue=demain))
+    # écrite par le portail : elle naît « nouvelle » (§ 17 l.403, E2 : celle de l'agent, sans envoi, naît « retenue » et part à la fin de l'appel)
+    r = await enregistrer(commerce, brouillon(heure_voulue=demain, cree_par="portail"))
     assert (r.statut, r.manque) == ("ARGUMENT_INVALIDE", "heure_voulue")  # éteint par défaut
     c, a = commerce.c, commerce.a
     await c.execute("UPDATE mark.resto_reglage_type SET planifiee_permise = true, jours_a_l_avance = 2, delai_minimal = 60 WHERE site_id = $1 AND type = 'emporter'", a)
-    r = await enregistrer(commerce, brouillon(heure_voulue=demain))
+    r = await enregistrer(commerce, brouillon(heure_voulue=demain, cree_par="portail"))
     assert r.statut == "ENREGISTREE" and r.faits["heure_annoncee"] == demain
     assert (await enregistrer(commerce, brouillon(heure_voulue=JEUDI_MIDI + timedelta(days=5), appel_id="loin"))).manque == "heure_voulue"
     assert (await enregistrer(commerce, brouillon(heure_voulue=JEUDI_MIDI + timedelta(minutes=30), appel_id="tot"))).manque == "heure_voulue"
@@ -362,7 +363,8 @@ async def test_les_jours_a_l_avance_comptent_en_jours_du_lieu_et_le_refus_dit_ju
 
 
 async def _une_commande(commerce, b=None, **plus):
-    r = await enregistrer(commerce, b, **plus)
+    """Une commande écrite par le portail : elle naît « nouvelle » (§ 17 l.403, E2 : celle de l'agent, sans envoi, naît « retenue »)."""
+    r = await enregistrer(commerce, {**(b if b is not None else brouillon()), "cree_par": "portail"}, **plus)
     assert r.statut == "ENREGISTREE", r
     return r.faits["numero"]
 
@@ -404,7 +406,7 @@ async def test_le_chemin_des_statuts_est_ferme_et_le_second_geste_ne_change_rien
     assert (await changer_statut(c, a, n2, "nouvelle", "envoyee", "inconnue")).statut == "ARGUMENT_INVALIDE"
     assert (await changer_statut(c, a, "pas-un-uuid", "nouvelle", "envoyee", "agent")).statut == "ARGUMENT_INVALIDE"
     # la table des transitions ne contient aucun retour en arrière
-    ordre = ["nouvelle", "envoyee", "recue", "acceptee", "en_preparation", "prete", "terminee"]
+    ordre = ["retenue", "nouvelle", "envoyee", "recue", "acceptee", "en_preparation", "prete", "terminee"]  # § 17 : « retenue » (écrite au oui) précède l'envoi
     for de, permis in TRANSITIONS.items():
         for vers in permis & set(ordre):
             assert de == "echec" or ordre.index(vers) > ordre.index(de), (de, vers)
@@ -448,3 +450,9 @@ async def test_retrouver_une_commande_par_numero_numero_court_telephone_et_jour(
         n2 = await _une_commande(commerce, brouillon(appel_id="plus-tard"))
     r = await statut_commande(c, a, telephone=TEL)
     assert [x["numero"] for x in r.faits["commandes"]] == [n2, numero]
+    # une commande de l'agent, écrite au « oui » sans envoi (§ 17, E2), se retrouve avec son statut « retenue » : elle part à la fin de l'appel
+    agent = await enregistrer(commerce, brouillon(appel_id="appel-agent"))
+    assert agent.statut == "ENREGISTREE", agent
+    r = await statut_commande(c, a, numero=agent.faits["numero"])
+    assert r.statut == "OK" and r.faits["commandes"][0]["statut"] == "retenue"
+    assert r.faits["commandes"][0]["cree_par"] == "agent"

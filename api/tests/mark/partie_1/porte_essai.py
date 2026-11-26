@@ -7,6 +7,7 @@ du connecteur (``porte.executer``), comme en production.
 
 from __future__ import annotations
 
+import itertools
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import Any
@@ -19,18 +20,25 @@ from api.services.commande import contrat, porte
 from api.services.commande import panier as P
 from api.services.integrations.connectors.actions.commande import COMMANDE
 from api.services.integrations.connectors.outil import _propriete
+from api.services.modules import crochets
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.services.workflow import cases_selon_l_etat as CS
 
 
+# Lot 8b-1a (§ 17) : chaque essai est un appel suivi (son identifiant est écrit sur la commande retenue) ; la fin de l'appel lit la base de cette organisation d'essai.
+ORGANISATION_D_ESSAI = 990001
+_APPELS_D_ESSAI = itertools.count(880001)
+
+
 class Essai:
     def __init__(self, monde, monkeypatch, appelant: str = "+33600000000"):
         self.monde = monde
+        self.monkeypatch = monkeypatch
         self.source = SourceClasseur(monde.c, Lieu(monde.base, monde.a, 1), nom_prise="test", prise=PriseTest())
         self.fiche_de_l_appel: dict[str, Any] = {contrat.CLE_DES_OBJETS: {"choix": True}}
-        self.ctx = SimpleNamespace(fiche=self.fiche_de_l_appel, appel={"caller_number": appelant}, run_id=None, organization_id=None, reglages={},
+        self.ctx = SimpleNamespace(fiche=self.fiche_de_l_appel, appel={"caller_number": appelant}, run_id=next(_APPELS_D_ESSAI), organization_id=None, reglages={},
                                    configurations={})
         self.paroles: list[str] = []
         self.retours: list[dict] = []
@@ -89,6 +97,26 @@ class Essai:
             PAROLE.noter_le_total_dit(self.p, etat, str(suffixe))
             PAROLE.garder(self.fiche_de_l_appel, etat)
         return retour
+
+    async def finir_l_appel(self, *, au_clavier: bool = False, fiche: Any = ...) -> None:
+        """La fin de l'appel comme le moteur la joue (voix : ``finally`` ; clavier : fin de la partie) : le crochet ``fin_de_l_appel`` des modules, avec la fiche telle
+        qu'elle finit (``fiche`` : une autre, ``None`` pour un montage tombé). La caisse est la prise d'essai de la source, nommée par la fiche de liaison de l'établissement ;
+        la base est celle du monde, rattachée à l'organisation de l'appel (celle d'essai quand l'appel n'en a pas)."""
+        from api.services.base_client import rattachement
+        from api.services.restauration.caisse.prises import prise as prises
+
+        prise_d_essai, vraie_prise_de = self.source.prise, prises.prise_de
+        await self.monde.c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test') ON CONFLICT (site_id) DO NOTHING", self.monde.a)
+        self.monkeypatch.setattr(prises, "prise_de", lambda nom: prise_d_essai if nom == "test" else vraie_prise_de(nom))
+
+        organisation_de_l_appel = self.ctx.organization_id or ORGANISATION_D_ESSAI
+
+        async def base_de(organisation):
+            return self.monde.base if organisation == organisation_de_l_appel else None
+
+        self.monkeypatch.setattr(rattachement, "nom_de_la_base", base_de)
+        fin = crochets.FinDeLAppel(self.ctx.run_id, self.fiche_de_l_appel if fiche is ... else fiche, organisation_de_l_appel, None, au_clavier=au_clavier)
+        await crochets.fin_de_l_appel(fin)
 
     async def lecture(self, **arguments: Any) -> dict[str, Any]:
         """L'outil de lecture (``lire``, E16), par l'action du connecteur comme en production."""

@@ -6,7 +6,8 @@ Le moteur (voix et clavier) ne nomme plus la restauration : il joue les crochets
 - ``au_decroche`` : ``CONTEXTE`` l'ouverture lue (horaires et état de la caisse) ; ``CANAL`` le direct des appels (lot 21) ; ``MONTAGE`` le chargement de l'appel
   (lot 5 : jamais attendu à la voix, la phrase d'accueil ne l'attend pas ; attendu, borné, au clavier qui n'a pas de phrase d'accueil) ;
 - ``fin_du_tour`` (clavier) : l'appel gardé entre deux tours, fermé à la fin de la partie ;
-- ``fin_de_l_appel`` : le direct fermé (``appel.fini``), puis la connexion de l'appel à la base du client. Sans effet double si rejouée.
+- ``fin_de_l_appel`` : la commande de l'appel envoyée en caisse si elle a été accordée (§ 17, ``caisse/envoi_a_la_fin``), le direct fermé (``appel.fini``), puis la connexion
+  de l'appel à la base du client. Sans effet double si rejouée.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from api.services.modules.crochets import CANAL, CONTEXTE, MONTAGE, Decroche, Fi
 from api.services.restauration.appel_et_memoire import memoire_de_l_appel
 from api.services.restauration.appel_et_memoire.direct_appel import DirectDeLAppel, preparer_le_direct
 from api.services.restauration.appel_et_memoire.etiquettes import injecter_l_ouverture_de_la_caisse
+from api.services.restauration.caisse.envoi_a_la_fin import envoyer_la_commande_de_l_appel
 
 # Le direct de chaque appel à la voix (clé : l'identifiant de l'exécution), de son décroché à sa fin ; vidé par ``fin_de_l_appel``.
 _DIRECTS: dict[str, DirectDeLAppel] = {}
@@ -67,6 +69,7 @@ async def fin_du_tour(f: FinDeTour) -> None:
 async def fin_de_l_appel(f: FinDeLAppel) -> None:
     direct = _DIRECTS.pop(str(f.run_id), None)
     try:
+        await envoyer_la_commande_de_l_appel(f.organization_id, f.run_id, f.fiche)  # ne lève jamais
         if direct is not None:
             await direct.fermer(f.fiche)
     finally:

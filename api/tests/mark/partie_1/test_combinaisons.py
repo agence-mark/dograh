@@ -220,22 +220,87 @@ def test_rc10_la_relecture_doit_etre_dite_dans_le_tour_ou_elle_est_marquee_vu_ro
 
 
 async def test_la_base_falsifiee_est_vue_rouge(faire_monde, monkeypatch):
-    """Une commande fausse en caisse ne reste pas verte parce que le panier en mémoire est juste : une ligne changée à la main en base est vue (resto_commande_ligne),
-    comme ce que la prise a reçu."""
+    """Une commande fausse en caisse ne reste pas verte parce que le panier en mémoire est juste : une ligne changée à la main en base est vue (resto_commande_ligne).
+    § 17 (Evan, 24/11) : pendant l'appel, la commande est en base au statut « retenue » et la caisse n'a RIEN reçu (un envoi pendant l'appel est vu) ; la caisse est comparée
+    à la base après la fin de l'appel (``Partie.finir_l_appel``)."""
     monde = await faire_monde("casa-italia")
     partie = C.Partie(monde, monkeypatch)
     assert await partie.recette("E16")
     o = await partie.geste("G30")  # une fiche vide : rien ne change
-    assert o.base is not None and o.prise is not None, "la commande est lue en base et dans la prise"
+    assert o.base is not None and o.base["statut"] == "retenue" and o.prise is None, "la commande est lue en base ; rien en caisse pendant l'appel"
     assert not [x for x in C.juger(partie, o) if x[0] == "BASE"]
     await monde.c.execute("UPDATE mark.resto_commande_ligne SET quantite = quantite + 1 WHERE numero = $1::uuid", o.base["numero"])
     await monde.c.execute("UPDATE mark.resto_commande SET total = total + 100 WHERE numero = $1::uuid", o.base["numero"])
     o = await partie.geste("G30")
     fautes = [x for x in C.juger(partie, o) if x[0] == "BASE"]
     assert len(fautes) >= 2, fautes
-    partie.e.source.prise.recues[-1]["total"] += 1
+    partie.e.source.prise.recues.append({"numero": o.base["numero"], "lignes": [], "total": 0, "mode": "emporter"})
     o = await partie.geste("G30")
-    assert any("la prise a reçu" in d for r, d in C.juger(partie, o) if r == "BASE")
+    assert any("pendant l'appel" in d for r, d in C.juger(partie, o) if r == "BASE")
+
+
+async def test_apres_la_fin_de_l_appel_la_caisse_est_comparee_a_la_base(faire_monde, monkeypatch):
+    """§ 17 : après la fin de l'appel, la caisse a reçu UNE fois ce que porte la base ; une commande annulée ou jamais accordée n'y est pas."""
+    partie = C.Partie(await faire_monde("casa-italia"), monkeypatch)
+    assert await partie.recette("E16")
+    assert await partie.finir_l_appel() == []
+    recue = dict(partie.e.source.prise.recues[-1])
+    partie.e.source.prise.recues[-1]["total"] += 1
+    assert any("la prise a reçu" in d for r, d in await partie.juger_la_fin() if r == "BASE")
+    partie.e.source.prise.recues[-1] = recue
+    partie.e.source.prise.recues.append(dict(recue))
+    assert any("deux" in d or "2" in d for r, d in await partie.juger_la_fin() if r == "BASE")
+
+    annulee = C.Partie(await faire_monde("casa-italia"), monkeypatch)
+    assert await annulee.recette("E17")  # « annulez », puis « oui »
+    assert await annulee.finir_l_appel() == []
+    annulee.e.source.prise.recues.append(dict(recue))
+    assert any(r == "BASE" for r, _ in await annulee.juger_la_fin())
+
+
+async def _une_version_d_avant_restee_retenue(partie: C.Partie) -> str:
+    """Une seconde ligne « retenue » du même appel (la fenêtre du changement : nouvelle version écrite, l'ancienne pas encore annulée, E4)."""
+    return await partie.e.monde.c.fetchval(
+        "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, total, statut, appel_id) "
+        "VALUES (gen_random_uuid(), 'X1', $1, 'emporter', 0, 'retenue', $2) RETURNING numero::text", partie.e.monde.a, str(partie.e.ctx.run_id))
+
+
+async def test_apres_la_fin_aucune_ligne_de_l_appel_ne_reste_retenue_et_l_ancienne_version_est_annulee(faire_monde, monkeypatch):
+    """Audit 8b-1a, R3 : le juge de fin lit TOUTES les lignes de l'appel : aucune « retenue », toute autre que celle qui est partie « annulee »."""
+    from api.services.restauration.caisse import envoi_a_la_fin
+
+    juste = C.Partie(await faire_monde("casa-italia"), monkeypatch)
+    assert await juste.recette("E16")
+    await _une_version_d_avant_restee_retenue(juste)
+    assert await juste.finir_l_appel() == []  # la vraie fin annule la version d'avant
+
+    debranchee = C.Partie(await faire_monde("casa-italia"), monkeypatch)
+    assert await debranchee.recette("E16")
+    ancienne = await _une_version_d_avant_restee_retenue(debranchee)
+
+    async def ne_pas_annuler(*a, **k):
+        return None
+
+    monkeypatch.setattr(envoi_a_la_fin, "_annuler", ne_pas_annuler)  # la fin n'annule plus la version d'avant
+    assert any(r == "BASE" and "retenue" in d for r, d in await debranchee.finir_l_appel())
+    await debranchee.e.monde.c.execute("UPDATE mark.resto_commande SET statut = 'envoyee' WHERE numero = $1::uuid", ancienne)
+    assert any(r == "BASE" and "envoyee" in d for r, d in await debranchee.juger_la_fin())  # une seconde version partie : faute aussi
+    await debranchee.e.monde.c.execute("UPDATE mark.resto_commande SET statut = 'annulee' WHERE numero = $1::uuid", ancienne)
+    assert await debranchee.juger_la_fin() == []
+
+
+async def test_chaque_partie_jouee_finit_l_appel_et_le_juge(faire_monde, monkeypatch):
+    monde = await faire_monde("casa-italia")
+    fins: list = []
+    vraie = C.Partie.finir_l_appel
+
+    async def espionne(self):
+        fins.append(self)
+        return await vraie(self)
+
+    monkeypatch.setattr(C.Partie, "finir_l_appel", espionne)
+    res = await C.jouer(monde, monkeypatch, "E16", ("G30",))
+    assert res.atteint and len(fins) == 1 and res.fautes == [], res.fautes
 
 
 def test_le_rapport_compte_les_cas_joues_a_part_des_non_applicables():

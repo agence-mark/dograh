@@ -1,6 +1,6 @@
-"""[.mark] Module Restauration, lot 10 : l'ENVOI d'une commande enregistrée vers la prise de son établissement, en tâche de fond, avec le secours.
+"""[.mark] Module Restauration, lot 10 : l'ENVOI d'une commande enregistrée vers la prise de son établissement, hors du tour de parole, avec le secours.
 
-``envoyer_la_commande`` est le geste unique : l'appel qui vient d'enregistrer la commande le lance en fond (``source_commande``), le rattrapage le reprend
+``envoyer_la_commande`` est le geste unique : la fin de l'appel le lance pour la commande accordée (``envoi_a_la_fin``, § 17), le rattrapage le reprend
 (``rattrapage``). Il construit la prise de CET établissement (son accès, jamais celui d'un autre), envoie par ``envoyer_une_commande`` (qui cherche par NOTRE
 numéro avant tout renvoi : jamais deux commandes), écrit ``ref_fournisseur`` et dit au flux ce qui a changé.
 

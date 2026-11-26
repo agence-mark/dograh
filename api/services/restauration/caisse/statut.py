@@ -70,7 +70,10 @@ async def changer_le_statut(
     *,
     resolveur: ResolveurDePrise | None = None,
 ) -> tuple[Resultat, bool]:
-    """Rend ``(resultat, caisse_informee)``. L'événement n'est émis que si le statut a réellement changé."""
+    """Rend ``(resultat, caisse_informee)``. L'événement n'est émis que si le statut a réellement changé. Une commande ``retenue`` appartient à l'appel en cours
+    (§ 17, C-1) : elle part ou s'annule à la fin de l'appel, jamais par le portail."""
+    if de == "retenue":
+        return Resultat("INTERDIT", {"raison": "appel_en_cours", "statut_actuel": de, "vers": vers}), False
     resultat = await restauration.changer_statut(connexion, etablissement_id, numero, de, vers, SOURCE)
     if resultat.statut != "OK":
         return resultat, False

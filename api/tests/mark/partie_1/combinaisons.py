@@ -62,7 +62,7 @@ class Observation:
     duree_ms: float = 0.0
     consigne: str | None = None  # lot 7b-C5 : ce que le code donne au modèle muet après « pardon ? » (la consigne de relance, ses faits en JSON) ; sans elle, la phrase réglée « pas compris » (P3, reprise R1 de C6 : jamais le fait accompli) ; jamais une phrase composée
     base: dict[str, Any] | None = None  # la commande de ``resto_commande`` (et ses lignes) quand le panier en porte une enregistrée
-    prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois
+    prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois ; pendant l'appel : rien (§ 17)
     finaliser_appels: int = 0  # combien de fois la fiche de ce geste a mené la commande à sa fin (invariant : jamais plus d'une)
     relance_du_fait: bool = False  # lot 7b-C5 : le modèle a déjà été relancé avec le fait dans ce tour (le plafond d'une relance par tour)
 
@@ -444,6 +444,17 @@ class Partie:
         base = await commande_complete(e.monde.c, e.monde.a, numero)
         recues = [c for c in getattr(e.source.prise, "recues", []) if str(c.get("numero")) == str(numero)]
         return base, (copy.deepcopy(recues[-1]) if recues else None)
+
+    async def finir_l_appel(self) -> list[Faute]:
+        """§ 17 : la fin de l'appel jouée par le vrai crochet des modules (``Essai.finir_l_appel``), puis jugée (``rc_base_fin``)."""
+        await self.e.finir_l_appel()
+        return await self.juger_la_fin()
+
+    async def juger_la_fin(self) -> list[Faute]:
+        numero = (self.p.get("enregistree") or {}).get("numero")
+        base = await commande_complete(self.e.monde.c, self.e.monde.a, numero) if numero else None
+        lignes = await self.e.monde.c.fetch("SELECT numero::text AS numero, statut FROM mark.resto_commande WHERE appel_id = $1", str(self.e.ctx.run_id))
+        return rc_base_fin(self.p, base, list(getattr(self.e.source.prise, "recues", [])), [(r["numero"], r["statut"]) for r in lignes])
 
     def _effet_du_rejeu(self):
         """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste. 7c : une réponse au numéro d'une question qui n'est plus posée est écartée SEULE
@@ -852,33 +863,72 @@ def _lignes_de_la_base(commande: dict[str, Any]) -> Counter:
 
 
 def rc_base(o: Observation) -> list[Faute]:
-    """La commande enregistrée est la même dans le panier, dans ``resto_commande`` (et ses lignes) et dans ce que la prise a reçu : lignes (code, retraits,
-    quantité), total, mode. Une commande fausse en caisse ne reste jamais verte parce que le panier en mémoire est juste (Pierre 15)."""
+    """Pendant l'appel : la commande enregistrée est la même dans le panier et dans ``resto_commande`` (et ses lignes) : lignes (code, retraits, quantité), total, mode ;
+    elle y est « retenue » et la caisse n'en a RIEN reçu (§ 17 : elle part à la fin de l'appel, jugée par ``rc_base_fin``). Une commande fausse en base ne reste jamais verte
+    parce que le panier en mémoire est juste (Pierre 15)."""
     e = o.apres.get("enregistree")
     if not e:
         return []
+    f: list[Faute] = [("BASE", "la caisse a reçu la commande pendant l'appel (§ 17 : à la fin de l'appel seulement)")] if o.prise is not None else []
     b = o.base
     if b is None:
-        return [("BASE", f"enregistrée dans le panier (numéro {e.get('numero')}), absente de resto_commande")]
-    f: list[Faute] = []
+        return [*f, ("BASE", f"enregistrée dans le panier (numéro {e.get('numero')}), absente de resto_commande")]
     annulee = bool(o.apres.get("annulee") or e.get("annulee"))
     if P.a_completer(o.apres) and not annulee:
-        return []  # RC8 : un changement dont une ligne attend sa taille part en caisse après sa réponse ; en attendant, la base est celle d'avant
+        return f  # RC8 : un changement dont une ligne attend sa taille part en caisse après sa réponse ; en attendant, la base est celle d'avant
     if annulee != (b.get("statut") == "annulee"):
         f.append(("BASE", f"panier {'annulé' if annulee else 'actif'}, resto_commande au statut « {b.get('statut')} »"))
     if annulee:
         return f
+    if b.get("statut") != "retenue":
+        f.append(("BASE", f"pendant l'appel, resto_commande au statut « {b.get('statut')} » (attendu : retenue)"))
+    return f + _panier_face_a_la_base(o.apres, b)
+
+
+def _panier_face_a_la_base(p: dict[str, Any], b: dict[str, Any]) -> list[Faute]:
+    f: list[Faute] = []
+    e = p.get("enregistree") or {}
     attendu = Counter()
-    for l in P.lignes_pretes(o.apres):
+    for l in P.lignes_pretes(p):
         attendu[(l.get("code"), tuple(sorted(l.get("retires") or [])))] += int(l.get("quantite") or 0)
     if attendu != _lignes_de_la_base(b):
         f.append(("BASE", f"lignes du panier {dict(attendu)} / lignes de resto_commande {dict(_lignes_de_la_base(b))}"))
     if e.get("total") is not None and e.get("total") != b.get("total"):
         f.append(("BASE", f"total du panier {e.get('total')} / total de resto_commande {b.get('total')}"))
-    if o.apres.get("mode") and o.apres.get("mode") != b.get("mode"):
-        f.append(("BASE", f"mode du panier {o.apres.get('mode')} / mode de resto_commande {b.get('mode')}"))
-    r = o.prise
-    if r is not None:
+    if p.get("mode") and p.get("mode") != b.get("mode"):
+        f.append(("BASE", f"mode du panier {p.get('mode')} / mode de resto_commande {b.get('mode')}"))
+    return f
+
+
+def rc_base_fin(p: dict[str, Any], b: dict[str, Any] | None, recues: list[dict[str, Any]], lignes_de_l_appel: list[tuple[str, str]]) -> list[Faute]:
+    """§ 17, après la fin de l'appel : une commande accordée (enregistrée, pas annulée) est partie, et la caisse l'a reçue UNE fois, telle que la base la porte (lignes, total,
+    mode) ; une commande annulée ou jamais accordée n'a rien envoyé (sa ligne, s'il y en a une, est « annulee »). Toute autre ligne de l'appel (``lignes_de_l_appel`` :
+    ``(numero, statut)`` de ``resto_commande``, une ancienne version) est « annulee » : aucune ne reste « retenue » (audit 8b-1a, R3)."""
+    return _autres_lignes_de_l_appel(b, lignes_de_l_appel) + _la_commande_a_la_fin(p, b, recues)
+
+
+def _autres_lignes_de_l_appel(b: dict[str, Any] | None, lignes_de_l_appel: list[tuple[str, str]]) -> list[Faute]:
+    jugee = str(b.get("numero")) if b is not None else None  # la commande du panier : jugée par ``_la_commande_a_la_fin``
+    return [("BASE", f"après la fin de l'appel, une autre ligne de l'appel ({numero}) au statut « {statut} » (attendu : annulee)")
+            for numero, statut in lignes_de_l_appel if numero != jugee and statut != "annulee"]
+
+
+def _la_commande_a_la_fin(p: dict[str, Any], b: dict[str, Any] | None, recues: list[dict[str, Any]]) -> list[Faute]:
+    e = p.get("enregistree")
+    if not e or p.get("annulee") or e.get("annulee"):
+        f: list[Faute] = [("BASE", f"la caisse a reçu {len(recues)} envoi(s) d'une commande que l'appel n'a pas accordée")] if recues else []
+        if b is not None and b.get("statut") != "annulee":
+            f.append(("BASE", f"commande annulée dans l'appel, resto_commande au statut « {b.get('statut')} »"))
+        return f
+    if b is None:
+        return [("BASE", f"enregistrée dans le panier (numéro {e.get('numero')}), absente de resto_commande")]
+    f = [] if P.a_completer(p) else _panier_face_a_la_base(p, b)  # RC8 : une ligne attend sa taille ; la base est la version accordée, c'est elle qui part
+    if b.get("statut") in ("retenue", "annulee"):
+        f.append(("BASE", f"après la fin de l'appel, resto_commande au statut « {b.get('statut')} » (attendu : partie)"))
+    siennes = [r for r in recues if str(r.get("numero")) == str(b.get("numero"))]
+    if len(recues) != 1 or len(siennes) != 1:
+        f.append(("BASE", f"la caisse a reçu {len(recues)} envoi(s), dont {len(siennes)} de cette commande (attendu : 1)"))
+    for r in siennes[-1:]:
         if _lignes_de_la_base({"lignes": r.get("lignes")}) != _lignes_de_la_base(b):
             f.append(("BASE", "ce que la prise a reçu n'a pas les lignes de resto_commande"))
         if r.get("total") != b.get("total"):
@@ -1099,6 +1149,8 @@ async def _jouer(monde, monkeypatch, etat: str, suite: tuple[str, ...]) -> Resul
         res.durees.append(o.duree_ms)
         for regle, detail in juger(partie, o):
             res.fautes.append((pas, regle, detail))
+    for regle, detail in await partie.finir_l_appel():  # § 17 : la caisse se juge à la fin de l'appel
+        res.fautes.append(("fin", regle, detail))
     return res
 
 
