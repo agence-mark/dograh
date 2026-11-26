@@ -725,9 +725,10 @@ def seul_autre_chose_manque(p: dict[str, Any]) -> bool:
 
 def _relecture_a_relancer(p: dict[str, Any], question_avant: dict | None, avant: str, executees: list[str]) -> bool:
     """n° 8 : la relecture posée a cessé de valoir pendant la fiche (l'étape est passée de « à relire » à « en cours » et le panier n'est plus celui qu'elle a lu) :
-    elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle."""
+    elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle. 7c (RC10) : jamais derrière un article encore en doute (``RQ.question_en_doute`` :
+    tant qu'elle vit, la commande ne se relit pas ; elle se refait à « c'est tout », comme ``_case_c_est_tout``)."""
     return ((question_avant or {}).get("type") == "relecture" and avant == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS
-            and not CONV.question_de(p) and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)))
+            and not CONV.question_de(p) and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)) and not RQ.question_en_doute(p))
 
 
 def _accord_a_redonner(p: dict[str, Any], etat_avant: str) -> bool:

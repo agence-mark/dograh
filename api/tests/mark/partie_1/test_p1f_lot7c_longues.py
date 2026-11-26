@@ -64,3 +64,17 @@ async def test_rc3_la_phrase_du_total_tourne_d_une_relecture_a_l_autre(faire_mon
     assert premiere.dit_par_le_code and seconde.dit_par_le_code and premiere.dit_par_le_code != seconde.dit_par_le_code, (premiere.dit_par_le_code, seconde.dit_par_le_code)
     assert not C.rc3(partie, seconde)
 
+
+async def test_rc10_la_relecture_ne_repart_pas_derriere_un_article_en_doute(faire_monde, monkeypatch):
+    """RC10 (``registre.question_en_doute`` : tant qu'un article est en doute, la commande ne se relit pas ; ``_case_c_est_tout``). Client (relecture posée) « Une regina et une
+    salmone. » / avant : la relecture repartait marquée posée, son total jamais dit (la question de la salmone passe d'abord) / après : la question de la salmone seule, la relecture
+    se refait après sa réponse, à « c'est tout »."""
+    from api.tests.mark.partie_1 import combinaisons as C
+
+    monde = await faire_monde("casa-italia")
+    partie = C.Partie(monde, monkeypatch)
+    assert await partie.recette("E11")
+    o = await partie.fusion(("G1", "G4"))
+    assert C.question(o.apres).get("type") == "ambiguite", C.question(o.apres)
+    assert not C.rc10(partie, o), C.rc10(partie, o)
+
