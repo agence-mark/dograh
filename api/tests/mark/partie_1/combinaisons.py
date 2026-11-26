@@ -65,6 +65,7 @@ class Observation:
     prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois ; pendant l'appel : rien (§ 17)
     finaliser_appels: int = 0  # combien de fois la fiche de ce geste a mené la commande à sa fin (invariant : jamais plus d'une)
     relance_du_fait: bool = False  # lot 7b-C5 : le modèle a déjà été relancé avec le fait dans ce tour (le plafond d'une relance par tour)
+    identique: bool = False  # PE-1 : la fiche est celle du tour d'avant ; le juge attend le panier inchangé ET le refus qui fait demander « un de plus ou le même ? »
 
     @property
     def dit_par_le_code(self) -> str:
@@ -362,7 +363,9 @@ class Partie:
         self.journal: list[str] = []  # ce que le code a dit, tour après tour (RC3)
         self.derniere_fiche: dict[str, Any] | None = None
         self.dernier_effet: Callable | None = None  # l'effet de la dernière fiche jouée (G32 la rejoue au tour suivant : même effet)
-        self.derniere_ajoutee: tuple[int, dict[str, Any], bool] | None = None  # (tour, fiche, sa réponse visait la question posée) de la dernière fiche qui ajoute et que le juge a attendue APPLIQUÉE (PE-1)
+        # (tour, fiche, sa réponse visait la question posée) de la dernière fiche qui ajoute et que le juge a attendue APPLIQUÉE (PE-1), et des fiches refaites dans ce même tour avec la
+        # même case ``ajouter`` (R2 : la case déjà faite n'est pas rejouée, la fiche refaite compte aussi pour « la même au tour d'après »)
+        self.ajoutees: list[tuple[int, dict[str, Any], bool]] = []
         self.fiche_du_tour: dict[str, Any] | None = None  # la fiche déjà jouée dans le tour en cours (G31 la rejoue dans CE tour ; un nouveau tour la rend au suivant, G32)
         self.attendu: Counter | None = Counter()
         for x in [*monde.carte.get("produits", []), *(monde.carte.get("formules") or [])]:
@@ -377,14 +380,25 @@ class Partie:
         return int(self.e.fiche_de_l_appel.get(CONTRAT.CLE_DU_TOUR) or 0)
 
     def _identique_au_tour_d_avant(self, fiche: dict[str, Any] | None, avant: dict[str, Any]) -> bool:
-        """PE-1 (Q1/Q2 c, Pierre 26/11 ; ``bilan-point-d-etape-7b-c.md:274``) : la fiche qui ajoute, mot pour mot celle que le juge a attendue appliquée au tour d'avant (tour d'avant exactement),
+        """PE-1 (Q1/Q2 c, Pierre 26/11 ; ``bilan-point-d-etape-7b-c.md:274``) : la fiche qui ajoute, mot pour mot celle que le juge a attendue appliquée au tour d'avant (tour d'avant exactement), ou la fiche refaite dans ce tour-là (R2),
         n'est pas appliquée : le modèle demande « un de plus ou le même ? » (rien ne change, ni l'ajout ni les retraits de la même fiche). Un refus jugé n'est jamais « appliquée » : à la fiche
         suivante la même s'applique (« un autre »), le juge ne regarde que ce qu'il a lui-même attendu. « Mot pour mot » compte la réponse : une réponse qui visait la question posée au tour
         d'avant et ne vise plus rien au rejeu est écartée SEULE (B1), la fiche qui reste n'est plus celle d'avant : elle s'applique."""
-        if not fiche or not fiche.get("ajouter") or self.derniere_ajoutee is None:
+        if not fiche or not fiche.get("ajouter"):
             return False
-        tour, dite, vivante = self.derniere_ajoutee
-        return tour == self.fiche_de_l_appel_tour() - 1 and dite == fiche and vivante == _reponse_vivante(fiche, avant)
+        precedent = self.fiche_de_l_appel_tour() - 1
+        return any(tour == precedent and dite == fiche and vivante == _reponse_vivante(fiche, avant) for tour, dite, vivante in self.ajoutees)
+
+    def _ranger_la_fiche_ajoutee(self, fiche: dict[str, Any] | None, avant: dict[str, Any], appliquee: bool) -> None:
+        """La fiche qui ajoute et que le juge attend appliquée devient « celle du tour d'avant » pour le tour suivant ; la fiche refaite dans le même tour avec la même case ``ajouter``
+        (G33, reprise R2 de l'audit PE-1) s'y ajoute : redite au tour d'après, elle n'est pas appliquée non plus."""
+        if not fiche or not fiche.get("ajouter"):
+            return
+        tour, entree = self.fiche_de_l_appel_tour(), (self.fiche_de_l_appel_tour(), copy.deepcopy(fiche), _reponse_vivante(fiche, avant))
+        if appliquee:
+            self.ajoutees = [entree]
+        elif any(t == tour and dite.get("ajouter") == fiche["ajouter"] for t, dite, _ in self.ajoutees):
+            self.ajoutees.append(entree)
 
     def _compter_la_fin(self) -> list[int]:
         """L'espion de l'invariant « un seul finaliser par fiche » : chaque passage de la commande à sa fin, dans la fiche jouée, y est compté."""
@@ -408,10 +422,11 @@ class Partie:
             e.dit(dit)
             self.fiche_du_tour = None
         retour, textes, decision, consigne, duree, nombre_de_fins = None, {}, None, None, 0.0, 0
-        effet_juge = _inchange if self._identique_au_tour_d_avant(fiche, avant) else effet
+        identique = self._identique_au_tour_d_avant(fiche, avant)
+        effet_juge = _inchange if identique else effet
         attendu = effet_juge(lignes_de(avant), avant) if effet_juge is not None else None
-        if fiche is not None and fiche.get("ajouter") and attendu is not None and attendu != lignes_de(avant):
-            self.derniere_ajoutee = (self.fiche_de_l_appel_tour(), copy.deepcopy(fiche), _reponse_vivante(fiche, avant))
+        # « appliquée » : le juge attend qu'un article ENTRE (le code ne range que la fiche dont un article a été pris ; un retrait seul, avec un article inconnu, n'en fait pas une)
+        self._ranger_la_fiche_ajoutee(fiche, avant, attendu is not None and bool(+(attendu - lignes_de(avant))))
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
             debut = time.perf_counter()
@@ -428,7 +443,7 @@ class Partie:
             consigne = R.consigne_de_relance(self.p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel))
         base, prise = await self._lire_la_base()
         o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, consigne, base, prise, nombre_de_fins if fiche is not None else 0,
-                        relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait)
+                        relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait, identique=identique)
         self.observations.append(o)
         # C6 n° 5 (décision d'Evan 25/11 9 h 30) : un fait accompli neuf est dit par le modèle, suivi de la question M108 du code ; ce que la personne entend de neuf est ce fait (gardé au journal)
         fait = (o.textes or {}).get("fait_accompli")  # B9 : les faits du fait accompli (plus une phrase) ; deux fois les mêmes faits = redit
@@ -666,7 +681,19 @@ def rc2(o: Observation) -> list[Faute]:
             f.append(("RC2", f"panier attendu {dict(+o.attendu)} / réel {dict(+reel)}"))
     if _refusee(o.retour) and lignes_de(o.avant) != reel:
         f.append(("RC2", "fiche refusée en entier, mais le panier a changé"))
+    if o.identique and RAISON_DE_LA_FICHE_IDENTIQUE not in _raisons(o.retour):
+        # PE-1 (Q1/Q2 c, Pierre 26/11) : la fiche identique n'est pas appliquée ET le modèle demande « un de plus ou le même ? » ; sans ce refus, l'article est perdu en silence
+        f.append(("RC2", f"fiche identique au tour d'avant sans le refus {RAISON_DE_LA_FICHE_IDENTIQUE} : l'article est perdu sans rien demander"))
     return f
+
+
+RAISON_DE_LA_FICHE_IDENTIQUE = "fiche_identique_au_tour_d_avant"
+
+
+def _raisons(r: dict | None) -> set[str]:
+    """Les raisons de refus que le retour de la fiche porte (la sienne et celles de ses refus)."""
+    r = r or {}
+    return {str(x) for x in [r.get("raison"), *((x or {}).get("raison") for x in r.get("refus") or [] if isinstance(x, dict))] if x}
 
 
 def rc3(partie: Partie, o: Observation) -> list[Faute]:
