@@ -64,7 +64,8 @@ async def test_la_reservation_faite_est_dite_par_le_modele_avec_les_personnes_et
     assert not textes.get("avant") and not textes.get("suffixe"), textes  # le code ne dit plus « C'est réservé… »
     assert textes.get("chiffres_exiges") == {"personnes": "4", "heure": "vingt heures"}, textes
     assert "C'est réservé" not in str(r), r
-    assert "quatre personnes" in textes.get("fait_accompli", ""), textes
+    assert "fait_accompli" not in textes, textes  # C7 : la clé n'avait aucun lecteur en production (audit de C6) ; le modèle lit le fait dans les faits du retour
+    assert (r["faits"]["personnes"], r["faits"]["quand_dit"]) == (4, "samedi quatorze novembre à vingt heures"), r["faits"]
     assert J.fait_accompli(essai.etat) is None  # reprise R5 de l'audit réservation-prix : la porte de la réservation ne remplit plus le journal du fait accompli (rien ne le lit)
     phrase = "C'est noté, je vous attends samedi à vingt heures pour quatre."
     assert _dire(essai, r, phrase) == phrase
@@ -99,7 +100,8 @@ async def test_la_reservation_modifiee_est_dite_par_le_modele(salle, monkeypatch
     textes = _textes(essai)
     assert not textes.get("avant"), textes
     assert textes.get("chiffres_exiges") == {"personnes": "5", "heure": "vingt heures"}, textes
-    assert "cinq personnes" in textes.get("fait_accompli", ""), textes  # nombres en lettres
+    assert "fait_accompli" not in textes, textes  # C7 : clé sans lecteur, retirée ; le fait est dans les faits du retour
+    assert r["faits"]["personnes"] == 5, r["faits"]
     phrase = "C'est changé, cinq personnes samedi à vingt heures."
     assert _dire(essai, r, phrase) == phrase
 

@@ -312,7 +312,7 @@ async def test_defauts_connus_df12_reservation(salle, monkeypatch):  # noqa: F81
         textes = e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {}
         if r.get("statut") != "ENREGISTREE":
             fautes.append(f"RC4 : l'accord avec l'heure redite n'enregistre pas (statut {r.get('statut')}, {r.get('raison')})")
-        elif not (textes.get("chiffres_exiges") and textes.get("fait_accompli")):
+        elif not (textes.get("chiffres_exiges") and textes.get("a_faire")):  # C7 : la clé « fait_accompli » est retirée (aucun lecteur) ; la consigne du fait accompli fait foi
             fautes.append("RC4 : réservation enregistrée, ni le modèle ni le repli ne peuvent le dire")
     await creer_reservation(salle.c, salle.a, {"debut": SAMEDI_20H, "couverts": 6, "prenom": "Zoe", "telephone": "+33600000001", "appel_id": "z"})
     e2 = EssaiReservation(salle, monkeypatch, appelant="+33600000077")

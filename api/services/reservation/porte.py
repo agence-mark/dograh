@@ -243,12 +243,12 @@ def numero_apres_le_fait_accompli(ctx: Any, dernier: Resultat | None) -> str | N
 
 def _textes_du_fait_accompli(dernier: Resultat, operation: str | None, phrase_du_numero: str | None = None) -> dict[str, Any]:
     """C6 n° 9 (décision d'Evan 25/11 9 h 30 ; P2) : la réservation enregistrée, changée ou annulée est dite par le MODÈLE ; sa phrase doit dire les personnes et l'heure (``chiffres_exiges`` ;
-    rien pour une annulation). Le code ne dit après elle que la phrase réglée du numéro retenu (``phrase_du_numero``, reprise R4 : DC10 éteint). ``fait_accompli`` : le texte de secours
-    de la base, une trace des textes du code seulement : ni au journal du dit (reprise R5), ni à la voix, même relance ratée (reprise R1 de C6)."""
+    rien pour une annulation). Le code ne dit après elle que la phrase réglée du numéro retenu (``phrase_du_numero``, reprise R4 : DC10 éteint). Le modèle lit le fait dans les faits du
+    retour (personnes, quand, nom) ; aucun texte de secours, ni au journal du dit (reprise R5), ni à la voix, même relance ratée (reprise R1 de C6)."""
     faits = dernier.faits or {}
     geste = "reserver" if dernier.statut in STATUTS_ENREGISTRES else operation
     exiges = {} if geste == "annuler" else {k: str(v) for k, v in (("personnes", faits.get("personnes")), ("heure", faits.get("heure_dite"))) if v not in (None, "")}
-    return {"chiffres_exiges": exiges, **({"suffixe": phrase_du_numero} if phrase_du_numero else {}), "fait_accompli": dernier.suggestion,
+    return {"chiffres_exiges": exiges, **({"suffixe": phrase_du_numero} if phrase_du_numero else {}),
             "a_faire": A_FAIRE_DU_FAIT_ACCOMPLI.get(geste or "", A_FAIRE_DU_FAIT_ACCOMPLI["reserver"])}
 
 
