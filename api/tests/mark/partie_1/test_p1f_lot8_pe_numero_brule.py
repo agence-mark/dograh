@@ -7,7 +7,11 @@ Même règle à la réservation (refus 14 : un seul mécanisme, celui du registr
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
-from api.tests.mark.partie_1.aides_de_la_commande import a_emporter, premier_article, question_posee
+from api.tests.mark.partie_1.aides_de_la_commande import (
+    a_emporter,
+    premier_article,
+    question_posee,
+)
 from api.tests.mark.partie_1.aides_de_la_reservation import salle
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 
