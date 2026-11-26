@@ -27,6 +27,7 @@ CLE_DES_FERMEES = "questions_fermees"  # objet → {signature, tour} : les quest
 CLE_DERNIERE_FERMEE = "derniere_question_fermee"
 CLE_DU_TOUR = "tour_de_l_appel"  # le tour de la conversation, posé par la porte de chaque métier
 CLE_DU_PROCHAIN = "prochain_q"  # le numéro de la prochaine question, jamais redonné dans l'appel
+PREFIXE_DU_NUMERO = "Q-"  # le numéro d'une question : « Q-3 » (``numero`` le donne, ``bruler_le_numero`` le relit)
 
 
 @dataclass(frozen=True)
@@ -77,17 +78,18 @@ def numero(p: dict[str, Any], cle: str) -> str:
         prochain = int(conversation.get(CLE_DU_PROCHAIN) or 1)
         numeros[cle] = prochain
         conversation[CLE_DU_PROCHAIN] = prochain + 1
-    return f"Q-{numeros[cle]}"
+    return f"{PREFIXE_DU_NUMERO}{numeros[cle]}"
 
 
 def bruler_le_numero(p: dict[str, Any], question_id: Any) -> None:
     """Q1 (b), Pierre 26/11 : le numéro cité par une réponse REFUSÉE (``question_inconnue``) n'est jamais redonné à une autre question : sans cela, un « oui » refusé puis rejoué
     répondrait plus tard à la question qui naît sous ce numéro. Une donnée du dossier (``prochain_q``), aucun drapeau ; un numéro déjà passé, ou qui n'est pas ``Q-n``, ne change rien."""
     texte = str(question_id or "")
-    if not (texte.startswith("Q-") and texte[2:].isdigit()):
+    suite = texte[len(PREFIXE_DU_NUMERO):]  # le format d'un numéro que ``numero`` donne : un identifiant du code, pas un mot de la personne
+    if texte[:len(PREFIXE_DU_NUMERO)] != PREFIXE_DU_NUMERO or not suite.isdecimal():
         return
     conversation = CONV.de(p)
-    conversation[CLE_DU_PROCHAIN] = max(int(conversation.get(CLE_DU_PROCHAIN) or 1), int(texte[2:]) + 1)
+    conversation[CLE_DU_PROCHAIN] = max(int(conversation.get(CLE_DU_PROCHAIN) or 1), int(suite) + 1)
 
 
 def _meme_question(a: dict[str, Any], b: dict[str, Any]) -> bool:
