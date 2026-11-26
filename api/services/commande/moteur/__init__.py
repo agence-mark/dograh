@@ -73,6 +73,7 @@ from api.services.commande.moteur.changement import (
     annulation_possible,
     annuler_commande_enregistree,
     changer_commande_enregistree,
+    manque_pour_remplacer,
 )
 from api.services.commande.moteur.lecture import (
     remises_disponibles,
@@ -98,6 +99,7 @@ __all__ = [
     "annulation_possible",
     "annuler_commande_enregistree",
     "changer_commande_enregistree",
+    "manque_pour_remplacer",
     "chercher_l_article",
     "chiffrer_le_panier",
     "choisir_mode",

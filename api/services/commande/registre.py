@@ -177,6 +177,11 @@ def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
     RC.ouvrir(TABLE, p, q)
 
 
+def redonner(p: dict[str, Any], q: dict[str, Any] | None, tour: int) -> None:
+    """La même question redonnée exprès dans ce tour (mécanisme commun : ``registre_des_questions.redonner``)."""
+    RC.redonner(TABLE, p, q, tour)
+
+
 def est_deja_ouverte(p: dict[str, Any], q: dict[str, Any] | None) -> bool:
     return RC.est_deja_ouverte(TABLE, p, q)
 

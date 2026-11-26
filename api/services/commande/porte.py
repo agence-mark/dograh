@@ -725,9 +725,10 @@ def seul_autre_chose_manque(p: dict[str, Any]) -> bool:
 
 def _relecture_a_relancer(p: dict[str, Any], question_avant: dict | None, avant: str, executees: list[str]) -> bool:
     """n° 8 : la relecture posée a cessé de valoir pendant la fiche (l'étape est passée de « à relire » à « en cours » et le panier n'est plus celui qu'elle a lu) :
-    elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle."""
+    elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle. 7c (RC10) : jamais derrière un article encore en doute (``RQ.question_en_doute`` :
+    tant qu'elle vit, la commande ne se relit pas ; elle se refait à « c'est tout », comme ``_case_c_est_tout``)."""
     return ((question_avant or {}).get("type") == "relecture" and avant == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS
-            and not CONV.question_de(p) and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)))
+            and not CONV.question_de(p) and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)) and not RQ.question_en_doute(p))
 
 
 def _accord_a_redonner(p: dict[str, Any], etat_avant: str) -> bool:
@@ -738,10 +739,13 @@ def _accord_a_redonner(p: dict[str, Any], etat_avant: str) -> bool:
     return ETAPE.accord(p) or (etat_avant == ETAPE.ACCORDEE and ETAPE.courante(p) == ETAPE.EN_COURS and not RQ.question_en_doute(p))
 
 
-def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> None:
-    """n° 45 : « c'est tout » est dit mais la relecture attend l'heure proposée : l'étape le dit (plus un drapeau posé sur la question)."""
+def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> bool:
+    """n° 45 : « c'est tout » est dit mais la relecture attend l'heure proposée : l'étape le dit (plus un drapeau posé sur la question). Rend vrai : la question de l'heure est
+    alors redonnée dans ce tour (7c : le modèle la repose)."""
     if q is not None and q.get("type") == "heure_proposee" and "c_est_tout" in executees and ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
         ETAPE.transition(p, ETAPE.C_EST_TOUT_DIT)
+        return True
+    return False
 
 
 @dataclass
@@ -1158,8 +1162,11 @@ async def _proposition_apres_les_cases(f: LaFiche) -> None:
 
 async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
     p, avant = f.p, f.avant_enregistree
-    if (avant is None or moteur.commande_de_l_appel(p) is None or P.a_completer(p) or P.empreinte(p) == p.get("empreinte_enregistree")):
-        return  # une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse ; le panier redevenu la commande enregistrée ne change rien ; un panier vidé en diffère (RC8)
+    if (avant is None or moteur.commande_de_l_appel(p) is None or P.empreinte(p) == p.get("empreinte_enregistree")
+            or (P.a_completer(p) and moteur.manque_pour_remplacer(f.source, p) is None)):
+        # une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse ; le panier redevenu la commande enregistrée ne change rien ; un panier vidé en diffère (RC8).
+        # 7c (Pierre A2, B4 M2) : un manque (l'adresse d'une livraison) se constate d'abord, même quand une ligne attend : rien ne change, le panier redevient celui d'avant
+        return
     # RC8 : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2) : rien ne change, la confirmation est posée
     # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
     f.dernier = await moteur.changer_commande_enregistree(f.source, p, f.regles, f.appelant, avant)
@@ -1215,9 +1222,11 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     q = _question_de(dernier, 0, tour, p) if dernier is not None else None
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         f.ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
-    _dire_c_est_tout(p, q, f.ex.executees)
+    redonnee = _dire_c_est_tout(p, q, f.ex.executees)
     if not RQ.est_deja_ouverte(p, q):
         RQ.ouvrir(p, q)  # celle d'un article en doute est déjà au registre, ouverte à l'article (D25)
+    if redonnee:
+        RQ.redonner(p, q, tour)  # 7c : « c'est tout » redonne l'heure proposée dans ce tour (n° 45), le modèle la repose
     for refus in (r for r in f.bruts if r.manque in MANQUES_REFUSES_DE_QUESTION and statut_qui_refuse(r.statut)):
         manque = _question_de(refus, 0, tour, p)  # ligne 12 : l'heure refusée est posée avant la relecture, le modèle dit le refus puis la demande
         if manque is not None and not RQ.est_deja_ouverte(p, manque):
@@ -1229,6 +1238,9 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     return posee if posee is not None and (not avant or CONV.identite_de_la_question(posee) != CONV.identite_de_la_question(avant) or posee.get("nee_au_tour") == tour) else None
 
 
+CLE_RELECTURES_DU_TOTAL = "relectures_du_total"  # 7c : au journal du dit, le nombre de relectures dont le code a dit le total (le rang de sa variante)
+
+
 def _phrase_du_total(ctx: Any, p: dict[str, Any], nee: dict[str, Any] | None) -> str | None:
     """C6 : la phrase réglée du total que le code dit après la relecture du modèle (motif ``total_relecture`` ou ``total_apres_correction``, ``{total}`` remplacé, rien d'autre) ;
     ``None`` sans relecture née dans ce tour. Elle tourne d'une relecture à l'autre (Q3 = A). Le jeton de la relecture est noté à l'état du tour : l'accord ne vaut que si cette phrase est DITE."""
@@ -1238,7 +1250,9 @@ def _phrase_du_total(ctx: Any, p: dict[str, Any], nee: dict[str, Any] | None) ->
     motif = relecture.get("motif_du_total")
     if not motif or relecture.get("total") is None:
         return None
-    phrase = phrase_du_code(ctx, motif, int(relecture.get("version") or 0), total=montant_en_lettres(relecture["total"]))
+    # 7c : le rang compte les relectures (une par tour), jamais la parité de la version du panier (un remplacement en ajoute deux : la même variante revenait)
+    rang = J.noter(p, CLE_RELECTURES_DU_TOTAL, nee.get("nee_au_tour")) - 1
+    phrase = phrase_du_code(ctx, motif, rang, total=montant_en_lettres(relecture["total"]))
     fiche = getattr(ctx, "fiche", None)
     if phrase and isinstance(fiche, dict):
         etat = PAROLE.etat_du_tour(fiche)
