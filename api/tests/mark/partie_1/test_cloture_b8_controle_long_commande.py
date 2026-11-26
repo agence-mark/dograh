@@ -31,8 +31,7 @@ CAS = {
     "rc4_fiche_rejouee_deux_fois_e16": ("E16", ("G31", "G31")),
     "rc4_fiche_rejouee_deux_fois_e10": ("E10", ("G31", "G31")),
     "rc4_mode_puis_fiche_rejouee_e18": ("E18", ("G15", "G31")),
-    # « rc4_fiche_vide_puis_rejouee_e18 » (E18, G30, G31) sort de cette liste : PE-2 Q3 (décision du point d'étape du 26/11, bilan Q3, BILAN:271) laisse dire la phrase du modèle
-    # quand la fiche rejouée est vide et que rien n'est dû, ce que la règle RC4 du juge refuse ; il est gardé plus bas (``test_une_fiche_vide_rejouee_sans_rien_de_du_dit_la_phrase_du_modele``)
+    "rc4_fiche_vide_puis_rejouee_e18": ("E18", ("G30", "G31")),  # PE-2 Q3 : le juge laisse la phrase du modèle sur une fiche vide sans rien de dû (``test_p1f_lot8_pe_juge_rc4``)
     "rc1_vider_puis_ajouter_e18": ("E18", ("G12", "G1")),
     # RC9 : la même question reposée garde son numéro
     "rc9_hesitation_redite_avec_non": ("E6", ("G4+G24",)),

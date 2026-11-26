@@ -8,6 +8,7 @@ import copy
 from collections import Counter
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import parole as PAROLE
 from api.tests.mark.partie_1 import combinaisons as C
 
@@ -17,7 +18,7 @@ def _observation(fiche, *, question=None, manque=None):
     panier = {"lignes": [], "mode": "emporter", "enregistree": {"numero": 7, "total": 12}}
     if question:
         CONV.poser_question(panier, question)
-    retour = {"statut": "OK", "du": {"manque": manque}} if manque else {"statut": "OK"}
+    retour = {"statut": "OK", CLE_DU: {"manque": manque}} if manque else {"statut": "OK"}
     return C.Observation("G31", panier, copy.deepcopy(panier), retour, {}, PAROLE.Decision(PAROLE.A_DIRE_SEUL, C.ANNONCE, "fait"), Counter(), fiche)
 
 
