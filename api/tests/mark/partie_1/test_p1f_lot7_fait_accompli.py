@@ -17,8 +17,8 @@ async def test_apres_l_enregistrement_pardon_ne_redit_plus_la_confirmation_du_jo
     await premier_article(e)
     await refuser_la_proposition(e)
     await jusqu_a_l_enregistrement(e)
-    confirmation = J.fait_accompli(e.p) or ""
-    assert confirmation.startswith("Votre commande est enregistrée"), e.p
+    confirmation = J.fait_accompli(e.p) or {}  # C7 B9 (0e89e408) : le journal garde le fait accompli en faits, jamais la phrase
+    assert confirmation.get("fait") == "enregistree" and confirmation.get("quand_dit"), e.p
     from types import SimpleNamespace
 
     from api.services.workflow import parole_de_la_fiche as PF
@@ -32,6 +32,6 @@ async def test_apres_l_enregistrement_pardon_ne_redit_plus_la_confirmation_du_jo
 def test_le_fait_accompli_compte_dans_ce_que_la_personne_vit():
     p: dict = {}
     avant = DU.ce_qui_se_voit(p)
-    J.dire_le_fait(p, "Votre commande est enregistrée.", 3)
+    J.dire_le_fait(p, {"fait": "enregistree", "quand_dit": "pour midi"}, 3)
     assert DU.ce_qui_se_voit(p) != avant
-    assert J.fait_accompli(p) == "Votre commande est enregistrée." and J.fait_accompli({}) is None
+    assert J.fait_accompli(p) == {"fait": "enregistree", "quand_dit": "pour midi"} and J.fait_accompli({}) is None
