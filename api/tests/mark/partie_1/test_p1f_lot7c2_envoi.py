@@ -70,5 +70,6 @@ async def test_les_autres_refus_de_l_envoi_ne_bougent_pas(source, monkeypatch, e
     assert (r.statut, r.faits, r.suggestion) == (statut, faits, "")
 
 
-def test_la_question_de_la_zone_est_celle_du_catalogue_des_manques():
-    assert SourceClasseur.question_de_la_zone == phrase_du_manque(Manque.ADRESSE_ET_COMMUNE) == "Quelle est l'adresse de livraison ?"
+def test_la_question_de_la_zone_n_est_plus_dans_la_source():
+    """C7 B5 (Evan 25/11 8 h 45) : la source ne garde plus la question de la zone ; le manque (``zone``, ``adresse``) la porte, le modèle la pose ; le catalogue du manque reste jusqu'à B9."""
+    assert not hasattr(SourceClasseur, "question_de_la_zone") and phrase_du_manque(Manque.ADRESSE_ET_COMMUNE) == "Quelle est l'adresse de livraison ?"

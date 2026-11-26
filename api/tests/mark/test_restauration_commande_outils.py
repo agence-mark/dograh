@@ -167,7 +167,6 @@ class SourceDePieces:
 
     modes = ("retrait",)
     libelles_des_modes = {"retrait": "au comptoir"}
-    question_de_la_zone = "Où livrer ?"
     libelles_des_moyens = {"virement": "par virement"}
     CATALOGUE = {"P-FILTRE": ("Filtre à huile", 1250), "P-JOINT": ("Joint de culasse", 3400)}
 

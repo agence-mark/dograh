@@ -53,7 +53,6 @@ from api.db.bases_clients.restauration_zone import (
 from api.services.actions_communes.moyens_de_paiement import LIBELLES_DITS, MOYEN_DE_BASE_SELON_LA_FICHE, RESERVES_AU_MODE
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande, voir_un_article  # noqa: F401  # branchent l'allergie et la lecture d'un article sur le moteur commun (``moteur.socle.METIER``)
 from api.services.commande.parole import heure_en_lettres
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
 from api.services.restauration.envois_et_sms import envois
@@ -196,7 +195,6 @@ class SourceClasseur:
     champs_du_greffier = {"note": ("allergie", "consigne_livreur")}  # Evan (18/11) : la consigne pour le livreur part dans la note de la commande
     modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
-    question_de_la_zone = phrase_du_manque(Manque.ADRESSE_ET_COMMUNE)
     moyens_reserves_au_mode = RESERVES_AU_MODE  # M90 : le TPE à la porte n'existe qu'en livraison
     libelles_des_moyens = LIBELLES_DITS
 

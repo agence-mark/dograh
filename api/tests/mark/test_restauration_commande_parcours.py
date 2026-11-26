@@ -138,7 +138,7 @@ async def test_changer_de_mode_garde_les_articles_et_en_livraison_la_zone_et_son
     await jouer("choisir_mode", mode="à emporter")
     await jouer("ajouter", articles=["coca"])
     r = await jouer("choisir_mode", mode="en livraison")
-    assert r["statut"] == "OK" and r["manque"] == "zone" and r["suggestion"] == "Quelle est l'adresse de livraison ?"
+    assert r["statut"] == "OK" and r["manque"] == "zone" and r["suggestion"] == ""  # C7 B5 (Evan 25/11 8 h 45) : le modèle demande l'adresse d'après le manque
     assert [l["nom"] for l in appel_de_test.fiche[panier.CLE]["lignes"]] == ["Coca-Cola"]
     appel_de_test.fiche[panier.CLE]["zone"] = {"id": commerce.zones["Proches"], "nom": "Proches"}  # minimum 15 €, le coca fait 2 €
     voir = await jouer("voir_commande")
