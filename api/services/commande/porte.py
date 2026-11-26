@@ -279,6 +279,24 @@ def _cases_montrees(ctx: Any) -> list[str] | None:
     return None
 
 
+def _objet_du_choix(r: Resultat) -> dict[str, str]:
+    """L'objet d'une question de choix (variante, étape de formule) : le groupe, son identifiant et la ligne dont elle parle ; jamais son texte."""
+    objet: dict[str, str] = {}
+    de_la_base = "groupe" in (r.faits or {})
+    question_du_moteur = (r.faits or {}).get("question") if isinstance((r.faits or {}).get("question"), dict) else {}
+    groupe = (r.faits or {}).get("nom") if de_la_base else question_du_moteur.get("nom")
+    if groupe:
+        objet["groupe"] = str(groupe)  # C7 B3 : le choix à faire (le groupe de la base, la question de la carte), son objet au registre et dans la relance, jamais son texte
+        groupe_id = r.faits["groupe"] if de_la_base else question_du_moteur.get("groupe")
+        if groupe_id:
+            # l'identifiant du groupe (de la base, ou de la question du moteur : mineur de l'audit C7) : deux groupes de même nom (la sauce du burger, celle du wrap) restent
+            # deux questions ; jamais montré au modèle
+            objet["groupe_id"] = str(groupe_id)
+    if (r.faits or {}).get("article"):
+        objet["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
+    return objet
+
+
 def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
     type_ = TYPES_DE_QUESTION.get(r.statut) or MANQUES_DE_QUESTION.get(r.manque or "") or (MANQUES_REFUSES_DE_QUESTION.get(r.manque or "") if statut_qui_refuse(r.statut) else None)
@@ -298,18 +316,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q["jeton"] = (p_de_la_question.get("relecture") or {}).get("jeton")  # C6 : l'identité de la relecture, dont le texte n'est plus au registre (le modèle la dit)
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
-    de_la_base = "groupe" in (r.faits or {})
-    question_du_moteur = (r.faits or {}).get("question") if isinstance((r.faits or {}).get("question"), dict) else {}
-    groupe = (r.faits or {}).get("nom") if de_la_base else question_du_moteur.get("nom")
-    if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and groupe:
-        q["groupe"] = str(groupe)  # C7 B3 : le choix à faire (le groupe de la base, la question de la carte), son objet au registre et dans la relance, jamais son texte
-        groupe_id = r.faits["groupe"] if de_la_base else question_du_moteur.get("groupe")
-        if groupe_id:
-            # l'identifiant du groupe (de la base, ou de la question du moteur : mineur de l'audit C7) : deux groupes de même nom (la sauce du burger, celle du wrap) restent
-            # deux questions ; jamais montré au modèle
-            q["groupe_id"] = str(groupe_id)
-    if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
-        q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
+    if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION):
+        q.update(_objet_du_choix(r))
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
         if (r.faits or {}).get("heure_proposee_dite"):
