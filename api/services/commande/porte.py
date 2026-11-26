@@ -1270,6 +1270,14 @@ async def _conclure(f: LaFiche) -> None:
     await _mener_a_la_fin_de_la_fiche(f)
 
 
+def _relecture_a_reposer(f: LaFiche) -> bool:
+    """Une fiche qui ne change rien (rien d'appliqué, rien de refusé : seule la réponse implicite du code) alors que la relecture née à un tour d'avant attend sans que sa phrase du total soit partie à la voix (``relecture_entendue`` :
+    refus de la fiche à ce tour-là, relance ratée, coupure) : le code la redonne dans ce tour, comme ``_dire_c_est_tout`` redonne l'heure proposée. Jamais dans le tour où elle est née : sa phrase réglée suit alors la table de la parole."""
+    q = f.question_avant
+    rien_applique = bool(f.reponse and f.reponse.get("implicite")) and all(r.get("operation") == "reponse" for r in f.resultats)  # seule la réponse implicite du code : la fiche n'a rien dit d'autre
+    return bool(q and q.get("type") == "relecture" and q.get("nee_au_tour") != f.tour and rien_applique and not f.refus and not moteur.relecture_entendue(f.p))
+
+
 def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     """B1 : la question née de ce tour entre au registre ; UNE seule est posée, la première dont la condition est vraie (``registre.choisir``). Rend celle qui est née dans ce tour."""
     p, tour, dernier = f.p, f.tour, f.dernier
@@ -1285,6 +1293,8 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
         manque = _question_de(refus, 0, tour, p)  # ligne 12 : l'heure refusée est posée avant la relecture, le modèle dit le refus puis la demande
         if manque is not None and not RQ.est_deja_ouverte(p, manque):
             RQ.ouvrir(p, manque)
+    if _relecture_a_reposer(f):
+        RQ.redonner(p, f.question_avant, tour)  # la relecture jamais entendue est redonnée dans ce tour : son total réglé suit la phrase du modèle (``_phrase_du_total``)
     attente = moteur.question_de_la_ligne_en_attente(p)
     posee = RQ.choisir(p, tour, [_question_de(attente, 0, tour, p)] if attente is not None else [])
     avant = f.question_avant

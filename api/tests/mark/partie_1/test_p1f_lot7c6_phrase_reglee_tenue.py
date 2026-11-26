@@ -216,7 +216,8 @@ async def test_s1_la_meme_margherita_redite_puis_c_etait_la_meme_seul_le_total_e
     r3 = await e.tour("c'était la même")
     phrase = "D'accord, une seule margherita alors."
     dit = await _voix(e, r3, phrase, [phrase])
-    assert dit.startswith(phrase) and dit.endswith(f"Cela fait {ancien}, c'est bon pour vous ?"), dit
+    # la phrase réglée du total tourne d'une relecture à l'autre (Q3 = A) : la forme est tenue (la phrase du modèle, le total, une seule question à la fin), jamais le mot à mot
+    assert dit.startswith(phrase) and ancien in dit and dit.rstrip().endswith("?") and dit.count("?") == 1, dit
     assert question_posee(e).get("type") == "relecture" and PAROLE.total_dit(e.p, e.p["relecture"]["jeton"]), dit
 
 

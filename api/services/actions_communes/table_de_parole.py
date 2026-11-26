@@ -200,7 +200,7 @@ def decider(e: Entrees) -> Decision:
 def _garder_la_phrase_reglee(e: Entrees, decision: Decision) -> Decision:
     """Le modèle repasse et aucune phrase réglée n'attend sa phrase : celle de cette fiche, sinon celle d'une fiche d'avant du tour (``suffixe_avant``), est remise, comme
     ``_relancer_le_fait``. Une phrase dite seule (``A_DIRE_SEUL``) garde ce que sa ligne a décidé. Exception : la fiche est refusée parce que le client doit répondre d'abord
-    (``refus_qui_attend_le_client``) : la question du modèle finit la réplique, la phrase réglée d'un passage d'avant n'est pas remise et attend le tour suivant, la question qui la portait restant posée."""
+    (``refus_qui_attend_le_client``) : la question du modèle finit la réplique, la phrase réglée d'un passage d'avant n'est pas remise ; la relecture qui la portait reste posée et le code la redonne au tour suivant (``porte._relecture_a_reposer``)."""
     if decision.mode == SECOND_PASSAGE and not e.etat.suffixe:
         _poser_la_phrase_reglee(e, e.suffixe_du_code or (None if refus_qui_attend_le_client(e.retour) else e.suffixe_avant))
     return decision
