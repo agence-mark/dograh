@@ -13,22 +13,12 @@ from api.services.actions_communes import conversation as CONV
 from api.services.commande import porte
 from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, centimes, commande_vers_hubrise
 from api.tests.mark.banc_a.commun import carte_de
-from api.tests.mark.partie_1.aides_briques import brique, descendre_jusqu_a, fait, la_brique_change_la_fiche
+from api.tests.mark.partie_1.aides_briques import brique, descendre_jusqu_a, fait, la_brique_change_la_fiche, objets_charges
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 
 
 async def _ajouter(e, parole: str, **article):
     return await e.tour(parole, ajouter=[article])
-
-
-async def _objets_charges(e) -> None:
-    """Les objets de la carte tels que le chargement de l'appel les calcule (lot 5) : la sous-case ``poids`` n'existe que si la carte vend au poids."""
-    from api.services.commande import contrat
-
-    _, objets = await e.source.charger_pour_l_appel()
-    e.fiche_de_l_appel[contrat.CLE_DES_OBJETS] = objets
-    assert objets["poids"] is True
-
 
 def _suffixe(e) -> str | None:
     return (e.fiche_de_l_appel.get(porte.CLE_TEXTES_DU_CODE) or {}).get("suffixe")
@@ -114,7 +104,7 @@ class TestQTE1:
     async def test_qte1_chiffrer_au_poids(self, essai_de):
         """« Trois cents grammes de houmous » (A33) : 1,8 € les cent grammes au kilo, soit 5,40 € ; le prix est un fait que le modèle dit (C6 n° 11) ; un demi-kilo : 9 € ; la quantité reste 1."""
         e = await brique(essai_de, "QTE1")
-        await _objets_charges(e)
+        await objets_charges(e)
         r = await _ajouter(e, "trois cents grammes de houmous", article="houmous", quantite=1, poids="trois cents grammes")
         ligne = e.p["lignes"][-1]
         assert ligne["poids_g"] == 300 and ligne["quantite"] == 1, fait(r)
@@ -129,7 +119,7 @@ class TestQTE1:
     async def test_qte1_arrondi_dit(self, essai_de):
         """Le taboulé se vend au pas de 50 g : 230 g deviennent 250 g, et le retour le dit (``arrondi_a``) ; jamais en silence."""
         e = await brique(essai_de, "QTE1")
-        await _objets_charges(e)
+        await objets_charges(e)
         r = await _ajouter(e, "deux cent trente grammes de taboulé", article="taboulé", quantite=1, poids="deux cent trente grammes")
         assert e.p["lignes"][-1]["poids_g"] == 250 and '"arrondi_a": 250' in fait(r), fait(r)
         assert [(x.get("arrondi_a"), x["prix"]) for x in r["faits"]["prix_au_poids"]] == [(250, 625)], r["faits"]  # l'arrondi et le prix : des faits que le modèle dit (C6 n° 11)
@@ -137,7 +127,7 @@ class TestQTE1:
     async def test_qte1_refus_avec_la_raison(self, essai_de):
         """« Deux cents » sans unité, un poids sur un article à la pièce, un article au poids sans poids : refusés avec leur raison, jamais devinés."""
         e = await brique(essai_de, "QTE1")
-        await _objets_charges(e)
+        await objets_charges(e)
         r = await _ajouter(e, "deux cents de houmous", article="houmous", quantite=1, poids="deux cents")
         assert "poids_illisible" in fait(r) and not e.p["lignes"], fait(r)
         r = await _ajouter(e, "trois cents grammes de pita", article="pita", quantite=1, poids="trois cents grammes")

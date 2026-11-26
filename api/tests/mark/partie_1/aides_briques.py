@@ -110,3 +110,12 @@ async def commande_et_envoi(essai_de, monkeypatch, envoi_allume: bool, reponse: 
     monkeypatch.setattr(sms_resto, "envoyer_un_sms", envoyer_un_sms)
     r = await porte.executer(SimpleNamespace(nom="envoyer_un_sms"), {"quoi": "carte"}, e.ctx, 5.0)
     return e, r
+
+
+async def objets_charges(e) -> None:
+    """Les objets de la carte tels que le chargement de l'appel les calcule (lot 5) : la sous-case ``poids`` n'existe que si la carte vend au poids."""
+    from api.services.commande import contrat
+
+    _, objets = await e.source.charger_pour_l_appel()
+    e.fiche_de_l_appel[contrat.CLE_DES_OBJETS] = objets
+    assert objets["poids"] is True

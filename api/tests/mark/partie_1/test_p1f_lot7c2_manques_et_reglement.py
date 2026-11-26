@@ -1,5 +1,5 @@
-"""[.mark] Lot 7b-C2, ce qui manque à la demande, le règlement, la remise et la commande introuvable (``restauration_commande``) : chaque refus fermé rend le texte d'avant, au caractère près, ET ce texte
-se refait de ses seuls faits (``textes_de_secours_commande``) ou vient du catalogue des manques (``phrases_du_manque``)."""
+"""[.mark] Lot 7b-C2, ce qui manque à la demande, le règlement, la remise et la commande introuvable (``restauration_commande``) : chaque refus fermé ne porte plus de texte (lot 7b-C7, A3) ;
+le texte d'avant se refait toujours de ses seuls faits (``textes_de_secours_commande``) ou vient du catalogue des manques (``phrases_du_manque``)."""
 
 from __future__ import annotations
 
@@ -22,8 +22,9 @@ TEL = "+33612345678"
 
 
 def _verifie(r, statut: str, texte: str, secours, manque: str | None = None):
-    assert (r.statut, r.suggestion, r.manque) == (statut, texte, manque), r
-    assert r.suggestion == secours(r.faits), r
+    """C7 (A3) : le refus ne porte plus de texte ; le texte d'avant se refait toujours de ses seuls faits (il sort avec le catalogue, lot B)."""
+    assert (r.statut, r.suggestion, r.manque) == (statut, "", manque), r
+    assert secours(r.faits) == texte, r
 
 
 def _demande(**plus) -> dict:
@@ -35,12 +36,12 @@ def _manque(brouillon_: dict, jeton: str | None = "relu-1"):
 
 
 def _doit(r, statut: str, texte: str, manque: str, du_catalogue: Manque | None = None, secours=None):
-    assert (r.statut, r.suggestion, r.manque) == (statut, texte, manque), r
+    assert (r.statut, r.suggestion, r.manque) == (statut, "", manque), r
     assert r.faits == {}, r
     if du_catalogue is not None:
-        assert r.suggestion == phrase_du_manque(du_catalogue)
+        assert phrase_du_manque(du_catalogue) == texte
     else:
-        assert r.suggestion == secours(r.faits)
+        assert secours(r.faits) == texte
 
 
 # --- ce qui manque à la demande ---------------------------------------------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 Ce texte n'est JAMAIS donné au modèle ni dit par le code (lot 7b-C5, Evan 25/11 8 h 45 : le modèle muet est relancé avec les faits du refus) ; il reste jusqu'à C7, qui traduit chaque information qu'il porte en signal puis le retire. Le modèle reçoit les faits du refus et
 le dit avec ses mots. Chaque fonction ne lit que les faits publics du refus (ceux que la porte montre au modèle) : si le texte a besoin d'une valeur, c'est qu'un fait manque au refus,
-jamais qu'il faut la lire ailleurs. Le module qui refuse écrit ses faits, puis ``_r(statut, faits, TS.nom(faits), manque)``.
+jamais qu'il faut la lire ailleurs. Un refus déjà vidé (lot 7b-C7a) rend ``_r(statut, faits, "", manque)`` : ses faits suffisent ; ceux qui ne le sont pas encore écrivent ``TS.nom(faits)`` jusqu'à C7.
 
 Aucune règle du métier ici : un texte de secours ne fait que mettre des faits en mots.
 """
@@ -104,8 +104,9 @@ def sur_lequel(faits: Faits) -> str:
 
 
 def melange_refuse(faits: Faits) -> str:
-    """Un menu à alternatives : l'appelant a mélangé deux contenus. Faits : ``article`` et ``choix`` (les alternatives, chacune dite en entier)."""
-    return f"{faits['article']} : soit " + ", soit ".join(faits["choix"]) + "."
+    """Un menu à alternatives : l'appelant a mélangé deux contenus. Faits : ``article`` et ``alternatives`` (``[{"quantite", "options"}]``, la quantité de chacune et ses options)."""
+    dites = [f"{nombre_en_lettres(a['quantite'])} {liste_dite(list(a['options']))}" for a in faits["alternatives"]]
+    return f"{faits['article']} : soit " + ", soit ".join(dites) + "."
 
 
 def valeur_parmi_les_choix(faits: Faits) -> str:
@@ -220,7 +221,7 @@ def que_change_t_on(faits: Faits) -> str:
 
 
 def pas_de_commande_en_ce_moment(faits: Faits) -> str:
-    """Le secours d'une fermeture quand la source n'a pas écrit la sienne (``etat["phrase"]``, qui reste le texte de secours de ces refus : elle passe avant celui-ci)."""
+    """Le texte de secours d'une fermeture. Depuis le lot 7b-C7a la source n'écrit plus sa phrase (``etat["phrase"]`` est toujours vide); ce texte n'est plus appelé que par ``TSC.ferme_a_cette_heure`` (quand la reprise manque), refus encore non vidé : il part avec lui en C7."""
     return "Nous ne prenons pas de commande en ce moment."
 
 

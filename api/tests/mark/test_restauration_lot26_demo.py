@@ -31,7 +31,7 @@ async def test_voir_la_commande_sous_le_minimum_rend_les_lignes_et_ce_qui_manque
     assert [(l["nom"], l["quantite"], l["prix_unitaire"]) for l in r.faits["lignes"]] == [("Regina Normale", 1, 1290)]
     assert r.faits["minimum_non_atteint"] == {"minimum": 1500, "manque": 210}
     assert r.faits["total"] is None
-    assert "il manque deux euros dix" in r.suggestion and "quinze euros" in r.suggestion
+    assert r.suggestion == ""  # C7a : le minimum et ce qui manque sont des faits (``minimum_non_atteint``), le modèle les dit
     await a.ajouter("coca")  # 14,90 € : encore 10 centimes
     r = await a.voir()
     assert r.statut == "OK" and r.faits["minimum_non_atteint"]["manque"] == 10 and len(r.faits["lignes"]) == 2
@@ -50,7 +50,7 @@ async def test_une_commune_reelle_hors_de_toute_zone_est_hors_zone_avec_les_comm
         r = await verifier_adresse(commerce.c, commerce.a, adresse)
         assert r.statut == "HORS_ZONE", (adresse, r)
         assert r.faits["commune"]["nom"] == "Pont-Sainte-Maxence" and "Chantilly" in r.faits["communes_livrees"]
-        assert "Nous ne livrons pas à Pont-Sainte-Maxence." in r.suggestion and "Nous livrons" in r.suggestion and "Chantilly" in r.suggestion
+        assert r.suggestion == ""  # C7a : la commune refusée et les communes livrées sont des faits
 
 
 async def test_un_nom_de_rue_n_est_jamais_une_commune_de_livraison(commerce):  # noqa: F811
@@ -128,8 +128,7 @@ async def test_l_offre_atteinte_est_dite_sans_l_article_offert_au_panier(commerc
     a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 2, "Normale"))
     r = await moteur.remises_disponibles(a.source, a.p, a.regles)
     assert r.faits["a_dire"] is True and r.faits["moment"] == "offre_atteinte", r
-    assert r.faits["remise"]["choix"][0] == "Coca-Cola" and "Coca-Cola" in r.suggestion and "deux pizzas achetées" in r.suggestion
-    assert not any(c.isdigit() for c in r.suggestion)
+    assert r.faits["remise"]["choix"][0] == "Coca-Cola" and r.suggestion == ""
     # une seule fois (T-08)
     assert (await moteur.remises_disponibles(a.source, a.p, a.regles)).faits["raison"] == "deja_dite"
 
@@ -138,7 +137,7 @@ async def test_l_offre_presque_atteinte_est_dite_avec_ce_qui_manque(commerce):  
     await _offre_deux_pizzas_une_boisson(commerce)
     a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"))
     r = await moteur.remises_disponibles(a.source, a.p, a.regles)
-    assert r.faits["moment"] == "offre_presque_atteinte" and r.faits["remise"]["manque_articles"] == 1 and "Il vous manque encore un article" in r.suggestion
+    assert r.faits["moment"] == "offre_presque_atteinte" and r.faits["remise"]["manque_articles"] == 1 and r.suggestion == ""
 
 
 async def test_l_offre_ne_se_dit_ni_a_un_appelant_presse_ni_apres_un_refus(commerce):  # noqa: F811
