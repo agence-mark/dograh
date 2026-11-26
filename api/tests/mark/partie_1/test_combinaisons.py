@@ -258,6 +258,26 @@ async def test_apres_la_fin_de_l_appel_la_caisse_est_comparee_a_la_base(faire_mo
     assert any(r == "BASE" for r, _ in await annulee.juger_la_fin())
 
 
+async def test_apres_la_fin_aucune_ligne_de_l_appel_ne_reste_retenue_et_l_ancienne_version_est_annulee(faire_monde, monkeypatch):
+    """Audit 8b-1a, R3 : le juge de fin lit TOUTES les lignes de l'appel : aucune « retenue », toute autre que celle qui est partie « annulee »."""
+    from api.services.restauration.caisse import envoi_a_la_fin
+
+    changee = C.Partie(await faire_monde("casa-italia"), monkeypatch)
+    assert await changee.recette("E18")  # enregistrée, puis « une margherita de plus » : deux lignes pour l'appel
+    lignes = "SELECT numero::text FROM mark.resto_commande WHERE appel_id = $1 AND numero <> $2::uuid"
+    (ancienne,) = [r[0] for r in await changee.e.monde.c.fetch(lignes, str(changee.e.ctx.run_id), changee.p["enregistree"]["numero"])]
+
+    async def ne_pas_annuler(*a, **k):
+        return None
+
+    monkeypatch.setattr(envoi_a_la_fin, "_annuler", ne_pas_annuler)  # la fin n'annule plus l'ancienne version
+    assert any(r == "BASE" and "retenue" in d for r, d in await changee.finir_l_appel())
+    await changee.e.monde.c.execute("UPDATE mark.resto_commande SET statut = 'envoyee' WHERE numero = $1::uuid", ancienne)
+    assert any(r == "BASE" and "envoyee" in d for r, d in await changee.juger_la_fin())  # une seconde version partie : faute aussi
+    await changee.e.monde.c.execute("UPDATE mark.resto_commande SET statut = 'annulee' WHERE numero = $1::uuid", ancienne)
+    assert await changee.juger_la_fin() == []
+
+
 async def test_chaque_partie_jouee_finit_l_appel_et_le_juge(faire_monde, monkeypatch):
     monde = await faire_monde("casa-italia")
     fins: list = []
