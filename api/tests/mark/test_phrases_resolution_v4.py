@@ -112,7 +112,7 @@ def test_la_carte_rend_chaque_regle_avec_ses_cases_et_signale_l_etape_supprimee(
     # 13 depuis passages-fiables (lot E) : « attente_accordee », la phrase douce de l'attente accordée.
     # DC10 : « numero_dicte_relu » ; C6 (décision d'Evan 25/11 9 h 30, § 8 bis) : « total_relecture », « total_apres_correction » (n° 3a), « rendu_de_monnaie » (n° 5),
     # « total_apres_changement » (n° 6), « numero_retenu » (n° 10)
-    assert len(agent["motifs"]) == 24
+    assert len(agent["motifs"]) == 25  # PE-2 Q4 : « confirmation_reglee »
     echoue = next(m for m in agent["motifs"] if m["motif"] == OUTIL_ECHOUE)
     assert echoue["moment"] == "probleme" and echoue["max_par_appel"] == 2
     assert echoue["ensuite"]["action"] == "raccrocher" and echoue["ensuite"]["phrases"] == ["On vous rappelle."]

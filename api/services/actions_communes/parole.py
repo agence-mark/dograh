@@ -60,6 +60,7 @@ class EtatDuTour:
     retenues: list[str] = field(default_factory=list)
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     faits_du_refus: list[Any] = field(default_factory=list)  # les faits que les retours de ce tour donnent au modèle pour dire un refus, ou une lecture (C6 n° 11) : leurs valeurs passent la barrière des chiffres
+    confirmation_reglee: str | None = None  # PE-2 (Q4) : « C'est enregistré. », posée avec la confirmation du modèle ; dite avant la suite réglée seulement si la relance échoue (``la_suite_reglee``), jamais quand le modèle parle
     suffixe: str | None = None  # la phrase réglée que le code dit juste après la prochaine phrase du modèle (le total, le rendu, M108 ; C6)
     ancre: str | None = None  # C7 (a) : l'identité de la question qui portait la phrase réglée (``suffixe``), posée par la table avec elle ; la seule ancre de « elle attend toujours »
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
@@ -236,7 +237,8 @@ MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du mod�
 
 def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
     """La phrase du modèle suivie de la phrase réglée que le code dit après elle (le total, le rendu, M108 ; C6) ; ``None`` sans rien en attente. Elle n'est dite qu'une fois.
-    ``p`` : le dossier, pour noter la phrase du total dite."""
+    ``p`` : le dossier, pour noter la phrase du total dite. Le modèle parle : la confirmation réglée de secours n'est jamais dite (PE-2, Q4)."""
+    etat.confirmation_reglee = None
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
@@ -249,8 +251,8 @@ def la_suite_reglee(etat: EtatDuTour) -> str | None:
     """Reprise R1 de l'audit de C6 (décisions d'Evan 25/11 8 h 45 et 9 h 30, P3) : la phrase du modèle manque (relance ratée) ; le code ne dit que la suite réglée déjà posée après elle
     (motifs de ``PHRASES_DU_CODE`` : le numéro, le total, le rendu, M108), jamais le fait accompli (gardé au journal seulement). Elle n'est dite qu'une fois. ``None`` : rien de réglé, la
     phrase réglée « pas compris » de l'agent (P3) la remplace."""
-    dit = etat.suffixe or None
-    etat.suffixe = etat.ancre = None
+    dit = " ".join(x for x in (etat.confirmation_reglee, etat.suffixe) if x) or None  # PE-2 (Q4) : la confirmation réglée précède la suite ; le modèle n'a pas parlé
+    etat.suffixe = etat.ancre = etat.confirmation_reglee = None
     etat.exiges = None
     return dit
 

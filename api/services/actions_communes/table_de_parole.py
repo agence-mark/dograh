@@ -46,6 +46,7 @@ class Entrees:
     etat: EtatDuTour
     retour: dict
     p: dict | None
+    confirmation: str | None = None  # PE-2 (Q4) : la phrase réglée « C'est enregistré. » de la commande qui vient d'être enregistrée (``textes["confirmation_reglee"]``)
     fiche_vide: bool = False  # PE-2 (Q3) : la fiche jouée ne porte aucune case (seulement la phrase du modèle) : lue sur ses arguments (``parole.fiche_vide``)
 
     @property
@@ -151,6 +152,7 @@ def _fait_accompli(e: Entrees) -> Decision:
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite) if x), motif=FAIT_ACCOMPLI)
     _poser_la_phrase_reglee(e, suite)
     etat.exiges = exiges
+    etat.confirmation_reglee = e.confirmation or etat.confirmation_reglee
     return Decision(SECOND_PASSAGE, motif=FAIT_ACCOMPLI)
 
 
@@ -199,7 +201,10 @@ def decider(e: Entrees) -> Decision:
     d'une fiche d'avant n'est plus vraie quand cette fiche a changé quelque chose et que la question qui la portait n'attend plus ; elle est jetée (``_jeter_la_phrase_perimee``)."""
     _jeter_la_phrase_perimee(e)
     nom = ligne_qui_decide(e)
-    return _garder_la_phrase_reglee(e, next(decider_ for n, _, decider_ in LIGNES if n == nom)(e))
+    decision = _garder_la_phrase_reglee(e, next(decider_ for n, _, decider_ in LIGNES if n == nom)(e))
+    if decision.mode == A_DIRE_SEUL:
+        e.etat.confirmation_reglee = None  # une phrase dite seule la porte déjà (le modèle, ou la suite réglée avec elle) : la confirmation de secours n'est jamais redite
+    return decision
 
 
 def _garder_la_phrase_reglee(e: Entrees, decision: Decision) -> Decision:
@@ -256,7 +261,7 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
     if objet_en_cours is None:
         objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
     return Entrees(
-        du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None, exiges=exiges,
+        du=du, phrase=phrase, confirmation=sans_balisage(str(textes.get("confirmation_reglee") or "")) or None, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None, exiges=exiges,
         question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant, ancre_avant=ancre_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),

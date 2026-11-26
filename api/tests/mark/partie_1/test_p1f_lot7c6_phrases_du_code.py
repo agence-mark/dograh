@@ -22,6 +22,7 @@ MODULE = "phrases_dites_par_le_code.py"
 MOTIFS_DU_CODE = frozenset({
     "total_relecture", "total_apres_correction", "total_apres_changement", "rendu_de_monnaie", "numero_retenu",
     "numero_dicte_relu", "numero_affiche_garde", "apres_enregistrement",
+    "confirmation_reglee",  # PE-2 Q4 (BILAN:270, choix C : « il allonge la liste fermée des phrases du code : vous seul pouvez le décider », décidé le 26/11)
 })
 
 # Les familles du § 4 du brief : les noms du module d'avant que plus aucun appelant ne doit utiliser.

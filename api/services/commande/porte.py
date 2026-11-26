@@ -47,7 +47,7 @@ from api.services.commande.briques import formule_a_etapes, ligne_de_formule_lim
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
 from api.services.mots_dits import montant_en_lettres
-from api.services.phrases.catalogue import RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
+from api.services.phrases.catalogue import CONFIRMATION_REGLEE, RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
 from api.services.commande import panier as P
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
@@ -192,14 +192,16 @@ def fait_de_la_confirmation(dernier: Resultat) -> dict[str, Any]:
     return {"fait": "enregistree", "livree": faits.get("mode") == "livraison", "quand_dit": faits.get("quand_dit")}
 
 
-def _textes_de_la_confirmation(p: dict[str, Any], dernier: Resultat, question_apres: str | None, phrase_du_rendu: str | None, phrase_du_numero: str | None = None) -> dict[str, Any]:
+def _textes_de_la_confirmation(p: dict[str, Any], dernier: Resultat, question_apres: str | None, phrase_du_rendu: str | None, phrase_du_numero: str | None = None,
+                               phrase_de_confirmation: str | None = None) -> dict[str, Any]:
     """C6 n° 5 (décision d'Evan 25/11 9 h 30 ; P4) : la confirmation est dite par le MODÈLE, l'heure exigée de sa phrase (``chiffres_exiges``) ; le code dit ensuite, dans cet ordre, le rendu
     de monnaie (motif réglé) puis la question M108, seulement si aucune question n'attend ; C6 n° 10 : un numéro dicté et retenu dans ce geste (``phrase_du_numero``) passe avant le rendu (sinon le modèle la pose). ``fait_accompli`` : les faits de la confirmation
-    (``fait_de_la_confirmation``), gardés au journal du dit seulement (jamais dits à la voix, même relance ratée : reprise R1 de C6)."""
+    (``fait_de_la_confirmation``), gardés au journal du dit seulement (jamais dits à la voix, même relance ratée : reprise R1 de C6). PE-2 (Q4) : ``confirmation_reglee`` est la phrase réglée de
+    secours « C'est enregistré. » : la table la garde à part de ``suffixe`` et ne la dit que si la relance du modèle échoue, avant la suite ; jamais quand le modèle a parlé."""
     apres = (question_apres or "").strip() if CONV.question_de(p) is None else ""
     quand = (dernier.faits or {}).get("quand_dit")
     return {"suffixe": " ".join(x for x in (phrase_du_numero, phrase_du_rendu, apres) if x), "chiffres_exiges": {"quand": str(quand)} if quand else {},
-            "fait_accompli": fait_de_la_confirmation(dernier), "a_faire": A_FAIRE_DE_LA_CONFIRMATION}
+            "fait_accompli": fait_de_la_confirmation(dernier), "a_faire": A_FAIRE_DE_LA_CONFIRMATION, "confirmation_reglee": phrase_de_confirmation or ""}
 
 
 def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_du_changement: str | None, montant: bool) -> dict[str, Any]:
@@ -213,7 +215,7 @@ def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_
 
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None, phrase_du_total: str | None = None, phrase_du_rendu: str | None = None,
-                   phrase_du_changement: str | None = None, phrase_du_numero: str | None = None) -> dict[str, Any]:
+                   phrase_du_changement: str | None = None, phrase_du_numero: str | None = None, phrase_de_confirmation: str | None = None) -> dict[str, Any]:
     """Les phrases réglées que le code dit lui-même au retour de cette fiche (vide : aucune), toujours APRÈS la phrase du modèle (``suffixe`` ; C6 n° 12 : plus rien n'est dit avant
     elle), avec ce que le modèle doit dire (``a_faire``, ``chiffres_exiges``) et le fait accompli gardé au journal. La question réglée du numéro dicté (DC10, ``QUESTIONS_DITES_PAR_LE_CODE``)
     suit la phrase du modèle, seule question, à la fin (ordre de « C6 révisée », comme la question du numéro de la réservation). ``deja_enregistree`` : la commande l'était avant cette fiche (un changement se dit, ``remplace`` ; une réponse sans
@@ -235,9 +237,9 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
             return _textes_du_changement(p, question_apres, phrase_du_changement, montant=True)
         if fait_de_la_confirmation(dernier) == J.fait_accompli(p):
             return _textes_du_changement(p, question_apres, phrase_du_changement, montant=False)
-        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero)
+        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
     if enregistree and not deja_enregistree:
-        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero)
+        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation est dite par le modèle, DC4 garde ses deux temps ; le code ne dit rien après sa phrase
     if dernier.faits.get("commande_annulee"):
         return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": {"fait": "annulee"}, "a_faire": A_FAIRE_DE_L_ANNULATION_FAITE}
@@ -1334,6 +1336,11 @@ def _phrase_du_rendu(ctx: Any, p: dict[str, Any], dernier: Resultat | None) -> s
     return phrase_du_code(ctx, RENDU_DE_MONNAIE, int(p.get("version") or 0), billet=montant_en_lettres(int(rendu["billet"])), monnaie=montant_en_lettres(int(rendu["monnaie"])))
 
 
+def _phrase_de_confirmation(ctx: Any, p: dict[str, Any]) -> str | None:
+    """PE-2 (Q4) : la phrase réglée « C'est enregistré. » (motif ``confirmation_reglee``, aucune variable), la confirmation de secours de la commande enregistrée ; ``None`` : éteinte."""
+    return phrase_du_code(ctx, CONFIRMATION_REGLEE, int(p.get("version") or 0))
+
+
 def _phrase_du_changement(ctx: Any, p: dict[str, Any], dernier: Resultat | None) -> str | None:
     """C6 n° 6 : la phrase réglée du nouveau total d'une commande enregistrée puis changée (motif ``total_apres_changement``, ``{total}`` en lettres, rien d'autre) ; ``None`` hors d'un
     changement, ou sans total connu. Elle tourne d'un changement à l'autre (Q3 = A)."""
@@ -1352,7 +1359,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
                             phrase_du_rendu=_phrase_du_rendu(ctx, p, dernier), phrase_du_changement=_phrase_du_changement(ctx, p, dernier),
-                            phrase_du_numero=phrase_du_numero_retenu(ctx, dernier.faits if dernier is not None else None, int(p.get("version") or 0)))
+                            phrase_du_numero=phrase_du_numero_retenu(ctx, dernier.faits if dernier is not None else None, int(p.get("version") or 0)),
+                            phrase_de_confirmation=_phrase_de_confirmation(ctx, p))
     refusants = refusants_de_la_fiche(f)
     consignes: list[tuple[int, str]] = []
     if heures_a_dire(f) and nee is None:

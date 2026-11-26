@@ -122,6 +122,7 @@ TOTAL_RELECTURE = "total_relecture"
 TOTAL_APRES_CORRECTION = "total_apres_correction"
 TOTAL_APRES_CHANGEMENT = "total_apres_changement"  # C6 n° 6 : le nouveau total d'une commande enregistrée puis changée, dit après la phrase du modèle
 RENDU_DE_MONNAIE = "rendu_de_monnaie"  # C6 n° 5 : le rendu calculé par le code, dit après la confirmation du modèle et avant la question M108
+CONFIRMATION_REGLEE = "confirmation_reglee"  # PE-2 (Q4, point d'étape du 26/11) : « C'est enregistré. », dite par le code seulement quand la relance de la confirmation du modèle a échoué (commande seulement)
 NUMERO_DICTE_RELU = "numero_dicte_relu"  # DC10 (Evan, 22/11) : le numéro dicté relu avant l'enregistrement, réglable, allumé par défaut
 # C6 n° 10 (§ 8 bis) : le numéro dicté et retenu, dit par le code après la phrase du modèle et avant la suite du code (total, rendu, question) ; sa forme qui pose la question est
 # ``numero_dicte_relu`` (DC10). Le modèle ne dit jamais le numéro.
@@ -613,6 +614,22 @@ MOTIFS: dict[str, Motif] = {
             variables=("billet", "monnaie"),
         ),
         Motif(
+            id=CONFIRMATION_REGLEE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Après un enregistrement : « c'est enregistré », quand l'agent n'a pas pu le dire",
+            libelle_en="After a save: « it's saved », when the agent could not say it",
+            quand_fr="Quand la commande vient d'être enregistrée et que l'agent, relancé, n'a pas dit sa confirmation : le code dit cette phrase, puis le numéro, le rendu et la question qui suivent l'enregistrement. Jamais dite quand l'agent a confirmé lui-même.",
+            quand_en="When the order has just been saved and the agent, asked again, did not say its confirmation: the code says this sentence, then the number, the change and the follow-up question. Never said when the agent confirmed it itself.",
+            a_un_delai=False,
+            variantes_defaut=("C'est enregistré.",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne n'entendrait pas que sa commande est enregistrée. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear that the order is saved. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+        ),
+        Motif(
             id=NUMERO_DICTE_RELU,
             famille=FAMILLE_ANNONCE,
             libelle_fr="Avant l'enregistrement : le numéro dicté relu",
@@ -651,7 +668,7 @@ MOTIFS: dict[str, Motif] = {
 # Les motifs d'un problème (déclenchés par un fait) : un compteur dans l'appel, jamais de délai.
 # C6 : la liste FERMÉE des phrases que le code dit encore mot pour mot (les autres sont dites par le modèle d'après les faits). Complétée par chaque commit de C6 qui rend un motif neuf.
 PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, TOTAL_APRES_CHANGEMENT, RENDU_DE_MONNAIE, NUMERO_RETENU, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE,
-                             APRES_ENREGISTREMENT})
+                             APRES_ENREGISTREMENT, CONFIRMATION_REGLEE})
 
 MOTIFS_DE_PROBLEME = tuple(m.id for m in MOTIFS.values() if m.moment == MOMENT_PROBLEME)
 
