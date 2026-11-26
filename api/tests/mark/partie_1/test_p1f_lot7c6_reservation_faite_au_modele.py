@@ -2,7 +2,7 @@
 
 Avant : code « C'est réservé pour quatre personnes, samedi quatorze novembre à vingt heures, au nom de Paul. ».
 Après : modèle « C'est noté, je vous attends samedi à vingt heures pour quatre. ». La phrase du modèle doit dire les personnes et l'heure (barrière) : sans elles, il est relancé une
-fois, puis le code redit le fait accompli gardé au journal (jamais un tour muet). La base ne rend plus qu'un texte de secours (nombres en lettres : « trois personnes », plus « 3 »).
+fois, puis la phrase réglée « pas compris » (P3, jamais un tour muet ; le fait accompli n'est jamais redit par le code). La base ne rend plus qu'un texte de secours (nombres en lettres : « trois personnes », plus « 3 »).
 Vraie source, vraie porte, sans modèle.
 """
 
@@ -62,9 +62,23 @@ async def test_la_reservation_faite_est_dite_par_le_modele_avec_les_personnes_et
     assert not textes.get("avant") and not textes.get("suffixe"), textes  # le code ne dit plus « C'est réservé… »
     assert textes.get("chiffres_exiges") == {"personnes": "4", "heure": "vingt heures"}, textes
     assert "C'est réservé" not in str(r), r
-    assert J.fait_accompli(essai.etat) == textes.get("fait_accompli") and "quatre personnes" in textes["fait_accompli"], textes  # gardé au journal seulement (reprise R1)
+    assert "quatre personnes" in textes.get("fait_accompli", ""), textes
+    assert J.fait_accompli(essai.etat) is None  # reprise R5 de l'audit réservation-prix : la porte de la réservation ne remplit plus le journal du fait accompli (rien ne le lit)
     phrase = "C'est noté, je vous attends samedi à vingt heures pour quatre."
     assert _dire(essai, r, phrase) == phrase
+
+
+async def test_apres_la_reservation_deux_fiches_vides_ne_redisent_pas_le_fait_accompli(salle, monkeypatch):
+    """Reprise R5 de l'audit réservation-prix : Client « Merci beaucoup. » / modèle « Avec plaisir. » deux fois (deux fiches vides du même tour) / jamais « C'est réservé pour… »."""
+    essai, _ = await _reservee(salle, monkeypatch)
+    essai.dit("merci beaucoup")
+    for _ in range(2):
+        r = await essai.fiche()
+        d = PF.decider_apres_la_fiche(essai.fiche_de_l_appel, r, {"a_dire": "Avec plaisir."}, connecteur="reservation")
+        assert "C'est réservé" not in str(d.a_dire or ""), d
+        verif = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=essai.fiche_de_l_appel, **{ATTRIBUT: {"fiche": "reservation"}}))
+        retenue = verif.controler("Avec plaisir.")
+        assert retenue is None or "C'est réservé" not in str(retenue.a_dire or ""), retenue
 
 
 async def test_sans_l_heure_le_modele_est_relance_puis_le_code_ne_redit_plus_le_fait_accompli(salle, monkeypatch):
