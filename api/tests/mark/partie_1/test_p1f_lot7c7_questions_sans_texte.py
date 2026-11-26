@@ -58,3 +58,20 @@ def test_b3_voisin_le_meme_groupe_redonne_est_la_meme_question():
     RQ.ouvrir(p, encore)
     assert RQ.est_deja_ouverte(p, {**encore, "nee_au_tour": 1})
     assert (CONV.de(p)[RQ.CLE_DES_QUESTIONS][RQ.objet(encore, p)])["nee_au_tour"] == 1
+
+
+# --------------------------------------------------------------------------- C7 B8 : une proposition offerte le reste dans la relance
+
+
+def test_b8_la_relance_d_une_proposition_offerte_dit_qu_elle_est_offerte():
+    """Modèle muet sur une proposition offerte / avant : la relance ne porte que l'article (« Avec ça, un dessert ? ») / après : « Je vous offre le dessert, je vous le mets ? »."""
+    r = Resultat("OK", {"proposition": {"nom": "Tiramisu", "offre": "Dessert offert"}}, "", "vente_en_plus")
+    q = porte._question_de(r, 1, 1)
+    relance = question_pour_la_relance(q)
+    assert relance.get("offerte") is True and relance.get("offre") == "Dessert offert" and relance["article_propose"] == "Tiramisu", relance
+
+
+def test_b8_voisin_une_proposition_payante_n_a_pas_d_offre_dans_la_relance():
+    q = porte._question_de(Resultat("OK", {"proposition": {"nom": "Tiramisu"}}, "", "vente_en_plus"), 1, 1)
+    relance = question_pour_la_relance(q)
+    assert "offerte" not in relance and "offre" not in relance and relance["article_propose"] == "Tiramisu", relance
