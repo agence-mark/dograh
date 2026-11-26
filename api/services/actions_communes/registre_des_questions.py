@@ -86,7 +86,7 @@ def bruler_le_numero(p: dict[str, Any], question_id: Any) -> None:
     répondrait plus tard à la question qui naît sous ce numéro. Une donnée du dossier (``prochain_q``), aucun drapeau ; un numéro déjà passé, ou qui n'est pas ``Q-n``, ne change rien."""
     texte = str(question_id or "")
     suite = texte[len(PREFIXE_DU_NUMERO):]  # le format d'un numéro que ``numero`` donne : un identifiant du code, pas un mot de la personne
-    if texte[:len(PREFIXE_DU_NUMERO)] != PREFIXE_DU_NUMERO or not suite.isdecimal():
+    if not (texte.startswith(PREFIXE_DU_NUMERO) and suite.isdecimal()):
         return
     conversation = CONV.de(p)
     conversation[CLE_DU_PROCHAIN] = max(int(conversation.get(CLE_DU_PROCHAIN) or 1), int(suite) + 1)
