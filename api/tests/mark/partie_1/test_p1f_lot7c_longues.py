@@ -50,3 +50,17 @@ async def test_rc4_c_est_tout_redonne_l_heure_proposee_au_modele(faire_monde, mo
     assert q.get("type") == "heure_proposee" and q.get("nee_au_tour") == CONV.de(o.apres).get("tour_de_l_appel"), q
     assert o.decision.mode == SECOND_PASSAGE, o.decision
 
+
+async def test_rc3_la_phrase_du_total_tourne_d_une_relecture_a_l_autre(faire_monde, monkeypatch):
+    """C6 Q3 = A (Pierre, 25/11 17 h 25) : la phrase réglée du total tourne d'une relecture à l'autre. Elle tournait sur la parité de la version du panier : un remplacement (retirer
+    puis ajouter, deux versions) redonnait la même variante. Client (relecture posée) « Remplacez-la par une regina. » deux fois / avant : « Ça fait maintenant douze euros
+    quatre-vingt-dix, c'est bon ? » deux fois / après : la variante suivante au second tour."""
+    from api.tests.mark.partie_1 import combinaisons as C
+
+    monde = await faire_monde("casa-italia")
+    partie = C.Partie(monde, monkeypatch)
+    assert await partie.recette("E11")
+    premiere, seconde = await partie.geste("G11"), await partie.geste("G11")
+    assert premiere.dit_par_le_code and seconde.dit_par_le_code and premiere.dit_par_le_code != seconde.dit_par_le_code, (premiere.dit_par_le_code, seconde.dit_par_le_code)
+    assert not C.rc3(partie, seconde)
+

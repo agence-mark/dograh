@@ -1234,6 +1234,9 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     return posee if posee is not None and (not avant or CONV.identite_de_la_question(posee) != CONV.identite_de_la_question(avant) or posee.get("nee_au_tour") == tour) else None
 
 
+CLE_RELECTURES_DU_TOTAL = "relectures_du_total"  # 7c : au journal du dit, le nombre de relectures dont le code a dit le total (le rang de sa variante)
+
+
 def _phrase_du_total(ctx: Any, p: dict[str, Any], nee: dict[str, Any] | None) -> str | None:
     """C6 : la phrase réglée du total que le code dit après la relecture du modèle (motif ``total_relecture`` ou ``total_apres_correction``, ``{total}`` remplacé, rien d'autre) ;
     ``None`` sans relecture née dans ce tour. Elle tourne d'une relecture à l'autre (Q3 = A). Le jeton de la relecture est noté à l'état du tour : l'accord ne vaut que si cette phrase est DITE."""
@@ -1243,7 +1246,9 @@ def _phrase_du_total(ctx: Any, p: dict[str, Any], nee: dict[str, Any] | None) ->
     motif = relecture.get("motif_du_total")
     if not motif or relecture.get("total") is None:
         return None
-    phrase = phrase_du_code(ctx, motif, int(relecture.get("version") or 0), total=montant_en_lettres(relecture["total"]))
+    # 7c : le rang compte les relectures (une par tour), jamais la parité de la version du panier (un remplacement en ajoute deux : la même variante revenait)
+    rang = J.noter(p, CLE_RELECTURES_DU_TOTAL, nee.get("nee_au_tour")) - 1
+    phrase = phrase_du_code(ctx, motif, rang, total=montant_en_lettres(relecture["total"]))
     fiche = getattr(ctx, "fiche", None)
     if phrase and isinstance(fiche, dict):
         etat = PAROLE.etat_du_tour(fiche)
