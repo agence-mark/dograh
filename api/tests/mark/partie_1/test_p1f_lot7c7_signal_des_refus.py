@@ -366,8 +366,13 @@ def _propositions(r) -> list[tuple[str, str]]:
     return pareilles(*[p["quand_dit"] for p in r.faits.get("propositions") or []])
 
 
-A_FAIRE_DU_GROUPE = "dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe"  # la consigne d'aujourd'hui (``groupe_trop_grand`` de la base)
+A_FAIRE_DU_GROUPE = RR.A_FAIRE_DU_GROUPE  # F6 : la consigne d'offre de message, une constante de la base (plus une copie ici)
 GROUPE = [(A_FAIRE_DU_GROUPE, "c'est l'équipe qui s'en occupe")]
+
+
+async def _groupe_trop_grand_au_changement(salle_, _mp):
+    n = (await _RESA.creer(salle_)).faits["numero"]
+    return await RR.modifier_reservation(salle_.c, salle_.a, n, {"couverts": 7})
 
 CAS_DE_LA_SALLE: list[Cas] = [
     Cas("passe", TSR.refus_de_la_base, _creer(debut=datetime(2026, 11, 12, 11, 0, tzinfo=PARIS)), "Rv", [], "passe"),
@@ -378,10 +383,9 @@ CAS_DE_LA_SALLE: list[Cas] = [
     Cas("ferme", TSR.refus_de_la_base, lambda _s, _m: RR._refus("ferme"), "Rv", [], "ferme"),
     Cas("complet", TSR.refus_de_la_base, _complet, "Rv", _propositions, "complet"),
     Cas("groupe_trop_grand_avant_le_jour", TSR.refus_de_la_base, lambda s, _m: RR.groupe_trop_grand(s.c, s.a, 25), "Rv", GROUPE, "groupe_trop_grand"),
-    Cas("groupe_trop_grand_de_la_capacite", TSR.refus_de_la_base, lambda s, _m: RR.capacite_du_jour(s.c, s.a, _RESA.SAMEDI_20H.date(), 7), "Rv", GROUPE, "groupe_trop_grand",
-        manque="F6 : la consigne d'offre de message n'est posée qu'avant le jour (groupe_trop_grand), pas à la capacité du jour"),
-    Cas("groupe_trop_grand_a_l_enregistrement", TSR.refus_de_la_base, _creer(couverts=7), "Rv", GROUPE, "groupe_trop_grand",
-        manque="F6 : la consigne d'offre de message n'est posée qu'avant le jour (groupe_trop_grand), pas à l'enregistrement"),
+    Cas("groupe_trop_grand_de_la_capacite", TSR.refus_de_la_base, lambda s, _m: RR.capacite_du_jour(s.c, s.a, _RESA.SAMEDI_20H.date(), 7), "Rv", GROUPE, "groupe_trop_grand"),
+    Cas("groupe_trop_grand_a_l_enregistrement", TSR.refus_de_la_base, _creer(couverts=7), "Rv", GROUPE, "groupe_trop_grand"),
+    Cas("groupe_trop_grand_au_changement", TSR.refus_de_la_base, _groupe_trop_grand_au_changement, "Rv", GROUPE, "groupe_trop_grand"),  # le voisin (refus 11)
     Cas("passee", TSR.refus_de_la_base, _passee, "Rv", [], "passee"),
     Cas("plus_modifiable", TSR.refus_de_la_base, _plus_modifiable, "Rv", [], "plus_modifiable"),
     Cas("combien_de_personnes_a_la_base", TSR.combien_de_personnes, _creer("couverts"), "Rv", [], "couverts"),

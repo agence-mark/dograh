@@ -43,9 +43,23 @@ RAISONS = frozenset(
 )
 
 
+# F6 (lot 7b-C7) : la suite d'un groupe trop grand, la même partout où il est refusé (avant le jour, capacité du jour, enregistrement, changement).
+A_FAIRE_DU_GROUPE = "dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe"
+
+
 def _refus(detail: str, **plus: Any) -> Resultat:
     faits = {"raison": "autre", "detail": detail, **plus}
     return Resultat("REFUSEE", faits)
+
+
+def _groupe_trop_grand(maximum: int | None) -> Resultat:
+    """Le refus d'un groupe trop grand : son ``maximum`` et la suite (l'équipe, un message proposé : ``A_FAIRE_DU_GROUPE``)."""
+    return _refus(capacite.GROUPE_TROP_GRAND, maximum=maximum, a_faire=A_FAIRE_DU_GROUPE)
+
+
+def _refus_de_place(raison: str, regles: Regles) -> Resultat:
+    """Le refus que rend ``capacite.placer`` : le groupe trop grand porte son maximum et sa suite, les autres leur seule raison."""
+    return _groupe_trop_grand(regles.effectif_max) if raison == capacite.GROUPE_TROP_GRAND else _refus(raison)
 
 
 @dataclass(frozen=True)
@@ -219,7 +233,7 @@ async def capacite_du_jour(
     if capacite.capacite_manquante(unites, regles):
         return Resultat("INCOMPLETE", {}, "", "capacite")
     if regles.effectif_max is not None and couverts > regles.effectif_max:
-        return _refus("groupe_trop_grand", maximum=regles.effectif_max)
+        return _groupe_trop_grand(regles.effectif_max)
     libres = capacite.creneaux_libres(jour, couverts, duree_minutes, unites, occupations, services, fuseau, maintenant_, regles)
     return Resultat("OK", {"creneaux": libres, "duree_minutes": duree_minutes, "complet": not libres})
 
@@ -234,7 +248,7 @@ async def groupe_trop_grand(connexion: asyncpg.Connection, etablissement_id: int
     maximum = await stable(connexion, ("groupe_max", etablissement_id), lire)
     if maximum is None or not isinstance(couverts, int) or couverts <= maximum:
         return None
-    return _refus("groupe_trop_grand", maximum=maximum, a_faire="dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe")
+    return _groupe_trop_grand(maximum)
 
 
 async def creer_reservation(
@@ -290,7 +304,7 @@ async def creer_reservation(
             return Resultat("DEJA_FAIT", faits)
         raison, tables = capacite.placer(debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
         if raison != "ok":
-            refus = _refus(raison, maximum=regles.effectif_max) if raison == capacite.GROUPE_TROP_GRAND else _refus(raison)
+            refus = _refus_de_place(raison, regles)
             propositions = (
                 await _propositions(connexion, etablissement_id, debut, couverts, duree, fuseau, maintenant_, salle=salle)
                 if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
@@ -365,7 +379,7 @@ async def modifier_reservation(
                     await _propositions(connexion, etablissement_id, nouveau_debut, couverts, duree, fuseau, maintenant_, ignorer=numero, salle=salle)
                     if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
                 )
-                return _avec_propositions(_refus(raison), propositions)
+                return _avec_propositions(_refus_de_place(raison, regles), propositions)
             tables = list(attribuees)
         ligne = await connexion.fetchrow(
             "UPDATE mark.resto_reservation SET debut = $3, duree_minutes = $4, couverts = $5, prenom = $6, note = $7, table_ids = $8 "
