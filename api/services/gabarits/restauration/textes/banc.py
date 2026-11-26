@@ -63,7 +63,7 @@ def rendus_du_banc(version: str = TEMOIN) -> dict:
 
 @lru_cache(maxsize=8)
 def rendus(version: str = TEMOIN) -> dict:
-    """Les rendus du banc de la version 7 : ceux du banc, plus les écarts déclarés (``ecarts_v7.json``)."""
+    """Les rendus du banc de la version 7 : ceux du banc, plus les écarts déclarés (``ecarts_v7.json``) et les cases que la v7 ajoute (``cases_ajoutees``, ex. ``second_numero``)."""
     ajouts = json.loads((DOSSIER / TEMOIN / "banc" / "ecarts_v7.json").read_text(encoding="utf-8")).get("cases_ajoutees") or []
     return _avec_les_cases_ajoutees(_ecarts_de_la_v7(rendus_du_banc(version)), ajouts)
 

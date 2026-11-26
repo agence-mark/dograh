@@ -7,7 +7,7 @@ les RÈGLES, chacune une fonction nommée et testée (reprises de ``banc-b13/com
 
 - ``annuler_la_commande`` visible seulement quand une commande est commencée et pas enregistrée, ``annuler_une_commande_enregistree`` seulement
   après l'enregistrement (jamais les deux : ``cases_d_annulation``) ;
-- moyen de paiement, billet, téléphone, prénom seulement quand le récapitulatif est en attente ou accepté (``cases_de_fin_ouvertes``) ; le billet
+- moyen de paiement, billet, téléphone, second numéro, prénom seulement quand le récapitulatif est en attente ou accepté (``cases_de_fin_ouvertes``) ; le billet
   seulement en espèces, ou le récapitulatif en attente (``billet_visible``) ;
 - changer, retirer, vider seulement quand il y a des lignes (``cases_des_lignes``) ;
 - ``reponse`` seulement quand une question attend, OBLIGATOIRE quand elle était déjà posée à la personne, cachée quand le code l'a créée dans ce
