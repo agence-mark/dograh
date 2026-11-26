@@ -10,14 +10,13 @@ from typing import Any
 
 
 from api.services.commande.briques import allergenes_du_produit
-from api.services.mots_dits import liste_dite_et
+from api.services.mots_dits import liste_dite_et, sans_article
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.commande.briques import produit_du_moment
 from api.services.commande.briques import formule as FO
 from api.services.commande.moteur.articles import _option_dite, _un_seul_candidat
 from api.services.commande.resultat import Resultat
-from api.services.restauration.carte_et_allergenes import textes_de_secours as TS
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import METIER, Reglages, _avec, _r, _racines
 from api.services.restauration.carte_et_allergenes.allergie_de_la_commande import _consigne_d_allergie, _faits_du_prix, _informations_de_la_fiche, _lecture_de_la_formule, _nomme_une_categorie, _option_signale, _regime_dit, _regime_du_catalogue, _regles_d_information, _signalement_dit, _signalements_dits
@@ -93,7 +92,7 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
             return sur_un_article  # « l'article X sans Y, c'est possible ? »
     if categories:
         articles = [a for a in articles if a.get("categorie") in categories]
-    mot = liste_dite_et([TS.sans_article((catalogue.get("libelles") or {}).get(c, c)) for c in codes])
+    mot = liste_dite_et([sans_article((catalogue.get("libelles") or {}).get(c, c)) for c in codes])
     etats = [(a, _etat_sans_pour_tous(a, codes, mot_inconnu)) for a in articles]
     surs = [a["nom"] for a, e in etats if e == "sur"]
     selon = [a["nom"] for a, e in etats if e == "selon_le_choix"]

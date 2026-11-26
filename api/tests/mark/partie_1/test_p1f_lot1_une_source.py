@@ -163,7 +163,7 @@ def test_l_ordre_des_cases_de_fin_est_celui_du_contrat():
 
 # --------------------------------------------------------------------------- M8 : ce qui manque est une valeur fermée
 
-def test_la_phrase_du_manque_se_fait_depuis_la_valeur_fermee_sans_lire_de_texte():
+def test_le_manque_se_donne_par_sa_valeur_fermee_sans_lire_de_texte():
     from api.services.commande import etat_pour_le_modele as E
     from api.services.commande import panier as P
     from api.services.commande import phrases_du_manque as PMQ
@@ -172,9 +172,6 @@ def test_la_phrase_du_manque_se_fait_depuis_la_valeur_fermee_sans_lire_de_texte(
     manque, modes = E.ce_qui_manque(P.nouveau(), connu)
     assert manque is PMQ.Manque.MODE and modes == ("à emporter", "en livraison")
     assert E.ce_qui_manque_ensuite(P.nouveau(), connu) == "le mode de retrait (à emporter ou en livraison)"
-    assert PMQ.phrase_du_manque(manque, modes) == "À emporter ou en livraison ?"
-    assert PMQ.phrase_du_manque(PMQ.Manque.MODE) is None
-    assert PMQ.phrase_du_manque(PMQ.Manque.ARTICLES) == "Qu'est-ce que je vous mets ?" and PMQ.phrase_du_manque(None) is None
 
 
 def test_la_decision_autre_chose_lit_le_membre_pas_un_texte():

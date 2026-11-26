@@ -1,8 +1,8 @@
-"""[.mark] Chantier Partie 1, lot 4 (M13 ; B12, décision 1) : les phrases de ce qui manque à la commande, une par valeur fermée de « manque ».
+"""[.mark] Chantier Partie 1, lot 4 (M13 ; B12, décision 1), puis lot 7b-C7 B9 : la valeur fermée de ce qui manque à la commande.
 
-La valeur fermée (``Manque``) est celle de l'état (``etat_pour_le_modele.ce_qui_manque_ensuite``, vocabulaire de B8). La phrase n'est plus donnée au modèle (7b-C4) ni dite par le code (C5 : le modèle est relancé avec la valeur fermée, ``valeur_du_manque``) ; elle reste ici jusqu'à C7 (traduction en signal). Mot pour mot : les phrases que B12 écrit (« Qu'est-ce que je vous mets ? », « Je vous mets autre chose ? ») ; les autres sont celles que le
-module rend déjà (``QUESTION_MANQUE`` du guichet du banc). Une valeur portée par une question (la variante, l'accord sur le récapitulatif) n'a pas
-de phrase propre : c'est la question qui la porte (``None``).
+La valeur fermée (``Manque``) est celle de l'état (``etat_pour_le_modele.ce_qui_manque_ensuite``, vocabulaire de B8). Le modèle la reçoit comme un fait et pose la question avec
+ses mots (C5 : ``valeur_du_manque`` ; décision d'Evan 25/11 8 h 45) ; les phrases d'avant sont supprimées en B9. Une valeur portée par une question (la variante, l'accord sur
+le récapitulatif) ne se donne jamais seule : c'est la question qui la porte.
 """
 
 from __future__ import annotations
@@ -11,8 +11,6 @@ from api.services.actions_communes import conversation as CONV
 from typing import Any
 
 from enum import StrEnum
-
-from api.services.mots_dits import liste_dite
 
 
 class Manque(StrEnum):
@@ -32,32 +30,8 @@ class Manque(StrEnum):
     CONSIGNE_LIVREUR = "une consigne pour le livreur"
 
 
-MODE = Manque.MODE  # nom gardé : ``porte`` passe ce membre à ``phrase_du_manque`` pour les autres modes ouverts
-
-PHRASES_DU_MANQUE: dict[Manque, str | None] = {
-    Manque.MODE: None,  # la phrase se fait des modes ouverts : ``phrase_du_manque``
-    Manque.ADRESSE_ET_COMMUNE: "Quelle est l'adresse de livraison ?",
-    Manque.COMMUNE: "Dans quelle commune ?",
-    Manque.VOIE: "Quelle est l'adresse de livraison ?",
-    Manque.ARTICLES: "Qu'est-ce que je vous mets ?",
-    Manque.VARIANTE: None,  # portée par la question variante du module
-    Manque.AUTRE_CHOSE: "Je vous mets autre chose ?",
-    Manque.ACCORD: None,  # portée par la question récapitulatif
-    Manque.PAIEMENT: "Vous réglez comment ?",
-    Manque.TELEPHONE: "Quel est votre numéro de téléphone ?",
-    Manque.PRENOM: "À quel nom je mets la commande ?",
-    Manque.CONSIGNE_LIVREUR: "Une consigne pour le livreur ?",
-}
 # Liste fermée : ce qui manque et qu'une question du module porte (la variante, l'accord sur le récapitulatif) ; la relance ne le reçoit jamais seul.
 PORTEES_PAR_UNE_QUESTION = frozenset({Manque.VARIANTE, Manque.ACCORD})
-
-
-def phrase_du_manque(manque: Manque | None, modes: list[str] | tuple[str, ...] | None = None) -> str | None:
-    """La phrase de ce qui manque, mot pour mot ; ``None`` : rien ne manque, ou c'est une question qui le porte. ``modes`` : les libellés des modes ouverts."""
-    if manque is Manque.MODE:
-        dits = list(modes or ())
-        return f"{liste_dite(dits).capitalize()} ?" if dits else None
-    return PHRASES_DU_MANQUE.get(manque) if manque else None
 
 
 def valeur_du_manque(p: dict[str, Any]) -> str | None:

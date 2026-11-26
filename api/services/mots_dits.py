@@ -172,3 +172,8 @@ def liste_dite_et(elements: list[str]) -> str:
     if len(elements) <= 1:
         return "".join(elements)
     return ", ".join(elements[:-1]) + " et " + elements[-1]
+
+
+def sans_article(libelle: str) -> str:
+    """« le gluten » devient « gluten », « les œufs » devient « œufs » (l'article défini de tête retiré, rien d'autre)."""
+    return re.sub(r"^(?:le|la|les|l['’])\s*", "", libelle.strip(), flags=re.IGNORECASE)

@@ -363,12 +363,10 @@ async def test_en_carte_un_seul_moyen(essai_de):
     assert "paiement" not in manques and e.p["enregistree"], manques  # « en carte » n'est pas redemandé
 
 
-def test_une_phrase_par_manque():
+def test_une_valeur_fermee_par_manque():
     from api.services.commande import etat_pour_le_modele as E
 
-    assert PM.PHRASES_DU_MANQUE["les articles"] == "Qu'est-ce que je vous mets ?"
-    assert PM.PHRASES_DU_MANQUE["d'autres articles, ou qu'elle dise qu'elle a tout dit"] == "Je vous mets autre chose ?"
-    # chaque valeur que l'état peut rendre a sa phrase, ou une question qui la porte
+    # C7 B9 : plus de phrase par manque (le modèle la pose, Evan 25/11 8 h 45) ; chaque valeur que l'état peut rendre est un membre de la liste fermée, montré au modèle
     connu = {"modes": {"emporter": "à emporter", "livraison": "en livraison"}, "modes_a_adresse": ["livraison"]}
     p = P.nouveau()
     vus = set()
@@ -385,11 +383,9 @@ def test_une_phrase_par_manque():
     for plus in etats:
         manque, modes = E.ce_qui_manque({**p, **plus}, connu)  # M8 : la décision est un membre de la liste fermée, la phrase se fait après
         assert isinstance(manque, PM.Manque), manque
-        assert PM.phrase_du_manque(manque, modes) or manque in PM.PORTEES_PAR_UNE_QUESTION, manque
         assert E.ce_qui_manque_ensuite({**p, **plus}, connu).startswith(str(manque))  # le texte montré au modèle est celui d'avant
         vus.add(manque)
-    assert PM.phrase_du_manque(PM.Manque.MODE, ["à emporter", "en livraison"]) == "À emporter ou en livraison ?"
-    assert PM.phrase_du_manque(PM.Manque.MODE) is None  # sans modes ouverts, rien à proposer : jamais un texte lu à la place
+    assert E.ce_qui_manque_ensuite(p, connu) == "le mode de retrait (à emporter ou en livraison)"  # les modes ouverts : un fait, plus une phrase
     assert vus >= {PM.Manque.ARTICLES, PM.Manque.MODE, PM.Manque.PAIEMENT, PM.Manque.TELEPHONE, PM.Manque.PRENOM}
     assert ce_qui_manque_ensuite is E.ce_qui_manque_ensuite
 

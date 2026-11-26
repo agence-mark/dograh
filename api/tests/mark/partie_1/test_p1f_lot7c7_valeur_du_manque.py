@@ -26,7 +26,6 @@ def _commande(monkeypatch, manque: Manque, modes: list[str]) -> str | None:
 
 @pytest.mark.parametrize("manque", DITES, ids=lambda m: m.name)
 def test_commande_la_valeur_sort_meme_sans_aucune_phrase_au_catalogue(monkeypatch, manque):
-    monkeypatch.setattr(PM, "PHRASES_DU_MANQUE", {})
     assert _commande(monkeypatch, manque, ["à emporter", "en livraison"]) == manque.value
 
 
@@ -46,7 +45,6 @@ def test_commande_une_question_qui_attend_passe_avant(monkeypatch):
 
 @pytest.mark.parametrize("manque", MANQUES_DE_LA_RESERVATION)
 def test_reservation_la_valeur_sort_meme_sans_aucune_phrase_au_catalogue(monkeypatch, manque):
-    monkeypatch.setattr(PMR, "PHRASES_DU_MANQUE", {})
     monkeypatch.setattr(ETAT_RESERVATION, "ce_qui_manque_ensuite", lambda etat, affiche: manque)
     assert PMR.valeur_du_manque({}) == manque
 

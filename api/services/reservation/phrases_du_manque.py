@@ -1,7 +1,7 @@
-"""[.mark] Chantier Partie 1, lot 7 (B12, décision 1) : les phrases de ce qui manque à la réservation, une par valeur fermée de « manque ».
+"""[.mark] Chantier Partie 1, lot 7 (B12, décision 1), puis lot 7b-C7 B9 : la valeur fermée de ce qui manque à la réservation.
 
-Même rôle que ``commande/phrases_du_manque.py``. La valeur fermée est celle de l'état (``etat_pour_le_modele.ce_qui_manque_ensuite``) ; la phrase n'est plus dite par le code (C5 : le modèle est relancé avec la valeur fermée, ``valeur_du_manque``) ; elle reste ici jusqu'à C7. Mot pour mot : celles du banc final
-(``banc-b13/appel_b13.py`` ``PHRASE_DU_MANQUE_RESERVATION``). Une valeur portée par une question n'a pas de phrase propre : c'est la question qui la porte.
+Même rôle que ``commande/phrases_du_manque.py``. La valeur fermée est celle de l'état (``etat_pour_le_modele.ce_qui_manque_ensuite``) ; le modèle la reçoit comme un fait et pose
+la question avec ses mots (C5 : ``valeur_du_manque`` ; décision d'Evan 25/11 8 h 45) ; les phrases d'avant sont supprimées en B9.
 """
 
 from __future__ import annotations
@@ -10,25 +10,9 @@ from api.services.actions_communes import conversation as CONV
 from typing import Any
 
 from api.services.reservation import etat_pour_le_modele as E
-from api.services.reservation import textes_de_secours as TS
-
-PHRASES_DU_MANQUE: dict[str, str] = {
-    E.LES_PERSONNES: TS.PERSONNES,
-    E.LE_JOUR: TS.JOUR,
-    E.L_HEURE: TS.HEURE,
-    E.LE_NOM: TS.NOM,
-    E.LE_TELEPHONE: TS.TELEPHONE,
-    E.LA_RESERVATION_D_AVANT: TS.NOM_ET_JOUR_D_AVANT,
-}
-
 
 # Liste fermée : les valeurs de ce qui manque que l'état rend (``ce_qui_manque_ensuite``), que la relance du modèle reçoit ; lues dans le module d'état, jamais recopiées.
 VALEURS_DU_MANQUE = frozenset(E.MANQUES)
-
-
-def phrase_du_manque(manque: str | None) -> str | None:
-    """La phrase de ce qui manque, mot pour mot ; ``None`` : rien ne manque."""
-    return PHRASES_DU_MANQUE.get(manque) if manque else None
 
 
 def valeur_du_manque(etat: dict[str, Any], fiche: dict[str, Any] | None = None) -> str | None:

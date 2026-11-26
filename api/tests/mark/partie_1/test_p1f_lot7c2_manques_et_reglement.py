@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.services.commande import textes_de_secours as TS
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
+from api.services.commande.phrases_du_manque import Manque
 from api.tests.mark import test_base_client as BASE
 from api.tests.mark import test_restauration_classeur_commande as CLASSEUR
 
@@ -38,9 +38,7 @@ def _manque(brouillon_: dict, jeton: str | None = "relu-1"):
 def _doit(r, statut: str, texte: str, manque: str, du_catalogue: Manque | None = None, secours=None):
     assert (r.statut, r.suggestion, r.manque) == (statut, "", manque), r
     assert r.faits == {}, r
-    if du_catalogue is not None:
-        assert phrase_du_manque(du_catalogue) == texte
-    else:
+    if du_catalogue is None:  # un manque du catalogue : la valeur fermée seule (le texte d'avant reste comme mémoire, B9)
         assert secours(r.faits) == texte
 
 

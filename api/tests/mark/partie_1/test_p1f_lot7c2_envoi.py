@@ -7,7 +7,6 @@ from __future__ import annotations
 import pytest
 
 from api.db.bases_clients import textes_de_secours_commande as TSC
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.envois_et_sms.sms_restauration import Envoi
 from api.services.restauration.source_commande import SourceClasseur
@@ -71,5 +70,5 @@ async def test_les_autres_refus_de_l_envoi_ne_bougent_pas(source, monkeypatch, e
 
 
 def test_la_question_de_la_zone_n_est_plus_dans_la_source():
-    """C7 B5 (Evan 25/11 8 h 45) : la source ne garde plus la question de la zone ; le manque (``zone``, ``adresse``) la porte, le modèle la pose ; le catalogue du manque reste jusqu'à B9."""
-    assert not hasattr(SourceClasseur, "question_de_la_zone") and phrase_du_manque(Manque.ADRESSE_ET_COMMUNE) == "Quelle est l'adresse de livraison ?"
+    """C7 B5 (Evan 25/11 8 h 45) : la source ne garde plus la question de la zone ; le manque (``zone``, ``adresse``) la porte, le modèle la pose ; B9 : le catalogue des phrases du manque est supprimé."""
+    assert not hasattr(SourceClasseur, "question_de_la_zone")

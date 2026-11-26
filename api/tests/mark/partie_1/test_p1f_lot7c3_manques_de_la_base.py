@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import ast
-import inspect
 from datetime import datetime
 
 from api.db.bases_clients import restauration_reservation as RR
@@ -66,14 +64,8 @@ async def test_modifier_sans_nombre_de_personnes_ni_heure_valides(salle):
     _verifie(await RR.modifier_reservation(salle.c, salle.a, numero, {"debut": sans_fuseau}), "ARGUMENT_INVALIDE", "debut", "Pour quel jour et à quelle heure ?", TS.quel_jour_et_quelle_heure)
 
 
-def test_les_phrases_du_manque_sont_les_constantes_de_la_feuille_et_gardent_leur_texte():
-    assert PM.PHRASES_DU_MANQUE == {
-        "le nombre de personnes": "Pour combien de personnes ?", "le jour": "Pour quel jour ?", "l'heure": "À quelle heure ?", "le nom": "À quel nom ?",
-        "le numéro de téléphone": "Quel est votre numéro de téléphone ?", "le nom et le jour de sa réservation d'avant": "À quel nom et pour quel jour était votre réservation ?",
-    }
-    assert PM.PHRASES_DU_MANQUE == {
-        "le nombre de personnes": TS.PERSONNES, "le jour": TS.JOUR, "l'heure": TS.HEURE, "le nom": TS.NOM, "le numéro de téléphone": TS.TELEPHONE,
-        "le nom et le jour de sa réservation d'avant": TS.NOM_ET_JOUR_D_AVANT,
-    }
-    ecrites = {n.value for n in ast.walk(ast.parse(inspect.getsource(PM))) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
-    assert not ecrites & set(PM.PHRASES_DU_MANQUE.values()), "le catalogue ne recopie plus ses textes : il les lit de la feuille"
+def test_les_valeurs_du_manque_sont_les_constantes_de_l_etat():
+    """C7 B9 : plus de phrase par manque (le modèle la pose, Evan 25/11 8 h 45) ; la valeur fermée seule, celle du module d'état."""
+    assert PM.VALEURS_DU_MANQUE == frozenset({
+        "le nombre de personnes", "le jour", "l'heure", "le nom", "le numéro de téléphone", "le nom et le jour de sa réservation d'avant",
+    })
