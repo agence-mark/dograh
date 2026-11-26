@@ -54,10 +54,11 @@ async def test_proposition_une_fois_question_numerotee(essai_de):
     r = await _premier_article(e)
     q = _q(e)
     assert q.get("type") == "proposition" and re.fullmatch(r"Q-\d+", q["id"]), r
-    assert r.get("prix_dit_par_le_code_apres_ta_phrase") is True and "sans aucun chiffre" in (r.get("a_faire") or ""), r
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le prix est un fait que le modèle dit dans sa question, plus une phrase que le code dit après elle
+    assert "prix_dit_par_le_code_apres_ta_phrase" not in r and "en disant son prix" in (r.get("a_faire") or ""), r
     propose = q["article_propose"]
     assert propose and "euro" not in _faits(r).lower() and not re.search(r"\d+[,.]\d\d", json.dumps(r.get("question"))), r
-    assert q.get("chiffre") and "euro" in q["chiffre"], q  # la phrase du prix est gardée dans la question, jamais dans le retour
+    assert r["faits"]["proposition_a_poser"] == {"article": propose, "prix": q["prix"]} and isinstance(q["prix"], int), (r["faits"], q)  # un fait brut, jamais une phrase
     await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     r = await _premier_article(e, "regina")
     assert _q(e).get("type") != "proposition" and "prix_dit_par_le_code_apres_ta_phrase" not in r, r  # une fois par commande, jamais après un refus
@@ -200,8 +201,8 @@ async def test_fermeture_dite_une_fois(essai_de):
     r1 = await moteur.choisir_mode(e.source, p, regles, "emporter")
     r2 = await moteur.choisir_mode(e.source, p, regles, "livraison")
     r3 = await moteur.question_du_mode(e.source, p, "INCOMPLETE")
-    dites = [r.suggestion for r in (r1, r2, r3) if "fermés" in r.suggestion]
-    assert r1.statut != "OK" and len(dites) == 1 and J.deja_dit(p, J.FERMETURE), [r1, r2, r3]
+    # Lot 7b-C7a : le code n'écrit plus la phrase ; la fermeture est marquée dite au premier retour et la question du mode ne redonne plus ses faits
+    assert r1.statut != "OK" and J.deja_dit(p, J.FERMETURE) and "raison" not in r3.faits and not any(r.suggestion for r in (r1, r2)), [r1, r2, r3]
 
 
 async def test_pause_de_la_caisse_au_decroche(essai_de):
@@ -226,7 +227,7 @@ async def test_pause_sans_fin_sans_reprise_inventee(essai_de):
         "INSERT INTO mark.resto_etat_caisse (site_id, mode) VALUES ($1, 'pause') ON CONFLICT (site_id) DO UPDATE SET mode = 'pause'", e.monde.a)
     ouverture = await moteur.lire_l_ouverture(e.source)
     assert ouverture["ouvert"] is False and not ouverture.get("reprise"), ouverture
-    assert "reprenons" not in (ouverture.get("phrase") or ""), ouverture
+    assert "phrase" not in ouverture, ouverture  # lot 7b-C7 : aucune phrase de fermeture, le modèle la dit d'après les faits
 
 
 @pytest.mark.parametrize("faire_monde", [NUIT_DU_18], indirect=True)
@@ -337,23 +338,19 @@ async def test_consigne_n_est_pas_une_habitude(essai_de):
     assert consigne == "sonnez au deuxième", consigne  # et à part, pour la caisse (lot 16), remplaçant le test qui lisait la fonction privée
 
 
-async def test_rendu_dit_a_la_confirmation(essai_de, monkeypatch):
+async def test_rendu_dit_a_la_confirmation(essai_de):
+    """C6 n° 5 (décision d'Evan 25/11 9 h 30) : le rendu n'est plus collé à la confirmation par le moteur ; la porte le dit après la phrase du modèle (motif ``rendu_de_monnaie``)."""
     from api.services.commande import porte
+    from api.services.mots_dits import montant_en_lettres
 
-    confirmations = []
-
-    async def flux(source, avant, p, enregistrement, ctx):
-        if enregistrement is not None:
-            confirmations.append(enregistrement.suggestion)  # la confirmation que le code dit mot pour mot (jamais montrée au modèle)
-
-    monkeypatch.setattr(porte, "_dire_au_flux", flux)
     e = await essai_de()
     await _a_emporter(e)
     await _premier_article(e)
     r = await _jusqu_a_l_enregistrement(e, moyen="especes", rendu_sur=50, telephone="0612345678", prenom="Léa")
     monnaie = e.p["enregistree"]["monnaie"]
-    assert r["statut"] == "ENREGISTREE" and monnaie > 0 and "on vous rendra" not in _faits(r), r
-    assert confirmations and moteur.dire_le_rendu_de_monnaie({"monnaie": monnaie, "rendu_sur": 5000}) in confirmations[-1], confirmations
+    assert r["statut"] == "ENREGISTREE" and monnaie > 0 and "on vous rend" not in _faits(r), r
+    suite = (e.fiche_de_l_appel.get(porte.CLE_TEXTES_DU_CODE) or {}).get("suffixe") or ""
+    assert f"Sur votre billet de {montant_en_lettres(5000)}" in suite and montant_en_lettres(monnaie) in suite, suite
 
 
 async def test_en_carte_un_seul_moyen(essai_de):
@@ -366,12 +363,10 @@ async def test_en_carte_un_seul_moyen(essai_de):
     assert "paiement" not in manques and e.p["enregistree"], manques  # « en carte » n'est pas redemandé
 
 
-def test_une_phrase_par_manque():
+def test_une_valeur_fermee_par_manque():
     from api.services.commande import etat_pour_le_modele as E
 
-    assert PM.PHRASES_DU_MANQUE["les articles"] == "Qu'est-ce que je vous mets ?"
-    assert PM.PHRASES_DU_MANQUE["d'autres articles, ou qu'elle dise qu'elle a tout dit"] == "Je vous mets autre chose ?"
-    # chaque valeur que l'état peut rendre a sa phrase, ou une question qui la porte
+    # C7 B9 : plus de phrase par manque (le modèle la pose, Evan 25/11 8 h 45) ; chaque valeur que l'état peut rendre est un membre de la liste fermée, montré au modèle
     connu = {"modes": {"emporter": "à emporter", "livraison": "en livraison"}, "modes_a_adresse": ["livraison"]}
     p = P.nouveau()
     vus = set()
@@ -388,11 +383,9 @@ def test_une_phrase_par_manque():
     for plus in etats:
         manque, modes = E.ce_qui_manque({**p, **plus}, connu)  # M8 : la décision est un membre de la liste fermée, la phrase se fait après
         assert isinstance(manque, PM.Manque), manque
-        assert PM.phrase_du_manque(manque, modes) or manque in PM.PORTEES_PAR_UNE_QUESTION, manque
         assert E.ce_qui_manque_ensuite({**p, **plus}, connu).startswith(str(manque))  # le texte montré au modèle est celui d'avant
         vus.add(manque)
-    assert PM.phrase_du_manque(PM.Manque.MODE, ["à emporter", "en livraison"]) == "À emporter ou en livraison ?"
-    assert PM.phrase_du_manque(PM.Manque.MODE) is None  # sans modes ouverts, rien à proposer : jamais un texte lu à la place
+    assert E.ce_qui_manque_ensuite(p, connu) == "le mode de retrait (à emporter ou en livraison)"  # les modes ouverts : un fait, plus une phrase
     assert vus >= {PM.Manque.ARTICLES, PM.Manque.MODE, PM.Manque.PAIEMENT, PM.Manque.TELEPHONE, PM.Manque.PRENOM}
     assert ce_qui_manque_ensuite is E.ce_qui_manque_ensuite
 
@@ -410,9 +403,9 @@ async def test_sans_oignons_par_ingredient(essai_de):
     retour = await e.lecture(sujet="article", article="quelles pizzas sans oignons")
     assert "Regina" in _faits(retour), retour
     r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "chorizo", contient=True)
-    assert r.faits["articles"] and r.faits["inconnus"] > 0 and "je ne peux pas vous le confirmer" in r.suggestion, r  # donnée absente = inconnu (E21)
+    assert r.faits["articles"] and r.faits["inconnus"] > 0, r  # donnée absente = inconnu (E21)
     r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "sardines", contient=True)
-    assert not r.faits["articles"] and "il n'y en a pas" not in r.suggestion and r.suggestion == moteur.NON_CONFIRMABLE, r
+    assert not r.faits["articles"] and r.faits["inconnus"] > 0 and r.suggestion == "", r  # le catalogue ne dit pas tout : « il n'y en a pas » ne se dit pas
 
 
 async def test_choisir_mode_2641_t2(essai_de):

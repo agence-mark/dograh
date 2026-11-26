@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from api.services.actions_communes.du import CLE_DU
 from api.db.bases_clients.restauration_reservation import creer_reservation
 from api.services.actions_communes import conversation as CONV
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
@@ -74,7 +75,7 @@ async def test_heure_hors_des_creneaux_refusee_avec_sa_raison_et_l_heure_voisine
 async def test_nom_et_jour_avec_une_recherche_n_ouvrent_pas_de_reservation(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch, appelant=None)                               # numéro masqué
     r = await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
-    assert r["manque"] == "nom_et_jour_de_la_reservation" and r["texte_a_dire"] == "À quel nom et pour quel jour était votre réservation ?", r
+    assert r["manque"] == "nom_et_jour_de_la_reservation" and r[CLE_DU]["manque"] == "le nom et le jour de sa réservation d'avant", r  # lot 7b-C5 : la valeur fermée de ce qui manque, jamais sa phrase
     r = await essai.tour("au nom de Martin, pour jeudi", jour="jeudi", nom="Martin", retrouver_une_reservation_enregistree={"jour": "jeudi", "nom": "Martin"})
     assert not essai.etat.get("brouillon"), r                                                 # aucune réservation commencée
     assert [x["operation"] for x in r["resultats"]] == ["retrouver_une_reservation_enregistree"], r
@@ -119,7 +120,7 @@ async def test_suivi_sans_numero_dit_ce_qui_manque_au_modele(essai_de):
     e.ctx.appel = {}                                                                                        # numéro masqué
     e.dit("où en est ma commande de tout à l'heure")
     r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
-    assert r["statut"] == "A_PRECISER" and r["manque"] == "reference" and r["texte_a_dire"] == "Quel est le numéro de la commande ?", r
+    assert r["statut"] == "A_PRECISER" and r["manque"] == "reference" and "texte_a_dire" not in r, r  # 7b-C4 : le manque est un fait, sa phrase (« Quel est le numéro de la commande ? ») n'est plus donnée au modèle
     assert "panier" not in str(r), r                                                                        # le suivi ne montre pas un panier vide
 
 
@@ -160,7 +161,7 @@ async def test_p2_un_jour_ambigu_se_redemande_avec_sa_vraie_question(salle, monk
     essai = EssaiReservation(salle, monkeypatch, appelant=None)
     r = await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
     r = await essai.tour("pour jeudi", retrouver_une_reservation_enregistree={"jour": "jeudi"})                  # ni nom ni numéro : le jour ambigu se redemande
-    assert r["manque"] == "jour" and r["texte_a_dire"] != "À quel nom et pour quel jour était votre réservation ?", r
+    assert r["manque"] == "jour" and r[CLE_DU]["manque"] != "À quel nom et pour quel jour était votre réservation ?", r
 
 
 async def test_p2_aucune_reservation_a_ce_nom_et_ce_jour_est_dit_puis_l_equipe_est_proposee(salle, monkeypatch):

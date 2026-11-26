@@ -20,10 +20,9 @@ from api.services.actions_communes.consignes import ALLERGIE as ALLERGIE_RANG
 from api.services.actions_communes.du import FAITS_A_DIRE_PAR_LE_MODELE, Du
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
-from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, METIER, NON_CONFIRMABLE, Reglages, _PLUS_DE_NOMS, _avec, _le, _r, _racines
+from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, METIER, Reglages, _avec, _r, _racines
 from api.services.commande.moteur.articles import _groupes_a_remplir
 
 RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
@@ -255,11 +254,14 @@ def _regime_dit(source: Source, fiche: dict[str, Any], regime: str, info: dict[s
     if code == halal.CODE:
         ecrit = halal.brique_inf4_dire_ce_qui_est_ecrit(fiche.get("regimes"), bool(info.get("halal_restaurant")))
         if ecrit["article"]:
-            return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"{INFO.SOURCE_FICHE}, {nom} est {regime}.")
+            faits = {"article": nom, "regime": regime, "etiquete": True}
+            return _r("OK", faits, "")
         if ecrit["restaurant"]:
-            return _r("OK", {"article": nom, "regime": regime, "etiquete": False, "restaurant": True}, f"{INFO.SOURCE_FICHE_DU_RESTAURANT}, la carte est {regime}.")
+            faits = {"article": nom, "regime": regime, "etiquete": False, "restaurant": True}
+            return _r("OK", faits, "")
     elif code and regime_d_un_article.brique_inf3_jamais_sans_etiquette(fiche.get("regimes"), code) == "etiquete":
-        return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"{INFO.SOURCE_FICHE}, {nom} est {regime}.")
+        faits = {"article": nom, "regime": regime, "etiquete": True}
+        return _r("OK", faits, "")
     return _r("OK", {"article": nom, "regime": regime, "renseigne": False, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
 
 
@@ -285,41 +287,29 @@ async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -
         etiquetes = regime_d_un_article.articles_etiquetes((await lire(p.get("mode") or source.modes[0])).get("articles") or [], code)
     restaurant = code == halal.CODE and bool(info.get("halal_restaurant"))
     if etiquetes:
-        dits = etiquetes[:_PLUS_DE_NOMS]
-        entre_autres = ", entre autres," if len(etiquetes) > len(dits) else ""
-        verbe = "est" if len(etiquetes) == 1 else "sont"
-        return _r("OK", {**faits, "renseigne": True, "articles": etiquetes, **({"restaurant": True} if restaurant else {})},
-                  f"{INFO.SOURCE_FICHE}, {liste_dite_et(dits)}{entre_autres} {verbe} {regime}. {INFO.POUR_LES_AUTRES_NON_GARANTI}")
+        faits = {**faits, "renseigne": True, "articles": etiquetes, "autres_a_confirmer": True, **({"restaurant": True} if restaurant else {})}  # F8 : le reste de la carte n'est pas étiqueté
+        return _r("OK", faits, "")
     if restaurant:
-        return _r("OK", {**faits, "renseigne": True, "restaurant": True}, f"{INFO.SOURCE_FICHE_DU_RESTAURANT}, la carte est {regime}.")
+        faits = {**faits, "renseigne": True, "restaurant": True}
+        return _r("OK", faits, "")
     return _r("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
 
 
 def _lecture_de_la_formule(fiche: dict[str, Any]) -> Resultat:
-    """Lot 11 (conversations FOR7, FOR9, FOR10) : la lecture d'une formule rend ses étapes et ses choix, ses règles, et son prix, que le code dit lui-même
-    (``prix_a_dire``, comme PRX5) ; jamais « je ne peux pas le confirmer » pour une formule de la carte."""
+    """Lot 11 (conversations FOR7, FOR9, FOR10) : la lecture d'une formule rend ses étapes et ses choix, ses règles, et son prix (le fait ``prix``, que le modèle dit, vérifié par la
+    barrière des chiffres : C6 n° 11, décision d'Evan 25/11 9 h 30) ; jamais « je ne peux pas le confirmer » pour une formule de la carte."""
     lu = FO.lecture_de_la_formule(fiche)
     faits: dict[str, Any] = {"article": fiche["nom"], "renseigne": True, **lu}
-    if lu.get("prix"):
-        debut = "à partir de " if lu["prix"]["a_partir_de"] else "à "
-        faits["prix_a_dire"] = f"{_le(fiche['nom'], fiche.get('genre'))} est {debut}{montant_en_lettres(lu['prix']['montant'])}."
-    au_choix = "; ".join(f"{e['etape']} : {liste_dite(e['choix'])}" for e in lu["etapes"] if e["choix"])
-    return _r("OK", faits, f"{fiche['nom']}. {au_choix}." if au_choix else fiche["nom"] + ".")
+    return _r("OK", faits, "")  # C7 B5 (Evan 25/11 8 h 45) : les étapes et leurs choix sont des faits, le modèle les dit
 
 
 def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:
-    """Lot 12 (PRX5, D33) : le prix de l'article à la lecture (``prix`` : ``montant`` et ``a_partir_de``) et la phrase que le code dit lui-même (``prix_a_dire``, jamais montrée au
-    modèle : ``lire`` la range dans les textes du code). Un article sans prix lisible n'en rend aucun."""
+    """Lot 12 (PRX5, D33) : le prix de l'article à la lecture (``prix`` : ``montant`` et ``a_partir_de``). C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : un fait, que le modèle
+    dit avec ses mots, vérifié par la barrière des chiffres ; le code ne compose plus de phrase. Un article sans prix lisible n'en rend aucun."""
     prix = prix_a_partir_de.brique_prx5_jamais_le_prix_de_depart_comme_final(fiche)
-    if prix is None:
-        return {}
-    debut = "à partir de " if prix["a_partir_de"] else "à "
-    # Le nombre du nom (« les frites ») n'est connu nulle part, le genre par défaut est masculin : jamais d'article deviné (conversation PRX5-A : « Le Frites est »), le nom seul
-    sujet = f"Pour {fiche['nom']}, c'est"
-    return {"prix": prix, "prix_a_dire": f"{sujet} {debut}{montant_en_lettres(prix['montant'])}."}
+    return {"prix": prix} if prix is not None else {}
 
 
-_NON_GARANTI = INFO.NON_GARANTI
 
 
 def _option_signale(o: dict, code: str) -> bool | None:
@@ -350,13 +340,13 @@ def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: 
         return _signalement_d_un_mot(source, fiche, option, signale)
     libelles = fiche.get("signalements_libelles") or {}
     reponses = [_signalement_d_un_mot(source, fiche, option, libelles.get(c, c)) for c in codes]
-    phrase = " ".join(r.suggestion for r in reponses if r.suggestion)
-    if mot_inconnu:
-        phrase = f"{phrase} Pour le reste de ce que vous citez, {_NON_GARANTI}".strip()
     faits = {"article": fiche["nom"], **({"option": option["nom"]} if option else {}), "signalement": "plusieurs",
-             "par_signalement": [{"code": c, "signalement": r.faits.get("signalement")} for c, r in zip(codes, reponses)], "a_confirmer_par_l_equipe": mot_inconnu or any(
-                 r.faits.get("signalement") in ("inconnu", "selon_option") for r in reponses)}
-    return _r("OK", faits, phrase)
+             "par_signalement": [{**r.faits, "code": c} for c, r in zip(codes, reponses)],
+             # l'équipe ne confirme que ce que l'une des réponses lui renvoie (un sans-fiche dit seulement qu'il ne peut pas confirmer), ou un mot inconnu
+             "a_confirmer_par_l_equipe": mot_inconnu or any(r.faits.get("a_confirmer_par_l_equipe") for r in reponses)}
+    if mot_inconnu:
+        faits["mot_inconnu"] = True  # le texte dit « pour le reste de ce que vous citez » seulement quand un mot n'est pas reconnu
+    return _r("OK", faits, "")
 
 
 def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
@@ -365,46 +355,57 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
     signalements = fiche.get("signalements")
     libelles = fiche.get("signalements_libelles") or {}
     faits: dict[str, Any] = {"article": nom, **({"option": option["nom"]} if option else {})}
-    nom_dit = f"{nom} {option['nom']}" if option else nom
     options = [option] if option else _options_obligatoires(fiche)
     code = source.signalement_dit(signale)
     if code is None and not _est_la_liste_demandee(signale):
         # A4 : une chose hors des quatorze (ail, kiwi, fraise) n'est jamais déclarée : « n'en déclare aucun » sonnerait comme un non
-        return _r("OK", {**faits, "signalement": "inconnu"}, "Pour cette chose, " + _NON_GARANTI)
+        faits = {**faits, "signalement": "inconnu", "hors_liste": True, "a_confirmer_par_l_equipe": True}
+        return _r("OK", faits, "")
     if code is None:
         if signalements is None:
-            return _r("OK", {**faits, "signalement": "inconnu"}, NON_CONFIRMABLE)
+            faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
+            return _r("OK", faits, "")
         codes = [s["code"] for s in signalements]
         for o in options if option else []:
             codes += [c for c in (o.get("signalements_du_nom") or []) + [s["code"] for s in (o.get("signalements") or [])] if c not in codes]
         presents = [libelles.get(c, c) for c in codes]
-        phrase = f"{INFO.SOURCE_FICHE}, {nom_dit} contient {liste_dite_et(presents)}." if presents else f"{INFO.SOURCE_FICHE}, {nom_dit} n'en déclare aucun."
+        faits = {**faits, "signalement": "liste", "presents": presents}
         if any(o.get("signalements") is None for o in options):
-            phrase += " Selon le choix, " + _NON_GARANTI if not option else f" Pour {option['nom']}, " + _NON_GARANTI
-        return _r("OK", {**faits, "signalement": "liste", "presents": presents}, phrase)
-    libelle = libelles.get(code, code)
+            faits["options_a_confirmer"] = faits["a_confirmer_par_l_equipe"] = True
+        return _r("OK", faits, "")
     faits["code"] = code
+    libelle = libelles.get(code, code)
     if signalements is not None and any(s["code"] == code for s in signalements):
-        return _r("OK", {**faits, "signalement": "present"}, f"Oui, {nom_dit} contient {libelle}.")
+        faits = {**faits, "signalement": "present", "libelle": libelle}  # le texte dit l'allergène par son libellé
+        return _r("OK", faits, "")
     if option is not None:
         # Lot 15 (INF2) : le produit et l'option choisie ensemble
         option_vue = {"allergenes": None if option.get("signalements") is None else [s["code"] for s in option["signalements"]], "signalements_du_nom": option.get("signalements_du_nom")}
         etat = allergenes_d_une_option.brique_inf2_produit_et_options(None if signalements is None else [s["code"] for s in signalements], [option_vue], code)
-        if etat == "present":
-            return _r("OK", {**faits, "signalement": "present"}, f"Oui, {nom_dit} contient {libelle}.")
-        if etat == "absent_de_la_fiche":
-            return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"{INFO.SOURCE_FICHE}, {nom_dit} ne contient pas {libelle}.")
-        return _r("OK", {**faits, "signalement": "inconnu"}, f"Pour {nom_dit}, " + _NON_GARANTI)
+        faits = {**faits, "signalement": etat if etat in ("present", "absent_de_la_fiche") else "inconnu", **({"libelle": libelle} if etat in ("present", "absent_de_la_fiche") else {})}
+        if faits["signalement"] == "inconnu":
+            faits["a_confirmer_par_l_equipe"] = True
+        return _r("OK", faits, "")
+    return _signalement_selon_les_options(faits, options, signalements, code, libelle)
+
+
+def _signalement_selon_les_options(faits: dict[str, Any], options: list[dict], signalements: list[dict] | None, code: str, libelle: str) -> Resultat:
+    """Le signalement dit n'est pas sur la fiche de l'article : il se lit option par option (``selon_option``), ou reste à confirmer par l'équipe (``inconnu``), ou absent de la fiche."""
     contiennent = [o["nom"] for o in options if _option_signale(o, code)]
     inconnues = [o for o in options if _option_signale(o, code) is None]
     if contiennent:
-        suite = " Pour les autres, " + _NON_GARANTI if inconnues or signalements is None else " Pour les autres, d'après la fiche, non."
-        return _r("OK", {**faits, "signalement": "selon_option", "options_qui_contiennent": contiennent}, f"Ça dépend : avec {liste_dite(contiennent)}, oui." + suite)
+        faits = {**faits, "signalement": "selon_option", "options_qui_contiennent": contiennent, "autres_a_confirmer": bool(inconnues or signalements is None)}
+        if faits["autres_a_confirmer"]:
+            faits["a_confirmer_par_l_equipe"] = True
+        return _r("OK", faits, "")
     if signalements is None:
-        return _r("OK", {**faits, "signalement": "inconnu"}, NON_CONFIRMABLE)
+        faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
+        return _r("OK", faits, "")
     if inconnues:
-        return _r("OK", {**faits, "signalement": "inconnu"}, "Ça dépend du choix, et " + _NON_GARANTI)
-    return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"{INFO.SOURCE_FICHE}, {nom} ne contient pas {libelle}.")
+        faits = {**faits, "signalement": "inconnu", "options_a_confirmer": True, "a_confirmer_par_l_equipe": True}  # F7 : « ça dépend du choix » (le texte de secours le disait seul)
+    else:
+        faits = {**faits, "signalement": "absent_de_la_fiche", "libelle": libelle}
+    return _r("OK", faits, "")
 
 
 A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"

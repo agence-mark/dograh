@@ -1,5 +1,6 @@
 """[.mark] Moteur de la commande : poser le mode et vérifier l'adresse. Ce sont les gestes qui reprennent ce qui était dit avant eux (SA-33) : ils importent donc ``articles`` ;
-``articles`` importe ``prealables`` et jamais l'inverse (le cycle est cassé par le découpage, sans branchement à l'import)."""
+``articles`` importe ``prealables`` et jamais l'inverse (le cycle est cassé par le découpage, sans branchement à l'import). C7 B5 (Evan 25/11 8 h 45) : aucun retour n'y porte de texte ;
+ce qui suit (la zone, les articles, ce qui est à revoir) est un manque ou un fait, que le modèle dit."""
 
 from __future__ import annotations
 
@@ -12,16 +13,17 @@ from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.articles import _reprendre_les_dits
 from api.services.commande.moteur.prealables import (
+    CLES_DE_L_ETAT,
     _minimum_de_l_adresse,
     _mode_dit,
     _rien_n_est_pris,
     _valider,
     adresse_verifiee,
-    annoncer_la_fermeture,
     chiffrer_le_panier,
     exiger_une_voie,
     garder_l_heure,
     mode_implique_par_l_adresse,
+    noter_la_fermeture,
     proposer_un_autre_mode_hors_zone,
     question_du_mode,
     retenir_la_seule_commune_livree,
@@ -39,33 +41,33 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     etat = await source.etat(choisi)
     a_planifier = not etat["ouvert"] and bool(etat.get("planifiee_permise"))
     if not etat["ouvert"] and not a_planifier:
+        noter_la_fermeture(p)  # le modèle la dit d'après le statut et les faits (C7a), dès ce tour (T2)
         return _avec(
-            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}}, annoncer_la_fermeture(p, etat)),
+            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""),
             p,
         )
     await garder_l_heure(source, p, heure_voulue)
     r = await _poser_le_mode(source, p, regles, choisi, a_planifier)
     if not a_planifier or r.statut != "OK":
         return r
-    # Fermé mais planifiable : le résultat dit la fermeture et propose le créneau ; la question en cours (zone, articles) suit, sinon l'heure.
-    # Appel 2610 : la fermeture déjà dite avec la question du mode ne se redit pas.
-    fermeture = annoncer_la_fermeture(p, etat)
+    # Fermé mais planifiable : le résultat porte la fermeture et le créneau en faits (le modèle les dit) ; la question en cours (zone, articles) suit, sinon l'heure.
+    # Appel 2610 : la fermeture est marquée dite avec la question du mode (le code ne la redit plus, elle n'est plus qu'un fait).
+    noter_la_fermeture(p)
+    heure_voulue_dite = None
     dire = getattr(source, "quand_dit", None)
     if p.get("heure_voulue") and dire:
         # Appel 2566 : l'heure est déjà dite et gardée, c'est déjà l'accord pour plus tard ; la proposition de « plus tard » n'est pas refaite (le modèle la
         # tournait en « est-ce que cela vous convient ? »). Le résultat dit pour quand la commande est prise ; le créneau se vérifie à ``finaliser``.
-        fermeture = f"Commande pour {await dire(datetime.fromisoformat(p['heure_voulue']))}."
-    faits = {**r.faits, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, "a_planifier": True, "fermeture": fermeture}
+        heure_voulue_dite = await dire(datetime.fromisoformat(p["heure_voulue"]))
+    faits = {**r.faits, **{k: etat.get(k) for k in CLES_DE_L_ETAT}, "a_planifier": True, **({"heure_voulue_dite": heure_voulue_dite} if heure_voulue_dite else {})}
     prochaine = etat.get("prochaine_ouverture")
     if not p.get("heure_voulue") and not p.get("heure_proposee_faite") and isinstance(prochaine, datetime) and dire is not None:
         # Evan, 21/11 : « il faut lui indiquer dès le début de l'appel que le magasin est fermé et lui demander si elle veut planifier une commande pour
         # l'ouverture à 18 h ». La proposition est LA question du début (``heure_proposee``) ; ce qui manque ensuite (les articles, l'adresse) suit sa réponse.
         p["heure_proposee_faite"] = True
-        phrase = f"{fermeture} Voulez-vous que je prépare votre commande pour {await dire(prochaine)} ?".strip()
-        return _avec(_r("FERME_PLANIFIABLE", {**faits, "heure_proposee": prochaine.isoformat()}, phrase, "heure_proposee"), p)
-    suite = r.suggestion if r.manque else ("" if p.get("heure_voulue") else "Pour quel jour et à quelle heure ?")
-    phrase = fermeture + (f" {suite}" if suite else "")
-    return _avec(_r("FERME_PLANIFIABLE", faits, phrase.strip(), r.manque), p)
+        faits = {**faits, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
+        return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
+    return _avec(_r("FERME_PLANIFIABLE", faits, "", r.manque), p)  # C7 B5 : la question en cours (zone, articles) est le manque, le modèle la pose
 
 
 async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, choisi: str, a_planifier: bool) -> Resultat:
@@ -82,20 +84,26 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
     if chiffre.statut != "OK":
         # Le nouveau mode ne tient pas pour un des articles (prix, minimum de la zone, rupture) : dit, rien n'est retiré en silence.
         faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}
-        return _avec(_r("OK", faits, chiffre.suggestion), p)
+        return _avec(_r("OK", faits, ""), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
         if _rien_n_est_pris(p):
             faits["panier_vide"] = True  # M116 : le modèle ne parle pas de la commande comme si elle avait des articles
-        return _avec(_r("OK", faits, source.question_de_la_zone, "zone"), p)
+        return _avec(_r("OK", faits, "", "zone"), p)  # C7 B5 : le modèle demande l'adresse d'après le manque
     repris = await _reprendre_les_dits(source, p, regles)
     if repris is not None:
         # SA-33 : ce qui était dit avant le mode est pris maintenant ; la suite est sa question, ou rien.
-        return _avec(Resultat(repris.statut, {**faits, **repris.faits}, repris.suggestion, repris.manque), p)
+        return _avec(Resultat(repris.statut, {**faits, **repris.faits}, "", repris.manque), p)
     if not p["lignes"]:
         # Rien n'est encore pris : le résultat le dit (un manque à la fois), pour que le modèle enchaîne sur les articles que la personne a déjà dits,
         # ou les lui demande, au lieu de parler de la commande comme si elle avait des articles.
         return _avec(_r("OK", faits, "", "articles"), p)
     return _avec(_r("OK", faits, ""), p)
+
+
+def _avec_le_minimum(r: Resultat, faits: dict[str, Any], p: dict[str, Any], manque: str | None) -> Resultat:
+    """L'adresse retenue, rien de pris : le minimum de la zone est le fait ``minimum_dit`` (la copie du modèle n'a pas le montant en centimes de la zone) ; le code ne l'écrit plus en phrase."""
+    minimum_dit = _minimum_de_l_adresse(faits, p)
+    return Resultat(r.statut, {**faits, "minimum_dit": minimum_dit} if minimum_dit is not None else faits, "", manque)
 
 
 async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, adresse: str | None, commune: str | None = None) -> Resultat:
@@ -106,7 +114,7 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
     voie_dite, commune_dite = (adresse or "").strip(), (commune or "").strip()
     texte = ", ".join(x for x in (voie_dite, commune_dite) if x)
     if not texte:
-        return _avec(_r("ARGUMENT_INVALIDE", {}, source.question_de_la_zone, "adresse"), p)
+        return _avec(_r("ARGUMENT_INVALIDE", {}, "", "adresse"), p)  # C7 B5 : le modèle redemande l'adresse d'après le manque
     r = proposer_un_autre_mode_hors_zone(source, await retenir_la_seule_commune_livree(source, await source.verifier_adresse(commune_dite or voie_dite)))
     essai = copy.deepcopy(p)
     if r.statut == "RETENU":
@@ -132,13 +140,13 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
         if chiffre.statut != "OK":
             faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}  # le minimum de cette zone n'est pas atteint : dit, rien n'est retiré
             _valider(p, essai)
-            return _avec(Resultat(r.statut, faits, chiffre.suggestion, r.manque), p)
+            return _avec(Resultat(r.statut, faits, "", r.manque), p)
     _valider(p, essai)
     implique = mode_implique_par_l_adresse(source) if r.statut == "RETENU" and not p.get("mode") else None
     if implique is not None:
         pose = await choisir_mode(source, p, regles, implique)
         if pose.statut in ("OK", "FERME_PLANIFIABLE") or p.get("mode"):
-            return _avec(Resultat(pose.statut if pose.statut != "OK" else r.statut, {**faits, **pose.faits}, " ".join(t for t in (r.suggestion, pose.suggestion) if t), pose.manque), p)
+            return _avec(Resultat(pose.statut if pose.statut != "OK" else r.statut, {**faits, **pose.faits}, "", pose.manque), p)
     if r.statut == "HORS_ZONE":
         repris = await _reprendre_les_dits(source, p, regles)
         if repris is not None and repris.faits.get("ajoutes"):
@@ -147,14 +155,14 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
         repris = await _reprendre_les_dits(source, p, regles)
         if repris is not None and repris.statut != "OK":
             # SA-33 : ce qui était dit avant la zone est pris ; sa question passe avant tout.
-            return _avec(Resultat(repris.statut, {**faits, **repris.faits}, repris.suggestion, repris.manque), p)
+            return _avec(Resultat(repris.statut, {**faits, **repris.faits}, "", repris.manque), p)
         if repris is not None:
             faits["ajoutes"] = repris.faits.get("ajoutes") or []
         elif p.get("mode") and _rien_n_est_pris(p) and not r.manque:
             # M116 (appel 2598) : l'adresse est posée et rien n'est encore pris : le résultat le dit et demande les plats (un manque à la fois),
             # jamais un article cité comme pris sur un panier vide.
             faits["panier_vide"] = True
-            return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p)) if t), "articles"), p)
+            return _avec(_avec_le_minimum(r, faits, p, "articles"), p)
     if r.statut == "RETENU":
-        return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p)) if t), r.manque), p)
-    return _avec(Resultat(r.statut, faits, r.suggestion, r.manque), p)
+        return _avec(_avec_le_minimum(r, faits, p, r.manque), p)
+    return _avec(Resultat(r.statut, faits, "", r.manque), p)

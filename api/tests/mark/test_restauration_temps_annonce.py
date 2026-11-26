@@ -159,7 +159,7 @@ async def test_les_trois_formats_se_reglent_par_type_l_heure_ecrite_et_la_phrase
     r = await enregistrer_commande(commerce.c, commerce.a, brouillon(), "relu-1")
     assert r.statut == "ENREGISTREE"
     assert r.faits["heure_annoncee"] == attendue and r.faits["annonce"]["format"] == format_
-    assert r.suggestion == f"Votre commande est enregistrée, elle sera prête {phrase}."
+    assert (r.suggestion, r.faits["mode"], r.faits["quand_dit"]) == ("", "emporter", phrase)  # C7 B9 (0e89e408) : plus de texte ; « enregistrée, prête/livrée … » est dans les faits mode et quand_dit
     assert await commerce.c.fetchval("SELECT heure_annoncee FROM mark.resto_commande WHERE numero = $1::uuid", r.faits["numero"]) == attendue
 
 

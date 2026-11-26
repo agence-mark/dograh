@@ -28,7 +28,12 @@ async def test_la_question_d_annulation_est_dite_par_le_modele_avec_le_montant_e
     assert not (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("avant"), e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE)  # le code ne pose pas la question
     assert r["faits"]["annulation_a_confirmer"]["montant"] == e.p["enregistree"]["total"], r["faits"]
     assert PORTE.A_FAIRE_DE_L_ANNULATION in r["a_faire"], r["a_faire"]
+    textes = dict(e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {})
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "D'accord, j'annule votre commande de dix euros quatre-vingt-dix, c'est bien ça ?"})
+    e.fiche_de_l_appel[PORTE.CLE_TEXTES_DU_CODE] = textes  # la même fiche, une autre phrase du modèle
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : la question du modèle qui dit le montant exigé part telle quelle ; sans lui, elle est relancée (test_p1f_lot7c6_annulation_au_modele.py)
+    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire.endswith("c'est bien ça ?"), d
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "D'accord, j'annule votre commande, c'est bien ça ?"})
     assert d.mode != PAROLE.A_DIRE_SEUL, d
     assert not chiffre_dans_la_phrase("D'accord, j'annule votre commande de dix euros quatre-vingt-dix, c'est bien ça ?", faits=DU.faits_du_refus(r)), "le montant est un fait du retour"
 
@@ -39,7 +44,9 @@ async def test_le_oui_donne_toujours_la_confirmation_du_code(essai_de):
     await e.tour("j'annule tout", annuler_une_commande_enregistree=True)
     q = CONV.question_de(e.p)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
-    assert e.p.get("annulee") and (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("avant") == RQ.TEXTE_ANNULATION_CONFIRMEE, e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE)
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le « oui » annule toujours ; le modèle le dit, le code garde le fait au journal (jamais redit, reprise R1)
+    textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
+    assert e.p.get("annulee") and not textes.get("avant") and textes.get("fait_accompli") == {"fait": "annulee"}, textes
 
 
 async def test_la_question_d_annulation_ne_change_pas_le_verdict_de_la_commande(essai_de):

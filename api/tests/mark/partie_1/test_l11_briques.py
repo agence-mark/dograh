@@ -609,13 +609,13 @@ def _regles(r: dict) -> list[dict]:
 
 async def test_conv_la_lecture_d_une_formule_rend_ses_etapes_ses_regles_et_son_prix(essai_de):
     """FOR9-B, FOR7 : « c'est quoi le menu étudiant ? » ; la lecture d'une formule ne rendait rien (« je ne peux pas le confirmer »). Elle rend ses étapes et
-    leurs choix, son justificatif, sa condition, et son prix, dit par le code (PRX5, D33)."""
+    leurs choix, son justificatif, sa condition, et son prix (PRX5, D33). C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : le prix est un fait que le modèle dit, la barrière le vérifie."""
     e = await brique(essai_de, "FOR9")
     r = await e.lecture(sujet="article", article="menu étudiant")
     f = r["faits"]
     assert f["renseigne"] is True and [x["etape"] for x in f["etapes"]] == ["Sandwich", "Boisson"] and f["etapes"][0]["choix"] == ["Panini"], r
     assert f["justificatif"].startswith("présentation") and f["prix"] == {"montant": 850, "a_partir_de": False}, r
-    assert r.get("prix_dit_par_le_code_apres_ta_phrase") is True and "prix_a_dire" not in f, r
+    assert "prix_dit_par_le_code_apres_ta_phrase" not in r and "prix_a_dire" not in f, r
     e7 = await brique(essai_de, "FOR7")
     f7 = (await e7.lecture(sujet="article", article="menu enfant"))["faits"]
     assert f7["condition"] == {"age_max": 10} and f7["modes"] == ["sur_place"], f7
@@ -707,7 +707,7 @@ async def test_conv_le_refus_du_melange_dit_chaque_alternative_a_sa_quantite(ess
     e = await brique(essai_de, "FOR12")
     r = await _ajouter(e, "un menu partage bouteille de coca canette de fanta", article="menu partage", quantite=1, composition=["bouteille de coca", "canette de fanta"])
     faits = r["resultats"][0]["faits"]
-    assert faits["raison"] == "alternatives_melangees" and faits["choix"] == ["un Coca Bouteille", "trois Coca Canette ou Fanta"], fait(r)
+    assert faits["raison"] == "alternatives_melangees" and faits["alternatives"] == [{"quantite": 1, "options": ["Coca Bouteille"]}, {"quantite": 3, "options": ["Coca Canette", "Fanta"]}], fait(r)
 
 
 async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
@@ -737,11 +737,16 @@ async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
 
 
 def test_conv_la_question_d_etape_redite_par_le_repli_finit_par_un_seul_point_d_interrogation():
-    """Série 2 du lot 11 (FOR3-A) : « … cookie, donut ou dessert du jour ? ? » ; la question d'étape finit déjà par « ? »."""
-    from api.services.actions_communes.repli import repli_dit_par_le_code
+    """Série 2 du lot 11 (FOR3-A) : « … cookie, donut ou dessert du jour ? ? » ; décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne redit plus la question d'étape, le modèle est relancé
+    avec son objet (l'article en question) : aucune phrase du code, donc aucun « ? ? »."""
 
-    p = {CONV.CLE: {CONV.CLE_QUESTION: {"type": "etape", "texte": "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"}}}
-    assert repli_dit_par_le_code(p) == "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"
+    from api.services.actions_communes.parole import EtatDuTour
+    from api.services.actions_communes.repli import consigne_de_relance
+
+    texte = "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "etape", "texte": texte, "article_en_question": "Formule complète"}}}
+    consigne = consigne_de_relance(p, {}, EtatDuTour(tour=1))
+    assert json.loads(consigne[consigne.index("{"):])["puis"] == {"question": {"id": "Q-1", "type": "etape", "article_en_question": "Formule complète"}} and texte not in consigne
 
 
 async def _parole_de(e, a_dire, **cases):
@@ -751,15 +756,21 @@ async def _parole_de(e, a_dire, **cases):
     return r, PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, **cases})
 
 
-async def test_conv_lot_9_une_ambiguite_est_dite_par_le_code(essai_de):
-    """Lot 9 (OPT3-A, recommandation 1 de SA-5, retenue par le coordinateur) : le code demande « Vous voulez dire : Bubble tea ? » et le modèle disait
-    « je ne trouve pas de bubble tea » : une question d'ambiguïté née dans le tour est dite par le code, à la place de la phrase du modèle."""
+async def test_conv_lot_9_une_ambiguite_est_rendue_au_modele_avec_ses_candidats(essai_de):
+    """Lot 7b-C4, E1 = A (Evan, 25/11 ; avant : lot 9, OPT3-A, le code disait « Vous voulez dire : Bubble tea ? » mot pour mot à la place de la phrase du modèle) : une question d'ambiguïté
+    née dans le tour suit la ligne de toute question née : le modèle repasse avec les candidats (``faits.candidats``, ``faits.dit``) et dit le doute avec ses mots ; si le modèle se tait, le repli
+    est relancé avec le doute (lot 7b-C5), jamais avec le texte du registre, que le modèle ne reçoit jamais."""
+
     from api.services.actions_communes import parole as PAROLE
+    from api.services.actions_communes.repli import consigne_de_relance
 
     e = await brique(essai_de, "OPT3")
     r, d = await _parole_de(e, "Je ne trouve pas de bubble tea sur notre carte.", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}])
     assert r["question"]["type"] == "ambiguite", r
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and d.a_dire == r["question"]["texte"], d
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == "fait_bloquant" and d.a_dire is None, d
+    assert r["resultats"][0]["faits"] == {"candidats": ["Bubble tea"], "dit": "bubble tea avec des perles"}, r["resultats"]
+    consigne = consigne_de_relance(e.p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel))  # le modèle muet : relancé avec le doute en faits
+    assert json.loads(consigne[consigne.index("{"):])["puis"]["question"]["candidats"] == ["Bubble tea"] and "Vous voulez dire" not in consigne, consigne
 
 
 async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_modele(essai_de):
@@ -770,7 +781,9 @@ async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_modele(essai_de):
     cases = {"ajouter": [{"article": "coupe de glace", "variante": "3 boules", "quantite": 1, "composition": ["vanille", "chocolat", "café", "pistache"]}]}
     r, d = await _parole_de(e, "C'est noté pour la coupe.", **cases)
     assert any(x.get("statut_du_module") == "MAXIMUM_ATTEINT" for x in r["resultats"]), r
-    assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None and "pas plus de trois" in json.dumps(r["faits"]["refus_de_la_fiche"], ensure_ascii=False), (d, r["faits"])
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None, (d, r["faits"])
+    refus = r["faits"]["refus_de_la_fiche"]  # lot 7b-C4 (R = A) : le maximum est un fait (« pas plus de trois » est le texte de secours du repli), sans phrase
+    assert [(x["statut_du_module"], x["faits"]["maximum"]) for x in refus] == [("MAXIMUM_ATTEINT", 3)], refus
 
 
 async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de):
@@ -878,7 +891,8 @@ async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, 
     monkeypatch.setattr(e.source, "etat", ferme)
     await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     q = CONV.question_de(e.p) or {}
-    assert q.get("type") == "heure_proposee" and "Je vous la prépare pour" in q["texte"] and "Pour quel jour" not in q["texte"], q  # la question du registre porte l'heure de la réouverture
+    # C7 B3 (décision d'Evan 25/11 8 h 45) : le modèle pose la question avec ses mots ; la question du registre porte l'heure de la réouverture en fait, plus de texte
+    assert q.get("type") == "heure_proposee" and q["texte"] == "" and q.get("heure") and q.get("heure_dite"), q
     monkeypatch.setattr(e.source, "etat", vrai_etat)
     r = await e.dit("oui").fiche(reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("heure_voulue"), r["resultats"]

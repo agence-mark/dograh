@@ -24,7 +24,7 @@ from api.db.bases_clients import restauration as RESTAURATION
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients.restauration_carte import poser_rupture
 from api.db.bases_clients.restauration_commande import commande_complete
-from api.services.actions_communes import parole as PAROLE
+from api.services.actions_communes.repli import faits_du_fait_bloquant
 from api.services.commande import porte as PORTE_COMMANDE
 from api.services.reservation import porte as PORTE_RESERVATION
 from api.services.restauration import source_reservation as SOURCE_RESERVATION
@@ -182,9 +182,10 @@ async def _deux_reservations_pour_la_derniere_place(salle, monkeypatch, *, sabot
             fautes.append(f"{nombre} réservations en base pour la dernière place")
         for e, r in zip(essais, retours):
             if r.get("statut") != "ENREGISTREE":
-                dit = " ".join((e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {}).values())
-                if "complet" not in dit.casefold():
-                    fautes.append(f"l'appel refusé n'entend pas « complet » dit par le code (dit : « {dit} », retour {r.get('statut')}/{r.get('raison')})")
+                # Q1 (7b-B) : le modèle dit le refus complet, le code ne dit plus rien d'avance ; C5 : le refus est tenu en faits, avec lesquels le modèle muet est relancé
+                faits = faits_du_fait_bloquant(e.fiche_de_l_appel)
+                if r.get("raison") != "complet_a_cette_heure" or not faits or faits[0].get("statut_du_module") != "REFUSEE":
+                    fautes.append(f"l'appel refusé ne porte pas le refus « complet » (faits du fait bloquant : {faits}, retour {r.get('statut')}/{r.get('raison')})")
         return fautes
     finally:
         await c2.close()

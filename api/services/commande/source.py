@@ -21,14 +21,13 @@ class Source(Protocol):
 
     modes: tuple[str, ...]
     libelles_des_modes: dict[str, str]  # le mot que l'appelant entend pour chaque mode
-    question_de_la_zone: str  # la question quand le mode exige une zone et qu'elle manque
     libelles_des_moyens: dict[str, str]  # le mot que l'appelant entend pour chaque moyen de règlement (« en espèces »)
 
     def exige_une_zone(self, mode: str) -> bool: ...
 
     async def etat(self, mode: str) -> dict[str, Any]:
-        """``{ouvert, statut, raison, reprise, prochaine_ouverture, delai_minutes, planifiee_permise}`` ; ``statut`` : le statut fermé
-        à rendre quand ``ouvert`` est faux (``FERME``, ``PAUSE_TYPE``…)."""
+        """``{ouvert, statut, raison, reprise, reprise_dite, prochaine_ouverture, delai_minutes, planifiee_permise, en_pause}`` ; ``statut`` : le statut fermé
+        à rendre quand ``ouvert`` est faux (``FERME``, ``PAUSE_TYPE``…). Aucune phrase : le modèle dit la fermeture d'après ces faits (lot 7b-C7)."""
 
     async def chercher(self, texte: str) -> Resultat:
         """Dans le catalogue : ``RETENU`` (``faits.retenu`` = l'article, ``faits.options`` = taille ou contenant lus), ``AMBIGU``, ``INTROUVABLE``."""

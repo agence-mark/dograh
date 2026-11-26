@@ -18,7 +18,6 @@ from api.db.bases_clients.instantane import stable
 from api.db.bases_clients.restauration_commun import Resultat
 from api.services.communes.analyse import SURE, analyser
 from api.services.communes.base import BaseCommunes, normaliser, obtenir_base
-from api.services.mots_dits import liste_dite_et
 
 MOT_LONG_MIN = 3  # une adresse de moins de trois lettres n'est jamais analysée
 
@@ -118,8 +117,8 @@ def _livrees(base: BaseCommunes, lignes: list[dict], centre: tuple[float, float]
 
 def _hors_zone(base: BaseCommunes, commune: zs.Commune, lignes: list[dict], centre: tuple[float, float] | None) -> Resultat:
     livrees = _livrees(base, lignes, centre)
-    phrase = f"Nous ne livrons pas à {commune.nom}." + (f" Nous livrons {liste_dite_et(livrees)}." if livrees else "")
-    return Resultat("HORS_ZONE", {"commune": _commune_dite(base, commune), "communes_livrees": livrees}, phrase)
+    faits = {"commune": _commune_dite(base, commune), "communes_livrees": livrees}
+    return Resultat("HORS_ZONE", faits, "")
 
 
 def commune_et_departement_dits(base: BaseCommunes, texte: str) -> zs.Commune | None:
@@ -142,20 +141,16 @@ def commune_et_departement_dits(base: BaseCommunes, texte: str) -> zs.Commune | 
     return None
 
 
-def _libelle(base: BaseCommunes, commune: zs.Commune) -> str:
-    return f"{commune.nom} ({base.nom_departement(commune.dep)})"
-
-
 async def verifier_adresse(connexion: asyncpg.Connection, etablissement_id: int, texte: str, *, base: BaseCommunes | None = None) -> Resultat:
     """La zone de l'adresse dite. ``RETENU`` quand UNE commune est entendue avec certitude et qu'une zone la contient (``faits.zone``, ``faits.commune``) ;
     ``HORS_ZONE`` quand elle est sûre mais hors de toutes les zones ; ``AMBIGU`` pour tout ce qui est à confirmer (jamais une zone) ; ``INTROUVABLE`` sans
     commune entendue. Rend ``ARGUMENT_INVALIDE`` pour un texte vide."""
     if len((texte or "").strip()) < MOT_LONG_MIN:
-        return Resultat("ARGUMENT_INVALIDE", {}, "Je n'ai pas compris l'adresse, pouvez-vous la répéter ?", "adresse")
+        return Resultat("ARGUMENT_INVALIDE", {}, "", "adresse")
     base = base or await obtenir_base()
     lignes = await zones_de_l_etablissement(connexion, etablissement_id)
     if not lignes:
-        return Resultat("HORS_ZONE", {"raison": "aucune_zone"}, "Nous ne livrons pas à cette adresse.")
+        return Resultat("HORS_ZONE", {"raison": "aucune_zone"}, "")
     par_id = {r["id"]: r for r in lignes}
     centre = await centre_de_l_etablissement(connexion, etablissement_id, base)
     nommee = commune_et_departement_dits(base, texte)
@@ -170,15 +165,15 @@ async def verifier_adresse(connexion: asyncpg.Connection, etablissement_id: int,
         # M28 : une commune réelle, nommée seule, que l'analyse n'a pas relevée (hors des communes proches) : cherchée dans la liste nationale.
         voisine = _commune_nommee(base, texte)
         if isinstance(voisine, list):
-            noms = " ou ".join(_libelle(base, c) for c in voisine)
-            return Resultat("AMBIGU", {"candidats": [{**_commune_dite(base, c), "dans_une_zone": zs.zone_de_la_commune([_zone_pure(r) for r in lignes], c, centre) is not None} for c in voisine]}, f"Est-ce {noms} ?", "commune")
+            faits = {"candidats": [{**_commune_dite(base, c), "dans_une_zone": zs.zone_de_la_commune([_zone_pure(r) for r in lignes], c, centre) is not None} for c in voisine]}
+            return Resultat("AMBIGU", faits, "", "commune")
         if voisine is not None and zs.zone_de_la_commune([_zone_pure(r) for r in lignes], voisine, centre) is None:
             return _hors_zone(base, voisine, lignes, centre)
-        return Resultat("INTROUVABLE", {}, "Dans quelle commune se trouve l'adresse ?", "commune")
+        return Resultat("INTROUVABLE", {}, "", "commune")
     if verdict.statut == zs.AMBIGU:
         candidats = [{**_commune_dite(base, c.commune), "dans_une_zone": c.zone is not None} for c in verdict.candidats]
-        noms = " ou ".join(_libelle(base, c.commune) for c in verdict.candidats)
-        return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {noms} ?", "commune")
+        faits = {"candidats": candidats}
+        return Resultat("AMBIGU", faits, "", "commune")
     commune = _commune_dite(base, verdict.commune)
     if verdict.statut == zs.HORS_ZONE:
         return _hors_zone(base, verdict.commune, lignes, centre)

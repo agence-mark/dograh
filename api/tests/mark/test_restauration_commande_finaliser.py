@@ -113,7 +113,7 @@ async def test_un_numero_refuse_est_demande_une_fois_puis_le_numero_affiche_est_
     assert (await a.finaliser(moyen="carte")).manque == "confirmer_numero"
     moteur.repondre_au_numero_affiche(a.p, "refuse", a.appelant)
     r = await a.finaliser(moyen="carte", confirmer=True)
-    assert (r.manque, r.suggestion) == ("telephone", "Quel numéro je note ?")
+    assert (r.manque, r.suggestion) == ("telephone", "")  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le modèle demande le numéro, le code ne dit rien
     r = await a.finaliser(moyen="carte", confirmer=True)  # elle n'a rien dicté : la question n'est pas redite, le numéro affiché est reproposé
     assert r.manque == "confirmer_numero" and "Quel numéro je note" not in r.suggestion, (r.manque, r.suggestion)
     moteur.repondre_au_numero_affiche(a.p, "accepte", a.appelant)
@@ -142,10 +142,9 @@ async def test_la_relecture_dit_tout_en_toutes_lettres_et_ne_sauve_rien(commerce
     a = await Appel(commerce).pret()
     r = await a.jusqu_a_la_relecture()
     assert r.statut == "INCOMPLETE" and r.manque == "relecture" and r.faits["a_confirmer"] is True
-    assert r.suggestion.startswith("Je vous relis : une Regina Normale et un Coca-Cola")  # les quantités sont dites en lettres
-    # Lot 4 (M38, D49) : la relecture est le récapitulatif et le total seulement ; le règlement se demande ensuite (``regler``, M39)
-    assert "à emporter" in r.suggestion and "euro" in r.suggestion and "Vous réglez" not in r.suggestion
-    assert not any(c.isdigit() for c in r.suggestion)  # aucun chiffre à lire : tout est dit en lettres
+    # C6 n° 3b (décision d'Evan 25/11 9 h 30) : la relecture rend des faits, le modèle la dit ; le code dira la phrase réglée du total. Lot 4 (M38, D49) : le règlement se demande ensuite
+    assert r.suggestion == "" and [(l["nom"], l["quantite"]) for l in r.faits["lignes"]] == [("Regina Normale", 1), ("Coca-Cola", 1)], r
+    assert "emporter" in r.faits["mode_dit"] and "moyens" not in r.faits
     assert r.faits["total"] == 1290 + 200
     assert await a.commandes() == []
 
@@ -175,8 +174,8 @@ async def test_apres_une_correction_seul_ce_qui_change_est_relu(commerce):
     await a.ajouter(A("tiramisu", supplements=["classic"]))
     r = await a.confirmer()  # le « oui » ne vaut plus : la commande a changé
     assert r.manque == "relecture" and await a.commandes() == []
-    assert "Je vous relis" not in r.suggestion  # pas toute la commande
-    assert "On ajoute un tiramisu" in r.suggestion and "Cela fait maintenant" in r.suggestion
+    # C6 n° 4 (décision d'Evan 25/11 9 h 30) : pas toute la commande, seulement ce qui a changé, en faits
+    assert "lignes" not in r.faits and any(c["geste"] == "ajoutee" and "iramisu" in c["nom"] for c in r.faits["ce_qui_a_change"]), r
     assert r.faits["total"] == premiere.faits["total"] + 490
     assert (await a.confirmer()).statut == "ENREGISTREE"
 
@@ -193,8 +192,8 @@ async def test_apres_une_correction_seul_ce_qui_change_est_relu(commerce):
 async def test_le_numero_affiche_n_est_pas_lu_dans_la_relecture(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
-    assert r.suggestion.count("?") == 1 and "numéro" not in r.suggestion
-    assert "0612" not in r.suggestion and "612345678" not in r.suggestion and "+33" not in r.suggestion
+    # C6 (décision d'Evan 25/11 9 h 30) : la relecture n'a plus de phrase ; ses faits ne portent pas le numéro dicté
+    assert r.suggestion == "" and "612345678" not in str(r.faits.get("lignes")) and "telephone" not in r.faits
 
 
 async def test_un_numero_masque_est_demande_puis_pris(commerce):
@@ -230,7 +229,12 @@ async def test_reglement_mixte_le_code_calcule_le_reste_et_la_monnaie(commerce):
     await a.jusqu_a_la_relecture()
     ok = await a.confirmer(moyen="titre_restaurant", part=20, moyen_reste="especes", rendu_sur=50)
     assert ok.statut == "ENREGISTREE" and ok.faits["monnaie"] == 5000 - 780
-    assert "quarante-deux euros vingt" in ok.suggestion  # le rendu de monnaie dit à la confirmation (C11)
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le rendu n'est plus composé dans le résultat ; il est un fait (``rendu`` : billet, monnaie), dit par le code avec le motif réglé
+    # ``rendu_de_monnaie`` après la confirmation du modèle (porte, ``_phrase_du_rendu``)
+    from api.services.mots_dits import montant_en_lettres
+
+    assert ok.faits["rendu"]["billet"] == 5000 and montant_en_lettres(ok.faits["rendu"]["monnaie"]) == "quarante-deux euros vingt", ok.faits
+    assert "quarante-deux euros vingt" not in ok.suggestion, ok.suggestion
     paiement = a.prise.recues[0]["paiement"]
     assert [(m["moyen"], m["montant"]) for m in paiement["moyens"]] == [("titre_restaurant", 2000), ("especes", 780)]
     assert paiement["rendu_sur"] == 5000
@@ -241,7 +245,7 @@ async def test_un_moyen_non_accepte_est_refuse_avec_ceux_qui_le_sont(commerce):
     await a.jusqu_a_la_relecture()
     r = await a.confirmer(moyen="cheque")
     assert r.statut == "MOYEN_NON_ACCEPTE" and set(r.faits["acceptes"]) == {"carte", "especes", "titre_restaurant"}
-    assert "par carte" in r.suggestion
+    assert r.suggestion == "" and "par carte" in r.faits["acceptes_dits"]  # C7 B5 (Evan 25/11 8 h 45) : le modèle dit les moyens pris, d'après les faits
 
 
 async def test_une_part_sans_le_reste_demande_le_reste(commerce):
@@ -304,7 +308,7 @@ async def test_un_restaurant_qui_ferme_entre_temps_refuse_avec_la_raison(commerc
     await a.jusqu_a_la_relecture()
     await commerce.c.execute("UPDATE mark.resto_reglage_type SET pause_jusqu_a = $2 WHERE site_id = $1 AND type = 'emporter'", commerce.a, JEUDI_MIDI.replace(hour=13))
     r = await a.confirmer()
-    assert r.statut == "PAUSE_TYPE" and "pause" in r.suggestion
+    assert r.statut == "PAUSE_TYPE" and r.suggestion == ""
     assert await a.commandes() == []
 
 

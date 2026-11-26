@@ -1,8 +1,8 @@
 """[.mark] L'enveloppe de retour unique d'une fiche (chantier Partie 1, lot 2, étape 7 ; méthode § 3, « le retour du code au modèle »).
 
 Toujours la même forme : un statut en liste fermée, les résultats (un par opération), les faits, la prochaine question numérotée (``Q-n``), la raison,
-les choix et ``a_faire`` en cas de refus. Le code ne montre JAMAIS au modèle une phrase qu'il dit lui-même : il dit seulement qu'il la dit
-(``prix_dit_par_le_code_apres_ta_phrase`` à ``true`` ; B10 § 1 point 4).
+les choix et ``a_faire`` en cas de refus. Le code ne montre JAMAIS au modèle une phrase qu'il dit lui-même (B10 § 1 point 4) ; C6 n° 11 : les prix sont des faits que le
+modèle dit, le drapeau du prix dit par le code après la phrase n'existe plus (un retour qui le porte sort de l'enveloppe).
 
 Chaque raison de refus est rangée « fiche » (``REFUS_DE_LA_FICHE`` : la forme de la fiche, ou une valeur qui ne vient pas d'elle ; B12 § 2,
 décision 1) ou « métier » (``RAISONS_DU_METIER`` : hors zone, rupture, horaire plein, minimum…). Ce que la parole fait d'un refus de la fiche est
@@ -59,8 +59,6 @@ assert not REFUS_DE_LA_FICHE & RAISONS_DU_METIER, "une raison est rangée « fic
 
 FORMAT_QUESTION = re.compile(r"^Q-[1-9]\d*$")
 REPONSES_FERMEES = ("accepte", "refuse", "autre")
-# Les phrases que le code dit lui-même et que le retour ne montre jamais (seulement le drapeau qui dit qu'il les dit).
-DRAPEAUX_DE_PAROLE_DU_CODE = ("prix_dit_par_le_code_apres_ta_phrase",)
 CLES_INTERDITES = ("phrase_du_code", "texte_du_prix", "phrase_de_la_regle", "chiffre_dit")
 
 
@@ -75,6 +73,12 @@ def rangee(raison: str) -> str | None:
     if raison in RAISONS_DU_METIER:
         return "metier"
     return None
+
+
+# Les questions que le code dit lui-même, mot pour mot, après la phrase du modèle (``suffixe``, C6 n° 12) (le numéro dicté ; C6 : la relecture de la commande, les récapitulatifs et l'annulation de la réservation n'y sont
+# plus, le modèle les dit, n° 3b et 8) : seules elles rendent leur texte au modèle. Toute autre question lui est donnée par son type, sans phrase (7b-C4, R = A) ; son texte reste au
+# registre (identité de la question : sa structure et son jeton, jamais son texte, C5 n° 10).
+QUESTIONS_DITES_PAR_LE_CODE = frozenset({"numero_dicte"})
 
 
 @dataclass
@@ -93,7 +97,8 @@ class Question:
             raise EnveloppeInvalide("une question rend ses réponses possibles")
 
     def vers_json(self) -> dict[str, Any]:
-        return {"id": self.id, "type": self.type, "texte": self.texte, "reponses": list(self.reponses)}
+        texte = self.texte if self.type in QUESTIONS_DITES_PAR_LE_CODE else ""
+        return {"id": self.id, "type": self.type, "texte": texte, "reponses": list(self.reponses)}
 
 
 @dataclass
@@ -125,15 +130,12 @@ def verifier(retour: dict[str, Any]) -> None:
     phrase du code montrée au modèle."""
     if retour.get("statut") not in STATUTS:
         raise EnveloppeInvalide(f"statut {retour.get('statut')!r} hors de {STATUTS}")
-    inconnues = set(retour) - set(CLES) - set(DRAPEAUX_DE_PAROLE_DU_CODE)
+    inconnues = set(retour) - set(CLES)
     if inconnues:
         raise EnveloppeInvalide(f"clés hors de l'enveloppe : {sorted(inconnues)}")
     q = retour.get("question")
     if q is not None:
         Question(**{k: (tuple(v) if k == "reponses" else v) for k, v in q.items()})
-    for drapeau in DRAPEAUX_DE_PAROLE_DU_CODE:
-        if drapeau in retour and retour[drapeau] is not True:
-            raise EnveloppeInvalide(f"{drapeau} vaut true ou n'est pas là : la phrase elle-même n'est jamais dans le retour")
     _sans_phrase_du_code(retour)
     for raison in _raisons(retour):
         if rangee(raison) is None:

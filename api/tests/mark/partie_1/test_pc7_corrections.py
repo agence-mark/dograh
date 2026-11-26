@@ -76,7 +76,7 @@ def test_le_moteur_donne_les_reglages_de_l_outil_a_la_question(monkeypatch):
 async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
     """Défaut 3 (``pc7-conv2-hors-zone``, tour 1, appel 28) : la fiche rend le hors zone et la proposition offerte ; le second passage du
     modèle ne rend rien (4 jetons, relance sans flux vide aussi) : le flux vérifié ne contrôlait qu'un texte, rien n'était dit. Sur une étape
-    qui porte la fiche, le silence du modèle au bout des passes est remplacé par la phrase du code (``repli_dit_par_le_code``)."""
+    qui porte la fiche, le silence du modèle au bout des passes relance le modèle avec le fait (``consigne_de_relance``, lot 7b-C5)."""
     from types import SimpleNamespace
 
     from api.services.actions_communes import parole as PAROLE
@@ -93,34 +93,36 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
 
     from api.tests.mark.partie_1.aides_du_cerveau import flux_du_cerveau
 
+    # Décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne compose plus le refus ; le modèle muet est relancé avec le fait (le refus, les communes livrées, l'autre mode),
+    # et si la relance échoue la phrase réglée de l'agent est dite : jamais un tour muet.
     v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
-    dit = await flux_du_cerveau("", v)  # le vrai cerveau : un modèle qui ne rend rien, la fiche a un fait bloquant
-    assert dit.strip(), dit
-    # Point de contrôle du lot 7, suite (coordinateur) : la personne apprend qu'on ne la livre pas. Le fait bloquant se dit d'abord (la phrase du
-    # module : la raison et les communes livrées), puis ce qu'on propose (l'autre mode) ; jamais la proposition de vente en plus seule.
-    # Lot 7b (Q1) : le code ne dit plus rien avant la phrase du modèle ; quand le modèle se tait, le repli (texte de secours) dit tout : la raison, puis l'autre mode.
     hors_zone = next(x for x in r["resultats"] if x.get("statut_du_module") == "HORS_ZONE")
-    assert dit.startswith("Nous ne livrons pas à Compiègne."), dit
-    assert all(c in dit for c in hors_zone["faits"]["communes_livrees"]), dit
-    assert dit.endswith("À emporter ?"), dit
-    assert "propose" not in dit, dit
+    retenue = v.controler_le_silence()
+    assert retenue is not None and retenue.a_dire is None and "HORS_ZONE" in retenue.consigne, retenue
+    assert all(c in retenue.consigne for c in hors_zone["faits"]["communes_livrees"]), retenue.consigne
+    assert "Nous ne livrons pas" not in retenue.consigne, retenue.consigne
+    dit = await flux_du_cerveau("", PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)))  # le vrai cerveau : un modèle qui ne rend rien, la relance aussi
+    assert dit.strip() and "Compiègne" not in dit, dit
 
 
 async def test_le_fait_bloquant_d_une_fiche_d_avant_n_est_jamais_redit(essai_de):
-    """La phrase du fait bloquant vaut pour le tour de sa fiche : au tour suivant, le repli revient à la question en attente."""
+    """Les faits du fait bloquant valent pour le tour de leur fiche : au tour suivant, la relance du modèle revient à la question en attente (lot 7b-C5)."""
     from api.services.actions_communes import repli as R
     from api.services.workflow import parole_de_la_fiche as PF
 
     e = await essai_de("casa-italia")
     await e.tour("Deux reines normales, livrées au 8 rue Solférino à Compiègne", ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}],
                  mode_de_retrait="livraison", adresse="8 Rue Solférino", commune="Compiègne")
-    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel)
+    assert R.faits_du_fait_bloquant(e.fiche_de_l_appel)
     e.dit("Ah bon")
     p = PF.dossier_de_la_parole(e.fiche_de_l_appel)
-    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None
-    assert R.repli_dit_par_le_code(p, None, e.fiche_de_l_appel) == R.repli_dit_par_le_code(p), CONV.question_de(p)
+    assert R.faits_du_fait_bloquant(e.fiche_de_l_appel) == []
+    from api.services.actions_communes import parole as PAROLE
+
+    consigne = R.consigne_de_relance(p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel)) or ""
+    assert '"a_dire"' not in consigne, consigne  # le refus du tour d'avant n'est jamais redonné
     r = await e.tour("à emporter alors", mode_de_retrait="emporter")
-    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None, r
+    assert R.faits_du_fait_bloquant(e.fiche_de_l_appel) == [], r
 
 
 def test_l_image_donne_ses_autorites_de_certification():
@@ -153,7 +155,7 @@ def test_avec_le_fichier_des_autorites_aucun_client_ne_prend_truststore(monkeypa
 async def test_le_refus_hors_zone_est_donne_au_modele_et_une_phrase_jetee_n_est_jamais_dite(essai_de):
     """pc7g-conv2, tour 1 : la phrase du modèle (« Je ne peux pas livrer à Compiègne… ») est retenue au rattrapage, puis sa relance recopie la
     phrase jetée (« C'est bien noté pour vos deux pizzas reines à Compiègne. Livraison ou retrait ? ») et passe : le refus n'est jamais dit.
-    Lot 7b (Q1) : le code ne dit plus le refus avant le second passage ; le retour le donne au modèle (faits) et une phrase jetée n'est jamais dite : le repli dit le texte de secours."""
+    Lot 7b (Q1) : le code ne dit plus le refus avant le second passage ; le retour le donne au modèle (faits) et une phrase jetée n'est jamais dite : le modèle est relancé avec le fait (C5)."""
     from types import SimpleNamespace
 
     from api.services.actions_communes import parole as PAROLE
@@ -172,8 +174,9 @@ async def test_le_refus_hors_zone_est_donne_au_modele_et_une_phrase_jetee_n_est_
     v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
     assert v.controler("Je ne peux pas livrer à Compiègne, mais vous pouvez venir les chercher à emporter.") is not None  # le rattrapage du tour
     relance = v.controler_la_relance(jetee)
-    assert relance is not None and relance.a_dire, relance  # la phrase jetée, recopiée, n'est jamais dite
-    assert relance.a_dire.startswith("Nous ne livrons pas à Compiègne.") and relance.a_dire.endswith("?"), relance.a_dire  # rien n'a été dit avant : le texte de secours dit tout
+    # Décision d'Evan 25/11 8 h 45 (lot 7b-C5) : la phrase jetée, recopiée, n'est jamais dite et le code ne dit pas le refus à sa place : il relance le modèle avec le fait
+    assert relance is not None and relance.a_dire is None, relance
+    assert "HORS_ZONE" in relance.consigne and "Nous ne livrons pas" not in relance.consigne, relance.consigne
 
 
 async def test_la_vente_en_plus_compte_les_choix_d_une_formule(essai_de):

@@ -3,19 +3,18 @@
 - ``refus_de_la_fiche(retour)`` : le retour refuse-t-il la FICHE (sa forme, ou une valeur qui ne vient pas d'elle) ? Lecture de la liste fermée du
   lot 2 (``enveloppe.REFUS_DE_LA_FICHE``), jamais du sens. Après un refus de la fiche, une phrase du modèle sans outil n'est jamais dite. Après un
   refus du métier (hors zone, rupture, minimum…), la phrase du modèle qui dit la raison reste dite.
-- ``repli_dit_par_le_code(p)`` : au bout des passes, sans phrase dicible, le code redit, dans cet ordre, la question en attente par sa phrase du code
-  (une proposition par sa phrase de B8 ; une étape de menu par ses choix), sinon la phrase de ce qui manque (``phrases_du_manque``), sinon rien (le
-  tour est compté faux). Le code ne choisit rien : il redemande.
+- ``consigne_de_relance(p, fiche, etat, connecteur)`` (lot 7b-C5, décision d'Evan 25/11 8 h 45) : au bout des passes, sans phrase dicible, le code ne compose aucune phrase : il
+  RELANCE le modèle une fois par tour avec le fait (JSON : les refus du tour, puis la question en attente ou ce qui manque). Si la relance échoue : la suite réglée déjà
+  posée (motifs de ``PHRASES_DU_CODE``), sinon la phrase réglée « pas compris » de l'agent (P3 ; reprise R1 de C6 : jamais le fait accompli).
 """
 
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
-import re
+import json
 from typing import Any
 
-from api.services.actions_communes import journal_du_dit as J
-from api.services.actions_communes.enveloppe import REFUS_DE_LA_FICHE
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, REFUS_DE_LA_FICHE
 
 RAPPEL_APRES_REFUS = (
     "- Ta réponse précédente n'avait pas d'appel d'outil après le refus de ta fiche : elle n'a pas été dite, et rien n'est changé."
@@ -77,70 +76,139 @@ def refuse(retour: Any) -> bool:
         r.get("statut_du_module") in STATUTS_QUI_REFUSENT for r in retour.get("resultats") or [] if isinstance(r, dict))
 
 
-# Point de contrôle du lot 7 (conv2, tour 1) : la phrase du fait bloquant de la fiche de CE tour, posée par la porte du connecteur (hors zone : la
-# raison et l'autre mode), ``{"tour": n, "texte": "..."}`` dans la fiche de l'appel. Le repli la dit d'abord : un fait bloquant se dit avant tout.
-CLE_FAIT_BLOQUANT = "phrase_du_fait_bloquant"
+# Point de contrôle du lot 7 (conv2, tour 1) : les FAITS du fait bloquant de la fiche de CE tour, posés par la porte du connecteur (hors zone : la raison et l'autre mode), ``{"tour": n, "faits": {métier: [...]}}``
+# dans la fiche de l'appel (un groupe par métier : chaque porte ne retire que le sien). C5 : le texte de secours n'y est plus, la relance du modèle lit les faits.
+CLE_FAIT_BLOQUANT = "faits_du_fait_bloquant"
 CLE_DU_TOUR = "tour_de_la_personne"  # la même clé que la porte (contrat.CLE_DU_TOUR)
 
 
-def poser_le_fait_bloquant(fiche: Any, tour: Any, texte: str | None) -> None:
-    """La porte range la phrase du fait bloquant de sa fiche (``None`` : aucun, la phrase d'une fiche d'avant est retirée). Ce que le journal de ce
-    qui est dit a déjà donné en préfixe (la raison) n'y est pas : la porte ne range que ce qui reste à dire."""
+def poser_le_fait_bloquant(fiche: Any, tour: Any, de: str, faits: list[Any] | None = None) -> None:
+    """La porte du métier ``de`` range les FAITS de son fait bloquant, les refus tels que le modèle les reçoit (``faits`` vide ou ``None`` : les siens sont retirés, jamais ceux d'un
+    autre métier ; la case d'un autre tour est jetée). La relance du modèle (``consigne_de_relance``) les lit : jamais une phrase de secours."""
     if not isinstance(fiche, dict):
         return
-    if texte and texte.strip():
-        texte = texte.strip()
-        fiche[CLE_FAIT_BLOQUANT] = {"tour": tour, "texte": texte}
+    case = fiche.get(CLE_FAIT_BLOQUANT)
+    valide = isinstance(case, dict)
+    rangs = dict(case["faits"]) if valide and isinstance(case.get("faits"), dict) else {}
+    tour_de_la_case = case.get("tour") if valide else None
+    if tour is not None and tour_de_la_case != tour:
+        rangs = {}
+    rangs.pop(de, None)
+    if faits:
+        rangs[de] = list(faits)
+        tour_de_la_case = tour
+    if rangs:
+        fiche[CLE_FAIT_BLOQUANT] = {"tour": tour_de_la_case, "faits": rangs}
     else:
         fiche.pop(CLE_FAIT_BLOQUANT, None)
 
 
-def phrase_du_fait_bloquant(fiche: Any) -> str | None:
-    """La phrase du fait bloquant posée dans CE tour de la personne, sinon ``None``."""
+def faits_du_fait_bloquant(fiche: Any) -> list[Any]:
+    """Les faits des faits bloquants posés dans CE tour de la personne (un groupe par métier, dans l'ordre où les portes les ont écrits), à plat ; vide sans fait bloquant."""
     if not isinstance(fiche, dict):
-        return None
+        return []
     f = fiche.get(CLE_FAIT_BLOQUANT)
     if not isinstance(f, dict) or f.get("tour") != fiche.get(CLE_DU_TOUR):
+        return []
+    return [x for groupe in (f.get("faits") or {}).values() for x in groupe]
+
+
+# C5 (décision d'Evan 25/11 8 h 45) : le code ne compose plus de phrase vers la voix. Le modèle muet sur un refus, ou qui oublie la question due, est relancé UNE fois par tour de la personne avec le fait.
+CONSIGNE_DE_RELANCE = (
+    "- Ta réponse précédente n'a pas dit ce qui est dû à la personne : elle n'a pas été dite. Réponds-lui avec tes mots d'après ces faits (JSON, ne les recopie pas) : "
+    "``a_dire`` est ce que tu lui dis d'abord, ``puis`` ce que tu lui demandes ensuite, en une seule question : "
+)
+# C6 (décision d'Evan 25/11 9 h 30) : après certaines phrases du modèle (la relecture), le CODE dit la phrase du total et la question. Une phrase du modèle qui les dit déjà est relancée UNE fois, par la même relance du fait que
+# ci-dessus (``etat.relance_du_fait``) : un seul mécanisme.
+CONSIGNE_DE_CE_QUE_LE_CODE_DIT = (
+    "- Ta réponse précédente disait ce que le code dit lui-même juste après ta phrase (le total, ou la question) : elle n'a pas été dite. Redis-la sans prix et sans question : "
+    "ta phrase seule, le code ajoute le reste."
+)
+
+
+CONSIGNE_DES_CHIFFRES_EXIGES = "- Ta réponse précédente n'a pas été dite : elle ne disait pas ces valeurs. Redis-la avec ces valeurs, telles que les faits les donnent"
+# Seulement quand le code dit une suite après la phrase (le rendu, M108) : une question posée par le modèle (DC4, la proposition) garde sa question
+SANS_LA_SUITE_DU_CODE = ", sans autre prix et sans question (le code dit la suite juste après ta phrase)"
+# Reprise R2 de C6 : le code ne dit rien après la phrase et une question attend (DC4, la proposition, la relecture de la réservation) : la phrase doit la poser, à la fin
+CONSIGNE_DE_LA_QUESTION_DUE = ("- Ta réponse précédente n'a pas été dite : elle ne posait pas la question en attente. Redis-la en posant cette question à la fin (ta phrase finit par « ? »), "
+                               "avec ces valeurs, telles que les faits les donnent")
+
+
+def consigne_des_chiffres_exiges(etat: Any, question_due: bool = False) -> str | None:
+    """C6 n° 5 : la consigne qui relance le modèle quand sa phrase ne dit pas les valeurs que le code exige (``etat.exiges`` : l'heure de la commande enregistrée, le montant de DC4,
+    le prix d'une proposition, C6 n° 11) ; « sans question » seulement quand le code dit une suite après elle (``etat.suffixe``). ``question_due`` (reprise R2) : la phrase ne posait pas
+    la question qui attend, et le code ne dit rien après elle : la consigne demande de la poser, à la fin. ``None`` quand la relance du tour est déjà faite
+    (même compteur que les autres relances, C5). Les valeurs sont du JSON, jamais de la prose. L'appelant garde l'état."""
+    if not _prendre_la_relance_du_tour(etat):
         return None
-    texte = str(f.get("texte") or "").strip()
-    return texte or None
+    tete = CONSIGNE_DE_LA_QUESTION_DUE if question_due else CONSIGNE_DES_CHIFFRES_EXIGES + (SANS_LA_SUITE_DU_CODE if etat.suffixe else "")
+    return tete + " : " + json.dumps(etat.exiges or {}, ensure_ascii=False, default=str)
 
 
-def repli_dit_par_le_code(p: dict[str, Any] | None, texte_du_manque: Any = None, fiche: Any = None) -> str | None:
-    """La phrase que le code dit quand le modèle n'a rien de dicible au bout des passes (``appel_b12.repli_dit_par_le_code``). Un fait bloquant de ce
-    tour se dit d'abord (règle du lot 6 : la phrase du modèle est jetée sur un fait bloquant, qui se dit en premier) ; s'il propose déjà quelque chose
-    (une question), la question en attente reste posée sans être redite (une question à la fois), sinon elle suit."""
-    bloquant = phrase_du_fait_bloquant(fiche)
-    suite = _repli_sans_le_fait_bloquant(p, texte_du_manque, fiche)
-    if bloquant is None:
-        return suite
-    if bloquant.endswith("?") or not suite:
-        return bloquant
-    return f"{bloquant} {suite}"
+def consigne_de_ce_que_le_code_dit(etat: Any) -> str | None:
+    """La consigne qui relance le modèle quand sa phrase dit ce que le code dit après elle ; ``None`` quand la relance du tour est déjà faite. L'appelant garde l'état."""
+    return CONSIGNE_DE_CE_QUE_LE_CODE_DIT if _prendre_la_relance_du_tour(etat) else None
 
 
-def _repli_sans_le_fait_bloquant(p: dict[str, Any] | None, texte_du_manque: Any = None, fiche: Any = None) -> str | None:
-    if not isinstance(p, dict):
+def _prendre_la_relance_du_tour(etat: Any) -> bool:
+    """C5 : la relance du fait, une fois par tour de la personne (le même compteur que les autres relances) ; faux quand elle est déjà prise."""
+    if etat.relance_du_fait:
+        return False
+    etat.relance_du_fait = True
+    etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True
+    return True
+
+
+CLES_DE_L_OBJET_D_UNE_QUESTION = ("article_en_question", "article_propose", "offerte", "offre", "heure_dite", "choix", "candidats_dits", "groupe")  # C7 B8 : offerte et le nom de l'offre
+
+
+def _libelles(candidats: Any) -> list[str]:
+    return [str(c["libelle"]) for c in candidats or [] if isinstance(c, dict) and c.get("libelle")]
+
+
+def question_pour_la_relance(q: dict[str, Any]) -> dict[str, Any]:
+    """La question en attente donnée au modèle en faits : son numéro, son type, son objet (l'article, les candidats, les choix) ; jamais le texte de secours du module,
+    sauf pour les questions que le code dit lui-même (``QUESTIONS_DITES_PAR_LE_CODE`` : le numéro dicté, DC10, dit après la phrase du modèle depuis C6 n° 12)."""
+    sortie: dict[str, Any] = {"id": q.get("id"), "type": q.get("type")}
+    for cle in CLES_DE_L_OBJET_D_UNE_QUESTION:
+        if q.get(cle):
+            sortie[cle] = q[cle]
+    candidats = _libelles(q.get("candidats_par_identifiant"))
+    if candidats:
+        sortie["candidats"] = candidats
+    if q.get("type") in QUESTIONS_DITES_PAR_LE_CODE and q.get("texte"):
+        sortie["texte"] = q["texte"]
+    return sortie
+
+
+def _valeur_du_manque(p: dict[str, Any], connecteur: Any, fiche: Any) -> str | None:
+    """La valeur fermée de ce qui manque ensuite (``Manque`` pour la commande, la liste de la réservation) : celle que déclare le connecteur de l'étape, sinon celle de la commande."""
+    lire = getattr(connecteur, "valeur_du_manque", None)
+    if callable(lire):
+        return lire(p, fiche if isinstance(fiche, dict) else {})
+    from api.services.commande.phrases_du_manque import valeur_du_manque
+
+    return valeur_du_manque(p)
+
+
+def consigne_de_relance(p: dict[str, Any] | None, fiche: Any, etat: Any, connecteur: Any = None) -> str | None:
+    """La consigne qui relance le modèle avec le fait, une fois par tour de la personne (``etat.relance_du_fait``) : ``None`` au deuxième appel du tour, ou sans rien à dire.
+    Les faits sont du JSON (``json.dumps``), jamais de la prose : ``a_dire`` = les refus du tour tels que le modèle les reçoit ; ``puis`` = la question en attente (son objet), sinon
+    ce qui manque (valeur fermée). Jamais ``r.suggestion``, jamais ``q.texte`` d'une question que le modèle dit, jamais une phrase du catalogue du manque. L'appelant garde l'état."""
+    if etat.relance_du_fait:
         return None
-    suite = _question_ou_manque(p, texte_du_manque, fiche)
-    if suite:
-        return suite
-    # B2 (M3, règle 3 ; C5, DF5) : rien n'attend et rien ne manque parce qu'une action est faite : le repli redit le fait accompli ; « je n'ai pas
-    # bien saisi » ne reste que pour un tour où rien ne s'est fait
-    return J.fait_accompli(p)
-
-
-def _question_ou_manque(p: dict[str, Any], texte_du_manque: Any = None, fiche: Any = None) -> str | None:
-    q = CONV.question_de(p)
-    if isinstance(q, dict):
-        if q.get("type") == "proposition":
-            return q.get("repli") or None
-        texte = str(q.get("texte") or "").strip()
-        if q.get("type") == "etape" and texte:
-            return re.sub(r", ligne \d+ :", " :", texte).rstrip(" .?") + " ?"  # la question finit déjà par « ? » (lot 11 : « ? ? »)
-        return texte or None
-    if callable(texte_du_manque):  # lot 7 : le connecteur de l'étape dit ce qui manque (la réservation)
-        return texte_du_manque(p, fiche if isinstance(fiche, dict) else {})
-    from api.services.commande.phrases_du_manque import texte_a_dire
-
-    return texte_a_dire(p)
+    faits: dict[str, Any] = {}
+    a_dire = faits_du_fait_bloquant(fiche)
+    if a_dire:
+        faits["a_dire"] = a_dire
+    q = CONV.question_de(p) if isinstance(p, dict) else None
+    manque = None if q is not None or not isinstance(p, dict) else _valeur_du_manque(p, connecteur, fiche)
+    if q is not None:
+        faits["puis"] = {"question": question_pour_la_relance(q)}
+    elif manque:
+        faits["puis"] = {"manque": str(manque)}
+    if not faits:
+        return None
+    etat.relance_du_fait = True
+    etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True  # la relance du fait EST le rattrapage de ce tour : sa réponse n'est pas retenue une seconde fois pour la même raison
+    return CONSIGNE_DE_RELANCE + json.dumps(faits, ensure_ascii=False, default=str)

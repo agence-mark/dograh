@@ -75,7 +75,7 @@ async def test_creer_attribue_la_table_la_plus_juste_ecrit_et_dit(salle):
     r = await creer(salle)
     assert r.statut == "ENREGISTREE", r
     assert r.faits["tables"] == ["T1"] and r.faits["duree_minutes"] == 90 and r.faits["debut"] == SAMEDI_20H
-    assert r.suggestion == "C'est réservé pour deux personnes, samedi quatorze novembre à vingt heures, au nom de Alice."
+    assert r.suggestion == "" and (r.faits["couverts"], r.faits["quand_dit"], r.faits["prenom"]) == (2, "samedi quatorze novembre à vingt heures", "Alice")  # C7 (B7) : des faits, le modèle dit
     ligne = await salle.c.fetchrow("SELECT * FROM mark.resto_reservation WHERE numero = $1", uuid.UUID(r.faits["numero"]))
     assert (ligne["statut"], ligne["cree_par"], list(ligne["table_ids"]), ligne["site_id"]) == ("confirmee", "agent", [salle.t["T1"]], salle.a)
     # la suivante, au même moment, prend la table d'à côté ; la troisième, la table de quatre
@@ -124,7 +124,7 @@ async def test_complet_rend_les_creneaux_libres_les_plus_proches(salle):
     r = await creer(salle, telephone="+33600000009", appel_id="p9")
     assert (r.statut, r.faits["detail"]) == ("REFUSEE", "complet")
     propositions = r.faits["propositions"]
-    assert 1 <= len(propositions) <= 3 and "Je peux vous proposer" in r.suggestion
+    assert 1 <= len(propositions) <= 3 and all(p["quand_dit"] for p in propositions) and r.suggestion == ""  # C7 (B7) : les propositions sont des faits
     # tout est pris de 20 h à 21 h 30 : une proposition ne chevauche jamais ce moment
     assert all(p["debut"] >= SAMEDI_20H + timedelta(minutes=90) or p["debut"] + timedelta(minutes=90) <= SAMEDI_20H for p in propositions)
     # ce qui est proposé est réellement réservable
@@ -183,7 +183,7 @@ async def test_une_reservation_passee_est_figee_une_annulee_n_est_plus_modifiabl
         assert (m.statut, m.faits["detail"]) == ("REFUSEE", "passee")
         assert (await annuler_reservation(salle.c, salle.a, n)).faits["detail"] == "passee"
     a = await annuler_reservation(salle.c, salle.a, n)
-    assert (a.statut, a.suggestion) == ("OK", "C'est annulé.")
+    assert (a.statut, a.suggestion, a.faits["statut"]) == ("OK", "", "annulee")  # C7 (B7) : le fait, sans texte
     assert (await annuler_reservation(salle.c, salle.a, n)).statut == "DEJA_FAIT"                # le second geste identique n'écrase rien
     m = await modifier_reservation(salle.c, salle.a, n, {"couverts": 3})
     assert (m.statut, m.faits["detail"]) == ("REFUSEE", "plus_modifiable")
@@ -198,7 +198,7 @@ async def test_retrouver_par_numero_telephone_ou_prenom_et_jour_jamais_chez_un_a
     assert (await retrouver_reservation(salle.c, salle.a, numero=r.faits["numero"])).faits["reservations"][0]["prenom"] == "Alice"
     par_tel = await retrouver_reservation(salle.c, salle.a, telephone=TEL)
     assert [x["prenom"] for x in par_tel.faits["reservations"]] == ["Alice"]
-    assert par_tel.suggestion == "Vous avez une réservation samedi quatorze novembre à vingt heures pour deux personnes."
+    assert par_tel.suggestion == "" and [(x["quand_dit"], x["couverts"]) for x in par_tel.faits["reservations"]] == [("samedi quatorze novembre à vingt heures", 2)]  # C7 (B7)
     par_nom = await retrouver_reservation(salle.c, salle.a, prenom="bob", jour=(SAMEDI_20H + timedelta(days=1)).date())
     assert [x["prenom"] for x in par_nom.faits["reservations"]] == ["Bob"]
     assert (await retrouver_reservation(salle.c, salle.a, prenom="Bob", jour=SAMEDI_20H.date())).statut == "INTROUVABLE"

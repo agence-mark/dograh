@@ -101,9 +101,11 @@ async def test_un_rangement_dit_renvoie_a_ses_rangements_jamais_je_ne_trouve_pas
     a = await Appel(lusitalia).a_emporter()
     r = await a.ajouter(articles)
     assert (r.statut, r.manque) == ("INCOMPLETE", "articles"), r
-    assert "ne trouve pas" not in r.suggestion
-    assert r.suggestion.startswith("Nous avons") and "Pizzas Classiques" in r.suggestion and "Salades" not in r.suggestion, r.suggestion
-    assert "Bambino" not in r.suggestion                                    # les rangements, pas leurs articles un par un
+    # C7 B12 (T9, rouge depuis 9cd42f70, C7a) : « Nous avons… : qu'est-ce que je vous mets ? » est sorti du retour (décision d'Evan 25/11 8 h 45, le modèle parle) ;
+    # les rangements sont dans les faits, d'où le texte d'avant se refait (« pas juste une suppression ») ; C7 B9 : le catalogue parti, les rangements suffisent (« Nous avons » + rangements)
+    rangements = r.faits.get("rangements") or []
+    assert r.suggestion == "" and "Pizzas Classiques" in rangements and "Salades" not in rangements, r.faits
+    assert "Bambino" not in rangements                                      # les rangements, pas leurs articles un par un
     assert a.p["lignes"] == []
 
 
@@ -112,5 +114,5 @@ async def test_un_seul_rangement_donne_quelques_noms_jamais_toute_la_liste(lusit
     r = await a.ajouter("salade")
     assert (r.statut, r.manque) == ("INCOMPLETE", "articles"), r
     salades = [p["nom"] for p in CARTE["produits"] if p["categorie_id"] == "salades"]
-    dites = [s for s in salades if s in r.suggestion]
-    assert 1 <= len(dites) <= 3 and len(salades) > 3, (r.suggestion, salades)
+    dites = [s for s in salades if s in (r.faits.get("exemples") or [])]  # C7 B12 (T9, C7a 9cd42f70) : les exemples en faits, le modèle les dit (Evan 25/11 8 h 45)
+    assert r.suggestion == "" and 1 <= len(dites) <= 3 and len(salades) > 3, (r.faits, salades)

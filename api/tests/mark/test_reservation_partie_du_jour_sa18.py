@@ -51,7 +51,7 @@ async def test_sans_partie_de_la_journee_comme_avant():
 
 async def test_un_soir_complet_le_dit_sans_rendre_ceux_du_midi():
     heures, r = await _creneaux("samedi soir", heures=(12, 13))
-    assert heures == [] and r.faits["complet"] is True and r.faits["partie"] == "soir" and "soir" in r.suggestion
+    assert heures == [] and r.faits["complet"] is True and r.faits["partie"] == "soir" and r.suggestion == ""  # C7 (B7) : la partie du jour est un fait
 
 
 @pytest.mark.parametrize("action", ["fiche", "lire"])

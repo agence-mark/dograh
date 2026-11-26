@@ -12,8 +12,8 @@ async def test_le_nom_qui_ne_change_pas_n_est_pas_relu(salle):
     a = Appel(salle)
     await a.confirmee()  # samedi 20 h, deux personnes, Alice
     r = await moteur.modifier(a.source, a.etat, a.appelant, personnes=3, prenom="Alice")
-    assert r.manque == "relecture" and "trois personnes" in r.suggestion, r
-    assert "au nom de" not in r.suggestion
+    assert r.manque == "relecture" and r.faits["ce_qui_change"] == {"personnes": 3}, r  # C6 n° 8 (décision d'Evan 25/11 9 h 30) : ce qui change, en faits
+    assert "prenom" not in r.faits["ce_qui_change"]
     fait = await moteur.modifier(a.source, a.etat, a.appelant, personnes=3, prenom="alice", confirmer=True)
     assert fait.statut == "OK" and fait.faits["personnes"] == 3, fait
 
@@ -22,6 +22,6 @@ async def test_rien_qui_change_ne_se_relit_pas(salle):
     a = Appel(salle)
     await a.confirmee()
     r = await moteur.modifier(a.source, a.etat, a.appelant, personnes=2, prenom="Alice")
-    assert r.statut == "DEJA_FAIT" and r.faits["inchangee"] is True and r.suggestion.startswith("Rien ne change"), r
+    assert r.statut == "DEJA_FAIT" and r.faits["inchangee"] is True and r.suggestion == "", r  # C7 (B7) : « rien ne change » est le fait inchangee
     # un vrai changement de nom reste relu
-    assert "au nom de Martin" in (await moteur.modifier(a.source, a.etat, a.appelant, prenom="Martin")).suggestion
+    assert (await moteur.modifier(a.source, a.etat, a.appelant, prenom="Martin")).faits["ce_qui_change"] == {"prenom": "Martin"}  # C6 n° 8 (décision d'Evan 25/11 9 h 30) : en faits

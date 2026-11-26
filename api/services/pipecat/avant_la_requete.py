@@ -159,22 +159,20 @@ async def preparer_la_forme(moteur: Any, llm: Any, trame: LLMContextFrame) -> LL
 
 
 def phrase_si_les_cases_sont_illisibles(moteur: Any, llm: Any = None) -> str:
-    """P8 (lot 19 bis) : ce que dit le code quand les cases du tour sont illisibles et que la requête ne part pas : le repli du point de contact (la question en attente, sinon ce qui
-    manque), sinon la phrase réglée de l'agent (« pas compris », lot 7b ligne 29). Avant : une ligne au journal et plus aucune réponse, à chaque tour, jusqu'au raccrochage. ⛔ Ne lève jamais."""
+    """P8 (lot 19 bis) : ce que dit le code quand les cases du tour sont illisibles et que la requête ne part pas. C5 (décision d'Evan 25/11 8 h 45) : aucune requête n'est possible, donc
+    le code ne compose ni refus ni question : la suite réglée déjà posée (reprise R1 de C6, le même chemin que la relance ratée : ``controler_le_silence(sans_relance=True)``), sinon la
+    phrase réglée de l'agent (« pas compris », P3, lot 7b ligne 29) ; jamais le fait accompli, gardé au journal seulement.
+    Avant : une ligne au journal et plus aucune réponse, à chaque tour, jusqu'au raccrochage. ⛔ Ne lève jamais."""
     from api.services.pipecat.reponse_avalee import phrase_de_repli_reglee
 
     try:
-        from api.services.actions_communes.repli import repli_dit_par_le_code
         from api.services.workflow import parole_de_la_fiche as PF
 
-        fiche = getattr(moteur, "_gathered_context", None)
-        connecteur = PF._connecteur_de_l_etape(moteur)
-        p = PF.dossier_de_la_parole(fiche, connecteur)
-        repli = repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche)
-        if isinstance(repli, str) and repli.strip():
-            return repli.strip()
+        suite = getattr(PF.VerificateurDeLaFiche(moteur).controler_le_silence(sans_relance=True), "a_dire", None)
+        if isinstance(suite, str) and suite.strip():
+            return suite.strip()
     except Exception as erreur:  # noqa: BLE001
-        logger.warning(f"[cases] repli non lu : {erreur!r}")
+        logger.warning(f"[cases] suite réglée non lue : {erreur!r}")
     return phrase_de_repli_reglee(llm)
 
 

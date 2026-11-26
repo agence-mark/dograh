@@ -132,33 +132,34 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
     if jour.statut == dates_futures.INTROUVABLE:
         seule = _heure_seule(texte, heure)
         if seule is None:
-            return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
+            return Resultat("INTROUVABLE", {}, "", "jour")
         if seule.statut == dates_futures.AMBIGU:
-            dites = [dates_futures.heure_dite(c) for c in seule.candidats]
-            return Resultat("AMBIGU", {"candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
+            faits = {"candidats_heure": [dates_futures.heure_dite(c) for c in seule.candidats]}
+            return Resultat("AMBIGU", faits, "", "heure")
         if datetime.combine(local.date(), seule.heure, tzinfo=fuseau) <= local:
-            dite = dates_futures.heure_dite(seule.heure)
-            return Resultat("INTROUVABLE", {"heure_dite": dite, "heure_passee_aujourd_hui": True}, f"Il est déjà plus de {dite} : pour quel jour ?", "jour")
+            faits = {"heure_dite": dates_futures.heure_dite(seule.heure), "heure_passee_aujourd_hui": True}
+            return Resultat("INTROUVABLE", faits, "", "jour")
         jour = dates_futures.Resolution(dates_futures.RETENU, local.date(), (local.date(),))
         heure = heure if heure and dates_futures.resoudre_l_heure(heure).statut != dates_futures.INTROUVABLE else texte
     if jour.statut == dates_futures.AMBIGU:
-        dits = [dates_futures.jour_dit(j) for j in jour.candidats]
-        candidats = [{"jour": j.isoformat(), "jour_dit": d} for j, d in zip(jour.candidats, dits)]
-        return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {' ou '.join(dits)} ?", "jour")
+        candidats = [{"jour": j.isoformat(), "jour_dit": dates_futures.jour_dit(j)} for j in jour.candidats]
+        faits = {"candidats": candidats}
+        return Resultat("AMBIGU", faits, "", "jour")
     faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
     if not heure:
-        return Resultat("INCOMPLETE", faits, f"À quelle heure, {faits['jour_dit']} ?", "heure")
+        return Resultat("INCOMPLETE", faits, "", "heure")
     h = dates_futures.resoudre_l_heure(heure)
     if h.statut == dates_futures.INTROUVABLE:
-        return Resultat("INCOMPLETE", faits, "À quelle heure exactement ?", "heure")
+        return Resultat("INCOMPLETE", faits, "", "heure")
     if h.statut == dates_futures.AMBIGU:
-        dites = [dates_futures.heure_dite(c) for c in h.candidats]
-        return Resultat("AMBIGU", {**faits, "candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
+        faits = {**faits, "candidats_heure": [dates_futures.heure_dite(c) for c in h.candidats]}
+        return Resultat("AMBIGU", faits, "", "heure")
     voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
     faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
     if voulue <= local:
-        return Resultat("ARGUMENT_INVALIDE", faits, "Cette heure est déjà passée, pour quelle heure ?", "heure")
-    return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
+        faits["heure_passee_aujourd_hui"] = True  # le jour retenu n'est jamais avant aujourd'hui (``dates_futures``) : une heure passée l'est aujourd'hui même
+        return Resultat("ARGUMENT_INVALIDE", faits, "", "heure")
+    return Resultat("RETENU", faits, "")  # C7 B5 : le jour et l'heure retenus sont des faits (``jour_dit``, ``heure_dite``), le modèle les dit
 
 
 def _heure_seule(texte: str | None, heure: str | None) -> dates_futures.HeureResolue | None:
@@ -194,7 +195,6 @@ class SourceClasseur:
     champs_du_greffier = {"note": ("allergie", "consigne_livreur")}  # Evan (18/11) : la consigne pour le livreur part dans la note de la commande
     modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
-    question_de_la_zone = "Quelle est l'adresse de livraison ?"
     moyens_reserves_au_mode = RESERVES_AU_MODE  # M90 : le TPE à la porte n'existe qu'en livraison
     libelles_des_moyens = LIBELLES_DITS
 
@@ -268,29 +268,22 @@ class SourceClasseur:
         sortie = {
             "ouvert": etat["ouvert"], "statut": None if etat["ouvert"] else statut_de_fermeture(etat["raison"]), "raison": etat["raison"],
             "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"], "delai_minutes": etat["delai_minutes"],
-            "planifiee_permise": bool(reglage and reglage["planifiee_permise"]), "phrase": "",
+            "planifiee_permise": bool(reglage and reglage["planifiee_permise"]), "reprise_dite": None,
             # une pause (de la caisse, du type, forcée) : seule sa reprise compte, jamais la prochaine ouverture des horaires (lot 4, audit § 3.3)
             "en_pause": etat["raison"] in ("caisse_pause", "pause_type", "pause_force"),
         }
         if not etat["ouvert"]:
-            sortie["phrase"] = await self._phrase_de_fermeture(sortie, mode)
+            sortie["reprise_dite"] = await self._reprise_dite(sortie)
         return sortie
 
-    async def _phrase_de_fermeture(self, etat: dict[str, Any], mode: str) -> str:
-        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
-        # Lot 4 (audit caisse § 3.3) : une pause dit sa reprise seulement quand elle est connue ; jamais la prochaine ouverture des horaires à sa place.
-        quand = etat["reprise"] if etat.get("en_pause") else (etat["reprise"] or etat["prochaine_ouverture"])
-        reprise = ""
-        if isinstance(quand, datetime):
-            local = quand.astimezone(fuseau)
-            reprise = f" Nous reprenons à {heure_en_lettres(local.hour, local.minute)}."
-        # D15 : quand le réglage du type permet de commander pour plus tard, la fermeture le propose (un créneau de la prochaine ouverture).
-        propose = " Je peux prendre votre commande pour plus tard, sur un créneau de la prochaine ouverture." if etat.get("planifiee_permise") else ""
-        if etat["statut"] == "LIVRAISON_TERMINEE":
-            return "Les livraisons sont terminées pour aujourd'hui." + reprise + propose
-        if etat["statut"] == "PAUSE_TYPE":
-            return "Nous sommes en pause pour le moment." + reprise + propose
-        return "Nous sommes fermés pour le moment." + reprise + propose
+    async def _reprise_dite(self, etat: dict[str, Any]) -> str | None:
+        """L'heure de reprise que dit la fermeture, ``None`` quand aucune n'est connue. Lot 4 (audit caisse § 3.3) : une pause dit sa reprise seulement quand elle est connue ;
+        jamais la prochaine ouverture des horaires à sa place."""
+        quand = etat["reprise"] if etat["en_pause"] else (etat["reprise"] or etat["prochaine_ouverture"])
+        if not isinstance(quand, datetime):
+            return None
+        local = quand.astimezone(ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id)))
+        return heure_en_lettres(local.hour, local.minute)
 
     async def verifier_un_creneau(self, mode: str, voulue: datetime) -> Resultat | None:
         """D15 : l'heure voulue tient-elle (réglage du type, jours à l'avance, délai minimal, ouvert à cette heure, place) ? ``None`` si oui,
@@ -416,15 +409,16 @@ class SourceClasseur:
 
     async def envoyer(self, quoi: str, telephone: str | None, cle_unique: str, organisation: int | None) -> Resultat:
         """Un message demandé par l'appelant (la carte, le lien d'avis) : ``OK`` s'il est parti, ``DEJA_FAIT`` s'il l'a déjà été dans cet appel, ``REFUSEE`` s'il ne peut
-        pas partir (numéro sans SMS, pas de compte), ``INDISPONIBLE`` s'il est éteint (le défaut), sans mobile ou si le fournisseur est en panne (``panne``)."""
+        pas partir (numéro sans SMS, pas de compte), ``INDISPONIBLE`` s'il est éteint (le défaut) ou sans mobile ou si le fournisseur est en panne (``panne``)."""
         if quoi not in envois.A_LA_DEMANDE:
             return Resultat("ARGUMENT_INVALIDE", {"possibles": list(envois.A_LA_DEMANDE)}, "", "quoi")
         envoi_allume = await envois.liaison_db.envoi_actif(self.c, self.lieu.etablissement_id, "sms", quoi)
         if envoi_allume is None or not telephone:
-            return Resultat("INDISPONIBLE", {}, "Je ne peux pas envoyer de message pour le moment.")
+            return Resultat("INDISPONIBLE", {}, "")
         envoi = await envois.envoyer_et_dire_pourquoi(self.c, organisation, self.lieu.etablissement_id, quoi, telephone, {}, cle_unique)
         if envoi is Envoi.PARTI:
-            return Resultat("OK", {"envoye": True}, "C'est envoyé.")
+            faits = {"envoye": True}
+            return Resultat("OK", faits, "")
         # trois raisons que le modèle ne doit pas confondre : la personne l'a déjà reçu, le message ne peut pas lui parvenir (pas de mobile, pas de compte),
         # ou le fournisseur est en panne (on pourra réessayer)
         if envoi is Envoi.PANNE:

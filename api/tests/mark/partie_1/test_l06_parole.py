@@ -6,6 +6,8 @@ bancs B10 à B12 (cas cités par leur nom). Aucun test n'appelle un fournisseur 
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from api.services.actions_communes import conversation as CONV
 from api.services.gabarits.restauration.textes import banc as B
 
@@ -29,7 +31,7 @@ def test_chiffre_retenu_dans_une_phrase_libre():
     assert BC.chiffre_dans_la_phrase("Votre commande sera prête dans 20 minutes.", [], ["à emporter"])
     assert not BC.chiffre_dans_la_phrase("C'est noté. Vous voulez autre chose ?", [], ["une reine"])
     assert not BC.chiffre_dans_la_phrase("J'ai bien noté le code VINGT.", [{"code_de_remise": "vingt"}], ["j'ai le code vingt"])
-    assert "Les chiffres sont dits par le code" in BC.RAPPEL_DU_CHIFFRE
+    assert "Ne dis que les chiffres des faits" in BC.RAPPEL_DU_CHIFFRE  # C6 n° 12 (décision d'Evan 25/11 9 h 30) : le modèle dit les prix des faits, plus « dits par le code »
 
 
 def test_valeur_dite_exemptee():
@@ -77,17 +79,27 @@ def test_refus_de_la_fiche_et_du_metier():
     assert not R.refuse({"statut": "FAIT", "a_faire": "propose-lui Coca-Cola en une question"})
 
 
-def test_repli_question_en_attente():
-    """L06-28 : au bout des passes, le code dit la question en attente par sa phrase (conv3 t2, mot pour mot)."""
-    relecture = ("Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. Cela fait vingt-sept euros quatre-vingts. "
-                 "C'est bon ?")
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []}) == relecture
+def _puis(p, fiche=None):
+    """Ce que la relance du modèle lui donne à dire ensuite (``puis``), lu dans la consigne que le code construit : du JSON, jamais une phrase."""
+    import json
+
+    consigne = R.consigne_de_relance(p, fiche if fiche is not None else {}, PAROLE.EtatDuTour(tour=3))
+    return json.loads(consigne[consigne.index("{"):])["puis"], consigne
+
+
+def test_relance_question_en_attente():
+    """L06-28, décision d'Evan 25/11 8 h 45 (lot 7b-C5) : au bout des passes, le code relance le modèle avec la question en attente en faits (conv3 t2) ; C6 (décision d'Evan 25/11 9 h 30) :
+    la relecture est dite par le modèle, elle est relancée par son type, sans texte ; une proposition n'est jamais redite par sa phrase."""
+    relecture = "Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. C'est bon ?"  # un texte d'avant C6 resté au registre : jamais rendu
+    puis, _ = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []})
+    assert puis == {"question": {"id": "Q-2", "type": "relecture"}}
     proposition = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition}}}) == proposition
+    puis, consigne = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition, "article_propose": "Coca-Cola"}}})
+    assert puis == {"question": {"id": "Q-1", "type": "proposition", "article_propose": "Coca-Cola"}} and proposition not in consigne
 
 
-async def test_repli_phrase_du_manque(essai_de):
-    """L06-28 (f307 t2) : sous le minimum, sans question en attente, le repli est la phrase du manque du module."""
+async def test_repli_valeur_du_manque(essai_de):
+    """L06-28 (f307 t2) : sous le minimum, sans question en attente, la relance porte ce qui manque en valeur fermée (lot 7b-C5), jamais la phrase du module."""
     e = await essai_de("casa-italia", minimum=5000)
     await e.tour("en livraison au 9 avenue du Bouteiller à Chantilly", mode_de_retrait="livraison", commune="Chantilly", adresse="9 avenue du Bouteiller")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
@@ -95,7 +107,8 @@ async def test_repli_phrase_du_manque(essai_de):
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     assert CONV.question_de(e.p) is None, CONV.question_de(e.p)
-    assert R.repli_dit_par_le_code(e.p) == "Je vous mets autre chose ?", R.repli_dit_par_le_code(e.p)
+    puis, consigne = _puis(e.p, e.fiche_de_l_appel)
+    assert puis == {"manque": "d'autres articles, ou qu'elle dise qu'elle a tout dit"} and "Je vous mets autre chose" not in consigne, consigne
 
 
 # --------------------------------------------------------------------------- la note composée (L06-07)
@@ -186,7 +199,8 @@ async def test_minimum_donne_au_modele_puis_issue(essai_de):
     r = await e.tour("une margherita normale", **cases)
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, une margherita.", **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE, (d, r)
-    assert r["faits"]["minimum_de_la_commande"] == {"commune": "Chantilly", "minimum": 5000, "manque": 3910}, r["faits"]
+    assert r["faits"]["minimum_de_la_commande"] == {"commune": "Chantilly", "minimum": 5000, "manque": 3910,  # F3 (C7 B6) : les montants aussi en lettres
+                                                     "minimum_dit": "cinquante euros", "manque_dit": "trente-neuf euros dix"}, r["faits"]
     assert not (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("prefixe") and r["a_faire"].startswith(PORTE.A_FAIRE_DU_MINIMUM), r
     q = CONV.question_de(e.p) or {}
     if q.get("type") == "proposition":
@@ -196,7 +210,7 @@ async def test_minimum_donne_au_modele_puis_issue(essai_de):
 
 
 async def test_recapitulatif_dit_par_le_code(essai_de):
-    """L06-01 (b) (K4 du banc) : le récapitulatif est dit par le code, mot pour mot ; la phrase du modèle est jetée et le tour s'arrête."""
+    """L06-01 (b) (K4 du banc), réécrit par C6 (décision d'Evan 25/11 9 h 30) : le récapitulatif est dit par le modèle ; le code ne dit que la phrase réglée du total, après la sienne."""
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
@@ -204,24 +218,27 @@ async def test_recapitulatif_dit_par_le_code(essai_de):
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     r = await e.tour("c'est tout", c_est_tout=True)
-    recap = (CONV.question_de(e.p) or {}).get("texte")
-    assert (CONV.question_de(e.p) or {}).get("type") == "relecture" and recap, r
+    total = (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("suffixe")
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture" and total, r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, je vous relis la commande."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == PAROLE.sans_balisage(recap), d
+    assert d.mode == PAROLE.SECOND_PASSAGE, d  # la relecture née : le modèle repasse avec ses faits
+    dit = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler("Alors une Margherita à emporter.")
+    assert dit is not None and dit.a_dire == f"Alors une Margherita à emporter. {total}", dit
 
 
 def test_prix_dit_apres_la_question_du_modele():
-    """L06-29 (D33, T3) : une proposition née dans ce tour : le modèle la pose sans chiffre, le code dit le prix juste après sa phrase, une fois."""
+    """L06-29 (T3) : une question née dans ce tour : la phrase réglée que le code dit après elle suit la phrase du modèle, une fois. C6 n° 11 (décision d'Evan 25/11 9 h 30) :
+    plus aucun prix (celui d'une proposition est un fait que le modèle dit) ; il reste le total de la relecture."""
     etat = PAROLE.EtatDuTour(tour=3)
-    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "nee_au_tour": 3}}}
-    d = PAROLE.parole_du_tour({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True}, "Je vous ajoute un Coca ?", etat, [], p, {},
-                              {"suffixe": "Il est à deux euros."})
-    assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Il est à deux euros."
-    assert PAROLE.avec_le_suffixe("Avec ça, un Coca-Cola bien frais ?", etat) == "Avec ça, un Coca-Cola bien frais ? Il est à deux euros."
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "relecture", "nee_au_tour": 3}}}
+    d = PAROLE.parole_du_tour({"statut": "FAIT"}, "Alors une Regina.", etat, [], p, {}, {"suffixe": "Cela fait douze euros, c'est bon ?"})
+    assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Cela fait douze euros, c'est bon ?"
+    assert PAROLE.avec_le_suffixe("Alors une Regina, sans oignons.", etat) == "Alors une Regina, sans oignons. Cela fait douze euros, c'est bon ?"
     assert PAROLE.avec_le_suffixe("Autre chose ?", etat) is None  # dit une fois
-    # passe vide après la naissance de la proposition : le code dit la proposition de B8 (repli E-b)
+    # passe vide après la naissance de la proposition : lot 7b-C5, le modèle est relancé avec la proposition en faits, le code ne dit plus la phrase de B8
     b8 = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "x", "repli": b8}}}) == b8
+    puis, consigne = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "x", "repli": b8}}})
+    assert puis["question"]["type"] == "proposition" and b8 not in consigne
 
 
 async def test_parole_sans_fiche_rejouee(essai_de):
@@ -250,7 +267,7 @@ async def test_rattrapage_une_fois_par_tour(essai_de):
 
 
 async def test_pas_de_phrase_sans_outil_apres_refus_de_la_fiche(essai_de):
-    """L06-26 (B12) : après un refus de LA FICHE, aucune phrase sans outil n'est dite : retenue, puis la relance fautive est remplacée par le repli."""
+    """L06-26 (B12) : après un refus de LA FICHE, aucune phrase sans outil n'est dite : retenue, puis la relance fautive relance le modèle avec le fait (décision d'Evan 25/11 8 h 45)."""
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     e.dit("une margherita mega")
@@ -261,7 +278,8 @@ async def test_pas_de_phrase_sans_outil_apres_refus_de_la_fiche(essai_de):
     v = _verificateur(e)
     assert v.controler("Je remplace tout de suite.").raison == PAROLE.APRES_REFUS
     relance = v.controler_la_relance("C'est fait, je remplace.")
-    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.a_dire, relance
+    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : la relance fautive n'est pas remplacée par une phrase du code : le modèle est relancé avec le fait
+    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.a_dire is None and relance.consigne, relance
 
 
 async def test_refus_du_metier_phrase_gardee(essai_de):
@@ -287,7 +305,7 @@ async def test_repli_sur_phrase_vide(essai_de):
     v = _verificateur(e)
     v.controler("")
     relance = v.controler_la_relance("")
-    assert relance is not None and relance.a_dire, (relance, r)
+    assert relance is not None and relance.a_dire is None and relance.consigne, (relance, r)  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : relancé avec le fait, pas de phrase du code
 
 
 def test_porte_la_fiche():
@@ -637,7 +655,7 @@ async def test_outil_exige_apres_refus_de_la_fiche(essai_de):
     assert retenue.raison == PAROLE.APRES_REFUS and retenue.outil is None and retenue.appel_par_le_code is False and not retenue.a_dire
     assert retenue.consigne == R.RAPPEL_APRES_REFUS
     relance = v.controler_la_relance("Voilà, c'est ajouté.")
-    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.outil is None and relance.a_dire
+    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.outil is None and relance.a_dire is None and relance.consigne  # décision d'Evan 25/11 8 h 45 (lot 7b-C5)
 
 
 def test_accueil_voir_produit_refuse():
@@ -904,7 +922,12 @@ async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
             else:
                 # retenue une fois (rattrapage) : le modèle repasse ; sa relance est la phrase que le banc a dite
                 seconde = v.controler_la_relance(libre)
-                par, dit = ("code", seconde.a_dire) if seconde is not None and seconde.a_dire else ("modele", libre)
+                if seconde is not None and seconde.a_dire:
+                    par, dit = "code", seconde.a_dire
+                elif seconde is not None and seconde.consigne:
+                    par, dit = "relance du fait", libre  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne dit rien, le modèle est relancé avec le fait
+                else:
+                    par, dit = "modele", libre
         attendu = PAROLE.sans_balisage(tour.get("texte") or "") if tour["dit_par"] in ("code", "a_dire", "modele+code") else None
         if par != tour["dit_par"] or (attendu is not None and lu_comme_au_banc(PAROLE.sans_balisage(dit or "")) != lu_comme_au_banc(attendu)):
             ecarts.append(f"{conversation['conversation']} tour {i} « {tour['dit'][:40]} » : banc {tour['dit_par']} « {(tour.get('texte') or '')} » / "

@@ -33,5 +33,6 @@ async def test_un_changement_d_une_commande_enregistree_dit_son_nouveau_total(es
     await _jusqu_a_l_enregistrement(e)
     r = await e.tour("en fait deux", changer_quantite=[{"ligne": 1, "quantite": 2}])
     assert r["statut"] == "ENREGISTREE", r
-    dit = " ".join((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).values())
+    # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le modèle dit le changement ; le code dit le nouveau total après sa phrase (``suffixe``, motif réglé)
+    dit = str((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("suffixe") or "")
     assert "vingt et un euros quatre-vingts" in dit, (dit, r)

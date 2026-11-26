@@ -12,6 +12,7 @@ point 2). Le tirage est maison (``random.Random(graine)``, R5 : aucune dépendan
 
 from __future__ import annotations
 
+from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import conversation as CONV
 
 import copy
@@ -58,14 +59,16 @@ class Observation:
     attendu: Counter | None
     fiche: dict[str, Any] | None
     duree_ms: float = 0.0
-    repli: str | None = None
+    consigne: str | None = None  # lot 7b-C5 : ce que le code donne au modèle muet après « pardon ? » (la consigne de relance, ses faits en JSON) ; sans elle, la phrase réglée « pas compris » (P3, reprise R1 de C6 : jamais le fait accompli) ; jamais une phrase composée
     base: dict[str, Any] | None = None  # la commande de ``resto_commande`` (et ses lignes) quand le panier en porte une enregistrée
     prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois
     finaliser_appels: int = 0  # combien de fois la fiche de ce geste a mené la commande à sa fin (invariant : jamais plus d'une)
+    relance_du_fait: bool = False  # lot 7b-C5 : le modèle a déjà été relancé avec le fait dans ce tour (le plafond d'une relance par tour)
 
     @property
     def dit_par_le_code(self) -> str:
-        return " ".join(v for v in (self.textes or {}).values() if v)
+        # C6 n° 5 (décision d'Evan 25/11 9 h 30) : ce qui part à la voix par le code : ``avant`` et ``suffixe`` ; le reste des textes (valeurs exigées, fait gardé au journal) n'est pas dit
+        return " ".join(str(v) for k, v in (self.textes or {}).items() if k in ("avant", "suffixe") and v)
 
 
 def lignes_de(p: dict[str, Any]) -> Counter:
@@ -183,6 +186,7 @@ def _oui(avant: Counter, p) -> Counter | None:
 
 
 ARTICLES_DITS = {"margherita": MARGHERITA, "regina": REGINA}
+ARTICLES_SANS_EFFET = {"bubble tea", "salmone"}  # 7c : les articles de G3 (inconnu) et G4 (ambigu, la question d'abord) : rejoués, ils ne changent pas le panier (leur effet, ``_inchange``)
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", "etape")
 
 
@@ -209,17 +213,18 @@ def _effet_par_numero(fiche: dict[str, Any], avant: Counter, p: dict[str, Any]) 
         return Counter(avant)
     lignes = {l.get("n"): l for l in p.get("lignes") or []}
     visees = [n for n in fiche.get("retirer_article") or [] if isinstance(n, int)] + [c.get("ligne") for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
-    if len(visees) != len(set(visees)):
-        return Counter(avant)  # B4 : deux cases sur la même ligne, refusées
+    conflit = len(visees) != len(set(visees))  # B4 (M6, RC5) : deux cases sur la même ligne sont refusées toutes les deux ; le reste de la fiche passe (7c : l'ajout aussi, comme ``fusion``)
     c = Counter(avant)
-    for n in fiche.get("retirer_article") or []:
+    for n in [] if conflit else fiche.get("retirer_article") or []:
         if n in lignes:
             c[lignes[n]["ref"]] -= int(lignes[n].get("quantite") or 0)
-    for ch in fiche.get("changer_quantite") or []:
+    for ch in [] if conflit else fiche.get("changer_quantite") or []:
         l = lignes.get(ch.get("ligne"))
         if l and ch.get("quantite"):
             c[l["ref"]] += int(ch["quantite"]) - int(l.get("quantite") or 0)
     for a in fiche.get("ajouter") or []:
+        if str(a.get("article")).casefold() in ARTICLES_SANS_EFFET:
+            continue
         ref = ARTICLES_DITS.get(str(a.get("article")).casefold())
         if ref is None:
             return None
@@ -381,7 +386,7 @@ class Partie:
         if dit is not None:
             e.dit(dit)
             self.fiche_du_tour = None
-        retour, textes, decision, repli, duree, nombre_de_fins = None, {}, None, None, 0.0, 0
+        retour, textes, decision, consigne, duree, nombre_de_fins = None, {}, None, None, 0.0, 0
         attendu = effet(lignes_de(avant), avant) if effet is not None else None
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
@@ -396,11 +401,14 @@ class Partie:
             if not rejeu and dit is not None:
                 self.dernier_effet = effet  # G31 (dans le même tour) ne change pas ce que « je répète » rejouerait
         else:
-            repli = R.repli_dit_par_le_code(self.p)
+            consigne = R.consigne_de_relance(self.p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel))
         base, prise = await self._lire_la_base()
-        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli, base, prise, nombre_de_fins if fiche is not None else 0)
+        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, consigne, base, prise, nombre_de_fins if fiche is not None else 0,
+                        relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait)
         self.observations.append(o)
-        self.journal.append(o.dit_par_le_code)
+        # C6 n° 5 (décision d'Evan 25/11 9 h 30) : un fait accompli neuf est dit par le modèle, suivi de la question M108 du code ; ce que la personne entend de neuf est ce fait (gardé au journal)
+        fait = (o.textes or {}).get("fait_accompli")  # B9 : les faits du fait accompli (plus une phrase) ; deux fois les mêmes faits = redit
+        self.journal.append(" ".join(x for x in ((json.dumps(fait, sort_keys=True, ensure_ascii=False) if fait else None), o.dit_par_le_code) if x))
         return o
 
     async def _lire_la_base(self) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -414,11 +422,16 @@ class Partie:
         return base, (copy.deepcopy(recues[-1]) if recues else None)
 
     def _effet_du_rejeu(self):
-        """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste, sauf une réponse au numéro d'une question qui n'est plus posée (écartée)."""
+        """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste. 7c : une réponse au numéro d'une question qui n'est plus posée est écartée SEULE
+        (B1 : le reste de la fiche passe, ses articles entrent) ; une réponse qui vise maintenant la proposition posée est un « oui » à elle (``_oui`` : l'article proposé entre)."""
         fiche = self.derniere_fiche or {}
         reponse = fiche.get("reponse")
-        if isinstance(reponse, dict) and reponse.get("question_id") != question(self.p).get("id"):
-            return _inchange
+        q = question(self.p)
+        vivante = isinstance(reponse, dict) and bool(q.get("id")) and reponse.get("question_id") == q.get("id")
+        if isinstance(reponse, dict) and not vivante:
+            return (lambda avant, p: _effet_par_numero(fiche, avant, p)) if fiche.get("retirer_article") or fiche.get("changer_quantite") or fiche.get("ajouter") else _inchange
+        if vivante and reponse.get("sens") == "accepte" and q.get("type") == "proposition":
+            return lambda avant, p: (lambda c: None if c is None else _oui(c, p))(_effet_par_numero(fiche, avant, p))
         if fiche.get("retirer_article") or fiche.get("changer_quantite"):
             # Les numéros de ligne restent attachés à LEUR ligne : rejoués, ils visent la ligne d'avant, qui n'existe plus si elle a été retirée ou remplacée
             return lambda avant, p: _effet_par_numero(fiche, avant, p)
@@ -573,19 +586,24 @@ def _code_a_parle(o: Observation) -> bool:
     return bool(o.dit_par_le_code) or (o.decision is not None and getattr(o.decision, "motif", "") == "texte_du_code")
 
 
+def _relance_deja_faite(o: Observation) -> bool:
+    """La relance du modèle de ce tour a déjà eu lieu : sa phrase part seule, même sans la question (le plafond d'une relance par tour)."""
+    return o.relance_du_fait
+
+
 def rc1(o: Observation) -> list[Faute]:
     """Une seule question, et toujours une quand il manque quelque chose."""
     f: list[Faute] = []
     p, r = o.apres, o.retour or {}
     if o.fiche is not None and not finie(p) and p.get("lignes") is not None:
-        a_dire = r.get("texte_a_dire") or ""
+        a_dire = (r.get(CLE_DU) or {}).get("manque") or ""
         if not question(p) and not a_dire and not _code_a_parle(o) and not (r.get("faits") or {}).get("fait_bloquant") and p.get("mode"):
             f.append(("RC1", "commande ni enregistrée ni annulée : aucune question, aucune phrase de manque, rien dit par le code"))
-    manque = r.get("texte_a_dire")
+    manque = (r.get(CLE_DU) or {}).get("manque")
     d = o.decision
     # le modèle formule la question de ce qui manque avec ses mots (Evan, 17/11) : la faute est une phrase dite seule qui n'en pose AUCUNE
-    if (manque and d is not None and d.mode == PAROLE.A_DIRE_SEUL and manque not in (d.a_dire or "") and manque not in o.dit_par_le_code
-            and "?" not in (d.a_dire or "")):
+    # lot 7b-C5 : ``manque`` est une valeur fermée, plus une phrase ; la table fait repasser le modèle une fois (``relance_du_fait``), ensuite sa phrase part seule
+    if manque and d is not None and d.mode == PAROLE.A_DIRE_SEUL and not o.dit_par_le_code and "?" not in (d.a_dire or "") and not _relance_deja_faite(o):
         f.append(("RC1", f"ce qui manque (« {manque} ») n'est pas demandé : seule part « {d.a_dire} »"))
     dits = o.dit_par_le_code
     if dits.count("?") > 1:
@@ -627,30 +645,29 @@ def rc3(partie: Partie, o: Observation) -> list[Faute]:
 
 
 def rc4(o: Observation) -> list[Faute]:
-    """Jamais annoncé sans être fait, jamais fait sans être dit : le fait accompli (enregistrée, changée, annulée) est dit par SA phrase, celle que le code garde
-    comme dernier fait dit (``journal_du_dit.fait_accompli``), qui contient le mot du fait ; une autre phrase du code, même présente, ne le dit pas (Pierre 15)."""
+    """Jamais annoncé sans être fait, jamais fait sans être dit : le fait accompli (enregistrée, changée, annulée) a SES faits, ceux que le code garde comme dernier fait
+    (``journal_du_dit.fait_accompli``) et dont le modèle dit la phrase (C6 n° 5 ; B9 : plus une phrase du code) ; un autre fait, même présent, ne le dit pas (Pierre 15)."""
     f: list[Faute] = []
     d = o.decision
     seule = d is not None and d.mode == PAROLE.A_DIRE_SEUL and d.motif != "texte_du_code"
-    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree")         and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres)
+    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree")         and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres) \
+        and bool(o.avant.get("annulee")) == bool(o.apres.get("annulee"))  # C6 n° 7 : une annulation est un changement, que le modèle dit
     if o.fiche is not None and seule and rien and (d.a_dire or "") == ANNONCE:
         f.append(("RC4", "rien n'a changé et la phrase du modèle (« C'est noté. », écrite avant l'exécution) est dite seule"))
     avant_e, apres_e = o.avant.get("enregistree") or {}, o.apres.get("enregistree") or {}
     fait = None
     if o.fiche is not None and apres_e and (not avant_e or apres_e.get("total") != avant_e.get("total") or apres_e.get("numero") != avant_e.get("numero")):
-        fait = (("enregistr",) if not avant_e else ("chang", "enregistr"), "enregistrée" if not avant_e else "changée")  # changée : « C'est changé » ou la nouvelle confirmation (l'heure)
+        fait = (("enregistree",) if not avant_e else ("changee", "enregistree"), "enregistrée" if not avant_e else "changée")  # changée : le changement ou la nouvelle confirmation (l'heure)
     if o.fiche is not None and not o.avant.get("annulee") and o.apres.get("annulee"):
-        fait = (("annul", "ne l'enregistre pas"), "annulée")  # les deux phrases du code pour une annulation (``annuler`` ; « Je ne l'enregistre pas. »)
+        fait = (("annulee", "annulee_en_cours"), "annulée")  # les deux faits d'une annulation (enregistrée puis annulée ; en cours, ``annuler``)
     if fait:
-        dit = (o.textes or {}).get("avant") or ""
+        dit = (o.textes or {}).get("fait_accompli") or {}  # C6 n° 5 : le modèle dit le fait accompli ; le code en garde les faits au journal (B9)
         if not dit:
-            f.append(("RC4", f"la commande est {fait[1]} et le code ne le dit pas (aucune phrase du fait accompli ; dit : « {o.dit_par_le_code} »)"))
-        elif not any(m in dit.casefold() for m in fait[0]):
-            f.append(("RC4", f"la commande est {fait[1]} : la phrase dite par le code « {dit} » n'est pas celle du fait accompli"))
+            f.append(("RC4", f"la commande est {fait[1]} et le code ne la fait pas dire (aucun fait accompli ; dit : « {o.dit_par_le_code} »)"))
+        elif dit.get("fait") not in fait[0]:
+            f.append(("RC4", f"la commande est {fait[1]} : le fait donné « {dit} » n'est pas celui du fait accompli"))
         elif J.fait_accompli(o.apres) != dit:
-            f.append(("RC4", f"la commande est {fait[1]} : la phrase dite « {dit} » n'est pas celle que le code garde comme dernier fait dit (« {J.fait_accompli(o.apres)} »)"))
-        elif d is not None and d.mode == PAROLE.A_DIRE_SEUL and dit not in (d.a_dire or "") and d.motif != "texte_du_code":
-            f.append(("RC4", f"la commande est {fait[1]} : la parole décidée (« {d.a_dire} ») n'est pas la phrase du fait accompli"))
+            f.append(("RC4", f"la commande est {fait[1]} : le fait donné « {dit} » n'est pas celui que le code garde comme dernier fait (« {J.fait_accompli(o.apres)} »)"))
     return f
 
 
@@ -678,7 +695,7 @@ def rc6(partie: Partie) -> list[Faute]:
     def signe(o: Observation):
         r = o.retour or {}
         bloquant = (r.get("faits") or {}).get("fait_bloquant")
-        return (question(o.apres).get("texte"), json.dumps(bloquant, sort_keys=True) if bloquant else None, r.get("raison"))  # B3 : jamais « 'None' »
+        return (CONV.identite_de_la_question(question(o.apres)), json.dumps(bloquant, sort_keys=True) if bloquant else None, r.get("raison"))  # B3 : jamais « 'None' » ; lot 7b-C5 : la question par sa structure, plus par son texte
 
     sortie = J.A_FAIRE_SORTIE in str((obs[-1].retour or {}).get("a_faire") or "")  # B3 : la sortie du journal (un message à l'équipe)
     if len({signe(o) for o in obs}) == 1 and all(lignes_de(o.avant) == lignes_de(o.apres) for o in obs) and any(signe(obs[0])) and not sortie:
@@ -687,18 +704,16 @@ def rc6(partie: Partie) -> list[Faute]:
 
 
 def rc7(o: Observation) -> list[Faute]:
-    """Incompréhension : le dire, puis reprendre la question en attente (ou le manque)."""
+    """Incompréhension : le dire, puis reprendre la question en attente (ou le manque). Lot 7b-C5 : le code ne reprend rien de sa voix, il relance le modèle ; la consigne de relance doit porter la
+    question en attente (son identifiant), ou ce qui manque. Après une action faite (enregistrée ou annulée), rien n'est dû : la phrase réglée « pas compris » part (P3 ; reprise R1 de C6,
+    décisions d'Evan 25/11 8 h 45 et 9 h 30, le code ne redit plus le fait accompli)."""
     if o.geste != "G35":
         return []
-    q, attendu = question(o.apres), None
-    if q.get("texte") and q.get("type") not in ("proposition",):
-        attendu = q["texte"]
-    if attendu and attendu not in (o.repli or ""):
-        return [("RC7", f"après « pardon ? », le repli ne reprend pas la question en attente : « {o.repli} »")]
-    if not finie(o.apres) and not q and not o.repli:
+    q = question(o.apres)
+    if q.get("id") and f'"id": "{q["id"]}"' not in (o.consigne or ""):
+        return [("RC7", f"après « pardon ? », la consigne de relance ne porte pas la question en attente : « {o.consigne} »")]
+    if not finie(o.apres) and not q and not o.consigne:
         return [("RC7", "après « pardon ? », rien à redire alors que la commande n'est pas finie")]
-    if finie(o.apres) and not o.repli:
-        return [("RC7", "après une action faite (enregistrée ou annulée), « pardon ? » n'a rien à redire : seule la phrase neutre « je n'ai pas bien saisi » part (C5)")]
     return []
 
 
@@ -719,7 +734,7 @@ def rc9(o: Observation) -> list[Faute]:
     """Une question a un numéro stable et tombe avec son objet."""
     f: list[Faute] = []
     qa, qp = question(o.avant), question(o.apres)
-    if qa and qp and qa.get("type") == qp.get("type") and qa.get("texte") == qp.get("texte") and qa.get("id") != qp.get("id"):
+    if qa and qp and CONV.identite_de_la_question(qa)[1:] == CONV.identite_de_la_question(qp)[1:] and qa.get("id") != qp.get("id"):  # lot 7b-C5 : la même question par sa structure (type, objet), plus par son texte
         f.append(("RC9", f"la même question change de numéro : {qa.get('id')} → {qp.get('id')}"))
     if qp.get("type") == "proposition" and qp.get("article_propose"):
         noms = {str(l.get("nom") or "") for l in o.apres.get("lignes") or []}
@@ -753,8 +768,9 @@ def rc10(partie: Partie, o: Observation) -> list[Faute]:
         voulu = q["texte"] if q.get("type") == "relecture" and q.get("texte") else None
         if voulu is not None and voulu not in dit:
             return [("RC10", f"relecture marquée faite dans ce tour, son texte n'a pas été dit dans ce tour (dit : « {dit} »)")]
-        if voulu is None and "cela fait" not in dit.casefold():
-            return [("RC10", f"relecture marquée faite dans ce tour, aucune relecture dite dans ce tour (dit : « {dit} »)")]
+        # C6 (décision d'Evan 25/11 9 h 30) : le modèle relit, le code dit la phrase réglée du total (ses variantes tournent) ; « dite » = notée partie à la voix, au jeton de la relecture
+        if voulu is None and not PAROLE.total_dit(o.apres, rel.get("jeton")):
+            return [("RC10", f"relecture marquée faite dans ce tour, sa phrase du total n'est pas partie dans ce tour (dit : « {dit} »)")]
     return []
 
 
@@ -781,16 +797,17 @@ def manque_du_moteur(texte: str | None):
 
 
 def rc12(o: Observation) -> list[Faute]:
-    """« Ce qui manque » a une seule réponse : la phrase de manque rendue est celle du manque que le moteur bloque."""
+    """« Ce qui manque » a une seule réponse : la valeur de manque rendue est celle du manque que le moteur bloque."""
     from api.services.commande import phrases_du_manque as M
 
     r = o.retour or {}
     fb = (r.get("faits") or {}).get("fait_bloquant") or {}
-    if r.get("texte_a_dire") and fb.get("manque"):
+    if (r.get(CLE_DU) or {}).get("manque") and fb.get("manque"):
         manque, modes = manque_du_moteur(fb["manque"])
-        attendu = M.phrase_du_manque(manque, modes)
-        if attendu and attendu != r["texte_a_dire"]:
-            return [("RC12", f"phrase de manque « {r['texte_a_dire']} », le moteur bloque sur « {fb['manque']} »")]
+        portee = manque is None or manque in M.PORTEES_PAR_UNE_QUESTION or (manque is M.Manque.MODE and not modes)  # la question la porte, ou aucun mode ouvert
+        attendu = None if portee else manque.value  # lot 7b-C5 : la valeur fermée de ce qui manque, plus sa phrase (C7 B9 : le catalogue des phrases est supprimé)
+        if attendu and attendu != r[CLE_DU]["manque"]:
+            return [("RC12", f"valeur de manque « {r[CLE_DU]['manque']} », le moteur bloque sur « {fb['manque']} »")]
     return []
 
 

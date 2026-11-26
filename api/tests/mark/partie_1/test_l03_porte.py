@@ -262,12 +262,15 @@ async def test_un_ajout_pendant_la_relecture_relance_la_relecture(essai_de):
     « autre » pour la relecture : l'article est pris et la relecture repart (jamais un accord déduit)."""
     e = await essai_de()
     await _jusqu_a_la_relecture(e)
-    avant = CONV.question_de(e.p)["id"]
+    avant, jeton_avant = CONV.question_de(e.p)["id"], e.p["relecture"]["jeton"]
     r = await e.tour("et une regina normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}], _montrer=False)
     assert r["statut"] != "REJETEE" and r.get("raison") != "reponse_manquante", r
     assert any("Regina" in l["nom"] for l in e.p["lignes"]) and e.p["etape"] != "accordee", e.p
-    # B1 (RC9) : la relecture qui repart est la même question (même objet, même numéro) avec son nouveau texte, dit par le code
-    assert CONV.question_de(e.p)["type"] == "relecture" and CONV.question_de(e.p)["id"] == avant and "Regina" in CONV.question_de(e.p)["texte"], CONV.question_de(e.p)
+    # B1 (RC9) : la relecture qui repart est la même question (même numéro). C6 (décision d'Evan 25/11 9 h 30) : plus de texte au registre ; elle repart avec un nouveau jeton
+    # (son identité) et le modèle la dit d'après les faits, qui portent l'article ajouté
+    q = CONV.question_de(e.p)
+    assert q["type"] == "relecture" and q["id"] == avant and q.get("jeton") == e.p["relecture"]["jeton"] != jeton_avant, q
+    assert any("Regina" in str(x.get("faits") or {}) for x in r["resultats"]), r["resultats"]
 
 
 async def test_une_fiche_sans_changement_pendant_la_relecture_reste_refusee(essai_de):

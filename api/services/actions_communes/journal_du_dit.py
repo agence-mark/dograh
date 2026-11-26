@@ -5,7 +5,8 @@ Avant : cinq mémoires, chacune pour un cas (la fermeture ``fermeture_dite``, le
 redisaient à chaque fiche (C7, H6, DF7) ; aucun compteur d'échec hors du choix d'une réservation (C5, C10 : « pardon » ou le parfum quatre fois).
 
 Le journal vit dans la conversation du dossier de l'action (le panier, le dossier de la réservation) : ``{clé du fait: {"fois": n, "tour": t}}``. La clé est le
-fait lui-même (sa phrase, ou un nom fermé : ``fermeture``, ``remise:<ref>``) : un fait qui change (un autre montant manquant) est un autre fait.
+fait lui-même (son identité : ``identite_du_refus`` pour un refus, ou un nom fermé : ``fermeture``, ``remise:<ref>``) : un fait qui change (un autre montant manquant) est un autre fait.
+Jamais le texte d'une suggestion : un texte qui change d'un tour à l'autre ne remet pas le compteur à zéro.
 Deux usages, lus ici seulement :
 * ``une_fois`` : dit une fois par appel, jamais redit (fermeture, règle d'un article, remise) ;
 * ``fait_redit`` : un refus ou un fait bloquant que la personne retombe : la première fois, la phrase entière par le code ; la deuxième, le code
@@ -15,9 +16,11 @@ Deux usages, lus ici seulement :
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes import resultat as R
 
 CLE = "journal_du_dit"
 FERMETURE = "fermeture"
@@ -25,6 +28,19 @@ A_FAIRE_ISSUE = "elle a déjà entendu ce refus : ne le redis pas mot pour mot ;
 A_FAIRE_SORTIE = "elle revient sur la même chose sans issue : propose-lui de laisser un message à l'équipe"  # B4 (M8) : passage vers le service
 
 PREMIERE, ISSUE, SORTIE, DEJA_DANS_CE_TOUR = "premiere", "issue", "sortie", "deja_dans_ce_tour"
+
+
+_FAITS_DE_TENUE = (R.CLE_NUMERO_RETENU, R.CLE_SECOND_NUMERO_RETENU, R.CLE_NUMERO_AFFICHE, R.CLE_NUMERO_S_AFFICHE)  # ce qui change d'un tour à l'autre sans changer le refus
+
+_VALEURS_DITES = {"quantite": ("quantite",)}  # 7b-C4 : manque -> faits qui ne sont que la valeur dite par la personne (150, puis 200 : le même refus « trop de pièces », pas trois)
+
+
+def identite_du_refus(refus: Any) -> str:
+    """La clé du journal pour un refus d'un module : son statut, son manque et ses faits. Une valeur simple (texte, nombre, vrai/faux) entre avec sa valeur ; une liste ou un
+    dictionnaire (des propositions qui changent d'un tour à l'autre) entre par son seul NOM : deux refus qui n'ont pas les mêmes faits ne se confondent jamais, et un texte
+    de suggestion qui change ne remet jamais le compteur à zéro."""
+    objet = {k: (v if isinstance(v, (str, int, float)) else None) for k, v in sorted((refus.faits or {}).items()) if k not in _FAITS_DE_TENUE and k not in _VALEURS_DITES.get(refus.manque, ())}
+    return f"refus {json.dumps([refus.statut, refus.manque, objet], ensure_ascii=False)}"
 
 
 def _journal(dossier: dict[str, Any]) -> dict[str, Any]:
@@ -103,18 +119,33 @@ def noter(dossier: dict[str, Any], cle: str, tour: Any = None) -> int:
     return int(e["fois"])
 
 
-FAIT_ACCOMPLI = "fait_accompli"  # la dernière phrase de fait accompli dite par le code (enregistrée, changée, annulée) : le repli la redit (B2, M3, règle 3 ; lot 7a, ligne 61)
+FAIT_ACCOMPLI = "fait_accompli"  # le dernier fait accompli (enregistrée, changée, annulée), gardé au journal en faits seulement : le modèle le dit (C6), le code ne le redit jamais (reprise R1 de C6)
 
 
-def dire_le_fait(dossier: dict[str, Any], texte: str, tour: Any = None) -> None:
-    """Le code vient de dire le fait accompli : une entrée du journal, avec sa phrase."""
+def dire_le_fait(dossier: dict[str, Any], faits: dict[str, Any], tour: Any = None) -> None:
+    """Un fait accompli vient d'être dit par le modèle : une entrée du journal avec ses faits (ce qui se dit, jamais une phrase)."""
     noter(dossier, FAIT_ACCOMPLI, tour)
-    _journal(dossier)[FAIT_ACCOMPLI]["texte"] = texte
+    _journal(dossier)[FAIT_ACCOMPLI]["faits"] = dict(faits)
 
 
-def fait_accompli(dossier: Any) -> str | None:
-    """La dernière phrase de fait accompli dite par le code, ``None`` si aucune."""
-    return str((_lu(dossier).get(FAIT_ACCOMPLI) or {}).get("texte") or "").strip() or None
+def fait_accompli(dossier: Any) -> dict[str, Any] | None:
+    """Les faits du dernier fait accompli gardés au journal (son identité : jamais dite par le code, reprise R1 de C6), ``None`` si aucun."""
+    faits = (_lu(dossier).get(FAIT_ACCOMPLI) or {}).get("faits")
+    return dict(faits) if faits else None
+
+
+TOUR_DE_L_APPEL = "tour_de_l_appel"  # le tour de la conversation, posé par la porte de chaque métier (la même clé que ``registre_des_questions.CLE_DU_TOUR``)
+
+
+def tour_de_l_appel(dossier: Any) -> Any:
+    """Le tour de la conversation du dossier (``None`` hors d'une porte)."""
+    return (dossier.get(CONV.CLE) or {}).get(TOUR_DE_L_APPEL) if isinstance(dossier, dict) else None
+
+
+def dit_a_un_tour_d_avant(dossier: Any, cle: str) -> bool:
+    """T2 (C7) : le fait est noté à un tour d'avant celui-ci (au tour qui l'apprend, le modèle le dit encore ; ensuite il est « déjà dit »)."""
+    e = entree(dossier, cle)
+    return e is not None and e.get("tour") != tour_de_l_appel(dossier)
 
 
 def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:

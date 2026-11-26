@@ -3,7 +3,7 @@
 Avant, le modèle gardait à tout moment la sortie de fin, et un garde-fou rattrapait ses mauvais choix (refus de fin, une fois par appel :
 l'appel 2624 a perdu une commande à l'approbation de sa relecture). Ici, c'est l'état qui ouvre les portes : une liaison réglée
 ``fermee_si_action_ouverte`` est retirée des outils de la requête tant qu'un connecteur déclare une action ouverte
-(``Connecteur.action_ouverte``). Le connecteur dit ce qui est ouvert ; ce mécanisme ne sait rien d'un métier.
+(``Connecteur.action_ouverte``), sauf une action qui déclare ``a_finir: False`` (rien à perdre encore). Le connecteur dit ce qui est ouvert ; ce mécanisme ne sait rien d'un métier.
 
 Appliqué juste avant chaque requête (``avant_la_requete``), sur une COPIE du contexte : l'historique n'est pas touché. Un agent sans porte
 réglée n'a rien de posé. ⛔ Ne lève jamais : dans le doute, la requête part telle quelle.

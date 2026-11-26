@@ -125,7 +125,7 @@ async def test_une_commande_valide_est_recalculee_enregistree_et_son_envoi_decle
     assert r.statut == "ENREGISTREE", r
     assert r.faits["total"] == 2380 and r.faits["numero_court"] == "C1"
     assert r.faits["heure_annoncee"] == JEUDI_MIDI + timedelta(minutes=20)
-    assert r.suggestion == "Votre commande est enregistrée, elle sera prête dans vingt minutes."  # lot 6 : l'annonce suit le format réglé (durée par défaut)
+    assert (r.suggestion, r.faits["mode"], r.faits["quand_dit"]) == ("", "emporter", "dans vingt minutes")  # lot 6 : l'annonce suit le format réglé (durée par défaut) ; C7 B9 : au fait
     assert envoyees == [uuid.UUID(r.faits["numero"])]
     ligne = await c.fetchrow("SELECT * FROM mark.resto_commande WHERE numero = $1", uuid.UUID(r.faits["numero"]))
     assert (ligne["statut"], ligne["mode"], ligne["sous_total"], ligne["frais"], ligne["total"], ligne["telephone"], ligne["cree_par"]) == ("nouvelle", "emporter", 2380, 0, 2380, TEL, "agent")
@@ -346,15 +346,14 @@ async def test_commande_planifiee_refusee_par_defaut_puis_permise_et_relevee(com
 
 
 async def test_les_jours_a_l_avance_comptent_en_jours_du_lieu_et_le_refus_dit_jusqu_a_quand(commerce):
-    """M91 (appel 2577) : « J+1 » = jusqu'à la fin de demain, jamais 24 heures glissantes ; le refus dit la limite."""
+    """M91 (appel 2577) : « J+1 » = jusqu'à la fin de demain, jamais 24 heures glissantes ; le refus porte la limite (fait ``jusqu_a``, que le modèle dit : lot 7b-C7, A3)."""
     c, a = commerce.c, commerce.a
     await c.execute("UPDATE mark.resto_reglage_type SET planifiee_permise = true, jours_a_l_avance = 1, delai_minimal = 30 WHERE site_id = $1 AND type = 'emporter'", a)
     demain_soir = (JEUDI_MIDI + timedelta(days=1)).replace(hour=19, minute=30)          # plus de 24 heures après midi, mais demain
     r = await enregistrer(commerce, brouillon(heure_voulue=demain_soir, appel_id="demain-soir"))
     assert r.statut == "ENREGISTREE", r
     loin = await enregistrer(commerce, brouillon(heure_voulue=demain_soir + timedelta(days=1), appel_id="apres-demain"))
-    assert loin.manque == "heure_voulue" and loin.suggestion.startswith("Je prends les commandes jusqu'à "), loin
-    assert "trop loin" not in loin.suggestion
+    assert (loin.manque, loin.suggestion, loin.faits) == ("heure_voulue", "", {"jusqu_a": "vendredi treize novembre"}), loin
 
 
 # --------------------------------------------------------------------------- #

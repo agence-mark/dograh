@@ -125,7 +125,9 @@ async def _rien():
 async def test_envoyer_un_message_eteint_dit_qu_il_ne_peut_pas_allume_envoie_au_numero_qui_s_affiche_une_fois(commerce, envoyes):  # noqa: F811
     a = Appel(commerce)
     r = await moteur.envoyer_un_message(a.source, a.p, a.regles, a.appelant, "carte", 7)
-    assert (r.statut, r.suggestion) == ("INDISPONIBLE", "Je ne peux pas envoyer de message pour le moment.") and envoyes == []
+    # C7 B12 (T9, rouge depuis 9cd42f70, C7a) : « Je ne peux pas envoyer de message pour le moment. » est sorti du retour (décision d'Evan 25/11 8 h 45, le modèle parle) ;
+    # le statut INDISPONIBLE le porte (table de traduction des secours, n° 71)
+    assert (r.statut, r.suggestion) == ("INDISPONIBLE", "") and envoyes == []
     await _allumer(commerce.c, commerce.a, envois.CARTE, "La carte : https://exemple.fr/carte")
     r = await moteur.envoyer_un_message(a.source, a.p, a.regles, a.appelant, "Carte", 7)
     assert (r.statut, r.faits["envoye"]) == ("OK", True) and [e["a"] for e in envoyes] == [TEL]

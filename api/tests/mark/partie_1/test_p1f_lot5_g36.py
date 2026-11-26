@@ -1,7 +1,7 @@
 """[.mark] Plan final Partie 1, lot 5 (R4) : le geste G36 (détour : rendre la main, retour) est codé, et la fin d'appel avec un panier ouvert se termine toujours.
 
 Avant : G36 « ne faisait rien » (une phrase sans outil). Maintenant : une commande ouverte, « et pour réserver ? », la réservation rend la main, l'appel revient chez l'agent qui tient la
-commande. Joué depuis E4, E5 et E11. Et : un panier ouvert, « au revoir » deux fois puis le silence : la fin finit par passer (jamais un appel coincé).
+commande. Joué depuis E1 (le mode seul), E4, E5 et E11. Et : un panier ouvert, « au revoir » deux fois puis le silence : la fin finit par passer (jamais un appel coincé).
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from api.tests.mark.test_action_ouverte_fin_d_appel import _moteur, _panier
 from api.services.commande import panier
 
 
-@pytest.mark.parametrize("etat", ["E4", "E5", "E11"])
+@pytest.mark.parametrize("etat", ["E1", "E4", "E5", "E11"])
 async def test_le_detour_ramene_l_appel_a_la_commande_ouverte(faire_monde, monkeypatch, etat):
     monde = await faire_monde("casa-italia")
     r = await C.jouer(monde, monkeypatch, etat, ("G36",))

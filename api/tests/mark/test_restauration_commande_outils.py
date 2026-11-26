@@ -167,7 +167,6 @@ class SourceDePieces:
 
     modes = ("retrait",)
     libelles_des_modes = {"retrait": "au comptoir"}
-    question_de_la_zone = "Où livrer ?"
     libelles_des_moyens = {"virement": "par virement"}
     CATALOGUE = {"P-FILTRE": ("Filtre à huile", 1250), "P-JOINT": ("Joint de culasse", 3400)}
 
@@ -175,7 +174,7 @@ class SourceDePieces:
         return False
 
     async def etat(self, mode):
-        return {"ouvert": True, "statut": None, "raison": None, "reprise": None, "prochaine_ouverture": None, "delai_minutes": 0, "planifiee_permise": False, "phrase": ""}
+        return {"ouvert": True, "statut": None, "raison": None, "reprise": None, "prochaine_ouverture": None, "delai_minutes": 0, "planifiee_permise": False}
 
     async def chercher(self, texte):
         t = recherche_liste.chercher([Element(ref, nom) for ref, (nom, _) in self.CATALOGUE.items()], texte)
@@ -215,7 +214,7 @@ async def test_une_autre_source_joue_le_meme_moteur_sans_y_toucher():
     r = await F.ajouter(source, p, regles, A("filtres à huile", 2), "joint de culasse")
     assert r.statut == "OK", r
     voir = await moteur.voir_commande(source, p, regles)
-    assert voir.faits["total"] == 2 * 1250 + 3400 and "cinquante-neuf euros" in voir.suggestion
+    assert voir.faits["total"] == 2 * 1250 + 3400 and voir.suggestion == ""  # lot 7b-C7a : la commande lue est faite de faits, le modèle la dit
     appelant = moteur.Appelant("+33612345678", "x")
     lecture = await moteur.finaliser(source, p, regles, appelant)
     assert lecture.manque == "relecture"

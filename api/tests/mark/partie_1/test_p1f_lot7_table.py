@@ -9,10 +9,10 @@ import pytest
 from api.services.actions_communes import table_de_parole as T
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.du import CLE_DU, CLE_FAITS_A_DIRE, RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, du_du_retour
-from api.services.actions_communes.parole import A_DIRE_SEUL, MANQUE, QUESTION_DEJA_DONNEE, REFUS, SECOND_PASSAGE, EtatDuTour
+from api.services.actions_communes.parole import A_DIRE_SEUL, MANQUE, QUESTION_DEJA_DONNEE, REFUS, SECOND_PASSAGE, SUFFIXE, EtatDuTour
+from api.services.phrases.catalogue import REPONSE_PERDUE
 
 QUESTION_NEE = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "nee_au_tour": 3, "texte": "Quelle taille ?"}}}
-AMBIGUITE_NEE = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "ambiguite", "nee_au_tour": 3, "texte": "Laquelle ?"}}}
 RETOUR_QUESTION = {"question": {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?"}}
 
 
@@ -26,13 +26,15 @@ def _joue(retour: dict, phrase: str = "Très bien.", textes: dict | None = None,
 
 CAS = [
     ("texte du code (exception § 2)", {}, "Oui.", {"avant": "Je vous relis la commande."}, None, {}, A_DIRE_SEUL),
-    ("doute né dans le tour", {"question": {"id": "Q-2", "type": "ambiguite", "texte": "Laquelle ?"}}, "Oui.", {}, AMBIGUITE_NEE, {}, A_DIRE_SEUL),
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le modèle dit le fait accompli avec l'heure exigée, le code dit la suite après sa phrase
+    ("fait accompli dit par le modèle", {}, "C'est enregistré, prête pour dix-neuf heures.", {"suffixe": "Puis-je faire autre chose pour vous ?",
+     "chiffres_exiges": {"quand": "pour dix-neuf heures"}}, None, {}, A_DIRE_SEUL),
     ("refus", {}, "Oui.", {}, None, {"apres_refus": True}, SECOND_PASSAGE),
     ("faits à dire sur une fiche vide", {RIEN_CHANGE: True, CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("rien n'a changé", {RIEN_CHANGE: True}, "Oui.", {}, {"lignes": [{}]}, {}, SECOND_PASSAGE),
     ("fait bloquant", {"statut": "PARTIEL"}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("faits à dire", {CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
-    ("question née ou prix à dire", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
+    ("question née", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
     ("ligne retirée", {CLE_DU: {"faits_qui_engagent": [RETRAIT_D_UNE_LIGNE]}}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("formule ajoutée", {"resultats": [{"operation": "ajouter", "faits": {"composition": ["x"]}}]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("phrase vide", {}, "", {}, None, {}, SECOND_PASSAGE),
@@ -52,18 +54,21 @@ def test_toutes_les_lignes_de_la_table_sont_jouees_par_un_cas():
 
 
 def test_ce_qui_manque_est_du_quand_la_phrase_ne_pose_pas_de_question():
-    _, d, _ = _joue({"texte_a_dire": "Qu'est-ce que je vous mets ?"}, "Très bien.")
+    _, d, _ = _joue({CLE_DU: {"manque": "Qu'est-ce que je vous mets ?"}}, "Très bien.")
     assert (d.mode, d.motif) == (SECOND_PASSAGE, MANQUE)
-    _, d, _ = _joue({"texte_a_dire": "Qu'est-ce que je vous mets ?"}, "Très bien. Autre chose ?")
+    _, d, _ = _joue({CLE_DU: {"manque": "Qu'est-ce que je vous mets ?"}}, "Très bien. Autre chose ?")
     assert d.mode == A_DIRE_SEUL
 
 
-def test_une_fiche_vide_est_retenue_une_fois_puis_dite_avec_la_question_en_attente():
+def test_une_fiche_vide_est_retenue_une_fois_puis_la_relance_est_ratee():
+    """T12 (coordinateur 26/11 10 h 45) : la retenue est la relance du tour (une seule) ; la fiche vide rejouée est une relance ratée : la suite réglée, sinon P3."""
     p = {"lignes": [{}], **QUESTION_NEE}
     _, premiere, e = _joue({RIEN_CHANGE: True}, "D'accord.", p=p)
-    assert premiere.motif == RIEN_CHANGE and e.rattrapage_a_joue
+    assert premiere.motif == RIEN_CHANGE and e.rattrapage_a_joue and e.relance_du_fait
     _, seconde, _ = _joue({RIEN_CHANGE: True}, "D'accord.", p=p, rattrapage_a_joue=True)
-    assert seconde.mode == A_DIRE_SEUL and seconde.a_dire.startswith("D'accord.")
+    assert (seconde.mode, seconde.a_dire, seconde.motif) == (A_DIRE_SEUL, None, REPONSE_PERDUE)  # P3, jamais « D'accord. » ni une seconde relance
+    _, troisieme, _ = _joue({RIEN_CHANGE: True}, "D'accord.", {"suffixe": "Puis-je faire autre chose pour vous ?"}, p=p, rattrapage_a_joue=True)
+    assert (troisieme.mode, troisieme.a_dire, troisieme.motif) == (A_DIRE_SEUL, "Puis-je faire autre chose pour vous ?", SUFFIXE)  # la suite réglée gardée
 
 
 def test_la_question_deja_donnee_est_dite_au_passage_suivant():
@@ -93,12 +98,12 @@ def test_la_table_videe_ne_decide_plus(monkeypatch):
 
 @pytest.mark.parametrize("phrase", ["Vous voulez autre chose ? Je note.", "D'accord. Autre chose ?", "Quelle taille ? Normale ou grande ?", "C'est noté.", "Très bien, quelle taille ?!"])
 def test_une_seule_regle_pour_dire_qu_une_phrase_pose_une_question(phrase):
-    """M4 : la table et la reprise de la question en attente lisent la même ponctuation (la fin de la phrase), jamais un « ? » au milieu."""
+    """M4 : la table et la relance de la question en attente lisent la même ponctuation (la fin de la phrase), jamais un « ? » au milieu."""
     from api.services.actions_communes import parole as PAROLE
 
     p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?", "repli": "Quelle taille ?"}}}
-    reprise = PAROLE.reprise_apres_la_phrase(phrase, EtatDuTour(tour=1), p)
-    assert (reprise is None) == PAROLE.pose_une_question(phrase), (phrase, reprise)
+    due = PAROLE.question_oubliee(phrase, EtatDuTour(tour=1), p)
+    assert due == (not PAROLE.pose_une_question(phrase)), (phrase, due)
 
 
 def test_le_commun_ne_lit_aucun_nom_de_case_la_porte_du_metier_pose_le_fait():

@@ -299,22 +299,35 @@ def test_11_le_nom_n_abime_pas_une_phrase():
 
 
 async def test_11_proposition_par_fiche_vide_dite_avec_son_prix(essai_de):
-    """Pierre 11 : la proposition née dans ce tour a déjà été donnée au modèle ; il la pose par une fiche vide : sa phrase est dite avec le prix du code, jamais une fiche sans prix."""
+    """Pierre 11 : la proposition née dans ce tour a déjà été donnée au modèle ; il la pose par une fiche vide : sa phrase est dite avec son prix, jamais sans prix.
+    C6 n° 11 (décision d'Evan 25/11 9 h 30) : le prix est exigé de la phrase du MODÈLE (plus un prix que le code colle après elle) ; sans lui, elle est relancée."""
+    from types import SimpleNamespace
+
     from api.services.actions_communes import parole as PAROLE
     from api.services.workflow import parole_de_la_fiche as PF
 
-    e = await essai_de()
-    await _a_emporter(e)
-    cases = {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}
-    r = await e.tour("une margherita normale", **cases)
-    assert (CONV.question_de(e.p) or {}).get("type") == "proposition", CONV.question_de(e.p)
-    d1 = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Très bien.", **cases})
-    assert d1.mode == PAROLE.SECOND_PASSAGE, d1
-    prix = (e.fiche_de_l_appel.get(PAROLE.CLE_ETAT_DU_TOUR) or {}).get("suffixe")
-    assert prix, e.fiche_de_l_appel.get(PAROLE.CLE_ETAT_DU_TOUR)  # le prix du code attend d'être dit après la phrase du modèle
-    r2 = await e.fiche()
-    d2 = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r2, {"a_dire": "Avec cela, je vous propose un Coca-Cola, je vous l'ajoute ?"})
-    assert d2.mode == PAROLE.A_DIRE_SEUL and prix in (d2.a_dire or ""), d2
+    async def _apres_la_fiche_vide(phrase: str):
+        e = await essai_de()
+        await _a_emporter(e)
+        cases = {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}
+        r = await e.tour("une margherita normale", **cases)
+        assert (CONV.question_de(e.p) or {}).get("type") == "proposition", CONV.question_de(e.p)
+        d1 = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Très bien.", **cases})
+        assert d1.mode == PAROLE.SECOND_PASSAGE, d1
+        prix = ((e.fiche_de_l_appel.get(PAROLE.CLE_ETAT_DU_TOUR) or {}).get("exiges") or {}).get("prix")
+        assert prix, e.fiche_de_l_appel.get(PAROLE.CLE_ETAT_DU_TOUR)  # le prix est exigé de la phrase du modèle
+        r2 = await e.fiche()
+        texte = phrase.format(prix=prix)
+        d2 = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r2, {"a_dire": texte})
+        if d2.mode == PAROLE.A_DIRE_SEUL:
+            return texte, d2.a_dire
+        retenue = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler(texte)
+        return texte, (texte if retenue is None else retenue)
+
+    texte, dit = await _apres_la_fiche_vide("Avec cela, je vous propose un Coca-Cola à {prix}, je vous l'ajoute ?")
+    assert dit == texte, dit
+    _, retenue = await _apres_la_fiche_vide("Avec cela, je vous propose un Coca-Cola, je vous l'ajoute ?")
+    assert getattr(retenue, "raison", None) == PAROLE.CHIFFRES_EXIGES, retenue  # sans le prix : relancée, jamais dite sans lui
 
 
 # --------------------------------------------------------------------------- 12 : les plus petits
@@ -322,15 +335,16 @@ async def test_11_proposition_par_fiche_vide_dite_avec_son_prix(essai_de):
 
 async def test_12_poids_le_maximum_vaut_pour_le_poids_total(essai_de):
     """Pierre 12 : ``quantite: 20, poids: "5 kg"`` n'est plus accepté (100 kg, 1 800 €) ; le prix dit pour plusieurs portions est le total de la ligne."""
-    from api.tests.mark.partie_1.aides_briques import brique
-    from .test_l13_briques import _ajouter, _objets_charges, _suffixe
+    from api.tests.mark.partie_1.aides_briques import brique, objets_charges
+    from .test_l13_briques import _ajouter
 
     e = await brique(essai_de, "QTE1")
-    await _objets_charges(e)
+    await objets_charges(e)
     r = await _ajouter(e, "vingt portions de cinq kilos de houmous", article="houmous", quantite=20, poids="5 kg")
     assert "poids_au_dessus_du_maximum" in _faits(r) and not e.p["lignes"], _faits(r)
-    await _ajouter(e, "deux fois trois cents grammes de houmous", article="houmous", quantite=2, poids="trois cents grammes")
-    assert _suffixe(e) == "deux fois trois cents grammes de houmous : dix euros quatre-vingts.", _suffixe(e)  # 2 x 5,40 €
+    r = await _ajouter(e, "deux fois trois cents grammes de houmous", article="houmous", quantite=2, poids="trois cents grammes")
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le total de la ligne est un fait que le modèle dit (2 x 5,40 €), plus une phrase du code
+    assert [(x["quantite"], x["prix"]) for x in r["faits"]["prix_au_poids"]] == [(2, 1080)], r["faits"]
 
 
 def test_12_un_montant_dit_sans_le_mot_euros_est_de_l_argent():

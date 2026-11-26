@@ -5,9 +5,9 @@ Une classe par brique (``TestART1`` ...), chacune avec sa règle, son aller-reto
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.db.bases_clients import restauration_commande as RC
 from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
-from api.services.commande.moteur import articles as _articles
 
 
 # --------------------------------------------------------------------------- #
@@ -126,13 +126,15 @@ def test_question_de_declinaison_au_libelle_de_la_carte():
     from api.services.commande import moteur
     from api.services.commande.briques import declinaison_nommee
 
-    def phrase(declinaisons, article="Kefta"):
-        return _articles._phrase_de_la_question(declinaison_nommee.brique_dec1_demander_la_declinaison(declinaisons), article)
+    def question(declinaisons):
+        # C7 B3 (Evan 25/11 8 h 45) : le moteur ne compose plus la question ; B9 : le libellé et les choix de la question (avec l'article) disent ce que disait le texte d'avant
+        q = declinaison_nommee.brique_dec1_demander_la_declinaison(declinaisons)
+        return q["libelle"], q["options"]
 
-    assert phrase(_declinaisons("Classic", "Royal", type="variante")) == "Quelle version pour votre Kefta : Classic ou Royal ?"
-    assert phrase(_declinaisons("4 pièces", "8 pièces", type="pieces"), "Nuggets") == "Combien de pièces pour votre Nuggets : 4 pièces ou 8 pièces ?"
-    assert phrase(_declinaisons("Classic", "Royal", libelle_question="Quelle formule")) == "Quelle formule pour votre Kefta : Classic ou Royal ?"
-    assert phrase(_declinaisons("Normale", "Grande")) == "Quelle taille pour votre Kefta : Normale ou Grande ?"  # carte ancienne : le comportement d'avant
+    assert question(_declinaisons("Classic", "Royal", type="variante")) == ("Quelle version", ["Classic", "Royal"])
+    assert question(_declinaisons("4 pièces", "8 pièces", type="pieces")) == ("Combien de pièces", ["4 pièces", "8 pièces"])
+    assert question(_declinaisons("Classic", "Royal", libelle_question="Quelle formule")) == ("Quelle formule", ["Classic", "Royal"])
+    assert question(_declinaisons("Normale", "Grande")) == ("Quelle taille", ["Normale", "Grande"])  # carte ancienne : le comportement d'avant
     question = declinaison_nommee.brique_dec1_demander_la_declinaison(_declinaisons("Classic", "Royal", type="variante"))
     assert question["type"] == "declinaison" and question["options"] == ["Classic", "Royal"] and question["nom"] == "version"
 
@@ -238,14 +240,22 @@ class TestART2:
         assert await la_brique_change_la_fiche("ART2", essai_de)  # la question parle de pièces, plus de taille
 
 
+def _question_dite(faits: dict) -> tuple:
+    """C7 B9 : ce que disait la question d'avant (« Quelle version pour votre Kefta : Classic ou Royal ? ») : le libellé, les choix et l'article, dans les faits du retour."""
+    return faits["question"]["libelle"], faits["question"]["options"], faits["article_de_la_carte"]
+
+
 class TestDEC1:
     async def test_dec1_demander_la_declinaison(self, essai_de):
         """Sur la carte Kebab-like : « un Kefta » demande la version (Classic ou Royal), « une Regina » la taille ; jamais l'un pour l'autre."""
         e = await brique(essai_de, "DEC1")
         r = await e.tour("un kefta", ajouter=[{"article": "kefta", "quantite": 1}])
-        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and "Quelle version pour votre Kefta : Classic ou Royal" in fait(r), r
+        # C7 B3 (Evan 25/11 8 h 45) : aucun texte, ni au registre ni au modèle ; les faits du retour refont la question d'avant
+        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and CONV.question_de(e.p)["texte"] == "" and r["question"]["texte"] == "", r
+        assert _question_dite(r["resultats"][0]["faits"]) == ("Quelle version", ["Classic", "Royal"], "Kefta"), r
         r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-        assert "Quelle taille pour votre Regina : Junior ou Senior" in fait(r), r
+        faits = next(x["faits"] for x in r["resultats"] if "question" in (x.get("faits") or {}))  # le retour qui pose la question (la Regina)
+        assert _question_dite(faits) == ("Quelle taille", ["Junior", "Senior"], "Regina"), r
 
     async def test_dec1_aller_retour_caisse(self, essai_de):
         e = await brique(essai_de, "DEC1")
@@ -261,7 +271,8 @@ class TestDEC3:
         """« un coca » sur une carte à 33 cl et à la bouteille : la contenance est demandée, jamais supposée ; la réponse la pose."""
         e = await brique(essai_de, "DEC3")
         r = await e.tour("un coca", ajouter=[{"article": "coca", "quantite": 1}])
-        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and "Quelle contenance pour votre Coca : 33 centilitres ou Bouteille" in fait(r), r
+        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and r["question"]["texte"] == "", r  # C7 B3 : aucun texte ; les faits refont la question d'avant
+        assert _question_dite(r["resultats"][0]["faits"]) == ("Quelle contenance", ["33 cl", "Bouteille"], "Coca"), r
         await e.tour("la bouteille", ajouter=[{"article": "coca", "quantite": 1, "variante": "Bouteille"}])
         assert [(l["nom"], l["quantite"]) for l in e.p["lignes"] if not l.get("attente")] == [("Coca Bouteille", 1)], e.retours[-1]
 

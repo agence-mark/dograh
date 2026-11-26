@@ -6,6 +6,7 @@ aucun test n'appelle un fournisseur de modèle. Les règles du banc final (``ban
 
 from __future__ import annotations
 
+from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import conversation as CONV
 from api.services.gabarits.restauration.textes import banc as B
 
@@ -156,7 +157,8 @@ async def test_jour_puis_heure_en_modification(salle, monkeypatch):
     r = await essai.tour("plutôt dimanche", jour="dimanche")
     assert r["manque"] == "heure" and essai.etat["modification"]["jour"] == "dimanche", r
     r = await essai.tour("à dix-neuf heures", heure="dix-neuf heures")
-    assert r["question"]["type"] == "recap_modif" and "dimanche" in r["question"]["texte"], r  # le bon jour, pas l'ancien
+    # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture du changement est dite par le modèle, d'après ce qui change (faits)
+    assert r["question"]["type"] == "recap_modif" and "dimanche" in r["faits"]["ce_qui_change"]["quand"], r  # le bon jour, pas l'ancien
 
 
 # --------------------------------------------------------------------------- L07-06 : R06, la lecture des places lit le brouillon, n'écrit jamais
@@ -215,7 +217,7 @@ async def test_nom_pour_retrouver_pas_pour_changer(salle, monkeypatch):
     assert essai.etat.get("cible") and "modification" not in essai.etat and "question" not in r, r  # retrouvée, pas renommée
     assert await salle.c.fetchval("SELECT prenom FROM mark.resto_reservation") == "Alice"
     r = await essai.tour("mettez-la au nom de Durand", nom="Durand")
-    assert r["question"]["type"] == "recap_modif" and "Durand" in r["question"]["texte"], r  # changer le nom est un autre geste
+    assert r["question"]["type"] == "recap_modif" and r["faits"]["ce_qui_change"] == {"prenom": "Durand"}, r  # changer le nom est un autre geste (C6 n° 8 : en faits)
 
 
 # --------------------------------------------------------------------------- L07-10 : B03, une seule capacité du jour, plans du soir compris
@@ -352,20 +354,21 @@ async def test_precision_seule_n_ouvre_pas(salle, monkeypatch):
 # --------------------------------------------------------------------------- L07-17 : les phrases du manque, mot pour mot (B12 décision 1)
 
 
-def test_phrases_du_manque_reservation():
+def test_valeurs_du_manque_reservation():
     attendu = {
         "le nombre de personnes": "Pour combien de personnes ?", "le jour": "Pour quel jour ?", "l'heure": "À quelle heure ?", "le nom": "À quel nom ?",
         "le numéro de téléphone": "Quel est votre numéro de téléphone ?",
         "le nom et le jour de sa réservation d'avant": "À quel nom et pour quel jour était votre réservation ?",
     }
-    assert PM.PHRASES_DU_MANQUE == attendu
+    assert PM.VALEURS_DU_MANQUE == frozenset(attendu)  # C7 B9 : la valeur fermée seule ; la phrase d'avant (``attendu``) reste comme mémoire, le modèle la pose
     from api.services.reservation import etat_pour_le_modele as E
 
-    assert PM.texte_a_dire({}) == "Pour combien de personnes ?"
-    assert PM.texte_a_dire({"brouillon": {"personnes": 4}}) == "Pour quel jour ?"
-    assert PM.texte_a_dire({"brouillon": {"personnes": 4, "jour": "samedi", "heure": "20h", "prenom": "A"}, "numero_affiche": False}) == attendu["le numéro de téléphone"]
-    assert PM.texte_a_dire({"recherche": True}) == attendu["le nom et le jour de sa réservation d'avant"]
-    assert PM.texte_a_dire({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1"}}}) is None  # une question porte ce qui manque
+    # lot 7b-C5 (décision d'Evan 25/11 8 h 45) : le code ne dit plus la phrase du manque ; la relance du modèle reçoit la VALEUR fermée (``valeur_du_manque``)
+    assert PM.valeur_du_manque({}) == "le nombre de personnes"
+    assert PM.valeur_du_manque({"brouillon": {"personnes": 4}}) == "le jour"
+    assert PM.valeur_du_manque({"brouillon": {"personnes": 4, "jour": "samedi", "heure": "20h", "prenom": "A"}, "numero_affiche": False}) == "le numéro de téléphone"
+    assert PM.valeur_du_manque({"recherche": True}) == "le nom et le jour de sa réservation d'avant"
+    assert PM.valeur_du_manque({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1"}}}) is None  # une question porte ce qui manque
     assert {E.ce_qui_manque_ensuite({}, True), E.ce_qui_manque_ensuite({"recherche": True}, True)} <= set(attendu)
     from api.tests.mark.partie_1 import glossaire  # noqa: F401  # les raisons de refus de la réservation sont rangées « métier »
 
@@ -375,4 +378,4 @@ def test_phrases_du_manque_reservation():
 async def test_le_manque_est_rendu_par_la_fiche(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch)
     r = await essai.tour("quatre personnes", personnes=4)
-    assert r["manque"] == "jour" and r["texte_a_dire"] == "Pour quel jour ?", r
+    assert r["manque"] == "jour" and r[CLE_DU]["manque"] == "le jour", r  # lot 7b-C5 : la valeur fermée, jamais sa phrase

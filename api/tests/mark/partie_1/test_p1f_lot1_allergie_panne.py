@@ -20,6 +20,12 @@ def _un_panier():
     return p
 
 
+def _pile_au_journal(record) -> bool:
+    """La pile est au journal : dans ``record["exception"]``, ou collée au message après sa première ligne quand le filtre de la production
+    (``enrich_log_record``, posé à l'import de ``api.app`` hors test) l'y a mise, numéros masqués."""
+    return record["exception"] is not None or "Traceback" in "\n".join(record["message"].splitlines()[1:])
+
+
 async def test_la_panne_d_un_fait_d_allergie_part_au_journal_et_l_allergie_reste_a_donner(monkeypatch):
     async def en_panne(source, p, *a):
         raise RuntimeError("la carte ne répond pas")
@@ -33,7 +39,7 @@ async def test_la_panne_d_un_fait_d_allergie_part_au_journal_et_l_allergie_reste
     finally:
         logger.remove(sortie)
     assert messages and "allergie" in messages[0]["message"], messages
-    assert messages[0]["exception"] is not None, "la pile de la panne doit être au journal"
+    assert _pile_au_journal(messages[0]), "la pile de la panne doit être au journal"
     assert ALLERGIE.allergie_a_donner(p) == "noix", "l'allergie reste à donner : le préalable bloquant tient l'enregistrement"
     assert "allergie" not in (retour.get("faits") or {}) and DU.CLE_FAITS_A_DIRE not in retour
 

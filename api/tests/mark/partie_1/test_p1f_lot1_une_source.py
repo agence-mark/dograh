@@ -15,7 +15,7 @@ from api.services.actions_communes import euros as EU
 from api.services.actions_communes import moyens_de_paiement as MP
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import petits_mots as PM
-from api.services.commande import phrases_dites_par_le_code as PD
+from api.services.phrases import catalogue as CAT
 
 API = I.RACINE_API
 
@@ -163,7 +163,7 @@ def test_l_ordre_des_cases_de_fin_est_celui_du_contrat():
 
 # --------------------------------------------------------------------------- M8 : ce qui manque est une valeur fermée
 
-def test_la_phrase_du_manque_se_fait_depuis_la_valeur_fermee_sans_lire_de_texte():
+def test_le_manque_se_donne_par_sa_valeur_fermee_sans_lire_de_texte():
     from api.services.commande import etat_pour_le_modele as E
     from api.services.commande import panier as P
     from api.services.commande import phrases_du_manque as PMQ
@@ -172,9 +172,6 @@ def test_la_phrase_du_manque_se_fait_depuis_la_valeur_fermee_sans_lire_de_texte(
     manque, modes = E.ce_qui_manque(P.nouveau(), connu)
     assert manque is PMQ.Manque.MODE and modes == ("à emporter", "en livraison")
     assert E.ce_qui_manque_ensuite(P.nouveau(), connu) == "le mode de retrait (à emporter ou en livraison)"
-    assert PMQ.phrase_du_manque(manque, modes) == "À emporter ou en livraison ?"
-    assert PMQ.phrase_du_manque(PMQ.Manque.MODE) is None
-    assert PMQ.phrase_du_manque(PMQ.Manque.ARTICLES) == "Qu'est-ce que je vous mets ?" and PMQ.phrase_du_manque(None) is None
 
 
 def test_la_decision_autre_chose_lit_le_membre_pas_un_texte():
@@ -191,45 +188,48 @@ def test_la_decision_autre_chose_lit_le_membre_pas_un_texte():
 
 
 # --------------------------------------------------------------------------- L2, n° 82, 86 : les phrases du code
+# 7b-C6 n° 12 (décision d'Evan, 25/11 9 h 30, § 8 bis) : le module des phrases d'avant est supprimé ; la liste fermée ``PHRASES_DU_CODE`` (motifs réglés du catalogue)
+# le remplace : le total, le numéro, le rendu, et les phrases déjà réglées (numéro dicté relu, numéro affiché gardé, M108) (garde : test_p1f_lot7c6_phrases_du_code.py).
 
-def test_chaque_phrase_du_code_nomme_une_exception_du_plan():
-    assert PD.PHRASES and all(ph.exception in PD.EXCEPTIONS_DU_PLAN for ph in PD.PHRASES.values())
-    # le § 2 du plan nomme : relecture, total, numéro, confirmation, fait accompli qui engage, DC4 ; ni DC5, ni le repli de panne (audit du lot 1)
-    assert PD.EXCEPTIONS_DU_PLAN == {"relecture", "total", "numero", "confirmation", "fait accompli qui engage", "DC4"}
-    assert not [k for k in PD.PHRASES if "panne" in k]
+def test_chaque_phrase_du_code_est_un_motif_regle_de_la_liste_fermee():
+    assert CAT.PHRASES_DU_CODE == {
+        CAT.TOTAL_RELECTURE, CAT.TOTAL_APRES_CORRECTION, CAT.TOTAL_APRES_CHANGEMENT, CAT.RENDU_DE_MONNAIE, CAT.NUMERO_RETENU,
+        CAT.NUMERO_DICTE_RELU, CAT.NUMERO_AFFICHE_GARDE, CAT.APRES_ENREGISTREMENT,
+    }
+    assert all(CAT.MOTIFS[m].variantes_defaut for m in CAT.PHRASES_DU_CODE)
+    # ni DC5, ni le repli de panne (audit du lot 1)
+    assert not [k for k in CAT.PHRASES_DU_CODE if "panne" in k or "nouvelle" in k]
+    assert not (API / "services" / "commande" / "phrases_dites_par_le_code.py").exists()
 
 
 def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
-    assert "nouvelle_commande" not in PD.PHRASES and not hasattr(PD, "TEXTE_NOUVELLE_COMMANDE"), "DC5 n'est pas une exception : un refus suivi d'une question, que le modèle dit"
+    assert "nouvelle_commande" not in CAT.PHRASES_DU_CODE, "DC5 n'est pas une phrase du code : un refus suivi d'une question, que le modèle dit"
     assert INFO.NOUVELLE_COMMANDE_PROPOSEE == "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
-    assert PD.TEXTE_ANNULATION_CONFIRMEE == "Je vous confirme l'annulation de votre commande."
-    assert PD.annulation_demandee("vingt et un euros quatre-vingts") == "Vous êtes sûr de vouloir annuler votre commande de vingt et un euros quatre-vingts ?"
-    assert PD.annulation_demandee(None) == "Vous êtes sûr de vouloir annuler votre commande ?"
-    assert PD.changement("douze euros") == "C'est changé : votre commande fait maintenant douze euros."
-    assert PD.changement(None) == "C'est changé dans votre commande."
-    assert PD.enregistree_avec_delai("prête", "pour dix-neuf heures trente") == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente."
-    assert PD.enregistree_retrouvee("ce soir") == "Votre commande est enregistrée pour ce soir."
-    assert PD.enregistree_retrouvee(None) == "Votre commande est enregistrée."
+    # C6 n° 5 à 7 (décision d'Evan 25/11 9 h 30) : la confirmation, le changement et l'annulation passent au modèle ; C7 B9 : leurs textes de secours sont supprimés, le
+    # journal garde le fait accompli en faits (``fait`` : enregistree, changee, annulee, annulee_en_cours ; ``quand_dit``, ``total``), vérifié par ``test_p1f_lot7c7_fait_accompli_en_faits``
 
 
 def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
     from api.services.commande import registre
 
     p = {"enregistree": {"total": 2180}}
-    assert registre.TEXTE_NOUVELLE_COMMANDE == INFO.NOUVELLE_COMMANDE_PROPOSEE and registre.TEXTE_ANNULATION_CONFIRMEE == PD.TEXTE_ANNULATION_CONFIRMEE
-    assert registre.texte_de_l_annulation(p).startswith("Vous êtes sûr de vouloir annuler votre commande de ") and registre.texte_de_l_annulation({}).endswith("commande ?")
-    assert registre.texte_du_changement(p) == f"{PD.changement('vingt et un euros quatre-vingts')}"
+    assert registre.TEXTE_NOUVELLE_COMMANDE == INFO.NOUVELLE_COMMANDE_PROPOSEE
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : la question DC4 n'a plus de texte du code ; le montant d'aujourd'hui, en lettres, est exigé de la phrase du modèle
+    assert registre.montant_enregistre_dit(p) == "vingt et un euros quatre-vingts" and registre.montant_enregistre_dit({}) is None and not hasattr(registre, "texte_de_l_annulation")
+    assert not hasattr(registre, "texte_du_changement")  # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le code ne compose plus le changement
 
 
-def test_une_phrase_du_registre_n_est_ecrite_nulle_part_ailleurs():
+def test_une_phrase_du_code_n_est_ecrite_nulle_part_ailleurs():
+    """C6 n° 12 : chaque variante d'un motif de la liste fermée n'est écrite qu'au catalogue (le code la dit par le motif, jamais par un texte recopié)."""
     fautes = []
-    for ph in PD.PHRASES.values():
-        debut = ph.texte.split("{")[0].strip()
-        if len(debut) < 20:
-            continue
-        for p, source in _sources("services", "db"):
-            if p.name != "phrases_dites_par_le_code.py" and debut in source:
-                fautes.append(f"{p.relative_to(API).as_posix()} : « {debut} »")
+    for m in sorted(CAT.PHRASES_DU_CODE):
+        for v in CAT.MOTIFS[m].variantes_defaut:
+            debut = v.split("{")[0].strip()
+            if len(debut) < 20:
+                continue
+            for p, source in _sources("services", "db"):
+                if p.parts[-2:] != ("phrases", "catalogue.py") and debut in source:
+                    fautes.append(f"{p.relative_to(API).as_posix()} : « {debut} »")
     assert not fautes, fautes
 
 
@@ -238,7 +238,8 @@ def test_les_phrases_d_information_sont_celles_d_avant_et_rangees_une_fois():
     from api.services.commande.moteur import socle
     from api.services.service_client import action
 
-    assert INFO.NON_CONFIRMABLE == "Je ne peux pas vous le confirmer." == socle.NON_CONFIRMABLE == action.PHRASE_INCONNUE
+    assert INFO.NON_CONFIRMABLE == "Je ne peux pas vous le confirmer." == action.PHRASE_INCONNUE
+    assert not hasattr(socle, "NON_CONFIRMABLE")  # C7 B5 (Evan 25/11 8 h 45) : la commande ne la compose plus, ``renseigne`` faux la porte
     assert INFO.PAS_SUR == socle._PAS_SUR == "la fiche ne le précise pas, l'équipe peut vous répondre."
     assert INFO.NON_GARANTI == "je ne peux pas le garantir : l'équipe peut vous le confirmer."
     assert INFO.POUR_LES_AUTRES_NON_GARANTI == "Pour les autres, je ne peux pas le garantir."

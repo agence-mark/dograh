@@ -9,7 +9,7 @@ Le connecteur interne ``service`` (``integrations/connectors/actions/service.py`
   une valeur hors liste est refusée, jamais devinée. M102 (SA-47, lot 3) : le message de toute personne (client, fournisseur, administration,
   démarcheur) porte l'objet tel que dit, le prénom et le nom, l'organisme s'il y en a un, et un numéro : UN manque à la fois (objet, nom et prénom,
   numéro seulement si aucun ne s'affiche ou si la personne en donne un autre). Ce qui est dit est gardé d'un appel du geste au suivant ; le numéro
-  dicté est relu par le code une fois (``avec_numeros_retenus``), celui qui s'affiche est gardé sans relecture. Le message laissé pose l'issue de
+  dicté est relu par le code une fois (``avec_numeros_retenus``, motif ``numero_retenu``), celui qui s'affiche est gardé sans relecture. Le message laissé pose l'issue de
   l'appel réglée sur l'outil (réglage ``call_disposition``), jamais devinée.
 - ``passage_de_main`` (E-15) : la porte avant un transfert vers l'équipe. SEULEMENT sur une plainte ou un problème réel (2 motifs, réglage ``motifs`` de l'outil,
   qui ne peut que restreindre) : ``PASSER`` (l'agent peut alors passer par ``diriger_vers_personne``, le routage de l'équipe) quand l'appel a une équipe à joindre ;
@@ -32,6 +32,7 @@ from api.services.commande.resultat import (
     Resultat,
     avec_numeros_retenus,
     numero_est_dit,
+    phrase_du_numero_retenu,
 )
 from api.services.equipe.appel import cles_de_lappel
 from api.services.integrations.connectors import mesures
@@ -178,6 +179,8 @@ async def laisser_un_message(arguments: dict[str, Any], ctx: Any) -> dict[str, A
     if relire:
         m["numero_dit"] = relire
         r = avec_numeros_retenus(r, relire)
+        numero_dit = phrase_du_numero_retenu(ctx, r.faits)  # C6 n° 10 : le motif réglé ``numero_retenu``, en tête de ce que le code dit (le résultat ne compose plus la phrase)
+        r = Resultat(r.statut, r.faits, " ".join(x for x in (numero_dit, r.suggestion) if x), r.manque)
     retour = _retour(r.statut, r.faits, r.suggestion, r.manque)
     if numero_est_dit(r.faits):
         retour["_restitution"] = "dit_par_le_code"  # le numéro retenu se dit tel quel, jamais de mémoire (comme la commande et la réservation)

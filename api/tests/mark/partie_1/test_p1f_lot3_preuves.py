@@ -99,7 +99,10 @@ def test_la_facade_du_moteur_ne_montre_aucun_nom_prive():
 # --------------------------------------------------------------------------- R6 : la question du règlement n'est posée qu'une fois, par ``regler``
 
 async def test_la_question_du_reglement_n_est_dite_qu_une_fois_a_la_fin(essai_de):
-    """R6 (comportement) : « oui » à la relecture sans moyen de paiement : le manque « paiement » est celui de ``regler`` ; la fin ne l'écrit pas une seconde fois sous un autre texte."""
+    """R6 (comportement) : « oui » à la relecture sans moyen de paiement : le manque « paiement » est celui de ``regler`` ; la fin ne l'écrit pas une seconde fois.
+
+    Evan, 25/11 8 h 45 : le code ne compose aucune phrase ; depuis C4 (canal 4 fermé), la phrase du manque (« Vous réglez comment ? ») ne va plus au modèle : le retour ne porte
+    que la valeur fermée du manque, une fois, et le fait bloquant qui la nomme ; le modèle formule la question."""
     import json
 
     from .test_l04_cuisine import _a_emporter, _jusqu_au_recapitulatif, _premier_article
@@ -112,9 +115,10 @@ async def test_la_question_du_reglement_n_est_dite_qu_une_fois_a_la_fin(essai_de
     from api.services.actions_communes.du import CLE_DU
 
     retour = json.dumps({k: v for k, v in e.retours[-1].items() if k != CLE_DU}, ensure_ascii=False, default=str)  # le retour entier, moins le seul constat du code (lot 7a) que le modèle ne lit pas
-    assert retour.count("Vous réglez comment") == 1, retour[:1500]
+    assert "Vous réglez comment" not in retour, retour[:1500]
     manques = [x.get("manque") for x in e.retours[-1].get("resultats") or []]
     assert manques.count("paiement") == 1, manques
+    assert (e.retours[-1].get("faits") or {}).get("fait_bloquant", {}).get("manque") == "paiement", retour[:1500]
 
 
 # --------------------------------------------------------------------------- reprise 6 : l'objet d'une question est fixé à sa naissance

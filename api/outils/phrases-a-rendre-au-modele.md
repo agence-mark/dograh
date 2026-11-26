@@ -2,8 +2,8 @@
 
 Chaque ligne est une phrase écrite en dur dans le moteur. La colonne « Nature » dit une chose et une seule : « rendue au modèle (lot 7) » (le code propose un fait et une
 consigne, le modèle dit la phrase ; aucune exception) ou « exception du § 2 : <laquelle> » (relecture, total, numéro, confirmation, fait accompli qui engage, phrases
-réglables DC4 et DC10 ; DC5 et le repli de panne n'en sont pas). Les phrases d'exception sont dans `api/services/commande/phrases_dites_par_le_code.py` (texte inchangé,
-exception nommée) ; les phrases d'information et de proposition (« je ne peux pas le garantir », « d'après la fiche », « voulez-vous en passer une nouvelle ? ») sont des
+réglables DC4 et DC10 ; DC5 et le repli de panne n'en sont pas). Depuis C6 n° 12 (décision d'Evan 25/11 9 h 30), le code ne dit plus que les motifs réglés de la liste fermée `PHRASES_DU_CODE`
+(`api/services/phrases/catalogue.py`) ; les phrases d'information et de proposition (« je ne peux pas le garantir », « d'après la fiche », « voulez-vous en passer une nouvelle ? ») sont des
 propositions faites au modèle, rangées une fois dans `api/services/actions_communes/phrases_d_information.py`.
 
 Lignes lues à la fin du lot 1, reprises au lot 2 (audit). Le tri est mécanique (forme de la phrase) ; les anciennes lignes « à vérifier » sont tranchées une par une.
@@ -122,7 +122,7 @@ Lignes lues à la fin du lot 1, reprises au lot 2 (audit). Le tri est mécanique
 | `services/commande/porte.py:93` | le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'ell | rendue au modèle (lot 7) : explication ou refus |
 | `services/commande/porte.py:94` | le code vient de lui dire ce qui est refusé et pourquoi : ta phrase suit, sans le redire | rendue au modèle (lot 7) : explication ou refus |
 | `services/commande/porte.py:353` | Pour quel jour et à quelle heure, alors ? | rendue au modèle (lot 7) : question |
-| `services/commande/phrases_dites_par_le_code.py` (`annulee_en_cours`) | Je ne l'enregistre pas. | exception du § 2 : fait accompli qui engage (annulée avant son enregistrement) |
+| `services/commande/textes_de_secours.py` (`annulee_en_cours`) | Je ne l'enregistre pas. | rendue au modèle (lot 7) : C6 n° 7, texte de secours gardé au journal pour le repli |
 | `services/reservation/moteur.py:72` | Je ne peux prendre qu'une réservation par appel, et celle de cet appel est annulée. Je vous passe à l'équipe p | rendue au modèle (lot 7) |
 | `services/reservation/moteur.py:151` | Pour combien de personnes ? | rendue au modèle (lot 7) : question |
 | `services/reservation/moteur.py:155` | Pour quel jour ? | rendue au modèle (lot 7) : question |
@@ -172,10 +172,8 @@ Lignes lues à la fin du lot 1, reprises au lot 2 (audit). Le tri est mécanique
 | `services/restauration/source_commande.py:159` | Cette heure est déjà passée, pour quelle heure ? | rendue au modèle (lot 7) : question |
 | `services/restauration/source_commande.py:425` | Je ne peux pas envoyer de message pour le moment. | rendue au modèle (lot 7) : explication ou refus |
 | `services/restauration/source_commande.py:427` | C'est déjà parti, ou je ne peux pas l'envoyer à ce numéro. | rendue au modèle (lot 7) |
-| `services/commande/porte.py:PHRASE_PANNE_COMMANDE_JOINTE` | Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle. | rendue au modèle (lot 7) : la panne se dit par le modèle, le code donne le fait et la consigne |
-| `services/commande/porte.py:PHRASE_PANNE_SANS_COMMANDE` | Je n'arrive pas à faire cela pour le moment. | rendue au modèle (lot 7) : la panne se dit par le modèle, le code donne le fait et la consigne |
 
-Total : 164 phrases.
+Total : 162 phrases (7b-C4 : ``PHRASE_PANNE_*`` retirées au commit 11 de C1, le fichier ne les cite plus ; plus aucun fichier du lot n'est à rendre, ``A_RENDRE`` est vide).
 | `services/actions_communes/phrases_d_information.py` (`NOUVELLE_COMMANDE_PROPOSEE`) | Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ? | rendue au modèle (lot 7) : refus suivi d'une question (DC5), proposée par le code ; le code ne la dit que dans le repli |
 | `services/restauration/carte_et_allergenes/voir_un_article.py:115` (`INFO.SOURCE_FICHE`) | D'après la fiche, … ne contient pas … | rendue au modèle (lot 7) : explication ou refus, montée d'une constante du module commun |
 | `services/restauration/carte_et_allergenes/voir_un_article.py:117` (`INFO.CA_DEPEND_DU_CHOIX_NON_GARANTI`) | Pour …, ça dépend du choix : je ne peux pas le garantir. | rendue au modèle (lot 7) : explication ou refus |

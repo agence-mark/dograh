@@ -166,7 +166,8 @@ class TestOFF2:
         assert r.faits["total_remises"] == 430 and r.faits["total"] == 2170, r
         retour = await e.tour("une lasagne, un gratin et un tiramisu", ajouter=[{"article": "lasagnes", "quantite": 1}, {"article": "gratin", "quantite": 1}, {"article": "tiramisu", "quantite": 1}])
         lu = await _lu(e)
-        assert lu.faits["total_remises"] == 430 and lu.faits["total"] == 2170 and "vous économisez quatre euros trente" in lu.suggestion, (fait(retour), lu)
+        # T7, C6 n° 11 (décision d'Evan 25/11 9 h 30) : la lecture rend le FAIT de la remise ; sa phrase n'est plus qu'un texte de secours (retiré par C7a), le modèle la dit
+        assert lu.faits["total_remises"] == 430 and lu.faits["total"] == 2170, (fait(retour), lu)
 
     async def test_off2_aller_retour_caisse(self, essai_de):
         e = await _essai_avec(essai_de, "OFF2", PLATS_CHAUDS)
@@ -259,27 +260,30 @@ class TestOFF3:
         assert '"total_remises": 100' in fait(lu), fait(lu)
 
     async def test_off3_la_remise_du_code_est_dite_par_le_code_quand_elle_s_applique(self, essai_de):
-        """Conversation OFF3-A : la remise donnée par le code est dite PAR LE CODE, une fois, après la phrase du modèle, au moment où elle s'applique : le code d'abord puis les
-        articles, ou les articles d'abord puis le code ; le retour porte le drapeau, jamais la phrase."""
-        from api.services.actions_communes import parole as PAROLE
+        """Conversation OFF3-A : la remise donnée par le code est dite une fois, au moment où elle s'applique : le code d'abord puis les articles, ou les articles d'abord puis le code.
+        C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : c'est un FAIT du retour (``remises_a_dire`` : nom, montant) que le modèle dit avec ses mots, vérifié par la barrière ; le
+        code ne dit plus de phrase après la sienne."""
+        from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase
+        from api.services.actions_communes.du import faits_du_refus
         from api.services.commande import porte
 
         def suffixe(e):
             return (e.fiche_de_l_appel.get(porte.CLE_TEXTES_DU_CODE) or {}).get("suffixe")
 
-        dit = "Bonne nouvelle : Remise R-BIENVENUE, cela vous fait deux euros trente de moins."
         e = await _essai_avec(essai_de, "OFF3", ("R-BIENVENUE", "pourcentage", {}, {"pourcentage": 10}, {}, {"code": "BIENVENUE"}))
         r = await e.tour("j'ai le code BIENVENUE", code_de_remise="BIENVENUE")
-        assert suffixe(e) is None and "prix_dit_par_le_code_apres_ta_phrase" not in r  # le panier est vide : rien à dire encore
+        assert "remises_a_dire" not in r["faits"]  # le panier est vide : rien à dire encore
         r = await e.tour("une margherita et une reine", ajouter=[{"article": "margherita", "quantite": 1}, {"article": "reine", "quantite": 1}])
-        assert r["prix_dit_par_le_code_apres_ta_phrase"] is True and "économ" not in fait(r) and "deux euros trente" not in fait(r)
-        assert PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe is None or suffixe(e) == dit  # posé pour la parole du tour
+        assert [x["montant"] for x in r["faits"]["remises_a_dire"]] == [230] and not suffixe(e) and "prix_dit_par_le_code_apres_ta_phrase" not in r, (r["faits"], suffixe(e))
+        assert not chiffre_dans_la_phrase("Votre code vous fait deux euros trente de moins.", faits=faits_du_refus(r))  # le montant passe la barrière
+        # mineur de l'audit C7 commande : la remise dite porte aussi son montant en lettres (``montant_dit``), sous la même forme que la remise lue (``lecture``)
+        assert [x.get("montant_dit") for x in r["faits"]["remises_a_dire"]] == ["deux euros trente"], r["faits"]
         r = await e.tour("et une autre margherita", ajouter=[{"article": "margherita", "quantite": 1}])
-        assert "prix_dit_par_le_code_apres_ta_phrase" not in r  # une seule fois
+        assert "remises_a_dire" not in r["faits"]  # une seule fois
         autre = await _essai_avec(essai_de, "OFF3", ("R-BIENVENUE", "pourcentage", {}, {"pourcentage": 10}, {}, {"code": "BIENVENUE"}))
         await autre.tour("une margherita et une reine", ajouter=[{"article": "margherita", "quantite": 1}, {"article": "reine", "quantite": 1}])
         r = await autre.tour("le code BIENVENUE", code_de_remise="BIENVENUE")
-        assert r["prix_dit_par_le_code_apres_ta_phrase"] is True and suffixe(autre) == dit, suffixe(autre)
+        assert [x["montant"] for x in r["faits"]["remises_a_dire"]] == [230] and not suffixe(autre), r["faits"]
 
     async def test_off3_reduction_annoncee_le_modele_demande_le_code(self, essai_de):
         """« J'ai un code » sans le dire : le retour rend le fait et ``manque`` ``code_de_remise`` (la question vient du modèle) ; rien n'est posé."""
@@ -387,10 +391,11 @@ class TestOFF4:
         await e.tour("en livraison au 5 rue Louis Boilet à Pont-Sainte-Maxence", mode_de_retrait="livraison", **ADRESSE)
         await e.tour("un burger", ajouter=[{"article": "burger maison", "quantite": 1}])
         petit = await _lu(e)
-        assert "La livraison est offerte" not in petit.suggestion and petit.faits["frais"] == 300 and "livraison_offerte" not in petit.faits, petit
+        # T7, C6 n° 11 (décision d'Evan 25/11 9 h 30) : la livraison offerte est un FAIT de la lecture (``livraison_offerte``, ``frais``), que le modèle dit ; plus la phrase du code
+        assert petit.faits["frais"] == 300 and "livraison_offerte" not in petit.faits, petit
         await e.tour("et un double burger", ajouter=[{"article": "double burger", "quantite": 1}])
         grand = await _lu(e)
-        assert "La livraison est offerte" in grand.suggestion and grand.faits["livraison_offerte"] is True and grand.faits["frais"] == 0, grand
+        assert grand.faits["livraison_offerte"] is True and grand.faits["frais"] == 0, grand
 
     async def test_off4_aller_retour_caisse(self, essai_de):
         """Au-delà du seuil la commande part sans frais de livraison (aucune charge ``delivery``) et la caisse retrouve notre total."""

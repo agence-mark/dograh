@@ -31,45 +31,49 @@ from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
-from api.services.actions_communes.enveloppe import Enveloppe
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
-from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
+from api.services.actions_communes import parole as PAROLE
+from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
-from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche
+from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche, phrase_du_code
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
+from api.services.commande.moteur.socle import CLE_STATUT_LU, STATUTS_PERDUS
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
+from api.services.mots_dits import montant_en_lettres
+from api.services.phrases.catalogue import RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
 from api.services.commande import panier as P
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
-from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, CLE_DU_SUFFIXE, lecture_sur_une_copie, lire
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
-from api.services.commande.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
+from api.services.commande.lire import lecture_sur_une_copie, lire
+from api.services.commande.phrases_du_manque import Manque
+from api.services.commande.phrases_du_manque import valeur_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
     Resultat,
+    phrase_du_numero_retenu,
     question_apres_enregistrement,
-    question_du_numero_affiche,
     question_du_numero_dicte,
 )
 from api.services.commande.source import Source
 from api.services.integrations.connectors.outil import nom_vu
 from api.services.restauration.mesures import mesures as mesures_du_module
 
+RELECTURE_PAS_ENTENDUE = "relecture_pas_entendue"  # fait : le « oui » ne vaut pas accord, la relecture reste posée (lu par ``registre._ferme``)
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur`` (reprise de ``action.py``)
 
 
 def _regles(ctx: Any):
     regles = reglages_de_la_commande(ctx.configurations)
     if regles is not None and is_dataclass(regles):
-        regles = replace(regles, question_numero_affiche=question_du_numero_affiche(ctx), question_apres_enregistrement=question_apres_enregistrement(ctx),
+        regles = replace(regles, question_apres_enregistrement=question_apres_enregistrement(ctx),
                          question_numero_dicte=question_du_numero_dicte(ctx))
     return regles
 
@@ -84,6 +88,7 @@ ORDRE_DES_CASES = (
     "code_de_remise", "reduction_annoncee", "c_est_tout",
 )
 INFORMATIONS = ORDRE_DES_CASES[ORDRE_DES_CASES.index("mode_de_retrait"):ORDRE_DES_CASES.index("c_est_tout")]
+METIER_DU_FAIT_BLOQUANT = "commande"  # la case du fait bloquant de la fiche est partagée avec la réservation : chaque porte n'écrit et ne retire que la sienne
 CLE_DES_PAROLES = "paroles_de_la_personne"
 CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
@@ -91,15 +96,35 @@ MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition",
                        "confirmer_numero": "numero_affiche", "confirmer_numero_dicte": RQ.TYPE_DU_NUMERO_DICTE}  # DC10  # C7 (lot 19 bis) : le numéro qui s'affiche est une question numérotée, sa réponse la cite
 MANQUES_REFUSES_DE_QUESTION = {"heure_voulue": "heure_proposee"}  # lot 7b, ligne 12 : une heure refusée reste un manque, donc la question qui passe avant la relecture (``registre.ORDRE``)
 # Lot 6, élément 1 (b) (B7 point 2, K4 du banc ``contrat_b4.texte_du_code``) : ce que le code dit lui-même, mot pour mot, au retour de la fiche ;
-# rangé dans la fiche de l'appel pour la couche de parole, JAMAIS dans le retour montré au modèle (B10 point 4 : seulement le drapeau).
+# rangé dans la fiche de l'appel pour la couche de parole, JAMAIS dans le retour montré au modèle (B10 point 4).
 #   avant   : le récapitulatif, la confirmation de l'enregistrement : dit, et le tour s'arrête là ;
-#   suffixe : le prix d'une proposition née dans ce tour : dit juste après la phrase du modèle (D33).
+#   suffixe : une phrase réglée (le total de la relecture, le rendu, M108) : dite juste après la phrase du modèle (C6) ; plus aucun prix (C6 n° 11 : des faits que le modèle dit).
 STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "dis-lui avec tes mots le minimum de la livraison et ce qui manque (faits.minimum_de_la_commande), puis demande-lui ce qu'elle veut faire"
 A_FAIRE_DE_L_HEURE = "demande-lui avec tes mots ce qui manque de l'heure voulue (faits.heure_a_dire : le jour et l'heure, ou l'heure de la réouverture)"
+A_FAIRE_DU_PRIX_AU_POIDS = "dis-lui avec tes mots le poids et le prix de la ligne au poids (faits.prix_au_poids), et l'arrondi s'il y en a un"  # C6 n° 11 (QTE1)
+A_FAIRE_DE_LA_REMISE = "dis-lui avec tes mots la remise que son code lui donne, avec son montant (faits.remises_a_dire)"  # C6 n° 11 (OFF3)
 A_FAIRE_DE_LA_REGLE = "dis-lui avec tes mots la règle de la ligne ou de l'article (faits.regle_de_la_ligne, faits.regles_a_dire)"
 A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus de la fiche, avec leurs chiffres et leurs lieux (faits.refus_de_la_fiche)"
 A_FAIRE_DE_L_ANNULATION = "demande-lui avec tes mots si elle est sûre de vouloir annuler sa commande, en disant le montant (faits.annulation_a_confirmer) ; rien n'est annulé avant son « oui »"
+A_FAIRE_DE_LA_COMMANDE_PERDUE = ("sa commande n'a pas été confirmée par la cuisine : dis-le-lui, et propose-lui de laisser un message à l'équipe pour qu'elle la rappelle ; "
+                                 "si elle dit oui, laisser_un_message avec l'objet")
+A_FAIRE_DE_LA_RELECTURE = (  # C6 : le modèle relit avec ses mots ; le numéro noté (n° 10), le total et la question sont dits par le code juste après sa phrase
+    "relis-lui sa commande avec tes mots d'après les faits du retour (les articles, le mode, l'heure, les offerts, ou seulement ce qui a changé), sans le total, sans numéro de téléphone et sans question : "
+    "le code dit le numéro noté s'il y en a un, le total, et pose la question juste après ta phrase"
+)
+A_FAIRE_DE_LA_CONFIRMATION = (  # C6 n° 5 et 10 : le modèle confirme avec ses mots ; le numéro noté, le rendu de monnaie et la question sont dits par le code après sa phrase
+    "dis-lui avec tes mots que sa commande est enregistrée et quand elle sera prête ou livrée (quand_dit du résultat, à dire tel quel), sans prix, sans numéro de téléphone et sans question : "
+    "le code dit le numéro noté s'il y en a un, le rendu de monnaie et la question juste après ta phrase"
+)
+A_FAIRE_DU_CHANGEMENT = (  # C6 n° 6 : le modèle dit que la commande enregistrée est changée ; le nouveau total et la question sont dits par le code juste après sa phrase
+    "dis-lui avec tes mots que sa commande est changée, sans prix et sans question : le code dit le nouveau total et la question juste après ta phrase"
+)
+A_FAIRE_AVANT_LE_NUMERO_DICTE = (  # C6 n° 12 : DC10, le modèle dit ce que la fiche a fait ; la relecture du numéro dicté et sa question sont dites par le code après sa phrase
+    "dis-lui avec tes mots ce que sa fiche a fait, sans numéro de téléphone et sans question : le code relit le numéro dicté et pose la question juste après ta phrase"
+)
+A_FAIRE_DE_L_ANNULATION_FAITE = "dis-lui avec tes mots que sa commande est annulée, sans prix"  # C6 n° 7 : DC4, second temps
+A_FAIRE_DE_L_ANNULATION_EN_COURS = "dis-lui avec tes mots que la commande n'est pas passée : rien n'est enregistré"  # C6 n° 7 : la commande en cours annulée
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
@@ -114,7 +139,8 @@ def _consigne_du_journal(etape: str) -> tuple[int, str]:
 
 
 def faits_du_minimum(p: dict[str, Any]) -> dict[str, Any] | None:
-    """Les faits du minimum de la livraison : ``{commune, minimum, manque}`` (centimes), lus dans l'ÉTAT du panier à la fin de la fiche (minimum de sa zone et chiffrage retenus,
+    """Les faits du minimum de la livraison : ``{commune, minimum, manque}`` (centimes) et les mêmes montants en lettres (``minimum_dit``, ``manque_dit`` : F3, C7, la copie du modèle
+    retire les centimes), lus dans l'ÉTAT du panier à la fin de la fiche (minimum de sa zone et chiffrage retenus,
     ``etat_pour_le_modele.retenir``), pas dans la dernière opération (une proposition peut la suivre). ``None`` : pas en livraison, pas de lignes, minimum atteint ou inconnu."""
     from api.services.commande.etat_pour_le_modele import CLE_CONNU, _commune, cle_du_chiffrage
 
@@ -130,7 +156,8 @@ def faits_du_minimum(p: dict[str, Any]) -> dict[str, Any] | None:
     sous_total = chiffrage.get("sous_total")
     if not isinstance(sous_total, int) or sous_total >= int(minimum):
         return None
-    return {"commune": commune, "minimum": int(minimum), "manque": int(minimum) - sous_total}
+    manque = int(minimum) - sous_total
+    return {"commune": commune, "minimum": int(minimum), "manque": manque, "minimum_dit": montant_en_lettres(int(minimum)), "manque_dit": montant_en_lettres(manque)}
 
 
 def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.Du | None:
@@ -158,49 +185,75 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.
     return None
 
 
+def fait_de_la_confirmation(dernier: Resultat) -> dict[str, Any]:
+    """Ce que dit la confirmation d'une commande enregistrée, en faits : livrée ou prête (M121 : une livraison dit son arrivée) et l'heure (``quand_dit``) ; le journal la garde pour savoir
+    si un changement redit quelque chose (RC3), jamais une phrase."""
+    faits = dernier.faits or {}
+    return {"fait": "enregistree", "livree": faits.get("mode") == "livraison", "quand_dit": faits.get("quand_dit")}
+
+
+def _textes_de_la_confirmation(p: dict[str, Any], dernier: Resultat, question_apres: str | None, phrase_du_rendu: str | None, phrase_du_numero: str | None = None) -> dict[str, Any]:
+    """C6 n° 5 (décision d'Evan 25/11 9 h 30 ; P4) : la confirmation est dite par le MODÈLE, l'heure exigée de sa phrase (``chiffres_exiges``) ; le code dit ensuite, dans cet ordre, le rendu
+    de monnaie (motif réglé) puis la question M108, seulement si aucune question n'attend ; C6 n° 10 : un numéro dicté et retenu dans ce geste (``phrase_du_numero``) passe avant le rendu (sinon le modèle la pose). ``fait_accompli`` : les faits de la confirmation
+    (``fait_de_la_confirmation``), gardés au journal du dit seulement (jamais dits à la voix, même relance ratée : reprise R1 de C6)."""
+    apres = (question_apres or "").strip() if CONV.question_de(p) is None else ""
+    quand = (dernier.faits or {}).get("quand_dit")
+    return {"suffixe": " ".join(x for x in (phrase_du_numero, phrase_du_rendu, apres) if x), "chiffres_exiges": {"quand": str(quand)} if quand else {},
+            "fait_accompli": fait_de_la_confirmation(dernier), "a_faire": A_FAIRE_DE_LA_CONFIRMATION}
+
+
+def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_du_changement: str | None, montant: bool) -> dict[str, Any]:
+    """C6 n° 6 (décision d'Evan 25/11 9 h 30) : la commande enregistrée est changée ; le MODÈLE le dit, le code dit ensuite le nouveau total (motif réglé ``total_apres_changement``, quand
+    le total a changé : ``montant``) puis la question M108, seulement si aucune question n'attend. ``fait_accompli`` : le nouveau total en faits, gardé au journal du dit seulement (jamais dit à la voix : reprise R1 de C6)."""
+    apres = (question_apres or "").strip() if CONV.question_de(p) is None else ""
+    total = (p.get("enregistree") or {}).get("total") if montant else None
+    return {"suffixe": " ".join(x for x in ((phrase_du_changement if montant else None), apres) if x), "chiffres_exiges": {},
+            "fait_accompli": {"fait": "changee", "total": total}, "a_faire": A_FAIRE_DU_CHANGEMENT}
+
+
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
-                   total_d_avant: Any = None, question_apres: str | None = None) -> dict[str, str]:
-    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : ce qui est dû à la personne (B2, M3), les faits accomplis
-    (enregistrée, changée avec son nouveau total, annulée) et la question qui se dit mot pour mot. ``deja_enregistree`` : la commande l'était avant
-    cette fiche (un changement se dit, ``remplace`` ; une réponse sans changement, non). RC1 (contrôle long, lot 3) : UNE seule question dans le tour. Quand une question du
-    registre est posée (l'annulation demandée, un doute, une taille), la question que le code ajoute d'habitude après un fait accompli (« Puis-je faire autre chose pour
-    vous ? », M108) cède sa place à celle-là : le fait est dit, puis la question posée, jamais deux."""
+                   total_d_avant: Any = None, question_apres: str | None = None, phrase_du_total: str | None = None, phrase_du_rendu: str | None = None,
+                   phrase_du_changement: str | None = None, phrase_du_numero: str | None = None) -> dict[str, Any]:
+    """Les phrases réglées que le code dit lui-même au retour de cette fiche (vide : aucune), toujours APRÈS la phrase du modèle (``suffixe`` ; C6 n° 12 : plus rien n'est dit avant
+    elle), avec ce que le modèle doit dire (``a_faire``, ``chiffres_exiges``) et le fait accompli gardé au journal. La question réglée du numéro dicté (DC10, ``QUESTIONS_DITES_PAR_LE_CODE``)
+    suit la phrase du modèle, seule question, à la fin (ordre de « C6 révisée », comme la question du numéro de la réservation). ``deja_enregistree`` : la commande l'était avant cette fiche (un changement se dit, ``remplace`` ; une réponse sans
+    changement, non). C6 n° 5 et 6 (décision d'Evan 25/11 9 h 30) : la confirmation et le changement sont dits par le MODÈLE ; le code dit après sa phrase le rendu, le nouveau
+    total et la question M108. RC1 (contrôle long, lot 3) : UNE seule question dans le tour : une question du registre en attente (l'annulation demandée, un doute, une taille)
+    est posée par le modèle, et M108 ne s'y ajoute pas.
+    ``phrase_du_total`` (C6) : la phrase réglée du total de la relecture, que le code dit après la phrase du modèle (elle porte la question) ; ``suffixe``.
+    ``phrase_du_rendu`` (C6 n° 5) : la phrase réglée du rendu de monnaie, dite après la confirmation du modèle (``_textes_de_la_confirmation``) ; ``phrase_du_changement`` (C6 n° 6) : celle
+    du nouveau total d'une commande enregistrée puis changée (``_textes_du_changement``). ``phrase_du_numero`` (C6 n° 10) : la phrase réglée du numéro dicté et retenu (motif
+    ``numero_retenu``), dite après la phrase du modèle et avant la suite du code (le total, le rendu, M108) ; seule une suite du code la porte (sans suite, la question du modèle finit le tour)."""
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
 
-    def avec_la_question(fait: str) -> str:
-        """LA place où la question finale s'ajoute au fait accompli : la question en attente au registre, sinon celle du réglage ; réglage vide, aucune."""
-        apres, q = (question_apres or "").strip(), CONV.question_de(p)
-        if not apres:
-            return fait
-        return " ".join(x for x in (fait, RQ.texte_dit_de_la_question(q, p) if isinstance(q, dict) else apres) if x)
-
-    def confirmation() -> str:
-        return (dernier.faits or {}).get(moteur.CLE_CONFIRMATION) or dernier.suggestion
-
-    def le_changement() -> str:
-        # B2 (M3, TF2) : changée après l'être : son nouveau total dit par le code ; le total inchangé (l'heure), sa nouvelle confirmation
-        change = (p.get("enregistree") or {}).get("total") != total_d_avant
-        if change or not dernier.suggestion:
-            return avec_la_question(RQ.texte_du_changement(p))
-        if dernier.suggestion == J.fait_accompli(p):
-            return avec_la_question(RQ.texte_du_changement(p, montant=False))  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
-        return avec_la_question(confirmation())  # l'heure a changé : la nouvelle confirmation la dit
-
     enregistree = dernier.statut in STATUTS_ENREGISTRES
-    dite_par_la_question = nee is not None and nee.get("type") in ("relecture", RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte")
-    avant_le_reste = PC.premier_cas((
-        (enregistree and bool(dernier.faits.get("remplace")), le_changement),
-        (enregistree and bool(dernier.suggestion) and not deja_enregistree, lambda: avec_la_question(confirmation())),
-        (bool(dernier.faits.get("commande_annulee")), lambda: RQ.TEXTE_ANNULATION_CONFIRMEE),  # DC4, second temps : l'annulation faite se dit par le code
-        (bool(dernier.faits.get("annulee") and dernier.suggestion), lambda: dernier.suggestion),
-        (bool(dite_par_la_question), lambda: str(nee["texte"])),
-    ))
-    if avant_le_reste is not None:
-        textes["avant"] = avant_le_reste
-    elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
-        textes["suffixe"] = str(nee["chiffre"])
+    if enregistree and dernier.faits.get("remplace"):
+        # B2 (M3, TF2) : changée après l'être : le modèle le dit, le code dit le nouveau total ; rien de ce qui se dit n'a changé, sans le total (RC3) ; l'heure a changé : la confirmation
+        if (p.get("enregistree") or {}).get("total") != total_d_avant:
+            return _textes_du_changement(p, question_apres, phrase_du_changement, montant=True)
+        if fait_de_la_confirmation(dernier) == J.fait_accompli(p):
+            return _textes_du_changement(p, question_apres, phrase_du_changement, montant=False)
+        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero)
+    if enregistree and not deja_enregistree:
+        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero)
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation est dite par le modèle, DC4 garde ses deux temps ; le code ne dit rien après sa phrase
+    if dernier.faits.get("commande_annulee"):
+        return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": {"fait": "annulee"}, "a_faire": A_FAIRE_DE_L_ANNULATION_FAITE}
+    if dernier.faits.get("annulee"):
+        return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": {"fait": "annulee_en_cours"}, "a_faire": A_FAIRE_DE_L_ANNULATION_EN_COURS}
+    if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION:
+        montant = RQ.montant_enregistre_dit(p)  # DC4, premier temps : la question du modèle doit dire le montant d'aujourd'hui ; faux ou absent, il est relancé
+        return {"suffixe": "", "chiffres_exiges": {"montant": montant} if montant else {}}
+    if nee is not None and nee.get("type") in QUESTIONS_DITES_PAR_LE_CODE and nee.get("texte"):
+        # n° 12 (ordre de « C6 révisée ») : la question réglée du numéro dicté (DC10) suit la phrase du modèle, seule question, à la fin (comme à la réservation)
+        return {"suffixe": str(nee["texte"]), "chiffres_exiges": {}, "a_faire": A_FAIRE_AVANT_LE_NUMERO_DICTE}
+    if nee is not None and nee.get("type") == "proposition" and nee.get("prix") and not nee.get("offerte") and not refus:
+        # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le modèle pose la proposition avec son prix, exigé de sa phrase ; absent ou faux, il est relancé (même ligne que DC4)
+        return {"suffixe": "", "chiffres_exiges": {"prix": montant_en_lettres(int(nee["prix"]))}}
+    elif nee is not None and nee.get("type") == "relecture" and phrase_du_total:
+        textes["suffixe"] = " ".join(x for x in (phrase_du_numero, phrase_du_total) if x)
     return textes
 
 
@@ -226,6 +279,24 @@ def _cases_montrees(ctx: Any) -> list[str] | None:
     return None
 
 
+def _objet_du_choix(r: Resultat) -> dict[str, str]:
+    """L'objet d'une question de choix (variante, étape de formule) : le groupe, son identifiant et la ligne dont elle parle ; jamais son texte."""
+    objet: dict[str, str] = {}
+    de_la_base = "groupe" in (r.faits or {})
+    question_du_moteur = (r.faits or {}).get("question") if isinstance((r.faits or {}).get("question"), dict) else {}
+    groupe = (r.faits or {}).get("nom") if de_la_base else question_du_moteur.get("nom")
+    if groupe:
+        objet["groupe"] = str(groupe)  # C7 B3 : le choix à faire (le groupe de la base, la question de la carte), son objet au registre et dans la relance, jamais son texte
+        groupe_id = r.faits["groupe"] if de_la_base else question_du_moteur.get("groupe")
+        if groupe_id:
+            # l'identifiant du groupe (de la base, ou de la question du moteur : mineur de l'audit C7) : deux groupes de même nom (la sauce du burger, celle du wrap) restent
+            # deux questions ; jamais montré au modèle
+            objet["groupe_id"] = str(groupe_id)
+    if (r.faits or {}).get("article"):
+        objet["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
+    return objet
+
+
 def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
     type_ = TYPES_DE_QUESTION.get(r.statut) or MANQUES_DE_QUESTION.get(r.manque or "") or (MANQUES_REFUSES_DE_QUESTION.get(r.manque or "") if statut_qui_refuse(r.statut) else None)
@@ -233,20 +304,24 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         type_ = formule_a_etapes.TYPE_DE_LA_QUESTION  # FOR2 : une étape de formule à choisir ouvre une question d'étape (sa réponse dans valeurs)
     if type_ is None:
         return None
-    q = {"id": f"Q-{numero}", "type": type_, "texte": r.suggestion, "nee_au_tour": tour}
+    # C7 B3 : le modèle pose la question avec ses mots (Evan 25/11 8 h 45) ; seule une question que le code dit lui-même (M108) garde son texte
+    q = {"id": f"Q-{numero}", "type": type_, "texte": r.suggestion if type_ in QUESTIONS_DITES_PAR_LE_CODE else "", "nee_au_tour": tour}
     proposition = (r.faits or {}).get("proposition")
     if type_ == "proposition" and isinstance(proposition, dict):
         q.update({"article_propose": proposition.get("nom"), "offerte": bool(proposition.get("offre")), "offre": proposition.get("offre")})
         cachee = p_de_la_question.get("proposition_en_plus") if isinstance(p_de_la_question, dict) else None
         if isinstance(cachee, dict):
-            # ce que le code dit lui-même (le chiffre après la phrase du modèle, le repli de B8) : gardé dans la question, jamais dans le retour
-            q.update({"chiffre": cachee.get("chiffre"), "repli": cachee.get("repli")})
+            q["prix"] = cachee.get("prix")  # le prix : un fait que le modèle dit, exigé de sa question (C6 n° 11)
+    if type_ == "relecture" and isinstance(p_de_la_question, dict):
+        q["jeton"] = (p_de_la_question.get("relecture") or {}).get("jeton")  # C6 : l'identité de la relecture, dont le texte n'est plus au registre (le modèle la dit)
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
-    if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
-        q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
+    if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION):
+        q.update(_objet_du_choix(r))
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
+        if (r.faits or {}).get("heure_proposee_dite"):
+            q["heure_dite"] = str(r.faits["heure_proposee_dite"])  # la même heure en mots : seule celle-ci est montrée au modèle
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(moteur.CLE_CANDIDATS), list):
         q[moteur.CLE_CANDIDATS] = r.faits[moteur.CLE_CANDIDATS]  # B5 (N1), n° 55
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(CLE_ARTICLE_DIT), dict):
@@ -258,11 +333,16 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
 
 def _faits_gardes() -> tuple[str, ...]:
     """Ce que le modèle ne voit jamais d'un résultat."""
-    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS, moteur.CLE_CONFIRMATION)
+    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS, CLE_STATUT_LU)
 
 
 def _faits_publics(r: Resultat) -> dict[str, Any]:
     return PC.faits_publics(r, _faits_gardes())
+
+
+def faits_vus_par_le_modele(r: Resultat) -> dict[str, Any]:
+    """Les faits d'un refus tels que le modèle les reçoit : ils portent tout ce qu'il doit dire (le code n'écrit plus aucun texte de secours, lot 7b-C7)."""
+    return _faits_publics(r)
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
@@ -270,9 +350,9 @@ def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
 
 
 def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
-    """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…) et son explication, pour qu'il le dise avec ses mots."""
-    explication = (r.suggestion or "").strip()
-    return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r), **({"explication": explication} if explication else {})}
+    """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…), sans phrase : le modèle le dit avec ses mots d'après les faits ;
+    le module n'écrit plus de texte de secours (lot 7b-C7) : chaque information est un fait."""
+    return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r)}
 
 
 async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, question: dict, sens: str | None,
@@ -281,6 +361,9 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     texte = ", ".join(str(v) for v in valeurs or [] if str(v).strip()) or None
     if question["type"] == "relecture":
         if sens == "accepte":
+            if not moteur.relecture_entendue(p):
+                # C6 : la phrase du total n'a pas été dite (relance échouée, « pas compris », coupure) : ce « oui » ne vaut pas accord ; la relecture se repose
+                return Resultat("OK", {"recapitulatif": "pas_entendue", RELECTURE_PAS_ENTENDUE: True}, "")
             ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             return Resultat("OK", {"recapitulatif": "accepte"}, "")
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)
@@ -381,7 +464,8 @@ async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles
     if not heure and sens == "autre":
         return Resultat("OK", {"rien_ajoute": True}, "")  # file d'attente : « autre » (elle dit ses pizzas) garde la question posée
     if not heure:
-        return Resultat("INCOMPLETE", {}, "Pour quel jour et à quelle heure, alors ?", "heure_voulue")
+        faits = {"heure_manquante": True}
+        return Resultat("INCOMPLETE", faits, "", "heure_voulue")  # C7 B5 : le modèle redemande le jour et l'heure d'après le manque et ``heure_manquante``
     r = await moteur.poser_l_heure(source, p, str(heure))
     if r is not None:
         return r
@@ -507,27 +591,33 @@ def poser_la_ligne_retiree(retour: dict[str, Any]) -> DU.Du | None:
     return DU.Du(faits_qui_engagent=(DU.RETRAIT_D_UNE_LIGNE,)) if "retirer_article" in (retour.get("cases_executees") or []) else None
 
 
-def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]]) -> DU.Du | None:
-    """QTE1 (D33) : le prix d'un article au poids est dit par le code après la phrase du modèle (suffixe) ; rend l'élément de ``Du`` (un prix à dire après), jamais la phrase. ⛔ Ne lève jamais."""
-    du = None
+def poser_le_prix_du_poids(resultats: list[dict[str, Any]], retour: dict[str, Any]) -> DU.Du | None:
+    """QTE1 (D33) : le prix d'un article au poids, le total de la ligne. C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : c'est un FAIT du retour (``prix_au_poids`` : article,
+    grammes, arrondi, portions, prix en centimes) que le modèle dit avec ses mots, vérifié par la barrière des chiffres ; rend l'élément de ``Du`` (sa consigne). ⛔ Ne lève jamais."""
     try:
+        if not isinstance(retour.get("faits"), dict):
+            return None
+        a_dire = []
         for r in resultats:
-            faits = r.get("faits") or {}
-            phrase = faits.pop("prix_a_dire", None)
-            if phrase and isinstance(getattr(ctx, "fiche", None), dict):
-                ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = phrase
-                du = DU.Du(prix_apres=True)
+            faits = r.get("faits") if isinstance(r, dict) else None
+            if isinstance(faits, dict) and isinstance(faits.get("prix_de_la_ligne"), int):
+                a_dire.append({"article": faits.get("ajoute"), "grammes": faits.get("grammes"), **({"arrondi_a": faits["arrondi_a"]} if "arrondi_a" in faits else {}),
+                               "quantite": faits.get("quantite", 1), "prix": faits.pop("prix_de_la_ligne")})
+        if not a_dire:
+            return None
+        retour["faits"]["prix_au_poids"] = a_dire
+        return DU.Du(consignes=((C.REFUS_A_DIRE, A_FAIRE_DU_PRIX_AU_POIDS),))
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : le prix du poids n'a pas pu être posé")
-    return du
+    return None
 
 
-async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any) -> DU.Du | None:
-    """OFF3 (conversation OFF3-A, D33) : la remise à laquelle un code dit donne droit est dite PAR LE CODE, une fois, au moment où elle s'applique au panier (le code dit d'abord, ou les
-    articles d'abord), après la phrase du modèle ; rend l'élément de ``Du`` (un prix à dire après), jamais la phrase. Sans cela la personne qui a dit son code n'entendait jamais que la remise était prise.
-    ⛔ Ne lève jamais."""
+async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any, retour: dict[str, Any]) -> DU.Du | None:
+    """OFF3 (conversation OFF3-A, D33) : la remise à laquelle un code dit donne droit est dite une fois, au moment où elle s'applique au panier (le code dit d'abord, ou les articles
+    d'abord). Sans cela la personne qui a dit son code n'entendait jamais que la remise était prise. C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : c'est un FAIT du retour
+    (``remises_a_dire`` : nom, montant et ``montant_dit``, texte de l'offre) que le modèle dit avec ses mots, vérifié par la barrière des chiffres ; rend l'élément de ``Du`` (sa consigne). ⛔ Ne lève jamais."""
     try:
-        if not p.get("remises_du_code") or p.get("enregistree") or p.get("annulee") or not isinstance(getattr(ctx, "fiche", None), dict):
+        if not p.get("remises_du_code") or p.get("enregistree") or p.get("annulee") or not isinstance(retour.get("faits"), dict):
             return None
         if not (p["lignes"] and p["mode"]) or P.a_completer(p):
             return None
@@ -537,9 +627,8 @@ async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regl
         nouvelles = [r for r in chiffre.faits.get("remises") or [] if r["ref"] in p["remises_du_code"] and J.une_fois(p, moteur.cle_de_la_remise(r["ref"]))]
         if not nouvelles:
             return None
-        textes = ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})
-        textes["suffixe"] = " ".join(x for x in (textes.get("suffixe"), *(moteur.phrase_d_une_remise_appliquee(r) for r in nouvelles)) if x)
-        return DU.Du(prix_apres=True)
+        retour["faits"]["remises_a_dire"] = [moteur.remise_dite(r) for r in nouvelles]  # mineur de l'audit C7 : la forme de la remise lue, montant en lettres compris
+        return DU.Du(consignes=((C.REFUS_A_DIRE, A_FAIRE_DE_LA_REMISE),))
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la remise du code n'a pas pu être posée")
     return None
@@ -636,9 +725,10 @@ def seul_autre_chose_manque(p: dict[str, Any]) -> bool:
 
 def _relecture_a_relancer(p: dict[str, Any], question_avant: dict | None, avant: str, executees: list[str]) -> bool:
     """n° 8 : la relecture posée a cessé de valoir pendant la fiche (l'étape est passée de « à relire » à « en cours » et le panier n'est plus celui qu'elle a lu) :
-    elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle."""
+    elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle. 7c (RC10) : jamais derrière un article encore en doute (``RQ.question_en_doute`` :
+    tant qu'elle vit, la commande ne se relit pas ; elle se refait à « c'est tout », comme ``_case_c_est_tout``)."""
     return ((question_avant or {}).get("type") == "relecture" and avant == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS
-            and not CONV.question_de(p) and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)))
+            and not CONV.question_de(p) and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)) and not RQ.question_en_doute(p))
 
 
 def _accord_a_redonner(p: dict[str, Any], etat_avant: str) -> bool:
@@ -649,10 +739,13 @@ def _accord_a_redonner(p: dict[str, Any], etat_avant: str) -> bool:
     return ETAPE.accord(p) or (etat_avant == ETAPE.ACCORDEE and ETAPE.courante(p) == ETAPE.EN_COURS and not RQ.question_en_doute(p))
 
 
-def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> None:
-    """n° 45 : « c'est tout » est dit mais la relecture attend l'heure proposée : l'étape le dit (plus un drapeau posé sur la question)."""
+def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> bool:
+    """n° 45 : « c'est tout » est dit mais la relecture attend l'heure proposée : l'étape le dit (plus un drapeau posé sur la question). Rend vrai : la question de l'heure est
+    alors redonnée dans ce tour (7c : le modèle la repose)."""
     if q is not None and q.get("type") == "heure_proposee" and "c_est_tout" in executees and ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
         ETAPE.transition(p, ETAPE.C_EST_TOUT_DIT)
+        return True
+    return False
 
 
 @dataclass
@@ -709,7 +802,7 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any, ex:
     """Lire, appliquer, conclure ; puis ``constater`` ce que la personne vit de plus qu'avant (B2 : ce qui est dû, à la sortie de toute fiche)."""
     vu_avant = DU.ce_qui_se_voit(contexte.panier)
     retour = await _lire_appliquer_conclure(fiche_du_modele, contexte, ex)
-    return DU.constater(retour, vu_avant, contexte.panier, texte_a_dire_du_manque, _seuil_de_sortie(contexte))
+    return DU.constater(retour, vu_avant, contexte.panier, valeur_du_manque, _seuil_de_sortie(contexte))
 
 
 async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> dict[str, Any]:
@@ -717,7 +810,7 @@ async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex
     CONV.de(p)["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
-        poser_le_fait_bloquant(ctx.fiche, None, None)
+        poser_le_fait_bloquant(ctx.fiche, None, METIER_DU_FAIT_BLOQUANT)
     f = await _lire(fiche_du_modele, ctx, ex)
     if isinstance(f, dict):
         return f  # l'enveloppe d'un refus entier, ou d'une fiche déjà faite
@@ -820,20 +913,20 @@ def _refus_de_la_commande_annulee(f: LaFiche) -> None:
 
 def _refus_de_la_commande_annulee_dans_la_fiche(f: LaFiche, refusees_en_propre: set[str]) -> None:
     """DC5 et RC8 (Evan, 22/11) : annulée DANS cette fiche (« annulez », ou le « oui » à l'annulation d'une commande enregistrée, RC4), la commande n'existe plus,
-    comme si elle l'était déjà : ni article, ni mode, ni « c'est tout » de la même fiche n'y entrent ; le code dit l'annulation. Ces cases sont écartées à part : un
+    comme si elle l'était déjà : ni article, ni mode, ni « c'est tout » de la même fiche n'y entrent ; le modèle dit l'annulation (C6 n° 7). Ces cases sont écartées à part : un
     refus ordinaire écarterait aussi l'annulation (``DEPEND_DE_TOUT``), qui est justement ce que la personne a demandé."""
     p, fiche, reponse = f.p, f.fiche, f.reponse
     if fiche.get("annuler_la_commande") is True and ETAPE.courante(p) != RQ.ANNULEE and "*" not in f.ecartees and "annuler_la_commande" not in refusees_en_propre:
         f.ecartees.discard("annuler_la_commande")  # le refus d'une autre case (le règlement avant l'accord de la relecture) n'annule pas l'annulation voulue
         dites = _cases_qui_changent(fiche)
         if dites:
-            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
+            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; dis-le avec tes mots, attends la réponse de la personne"))
             f.ecartees |= set(dites)
     if ((CONV.question_de(p) or {}).get("type") == RQ.TYPE_ANNULATION and reponse and reponse.get("sens") == "accepte"
             and ETAPE.courante(p) == RQ.ENREGISTREE and "*" not in f.ecartees):
         dites = _cases_qui_changent(fiche)
         if dites:
-            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
+            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; dis-le avec tes mots, attends la réponse de la personne"))
             f.ecartees |= set(dites)
 
 
@@ -902,10 +995,17 @@ async def _case_reponse(f: LaFiche) -> tuple[Resultat, str | None]:
     return r, "reponse"
 
 
+def _garder_le_refus(f: LaFiche, r: Resultat) -> None:
+    """Une case qui boucle sur plusieurs lignes (retirer, changer une quantité) : chaque refus est gardé, pas seulement le dernier, pour que ``refusants_de_la_fiche`` les dise tous."""
+    if r.statut in STATUTS_QUI_REFUSENT:
+        f.bruts.append(r)
+
+
 async def _case_retirer(f: LaFiche) -> tuple[Resultat, None]:
     for n in f.fiche["retirer_article"]:
         r = await moteur.retirer(f.source, f.p, f.regles, ligne=str(n))
         f.resultats.append(_resultat_public("retirer_article", r))
+        _garder_le_refus(f, r)
     f.dernier = r
     return r, None
 
@@ -917,6 +1017,7 @@ async def _case_changer_quantite(f: LaFiche) -> tuple[Resultat, None]:
         r = await moteur.modifier(f.source, f.p, f.regles, ligne=str(c.get("ligne")), quantite=c.get("quantite"), choix=choix, variante=variante,
                                   sans=", ".join(c.get("sans") or []) or None, note=c.get("precision_article"))
         f.resultats.append(_resultat_public("changer_quantite", r))
+        _garder_le_refus(f, r)
     f.dernier = r
     return r, None
 
@@ -989,7 +1090,7 @@ async def _case_c_est_tout(f: LaFiche) -> tuple[Resultat, str] | None:
 
 async def _case_annuler_enregistree(f: LaFiche) -> tuple[Resultat, str]:
     if moteur.commande_de_l_appel(f.p) is not None and moteur.annulation_possible(f.source):
-        # DC4 (Evan, 22/11) : premier temps : la question de confirmation, avec le montant, dite par le code ; rien n'est annulé avant le « oui »
+        # DC4 (Evan, 22/11) : premier temps : la question de confirmation, posée par le modèle avec le montant (exigé de sa phrase, C6 n° 7) ; rien n'est annulé avant le « oui »
         RQ.demander_l_annulation(f.p)
         return Resultat("OK", {"confirmation_demandee": True}, ""), "annuler_une_commande_enregistree"
     return await moteur.annuler_commande_enregistree(f.source, f.p, f.regles), "annuler_une_commande_enregistree"  # la raison du refus (introuvable, impossible)
@@ -1061,8 +1162,11 @@ async def _proposition_apres_les_cases(f: LaFiche) -> None:
 
 async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
     p, avant = f.p, f.avant_enregistree
-    if (avant is None or moteur.commande_de_l_appel(p) is None or P.a_completer(p) or P.empreinte(p) == p.get("empreinte_enregistree")):
-        return  # une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse ; le panier redevenu la commande enregistrée ne change rien ; un panier vidé en diffère (RC8)
+    if (avant is None or moteur.commande_de_l_appel(p) is None or P.empreinte(p) == p.get("empreinte_enregistree")
+            or (P.a_completer(p) and moteur.manque_pour_remplacer(f.source, p) is None)):
+        # une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse ; le panier redevenu la commande enregistrée ne change rien ; un panier vidé en diffère (RC8).
+        # 7c (Pierre A2, B4 M2) : un manque (l'adresse d'une livraison) se constate d'abord, même quand une ligne attend : rien ne change, le panier redevient celui d'avant
+        return
     # RC8 : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2) : rien ne change, la confirmation est posée
     # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
     f.dernier = await moteur.changer_commande_enregistree(f.source, p, f.regles, f.appelant, avant)
@@ -1118,9 +1222,11 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     q = _question_de(dernier, 0, tour, p) if dernier is not None else None
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         f.ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
-    _dire_c_est_tout(p, q, f.ex.executees)
+    redonnee = _dire_c_est_tout(p, q, f.ex.executees)
     if not RQ.est_deja_ouverte(p, q):
         RQ.ouvrir(p, q)  # celle d'un article en doute est déjà au registre, ouverte à l'article (D25)
+    if redonnee:
+        RQ.redonner(p, q, tour)  # 7c : « c'est tout » redonne l'heure proposée dans ce tour (n° 45), le modèle la repose
     for refus in (r for r in f.bruts if r.manque in MANQUES_REFUSES_DE_QUESTION and statut_qui_refuse(r.statut)):
         manque = _question_de(refus, 0, tour, p)  # ligne 12 : l'heure refusée est posée avant la relecture, le modèle dit le refus puis la demande
         if manque is not None and not RQ.est_deja_ouverte(p, manque):
@@ -1128,8 +1234,49 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     attente = moteur.question_de_la_ligne_en_attente(p)
     posee = RQ.choisir(p, tour, [_question_de(attente, 0, tour, p)] if attente is not None else [])
     avant = f.question_avant
-    # née dans ce tour : posée maintenant pour la première fois, ou reposée avec un autre texte (une relecture qui repart) ; dite par le code si c'est sa forme
-    return posee if posee is not None and (not avant or posee["id"] != avant.get("id") or posee.get("texte") != avant.get("texte") or posee.get("nee_au_tour") == tour) else None
+    # née dans ce tour : posée maintenant pour la première fois, ou reposée avec un autre objet (une relecture qui repart) ; dite par le code si c'est sa forme
+    return posee if posee is not None and (not avant or CONV.identite_de_la_question(posee) != CONV.identite_de_la_question(avant) or posee.get("nee_au_tour") == tour) else None
+
+
+CLE_RELECTURES_DU_TOTAL = "relectures_du_total"  # 7c : au journal du dit, le nombre de relectures dont le code a dit le total (le rang de sa variante)
+
+
+def _phrase_du_total(ctx: Any, p: dict[str, Any], nee: dict[str, Any] | None) -> str | None:
+    """C6 : la phrase réglée du total que le code dit après la relecture du modèle (motif ``total_relecture`` ou ``total_apres_correction``, ``{total}`` remplacé, rien d'autre) ;
+    ``None`` sans relecture née dans ce tour. Elle tourne d'une relecture à l'autre (Q3 = A). Le jeton de la relecture est noté à l'état du tour : l'accord ne vaut que si cette phrase est DITE."""
+    if nee is None or nee.get("type") != "relecture":
+        return None
+    relecture = p.get("relecture") or {}
+    motif = relecture.get("motif_du_total")
+    if not motif or relecture.get("total") is None:
+        return None
+    # 7c : le rang compte les relectures (une par tour), jamais la parité de la version du panier (un remplacement en ajoute deux : la même variante revenait)
+    rang = J.noter(p, CLE_RELECTURES_DU_TOTAL, nee.get("nee_au_tour")) - 1
+    phrase = phrase_du_code(ctx, motif, rang, total=montant_en_lettres(relecture["total"]))
+    fiche = getattr(ctx, "fiche", None)
+    if phrase and isinstance(fiche, dict):
+        etat = PAROLE.etat_du_tour(fiche)
+        etat.total_a_dire = {"jeton": relecture.get("jeton"), "texte": phrase}
+        PAROLE.garder(fiche, etat)
+    return phrase
+
+
+def _phrase_du_rendu(ctx: Any, p: dict[str, Any], dernier: Resultat | None) -> str | None:
+    """C6 n° 5 : la phrase réglée du rendu de monnaie (motif ``rendu_de_monnaie``, ``{billet}`` et ``{monnaie}`` en lettres, rien d'autre), lue sur les faits de l'enregistrement de ce tour ;
+    ``None`` sans monnaie à rendre. Elle tourne d'une commande à l'autre (Q3 = A)."""
+    rendu = (dernier.faits or {}).get("rendu") if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else None
+    if not isinstance(rendu, dict) or not rendu.get("monnaie"):
+        return None
+    return phrase_du_code(ctx, RENDU_DE_MONNAIE, int(p.get("version") or 0), billet=montant_en_lettres(int(rendu["billet"])), monnaie=montant_en_lettres(int(rendu["monnaie"])))
+
+
+def _phrase_du_changement(ctx: Any, p: dict[str, Any], dernier: Resultat | None) -> str | None:
+    """C6 n° 6 : la phrase réglée du nouveau total d'une commande enregistrée puis changée (motif ``total_apres_changement``, ``{total}`` en lettres, rien d'autre) ; ``None`` hors d'un
+    changement, ou sans total connu. Elle tourne d'un changement à l'autre (Q3 = A)."""
+    total = (p.get("enregistree") or {}).get("total")
+    if dernier is None or dernier.statut not in STATUTS_ENREGISTRES or not dernier.faits.get("remplace") or total in (None, ""):
+        return None
+    return phrase_du_code(ctx, TOTAL_APRES_CHANGEMENT, int(p.get("version") or 0), total=montant_en_lettres(int(total)))
 
 
 def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[int, str]]:
@@ -1139,25 +1286,28 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     ctx, p, dernier, tour = f.ctx, f.p, f.dernier, f.tour
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
-                            question_apres=getattr(f.regles, "question_apres_enregistrement", None))
+                            question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
+                            phrase_du_rendu=_phrase_du_rendu(ctx, p, dernier), phrase_du_changement=_phrase_du_changement(ctx, p, dernier),
+                            phrase_du_numero=phrase_du_numero_retenu(ctx, dernier.faits if dernier is not None else None, int(p.get("version") or 0)))
     refusants = refusants_de_la_fiche(f)
-    raison = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x) or None
     consignes: list[tuple[int, str]] = []
     if heures_a_dire(f) and nee is None:
         consignes.append((C.QUESTION, A_FAIRE_DE_L_HEURE))
-    if raison and "avant" not in textes:
+    if textes.get("a_faire"):
+        consignes.append((C.RESTE, str(textes["a_faire"])))  # C6 n° 5 et 6 : le modèle dit le fait accompli, le code la suite
+    if refusants:  # C5 : le refus se lit sur les refusants, plus sur le texte de secours (une suggestion vide garde sa consigne)
         # Le refus se dit une fois comme un fait (B3, M5, C7, DF7) ; redit, le journal donne l'issue, puis la sortie. Une question née avec le refus se dit d'une seule voix avec lui.
-        etape = J.fait_redit(p, raison, tour, _seuil_de_sortie(ctx))
+        etape = J.fait_redit(p, " ".join(J.identite_du_refus(r) for r in refusants), tour, _seuil_de_sortie(ctx))
         if etape in (J.ISSUE, J.SORTIE) or (etape != J.PREMIERE and nee is None):
             consignes.append(_consigne_du_journal(etape))  # déjà dit : l'issue, puis la sortie (rien de plus dans le même tour)
         else:
             consignes.append((C.REFUS_A_DIRE, A_FAIRE_DES_REFUS_A_DIRE))
-        if nee is not None:
-            consignes.append((C.QUESTION, A_FAIRE_DE_LA_QUESTION))
+        if nee is not None and nee.get("type") not in QUESTIONS_DITES_PAR_LE_CODE:
+            consignes.append((C.QUESTION, A_FAIRE_DE_LA_QUESTION))  # n° 12 : une question que le code dit (DC10) suit la phrase du modèle, il ne la pose pas
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
-    if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
-        J.dire_le_fait(p, textes["avant"], tour)  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
-    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r) for r in refusants) if x) or None)
+    if textes.get("fait_accompli"):
+        J.dire_le_fait(p, textes["fait_accompli"], tour)  # C6 n° 5 : la confirmation dite par le modèle ; le journal en garde le fait (jamais redit par le code, R1)
+    poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [_refus_pour_le_modele(r) for r in refusants])
     return consignes
 
 
@@ -1180,43 +1330,27 @@ def refusants_de_la_fiche(f: LaFiche) -> list[Resultat]:
     vus: set[str] = set()
     refusants = []
     for r in tous:
-        if r.statut in STATUTS_QUI_REFUSENT and (r.suggestion or "").strip() not in vus:
-            vus.add((r.suggestion or "").strip())
+        if r.statut in STATUTS_QUI_REFUSENT and J.identite_du_refus(r) not in vus:
+            vus.add(J.identite_du_refus(r))
             refusants.append(r)
     return refusants
 
 
-def raison_du_fait_bloquant(dernier: Any) -> str | None:
-    """La raison d'un fait bloquant qui refuse, telle que le module la rend (hors zone : « Nous ne livrons pas à X. Nous livrons … »), ou ``None``."""
-    if dernier is None or dernier.statut not in STATUTS_QUI_REFUSENT:
-        return None
-    return (dernier.suggestion or "").strip() or None
-
-
-def phrase_du_fait_bloquant_de(dernier: Any) -> str | None:
-    """Point de contrôle du lot 7 : la phrase du code pour un fait bloquant qui refuse (``repli.STATUTS_QUI_REFUSENT``), celle que le module rend
-    (hors zone : « Nous ne livrons pas à X. Nous livrons … ») ; hors zone, suivie des autres modes ouverts par la phrase du mode (« À emporter ? »,
-    ``phrases_du_manque``). Aucune phrase écrite ici. ``None`` : pas de fait bloquant qui refuse, ou le module ne rend pas de phrase."""
-    phrase = raison_du_fait_bloquant(dernier)
-    if phrase is None:
-        return None
-    autres = [m.get("libelle") or m.get("mode") for m in (dernier.faits or {}).get("autres_modes") or [] if isinstance(m, dict)]
-    propose = phrase_du_manque(Manque.MODE, [a for a in autres if a]) if autres else None
-    return f"{phrase} {propose}" if propose else phrase
-
-
-def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
-    """D33 (B9 § 2 point 4 ; B10 § 1 point 4) : la proposition née dans ce tour est posée par le modèle, avec ses mots et sans chiffre ; le code dit le
-    prix juste après sa phrase (le drapeau seul est dans le retour, jamais la phrase). Une proposition offerte n'a pas de chiffre."""
+def _a_faire_de_la_proposition(q: dict[str, Any]) -> str:
+    """D33 (B9 § 2 point 4 ; B10 § 1 point 4) : la proposition née dans ce tour est posée par le modèle, avec ses mots. C6 n° 11 (décision d'Evan 25/11 9 h 30) : il dit son prix,
+    un fait du retour (``faits.proposition_a_poser``) exigé de sa phrase. Une proposition offerte n'a pas de prix."""
     article = q.get("article_propose") or ""
     if q.get("offerte"):
-        return f"propose-lui {article} offert en une question, avec tes mots", False
-    return f"propose-lui {article} en une question, avec tes mots et sans aucun chiffre : le code dit son prix juste après ta phrase", bool(q.get("chiffre"))
+        return f"propose-lui {article} offert en une question, avec tes mots"
+    return f"propose-lui {article} en une question, avec tes mots, en disant son prix (faits.proposition_a_poser)"
 
 
 def _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee) -> dict[str, Any]:
-    """Les faits que la fiche rend au modèle : le panier, le refus du module, les refus de la fiche, l'heure qui manque, le montant d'une annulation à confirmer."""
+    """Les faits que la fiche rend au modèle : le panier, le refus du module, les refus de la fiche, l'heure qui manque, le montant d'une annulation à confirmer, le prix d'une
+    proposition à poser."""
     faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
+    if J.dit_a_un_tour_d_avant(p, J.FERMETURE):
+        faits["fermeture_dite"] = True  # 7b-C4 : un fait simple : déjà dite dans cet appel, le modèle ne la redit pas ; T2 (C7) : pas au tour qui l'apprend, il l'annonce
     if bloquant:
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     elif refusants:
@@ -1227,19 +1361,23 @@ def _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee) -> dict[str
         faits["heure_a_dire"] = [_refus_pour_le_modele(r) for r in heures]  # ce qui manque de l'heure voulue : le modèle le demande avec ses mots
     if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and (p.get("enregistree") or {}).get("total") is not None:
         faits["annulation_a_confirmer"] = {"montant": p["enregistree"]["total"]}  # DC4 (Q2 = A) : le modèle pose la question, le montant est un fait que la barrière des chiffres laisse passer
+    if nee is not None and nee.get("type") == "proposition" and nee.get("prix") and not nee.get("offerte"):
+        faits["proposition_a_poser"] = {"article": nee.get("article_propose"), "prix": nee["prix"]}  # C6 n° 11 : le prix que le modèle dit dans sa question (en centimes)
     return faits
 
 
-def _a_faire_de_la_fiche(refus, executees, nee) -> tuple[Any, bool]:
-    """La consigne du tour (selon la question née, jamais quand la fiche a refusé) et si le prix est dit par le code après la phrase du modèle."""
-    a_faire, prix_dit = B.a_faire_des_refus(refus, executees), False
+def _a_faire_de_la_fiche(refus, executees, nee) -> Any:
+    """La consigne du tour (selon la question née, jamais quand la fiche a refusé)."""
+    a_faire = B.a_faire_des_refus(refus, executees)
     if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and not refus:
         a_faire = A_FAIRE_DE_L_ANNULATION
     if nee is not None and nee.get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION and not refus:
         a_faire = formule_a_etapes.A_FAIRE
     if nee is not None and nee.get("type") == "proposition" and not refus:
-        a_faire, prix_dit = _a_faire_de_la_proposition(nee)
-    return a_faire, prix_dit
+        a_faire = _a_faire_de_la_proposition(nee)
+    if nee is not None and nee.get("type") == "relecture" and not refus:
+        a_faire = A_FAIRE_DE_LA_RELECTURE
+    return a_faire
 
 
 def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee=None, refusants=(), heures=()) -> dict[str, Any]:
@@ -1262,9 +1400,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         plus["cases_non_executees_car_liees"] = sorted(ecartees - set(plus["cases_refusees"]) - {"*"})
     faits = _faits_de_la_fiche(p, bloquant, dernier, refusants, heures, nee)
     premier = refus[0] if refus else None
-    a_faire, prix_dit = _a_faire_de_la_fiche(refus, executees, nee)
-    if prix_dit:
-        plus["prix_dit_par_le_code_apres_ta_phrase"] = True
+    a_faire = _a_faire_de_la_fiche(refus, executees, nee)
     return Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None,
                      a_faire=a_faire, plus=plus).vers_json()
 
@@ -1303,8 +1439,25 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     await moteur.vider_commande(source, p, regles)
     ETAPE.transition(p, ETAPE.ANNULEE_EN_COURS)
     CONV.poser_question(p, None)
-    # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` op ``annuler``) : le code dit l'annulation lui-même, comme au banc.
-    return Resultat("OK", {"annulee": True}, PHRASES_DITES.TEXTE_ANNULEE_EN_COURS)
+    return Resultat("OK", {"annulee": True})  # C6 n° 7 : le modèle le dit avec ses mots ; le journal en garde le fait
+
+
+def _laisser_un_message(message: Any, fiche: dict[str, Any], ctx: Any, resultats: list[dict], refus: list[dict]) -> None:
+    """Le message à l'équipe, UNE fois par appel (E30) : la demande est écrite, l'issue de l'appel et sa mesure posées (lot 6, C10 ; sens repris de
+    test_message_et_redites_m102_m113 et test_restauration_service_client, comme l'ancienne action ``laisser_un_message``). Un second message est refusé."""
+    from api.services.service_client.action import _ecrire_la_demande
+
+    if not (isinstance(message, dict) and str(message.get("objet") or "").strip()):
+        return
+    if fiche.get(CLE_MESSAGE_LAISSE):
+        refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], reste="un seul message par appel"))
+    elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
+        fiche[CLE_MESSAGE_LAISSE] = True
+        resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})
+        poser_l_issue(ctx, "message_a_transmettre")
+        from api.services.integrations.connectors import mesures as mesures_des_connecteurs
+
+        mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
 
 
 async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any) -> dict[str, Any]:
@@ -1314,7 +1467,6 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     from api.services.integrations.connectors.actions.service import (
         retrouver_par_telephone_dicte_exige_le_numero,
     )
-    from api.services.service_client.action import _ecrire_la_demande
 
     entier = B.fiche_illisible(fiche_du_modele)
     if entier is not None:
@@ -1326,6 +1478,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     refus: list[dict] = []
     a_preciser: dict[str, str] = {}
     introuvable = ""
+    perdue = ""  # une commande refusée ou en échec : l'offre du message, tenue par le modèle
     demande = fiche_du_modele.get("retrouver_une_commande_enregistree")
     if isinstance(demande, dict):
         numero_dit = str(demande.get("numero_de_commande") or "").strip() or None
@@ -1349,32 +1502,22 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             async with registre_des_sources.ouvrir((ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)) as source:
                 r = await moteur.retrouver_commande(source, p, regles, appelant, numero_dit)
             # R-d : le suivi ne montre jamais le panier (un panier vide trompe) ; ce qui manque (le numéro de la commande) ou ce qui se choisit
-            # (plusieurs commandes) est rendu avec sa phrase, jamais un « FAIT » muet que le modèle comble de lui-même.
-            faits_du_suivi = {k: v for k, v in r.faits.items() if k not in ("panier", "candidats")}
-            resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
-            if r.statut == "OK" and r.faits.get("statut"):
-                fiche[CLE_COMMANDE_RETROUVEE] = r.faits["statut"]
-            if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
-                a_preciser = {"manque": r.manque or "reference", "texte_a_dire": r.suggestion}
+            # (plusieurs commandes, F4 : leurs candidats, numéro court et heure dite) est rendu en faits, jamais un « FAIT » muet que le modèle comble de lui-même.
+            # E-36 : le statut lu reste au code (``_faits_gardes``) ; le modèle n'a que la valeur fermée ``etat``.
+            resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": _faits_publics(r)})
+            if r.statut == "OK" and r.faits.get(CLE_STATUT_LU):
+                fiche[CLE_COMMANDE_RETROUVEE] = r.faits[CLE_STATUT_LU]
+                if r.faits[CLE_STATUT_LU] in STATUTS_PERDUS and not fiche.get(CLE_MESSAGE_LAISSE):  # 7b-C4 : un message déjà laissé dans l'appel n'est plus proposé (la porte le refuserait)
+                    perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
+            if r.statut in ("INCOMPLETE", "AMBIGU") and r.manque:
+                a_preciser = {"manque": r.manque}  # 7b-C4 : la phrase du module n'est plus donnée au modèle ; C7 B4 : lu sur le manque, plus sur le texte
             elif r.statut == "INTROUVABLE":
                 # P4 : le numéro de l'appel est connu et rien n'y est trouvé : le dire, puis chercher autrement ; jamais redemander ce numéro
                 introuvable = "dis-lui qu'il n'y a pas de commande à ce numéro ; propose de chercher autrement (le numéro de la commande, ou un autre numéro) ; ne redemande pas le numéro de l'appel"
-    message = fiche_du_modele.get("laisser_un_message")
-    if isinstance(message, dict) and str(message.get("objet") or "").strip():
-        if fiche.get(CLE_MESSAGE_LAISSE):
-            refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], reste="un seul message par appel"))
-        elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
-            fiche[CLE_MESSAGE_LAISSE] = True
-            resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})
-            # Lot 6 (C10 ; sens repris de test_message_et_redites_m102_m113 et test_restauration_service_client) : l'issue de l'appel posée par
-            # le message laissé, et sa mesure pour le tableau de bord, comme l'ancienne action ``laisser_un_message``.
-            poser_l_issue(ctx, "message_a_transmettre")
-            from api.services.integrations.connectors import mesures as mesures_des_connecteurs
-
-            mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
+    _laisser_un_message(fiche_du_modele.get("laisser_un_message"), fiche, ctx, resultats, refus)
     statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else ("A_PRECISER" if a_preciser else ("INTROUVABLE" if introuvable else "FAIT")))
     premier = refus[0] if refus else None
-    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or None),
+    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or perdue or None),
                      plus={**({"refus": refus} if refus else {}), **a_preciser}).vers_json()
 
 
@@ -1527,7 +1670,7 @@ async def _outil_de_l_accueil(nom: str, source: Any, p: dict[str, Any], regles: 
     else:
         appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), appel_id)
         r = await moteur.envoyer_un_message(source, copie, regles, appelant, arguments.get("quoi"), getattr(ctx, "organization_id", None))
-    faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
+    faits = {k: v for k, v in (r.faits or {}).items() if k != "panier"}
     resultats = [{"operation": nom, "statut_du_module": r.statut}]
     if nom != "envoyer_un_sms":
         # Les trois lectures : le fait lu va au modèle tel quel (fermé, en pause, heure non calculée) ; seul un mode ou une zone qui manque se précise.
@@ -1548,9 +1691,11 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
 
 
-# Repli quand le modèle n'a pas la main : le § 2 ne le nomme pas, ces deux phrases sont dans ``outils/phrases-a-rendre-au-modele.md`` (à trancher).
-PHRASE_PANNE_COMMANDE_JOINTE = "Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle."
-PHRASE_PANNE_SANS_COMMANDE = "Je n'arrive pas à faire cela pour le moment."
+# La panne pendant la fiche : le modèle la dit avec ses mots (la consigne ``a_faire``, le fait ``transmise_a_l_equipe``) ; s'il se tait, le code le relance avec le fait
+# (``INDISPONIBLE``, posé en fait bloquant du tour). Le code ne la dit jamais.
+A_FAIRE_DE_LA_PANNE_TRANSMISE = ("le moteur est en panne : dis-lui avec tes mots que tu n'arrives pas à enregistrer sa commande pour le moment, "
+                                 "qu'elle est transmise à l'équipe et que l'équipe la rappelle")
+A_FAIRE_DE_LA_PANNE = "le moteur est en panne : dis-lui avec tes mots que tu n'arrives pas à faire cela pour le moment, sans promettre de rappel ni de transmission à l'équipe"
 
 
 async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
@@ -1571,9 +1716,8 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 return await _outil_de_l_accueil(action.nom, source, p, regles, dict(arguments or {}), ctx)
             if action.nom == "lire":
                 retour = await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
-                suffixe = retour.pop(CLE_DU_SUFFIXE, None)  # PRX5 : le prix lu est dit par le code après la phrase du modèle (D33)
-                if suffixe:
-                    poser_le_suffixe_lu(getattr(ctx, "fiche", None), suffixe)
+                # PRX5, C6 n° 11 : le prix lu (seul, jamais le total : R2) passe la barrière des chiffres dans ce tour ; le code ne le dit plus
+                PAROLE.admettre_les_valeurs(getattr(ctx, "fiche", None), retour.get("faits"))
                 return retour
             if action.nom == "fiche":
                 _prendre_les_notes_du_greffier(p, source, ctx.fiche)
@@ -1587,7 +1731,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 etat_pour_le_modele.retenir(p, source)
                 DU.assembler(retour, poser_le_minimum(ctx, p, retour), await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour),
                              poser_la_regle_de_la_ligne(retour.get("resultats") or [], retour), poser_les_regles_de_l_article(retour.get("resultats") or [], retour, p),
-                             poser_le_prix_du_poids(ctx, retour.get("resultats") or []), await poser_la_remise_du_code(ctx, source, p, regles), poser_la_ligne_retiree(retour))
+                             poser_le_prix_du_poids(retour.get("resultats") or [], retour), await poser_la_remise_du_code(ctx, source, p, regles, retour), poser_la_ligne_retiree(retour))
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))
@@ -1607,12 +1751,17 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
         if transmise:
             poser_l_issue(ctx, "message_a_transmettre")
+        faits_de_la_panne = {"indisponible": True, "transmise_a_l_equipe": transmise}
+        a_faire = None
         if action.nom == "fiche" and isinstance(ctx.fiche, dict):
-            # V10 (lot 19 bis) : la panne est dite par le CODE (jamais une phrase improvisée au second passage) ; elle ne promet un rappel que si la commande a bien été jointe à l'équipe
-            ctx.fiche[CLE_TEXTES_DU_CODE] = {"avant": PHRASE_PANNE_COMMANDE_JOINTE if transmise else PHRASE_PANNE_SANS_COMMANDE}
+            # Le modèle dit la panne avec ses mots ; s'il se tait, le code le relance avec le fait (C5). Il ne promet un rappel que si
+            # la commande a bien été jointe à l'équipe (le fait ``transmise_a_l_equipe``, la même consigne).
+            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), METIER_DU_FAIT_BLOQUANT,
+                                   [{"statut_du_module": "INDISPONIBLE", "manque": None, "faits": faits_de_la_panne}])
+            a_faire = A_FAIRE_DE_LA_PANNE_TRANSMISE if transmise else A_FAIRE_DE_LA_PANNE
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
         faites = getattr(erreur, "cases_executees", None) if action.nom == "fiche" else None
         # RC13 : une case a lâché après d'autres : le panier a pu changer, le retour dit lesquelles sont faites (jamais un panier à moitié changé que personne ne décrit)
         plus = {"fiche_appliquee": bool(faites), "cases_executees": faites} if faites else {}
-        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}, plus=plus).vers_json()
+        return Enveloppe("REJETEE", raison="rien_a_faire", faits=faits_de_la_panne, a_faire=a_faire, plus=plus).vers_json()
     return Enveloppe("REJETEE", raison="operation_inconnue").vers_json()

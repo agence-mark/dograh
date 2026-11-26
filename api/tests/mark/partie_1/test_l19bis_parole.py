@@ -218,7 +218,7 @@ async def test_hesitation_sur_une_option_range_l_option(essai_de):
 
 
 async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
-    """P8 : cases du tour illisibles : la requête ne part pas, mais le code DIT sa phrase (la question en attente, sinon ce qui manque, sinon « pas compris ») : avant, une ligne au journal et plus aucune
+    """P8 : cases du tour illisibles : la requête ne part pas, mais le code DIT sa phrase (le fait accompli, sinon « pas compris » : lot 7b-C5) : avant, une ligne au journal et plus aucune
     réponse jusqu'au raccrochage."""
     from types import SimpleNamespace
 
@@ -234,10 +234,9 @@ async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
     q = await _jusqu_a_la_relecture(e)
     moteur = SimpleNamespace(_gathered_context=e.fiche_de_l_appel)
     phrase = AR.phrase_si_les_cases_sont_illisibles(moteur)
-    assert phrase == q["texte"].strip(), (phrase, q)  # la question en attente (la relecture), dite telle que le code la tient
-    monkeypatch.setattr("api.services.actions_communes.repli.repli_dit_par_le_code", lambda *a, **k: None)
-    assert AR.phrase_si_les_cases_sont_illisibles(moteur) == phrase_de_repli_par_defaut()  # rien à redire : « pas compris »
-    monkeypatch.undo()
+    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : aucune requête n'est possible ; le code ne redit pas la question en attente, il dit la phrase réglée (le fait accompli, s'il y en a un)
+    # C6 (décision d'Evan 25/11 9 h 30) : la relecture n'a plus de texte au registre (le modèle la dit) ; le code ne dit que la phrase réglée
+    assert phrase == phrase_de_repli_par_defaut() and q["type"] == "relecture" and not str(q.get("texte") or "").strip(), (phrase, q)
     monkeypatch.setattr(AR, "preparer_la_requete", None, raising=False)
 
     async def illisible(*_a, **_k):
@@ -269,7 +268,7 @@ def test_retour_a_l_accueil_apres_commande_parole_de_l_accueil():
     CS.contexte_avec_les_cases_de_l_etat(SimpleNamespace(_gathered_context=fiche), SimpleNamespace(tools=None, get_messages=lambda: []))
     assert not PF.porte_la_fiche(fiche), fiche
     service = connecteur("service")
-    assert service.dossier_de_la_parole({}) == {} and service.objet_en_cours({}) is False and service.texte_du_manque({}, {}) is None
+    assert service.dossier_de_la_parole({}) == {} and service.objet_en_cours({}) is False and service.valeur_du_manque({}, {}) is None
 
 
 async def test_issue_commande_enregistree_jamais_ecrasee(essai_de):
@@ -455,10 +454,11 @@ async def test_plafond_titres_dit_et_partage_possible(essai_de):
     assert e.p.get("enregistree"), e.retours[-1]
 
 
-async def test_panne_a_l_enregistrement_phrase_du_code(essai_de, monkeypatch):
-    """V10 : panne en pleine commande : le retour est ``REJETEE / indisponible`` ET le code DIT sa phrase (la commande part à l'équipe, qui rappelle) ; avant, aucune phrase : le modèle improvisait au
-    second passage. Sans commande à joindre, une phrase qui ne promet aucun rappel."""
+async def test_panne_a_l_enregistrement_le_modele_la_dit_et_les_faits_sont_ranges(essai_de, monkeypatch):
+    """V10, repris en R = A (plan § 2 : le repli de panne n'est pas une exception, ``test_p1f_lot1_une_source.py:197`` ; refus 3, « phrase de panne ») : panne en pleine commande : le retour est
+    ``REJETEE / indisponible`` avec les faits et une consigne ; le code ne dit plus sa phrase seul (le modèle parle). Les faits de la panne sont posés en fait bloquant du tour : le modèle muet est relancé avec eux (lot 7b-C5). La consigne ne promet la transmission que si ``transmise_a_l_equipe``."""
     from api.services.actions_communes import parole as PAROLE
+    from api.services.actions_communes.repli import faits_du_fait_bloquant
     from api.services.commande import porte
     from api.services.workflow import parole_de_la_fiche as PF
 
@@ -471,13 +471,17 @@ async def test_panne_a_l_enregistrement_phrase_du_code(essai_de, monkeypatch):
     monkeypatch.setattr(porte, "executer_la_fiche", panne)
     r = await e.tour("et une salade", ajouter=[{"article": "salade verte", "quantite": 1}])
     assert r["faits"] == {"indisponible": True, "transmise_a_l_equipe": True}, r
+    assert r["a_faire"] == porte.A_FAIRE_DE_LA_PANNE_TRANSMISE and "transmise à l'équipe" in r["a_faire"], r
+    assert faits_du_fait_bloquant(e.fiche_de_l_appel) == [{"statut_du_module": "INDISPONIBLE", "manque": None, "faits": {"indisponible": True, "transmise_a_l_equipe": True}}]
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est noté."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == porte.PHRASE_PANNE_COMMANDE_JOINTE, d
-    assert "équipe" in d.a_dire and "rappelle" in d.a_dire
+    assert d.mode != PAROLE.A_DIRE_SEUL, d  # le modèle parle : le code ne dit pas la panne seul
     vide = await brique(essai_de, "INF1")
     r = await vide.tour("la carte ?", ajouter=[{"article": "salade verte", "quantite": 1}])
+    assert r["faits"] == {"indisponible": True, "transmise_a_l_equipe": False}, r
+    assert r["a_faire"] == porte.A_FAIRE_DE_LA_PANNE and "transmi" not in r["a_faire"].replace("sans promettre de rappel ni de transmission", ""), r
+    assert faits_du_fait_bloquant(vide.fiche_de_l_appel) == [{"statut_du_module": "INDISPONIBLE", "manque": None, "faits": {"indisponible": True, "transmise_a_l_equipe": False}}]
     d = PF.decider_apres_la_fiche(vide.fiche_de_l_appel, r, {"a_dire": "C'est noté."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == porte.PHRASE_PANNE_SANS_COMMANDE and "rappel" not in d.a_dire, d
+    assert d.mode != PAROLE.A_DIRE_SEUL, d
 
 
 async def test_oui_ecrit_en_texte_ne_cherche_pas_un_article(essai_de):

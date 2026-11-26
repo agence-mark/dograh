@@ -178,20 +178,73 @@ def test_aucun_module_ne_lit_le_drapeau_de_l_accord_sous_son_nom():
 
 def test_les_connecteurs_lisent_l_etape_et_gardent_la_forme_de_leurs_retours():
     """n° 108 : ``_etat_final`` rend toujours ``{"enregistree": bool, "articles", "mode"}`` (les tests générés stockés chez les clients le comparent) et
-    ``_action_ouverte`` s'éteint à la fin de la commande, tous deux lus de l'étape."""
+    ``_action_ouverte`` (ouverte dès un mode ou une ligne, éteinte à la fin de la commande) sont lus de l'étape."""
     from api.services.integrations.connectors.actions import commande as A
 
     p = P.nouveau()
     p["lignes"] = [{"nom": "Regina", "quantite": 2}]
     p["mode"] = "emporter"
     fiche = {P.CLE: p}
-    assert A._action_ouverte(fiche) == {"outil": "fiche", "attend_une_reponse": False}
+    assert A._action_ouverte(fiche) == {"outil": "fiche", "attend_une_reponse": False, "a_finir": True}
     assert A._etat_final(fiche) == {"enregistree": False, "articles": {"Regina": 2}, "mode": "emporter"}
     E.transition(p, E.ACCORD_DONNE)
     E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is True
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="1")
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is False
+
+
+def test_un_mode_choisi_sans_article_est_une_commande_ouverte_sans_rien_a_perdre():
+    """G36 : « à emporter », puis un détour : l'appel doit revenir à la commande. Le connecteur la déclare ouverte dès le mode, et dit
+    (``a_finir``, un fait brut) qu'elle n'a encore aucune ligne à perdre : la porte de fin et le refus de fin ne la retiennent pas."""
+    from api.services.integrations.connectors.actions import commande as A
+
+    p = P.nouveau()
+    p["mode"] = "emporter"
+    ouverte = A._action_ouverte({P.CLE: p})
+    assert ouverte is not None and ouverte["outil"] == "fiche" and ouverte["a_finir"] is False, ouverte
+    p["lignes"] = [{"nom": "Regina", "quantite": 1}]
+    assert A._action_ouverte({P.CLE: p})["a_finir"] is True  # une ligne : il y a de quoi perdre
+
+
+def test_une_commande_finie_garde_son_mode_sans_etre_ouverte():
+    """Voisin : enregistrée ou annulée, la commande garde son mode (``repartir_de_zero`` le reprend aussi) et n'est plus une action ouverte."""
+    from api.services.integrations.connectors.actions import commande as A
+
+    for fin in (lambda p: E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e"),
+                lambda p: E.transition(p, E.ANNULEE_EN_COURS)):
+        p = P.nouveau()
+        p["mode"] = "emporter"
+        fin(p)
+        assert p["mode"] == "emporter" and A._action_ouverte({P.CLE: p}) is None
+
+
+def test_un_appelant_connu_n_ouvre_pas_la_commande_au_bonjour():
+    """Piège G36 : ce que la source sait de l'appelant (``connu``, ``client``) est rangé à part : sans mode dit dans l'appel, rien d'ouvert."""
+    from api.services.commande.etat_pour_le_modele import CLE_CONNU
+    from api.services.integrations.connectors.actions import commande as A
+
+    fiche: dict = {}
+    p = P.du_dossier(fiche)
+    p["client"] = {"nom": "Marie", "telephone": "0600000000"}
+    p[CLE_CONNU] = {"modes": {"emporter": "à emporter"}, "modes_a_adresse": [], "ouverture": {}, "minimums": {}}
+    assert A._action_ouverte(fiche) is None
+
+
+def test_seuls_le_choix_du_mode_et_le_panier_neuf_ecrivent_le_mode():
+    """Le mode n'est jamais écrit par le chargement de l'appelant connu : dans ``services/commande``, seuls le choix du mode (``mode_et_adresse``) et
+    ``repartir_de_zero`` (``panier``) l'écrivent DIRECTEMENT (``["mode"] =``). Un troisième écrivain direct ouvrirait la commande dès le bonjour d'un habitué.
+    Le test ne voit pas ``registre.repartir`` (la nouvelle commande, DC5), qui recopie le mode par une boucle (``neuf[cle] = p[cle]``) puis ``remplacer_par`` :
+    c'est la copie voulue, le mode de la commande d'avant est gardé."""
+    import re
+
+    ecrivains = sorted(
+        p.relative_to(API / "services" / "commande").as_posix()
+        for p in (API / "services" / "commande").rglob("*.py")
+        if re.search(r"""\[['"]mode['"]\]\s*=(?!=)|setdefault\(['"]mode['"]|update\([^)]*mode\s*=""", p.read_text(encoding="utf-8"))
+    )
+    assert ecrivains == ["moteur/mode_et_adresse.py", "panier.py"], ecrivains
+
 
 
 # --------------------------------------------------------------------------- la fin du lot 2 (reprise de l'audit) : une source par fait, plus de drapeau déduit
@@ -292,7 +345,7 @@ def test_une_proposition_fermee_sans_reponse_se_lit_dans_le_registre_pas_dans_un
 
 
 def test_chaque_ligne_du_md_des_phrases_est_rendue_au_modele_ou_une_exception_nommee_du_plan():
-    from api.services.commande import phrases_dites_par_le_code as PD
+    from api.services.phrases.catalogue import PHRASES_DU_CODE
 
     lignes = [l.split("|") for l in (I.RACINE_API / "outils" / "phrases-a-rendre-au-modele.md").read_text(encoding="utf-8").splitlines()
               if l.startswith("|") and not l.startswith(("| Où", "|---"))]
@@ -302,7 +355,7 @@ def test_chaque_ligne_du_md_des_phrases_est_rendue_au_modele_ou_une_exception_no
         assert nature.startswith("rendue au modèle (lot 7)") or nature.startswith("exception du § 2 : "), nature
         assert "à trancher" not in nature.casefold()
     assert any("NOUVELLE_COMMANDE_PROPOSEE" in c[1] and c[3].strip().startswith("rendue au modèle") for c in lignes), "DC5 : une ligne, rendue au modèle"
-    assert not [k for k in PD.PHRASES if "panne" in k or "nouvelle" in k]
+    assert not [k for k in PHRASES_DU_CODE if "panne" in k or "nouvelle" in k]  # C6 n° 12 (décision d'Evan 25/11 9 h 30) : la liste fermée des phrases du code
 
 
 def test_la_montee_d_un_ancien_panier_n_est_appelee_que_par_du_dossier():

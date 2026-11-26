@@ -128,7 +128,7 @@ async def test_un_mode_en_pause_rend_son_statut_sa_raison_et_sa_reprise(appel_de
     await ecrire_temps(commerce.c, commerce.a, "livraison", 0, None, {"jusqu_a": JEUDI_MIDI + timedelta(hours=2)}, source="portail")
     jouer = appel_de_test.jouer
     r = await jouer("etat_ouverture", mode="livraison")
-    assert r["statut"] == "PAUSE_TYPE" and r["faits"]["modes"][0]["raison"] == "pause_type" and "pause" in r["suggestion"]
+    assert r["statut"] == "PAUSE_TYPE" and r["faits"]["modes"][0]["raison"] == "pause_type" and r["suggestion"] == ""
     tous = await jouer("etat_ouverture")
     assert tous["statut"] == "OK" and tous["faits"]["ouverts"] == ["à emporter", "sur place"]  # la livraison n'y est pas
 
@@ -143,9 +143,9 @@ async def test_l_heure_annoncee_vient_du_code_et_compte_la_duree_ajoutee(appel_d
     sans_mode = await jouer("heure_annoncee")
     assert sans_mode["statut"] == "INCOMPLETE" and sans_mode["manque"] == "mode"
     r = await jouer("heure_annoncee", mode="à emporter")
-    assert r["statut"] == "OK" and r["faits"]["minutes"] == 20 and r["suggestion"] == "Ce sera prêt dans vingt minutes."
+    assert r["statut"] == "OK" and r["faits"]["minutes"] == 20 and r["suggestion"] == "" and r["faits"]["texte"] == "dans vingt minutes"
     await ecrire_temps(commerce.c, commerce.a, "emporter", 15, None, None, source="portail")
-    assert (await jouer("heure_annoncee", mode="à emporter"))["suggestion"] == "Ce sera prêt dans trente-cinq minutes."
+    assert (await jouer("heure_annoncee", mode="à emporter"))["faits"]["texte"] == "dans trente-cinq minutes"
     await jouer("choisir_mode", mode="sur place")
     assert (await jouer("heure_annoncee"))["faits"]["mode"] == "sur_place"  # le mode de la commande par défaut
 
@@ -194,7 +194,7 @@ async def test_un_doute_ne_pose_rien_et_hors_zone_vide_l_ancienne_zone(appel_de_
     assert sans_commune["statut"] == "INTROUVABLE" and sans_commune["manque"] == "commune"
     assert (await jouer("verifier_adresse", adresse="12 rue de la République à Senlis"))["statut"] == "RETENU"
     hors = await jouer("verifier_adresse", adresse="7 rue Victor Hugo, Compiègne")
-    assert hors["statut"] == "HORS_ZONE" and "Compiègne" in hors["suggestion"]
+    assert hors["statut"] == "HORS_ZONE" and hors["faits"]["commune"]["nom"] == "Compiègne" and hors["suggestion"] == ""
     p = appel_de_test.fiche[panier.CLE]
     assert p["zone"] is None and p["adresse"] is None  # jamais l'ancienne zone pour une nouvelle adresse
     assert (await jouer("verifier_adresse", adresse="  "))["statut"] == "ARGUMENT_INVALIDE"
@@ -217,7 +217,8 @@ async def test_jamais_la_zone_d_un_autre_etablissement(appel_de_test, commerce):
 async def test_la_date_et_l_heure_dites_donnent_l_instant_exact(appel_de_test):
     jouer = appel_de_test.jouer
     r = await jouer("resoudre_une_date", texte="demain", heure="19 h 30")
-    assert r["statut"] == "RETENU" and r["faits"]["heure_voulue"] == "2026-11-13T19:30:00+01:00" and r["suggestion"] == "vendredi treize novembre à dix-neuf heures trente."
+    assert r["statut"] == "RETENU" and r["faits"]["heure_voulue"] == "2026-11-13T19:30:00+01:00" and r["suggestion"] == ""  # C7 B5 (1dc0a175) : le texte vidé, ses mots sont les faits
+    assert (r["faits"]["jour_dit"], r["faits"]["heure_dite"]) == ("vendredi treize novembre", "dix-neuf heures trente"), r
     r = await jouer("resoudre_une_date", texte="samedi", heure="sept heures et demie du soir")
     assert r["faits"]["heure_voulue"] == "2026-11-14T19:30:00+01:00"
     sans_heure = await jouer("resoudre_une_date", texte="demain")
@@ -249,7 +250,8 @@ async def test_une_commande_pour_plus_tard_de_bout_en_bout_dit_son_jour(appel_de
     assert r["manque"] == "relecture"
     fin = await jouer("finaliser", prenom="Alice", moyen="carte", confirmer=True)  # son accord au récapitulatif, avec les cases de fin
     assert fin["statut"] == "ENREGISTREE", fin
-    assert fin["suggestion"] == "Votre commande est enregistrée, elle sera prête pour vendredi treize novembre à dix-neuf heures trente. Puis-je faire autre chose pour vous ?"  # M108
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le modèle dit le fait ; C7 B9 (0e89e408) : plus aucun texte, « prête pour vendredi treize novembre à dix-neuf heures trente » est dans les faits
+    assert fin["suggestion"] == "" and fin["faits"].get("quand_dit") == "pour vendredi treize novembre à dix-neuf heures trente", fin
 
 
 # --------------------------------------------------------------------------- #

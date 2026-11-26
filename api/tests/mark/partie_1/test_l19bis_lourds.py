@@ -77,7 +77,9 @@ async def test_correction_de_quantite_d_un_lot_en_pieces(essai_de):
     r = await e.tour("sept", changer_quantite=[{"ligne": n, "quantite": 7}])
     assert "multiple_du_lot" in fait(r) and e.p["lignes"][-1]["quantite"] == 4, r
     q = await _jusqu_a_la_relecture(e)
-    assert "vingt-quatre Maki" in q["texte"], q  # la relecture dit les pièces
+    # C6 (décision d'Evan 25/11 9 h 30) : le modèle relit d'après les faits ; ils portent les pièces (24), jamais les lots
+    lignes = [l for x in e.retours[-1]["resultats"] for l in (x.get("faits") or {}).get("lignes") or []]
+    assert any("Maki" in str(l.get("nom")) and l.get("quantite") == 24 for l in lignes), (q, e.retours[-1]["resultats"])
 
 
 # --------------------------------------------------------------------------- C5

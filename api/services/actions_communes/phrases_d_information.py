@@ -1,8 +1,8 @@
 """[.mark] Les phrases d'information que le code PROPOSE au modèle quand une donnée manque ou se cite : UNE place (plan final Partie 1, lot 1, n° 82).
 
 Avant : cinq façons de dire « je ne peux pas le garantir » et deux façons de nommer la source (« D'après la fiche », « D'après nos articles »), écrites en dur
-dans l'allergie, la lecture d'un article, le socle du moteur et le service client. Ce sont des propositions (``texte_a_dire``) : le modèle les dit avec ses
-mots, le code ne les dit lui-même que dans le repli. Les textes sont ceux d'avant, mot pour mot.
+dans l'allergie, la lecture d'un article, le socle du moteur et le service client. Le modèle dit ces faits avec ses mots (aucune de ces phrases ne lui est
+donnée) ; le code ne les dit lui-même que dans le repli. Les textes sont ceux d'avant, mot pour mot.
 """
 
 from __future__ import annotations

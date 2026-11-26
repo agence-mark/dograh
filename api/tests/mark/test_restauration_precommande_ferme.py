@@ -55,20 +55,20 @@ async def test_ferme_et_planifiable_une_precommande_est_enregistree_a_l_heure_vo
     jouer = appel_de_test.jouer
     r = await jouer("choisir_mode", mode="à emporter")
     assert r["statut"] == "FERME_PLANIFIABLE" and r["faits"]["a_planifier"] is True and r["faits"]["planifiee_permise"] is True, r
-    assert "fermés" in r["suggestion"] and "dix-huit heures" in r["suggestion"] and "plus tard" in r["suggestion"], r["suggestion"]
+    assert r["faits"]["heure_proposee_dite"] == "dix-huit heures" and r["faits"]["reprise_dite"] == "dix-huit heures", r  # C7a, C7 B3 : statut et faits, le modèle pose la question
     assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter" and appel_de_test.fiche[panier.CLE]["a_planifier"] is True
     ajout = await jouer("ajouter", articles=[A("regina", 1, "Normale"), "coca"])
     assert ajout["statut"] == "OK" and len(appel_de_test.fiche[panier.CLE]["lignes"]) == 2
     # finaliser propose le prochain service et le fait confirmer (aparté d'Evan du 20/11, lot 19) : une seule question
     demande = await jouer("finaliser")
-    assert demande["statut"] == "FERME_PLANIFIABLE" and demande["manque"] == "heure_proposee" and "Je vous la prépare pour dix-huit heures ?" in demande["suggestion"], demande
+    assert demande["statut"] == "FERME_PLANIFIABLE" and demande["manque"] == "heure_proposee" and demande["faits"]["heure_proposee_dite"] == "dix-huit heures", demande  # C7 B3
     assert demande["faits"]["heure_proposee"], demande
     quand = await jouer("resoudre_une_date", texte="ce soir", heure="19 h 30")
     assert quand["statut"] == "RETENU"
     relecture = await _jusqu_a_la_relecture(jouer, quand["faits"]["heure_voulue"])
-    assert relecture["manque"] == "relecture" and "pour dix-neuf heures trente" in relecture["suggestion"], relecture
+    assert relecture["manque"] == "relecture" and relecture["faits"]["heure"] == "dix-neuf heures trente", relecture  # C6 (décision d'Evan 25/11 9 h 30) : l'heure est un fait
     fin = await jouer("finaliser", prenom="Alice", moyen="carte", confirmer=True)
-    assert fin["statut"] == "ENREGISTREE" and fin["suggestion"] == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente. Puis-je faire autre chose pour vous ?", fin  # M108
+    assert fin["statut"] == "ENREGISTREE" and (fin["suggestion"], fin["faits"]["quand_dit"]) == ("", "pour dix-neuf heures trente"), fin  # C7 B9 (0e89e408) : au fait ; C6 n° 5 (décision d'Evan 25/11 9 h 30) : le fait, sans M108 (la porte la dit après la phrase du modèle)
     ligne = await commerce.c.fetchrow("SELECT heure_voulue FROM mark.resto_commande WHERE site_id = $1", commerce.a)
     assert ligne["heure_voulue"].astimezone(ZoneInfo("Europe/Paris")).strftime("%H:%M") == "19:30"
 
@@ -80,7 +80,7 @@ async def test_une_heure_hors_service_est_refusee_avant_la_relecture_avec_la_reo
     hors = await jouer("resoudre_une_date", texte="ce soir", heure="15 h")
     refus = await jouer("finaliser", heure=hors["faits"]["heure_voulue"])
     assert refus["manque"] == "heure_voulue" and refus["faits"]["raison"] == "ferme_horaires", refus
-    assert "dix-huit heures" in refus["suggestion"] and "rouvrons" in refus["suggestion"], refus["suggestion"]
+    assert refus["suggestion"] == "" and refus["faits"]["rouvre_dit"] == "dix-huit heures", refus  # lot 7b-C7 (A3) : la réouverture est un fait, le modèle la dit
     assert appel_de_test.fiche[panier.CLE]["heure_voulue"] is None  # l'heure refusée n'est pas gardée
     trop_tot = await jouer("resoudre_une_date", texte="ce soir", heure="12 h 10")
     proche = await jouer("finaliser", heure=trop_tot["faits"]["heure_voulue"])
@@ -93,7 +93,7 @@ async def test_ferme_sans_le_reglage_le_comportement_d_avant_est_inchange(appel_
     jouer = appel_de_test.jouer
     r = await jouer("choisir_mode", mode="à emporter")
     assert r["statut"] == "FERME" and r["faits"]["planifiee_permise"] is False, r
-    assert "dix-huit heures" in r["suggestion"] and "plus tard" not in r["suggestion"], r["suggestion"]
+    assert r["suggestion"] == "" and r["faits"]["reprise_dite"] == "dix-huit heures", r
     assert "a_planifier" not in r["faits"]
     assert appel_de_test.fiche.get(panier.CLE, {}).get("mode") is None  # rien n'est posé
 
@@ -105,11 +105,11 @@ async def test_une_heure_dite_au_premier_tour_est_gardee_jusqu_a_finaliser(appel
     r = await jouer("choisir_mode", mode="à emporter", articles=[A("regina", 1, "Normale")], heure=quand["faits"]["heure_voulue"])
     assert r["statut"] == "FERME_PLANIFIABLE", r
     # appel 2566 : l'heure déjà dite vaut accord pour plus tard ; le résultat dit pour quand, sans reproposer « plus tard »
-    assert r["suggestion"].startswith("Commande pour dix-neuf heures.") and "plus tard" not in r["suggestion"], r["suggestion"]
+    assert r["suggestion"] == "" and r["faits"]["heure_voulue_dite"] == "dix-neuf heures", r
     assert appel_de_test.fiche[panier.CLE]["heure_voulue"] == quand["faits"]["heure_voulue"]
     assert len(appel_de_test.fiche[panier.CLE]["lignes"]) == 1  # les articles dits dans le même geste suivent
     suite = await _jusqu_a_la_relecture(jouer, None)  # l'heure n'est PAS redite à finaliser
-    assert suite["manque"] == "relecture" and "pour dix-neuf heures" in suite["suggestion"], suite
+    assert suite["manque"] == "relecture" and suite["faits"]["heure"] == "dix-neuf heures", suite  # C6 (décision d'Evan 25/11 9 h 30) : l'heure est un fait
     fin = await jouer("finaliser", prenom="Alice", moyen="carte", confirmer=True)
     assert fin["statut"] == "ENREGISTREE", fin
 
@@ -124,7 +124,7 @@ async def test_une_heure_ecrite_par_le_modele_est_resolue_par_le_code_au_fuseau_
     assert r["statut"] == "FERME_PLANIFIABLE", r
     assert appel_de_test.fiche[panier.CLE]["heure_voulue"] == reference["faits"]["heure_voulue"]  # gardée, au fuseau du lieu
     en_mots = await _jusqu_a_la_relecture(jouer, "ce soir 19 h 30")  # des mots à finaliser : résolus, jamais « À quelle heure exactement ? »
-    assert en_mots["manque"] == "relecture" and "pour dix-neuf heures trente" in en_mots["suggestion"], en_mots
+    assert en_mots["manque"] == "relecture" and en_mots["faits"]["heure"] == "dix-neuf heures trente", en_mots  # C6 (décision d'Evan 25/11 9 h 30) : l'heure est un fait
     doute = await jouer("finaliser", heure="ce soir sept heures")
     assert doute["statut"] == "AMBIGU" and doute["manque"] == "heure", doute  # un doute se dit, jamais une heure devinée
 

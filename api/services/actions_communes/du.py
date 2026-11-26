@@ -2,7 +2,7 @@
 réservation (revue d'ingénierie, point 6 : même faute, même traitement).
 
 Deux constats, posés dans le retour, lus par la parole (``actions_communes.parole``) :
-* ``texte_a_dire`` : ce qui manque, quand aucune question n'attend, à la sortie d'une fiche refusée, rejouée ou exécutée (avant : seulement
+* le manque (avant : ``texte_a_dire``, retiré du retour au lot 7b-C4 ; C5 : sa valeur fermée, jamais sa phrase, rangée dans le constat caché) : ce qui manque, quand aucune question n'attend, à la sortie d'une fiche refusée, rejouée ou exécutée (avant : seulement
   exécutée sans refus ; 42 cas rouges du test des combinaisons). Une seule place, une seule fonction par métier ;
 * ``rien_change`` : la fiche n'a rien changé de ce que la personne vit ; elle vaut une phrase sans outil (règle 2 : trace 508, « C'est noté » sur
   cinq fiches vides de suite).
@@ -41,19 +41,18 @@ class Du:
     le constat) ; ``constater`` en garde un exemplaire dans le retour (``CLE_DU``) dont seule ``boucle`` est relue. Chaque champ se lit sur la forme du retour, jamais sur des mots (D1).
 
     * ``faits_qui_engagent`` : ce que la fiche a fait et que la phrase écrite avant elle ne pouvait pas connaître (une ligne retirée, une formule ajoutée) ;
-    * ``question`` : le type de la question née dans ce retour, ``None`` sans ; ``prix_apres`` : un prix que le code dit après la phrase du modèle ;
-    * ``faits_au_modele`` : ce que le modèle doit dire (fait bloquant, faits à dire) ; ``manque`` : ce qui manque quand aucune question n'attend ;
+    * ``question`` : le type de la question née dans ce retour, ``None`` sans (C6 n° 11 : plus aucun prix n'est dit par le code après la phrase du modèle, ce sont des faits) ;
+    * ``faits_au_modele`` : ce que le modèle doit dire (fait bloquant, faits à dire) ; ``manque`` : la valeur fermée de ce qui manque quand aucune question n'attend ;
     * ``rien_change`` : la fiche n'a rien changé ; ``boucle`` : la même chose redite sans issue (la sortie), calculée UNE fois par le constat de la sortie de fiche (``constater``) et relue
       telle quelle sur l'exemplaire rangé ; la table ne la lit pas ;
     * ``consignes`` : ce que le retour dit au modèle, chacune avec son rang (``consignes.py``) ; ``assembler`` les écrit toutes dans ``a_faire`` par ``une_consigne``.
 
     Les ``poser_*`` du métier rendent chacun UN élément de ``Du`` ; ``assembler`` les range dans le constat du retour (``CLE_DU``) et écrit les drapeaux que le modèle lit :
-    aucun ``poser_*`` n'écrit plus ``prix_dit_par_le_code_apres_ta_phrase`` ni ``faits_a_dire_apres_ta_phrase``. Le code ne dit plus rien AVANT la phrase du modèle : un refus au chiffre ou au lieu
+    aucun ``poser_*`` n'écrit plus ``faits_a_dire_apres_ta_phrase``. Le code ne dit plus rien AVANT la phrase du modèle : un refus au chiffre ou au lieu
     (hors zone, minimum, règle d'une ligne ou d'un article) est un fait du retour (``CLES_DES_FAITS_DU_REFUS``), que le modèle dit."""
 
     faits_qui_engagent: tuple[str, ...] = ()
     question: str | None = None
-    prix_apres: bool = False
     faits_au_modele: tuple[str, ...] = ()
     manque: str | None = None
     rien_change: bool = False
@@ -76,14 +75,14 @@ def fusionner(*elements: "Du | None") -> "Du":
             continue
         sortie = Du(
             faits_qui_engagent=_union(sortie.faits_qui_engagent, e.faits_qui_engagent),
-            question=sortie.question or e.question, prix_apres=sortie.prix_apres or e.prix_apres, faits_au_modele=_union(sortie.faits_au_modele, e.faits_au_modele),
+            question=sortie.question or e.question, faits_au_modele=_union(sortie.faits_au_modele, e.faits_au_modele),
             manque=sortie.manque or e.manque, rien_change=sortie.rien_change or e.rien_change, boucle=sortie.boucle or e.boucle,
             consignes=_union(sortie.consignes, e.consignes))
     return sortie
 
 
 FAITS_A_DIRE_PAR_LE_MODELE = "faits_a_dire"  # un élément de ``faits_au_modele`` : des faits que le modèle doit dire (l'allergie)
-DRAPEAUX_DU_RETOUR = (("prix_dit_par_le_code_apres_ta_phrase", lambda du: du.prix_apres), (CLE_FAITS_A_DIRE, lambda du: FAITS_A_DIRE_PAR_LE_MODELE in du.faits_au_modele))
+DRAPEAUX_DU_RETOUR = ((CLE_FAITS_A_DIRE, lambda du: FAITS_A_DIRE_PAR_LE_MODELE in du.faits_au_modele),)
 
 
 def assembler(retour: dict[str, Any], *elements: "Du | None") -> None:
@@ -124,15 +123,16 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
     q = retour.get("question") if isinstance(retour.get("question"), dict) else None
     return Du(
         faits_qui_engagent=engagent,
-        question=str(q.get("type")) if q and q.get("type") else None, prix_apres=bool(retour.get("prix_dit_par_le_code_apres_ta_phrase")),
+        question=str(q.get("type")) if q and q.get("type") else None,
         faits_au_modele=tuple(x for x in ("fait_bloquant" if bloquant else None, FAITS_A_DIRE_PAR_LE_MODELE if retour.get(CLE_FAITS_A_DIRE) else None) if x),
-        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)),
+        manque=str(deja.get("manque") or "") or None if isinstance(deja, dict) else None, rien_change=bool(retour.get(RIEN_CHANGE)),
         consignes=consignes)
 
 
 # Les faits que le retour donne au modèle pour dire un refus ou une règle avec ses chiffres et ses lieux (``enveloppe`` et les ``poser_*`` de la porte) : le refus du module, le minimum de la
 # livraison, la règle d'une ligne limitée par un prix, les règles d'un article ajouté.
-CLES_DES_FAITS_DU_REFUS = ("fait_bloquant", "refus_de_la_fiche", "minimum_de_la_commande", "regle_de_la_ligne", "regles_a_dire", "heure_a_dire", "horaires_libres", "annulation_a_confirmer")
+CLES_DES_FAITS_DU_REFUS = ("fait_bloquant", "refus_de_la_fiche", "minimum_de_la_commande", "regle_de_la_ligne", "regles_a_dire", "heure_a_dire", "horaires_libres", "annulation_a_confirmer",
+                           "remises_a_dire", "proposition_a_poser", "prix_au_poids")  # C6 n° 11 : la remise d'un code, le prix d'une proposition, le prix au poids, que le modèle dit
 
 
 def faits_du_refus(retour: Any) -> list[Any]:
@@ -142,14 +142,14 @@ def faits_du_refus(retour: Any) -> list[Any]:
 
 
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
-    """L'état du dossier tel que la personne le vit (sans la tenue interne), et la question posée (numéro, texte) : deux valeurs égales avant et
+    """L'état du dossier tel que la personne le vit (sans la tenue interne), et la question posée (son identité par la structure, jamais son texte) : deux valeurs égales avant et
     après une fiche = elle n'a rien changé."""
     q = CONV.question_de(dossier) or {}
     vue = {k: v for k, v in dossier.items() if k not in COMPTEURS_DE_LA_COMMANDE and k != CONV.CLE}
     vue[J.CLE] = (dossier.get(CONV.CLE) or {}).get(J.CLE) or {}  # ce qui est dit compte : une recherche vaine de plus est un effet, même rangé sous la conversation (R1)
     if isinstance(vue.get("lignes"), list):
         vue["lignes"] = [{k: v for k, v in l.items() if k != "n"} if isinstance(l, dict) else l for l in vue["lignes"]]  # le numéro d'une ligne est de la tenue : vider puis redire la même ne change rien
-    return copy.deepcopy({**vue, "question": (q.get("id"), q.get("texte"))})
+    return copy.deepcopy({**vue, "question": CONV.identite_de_la_question(q)})
 
 
 def _articles_par_ref(lignes: Any) -> dict[str, int]:
@@ -161,21 +161,22 @@ def _articles_par_ref(lignes: Any) -> dict[str, int]:
     return compte
 
 
-def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], texte_du_manque: Callable[[dict[str, Any]], str | None],
+def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], valeur_du_manque: Callable[[dict[str, Any]], str | None],
               seuil_de_sortie: int) -> dict[str, Any]:
-    """Pose ce qui est dû dans le retour d'une fiche (``texte_a_dire``, ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
+    """Pose ce qui est dû dans le retour d'une fiche (le manque, rangé dans le constat caché ``CLE_DU`` et jamais dans le retour du modèle ; ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
     sortie, posees = False, []
     try:
-        if CONV.question_de(dossier) is None and not retour.get("texte_a_dire"):
-            phrase = texte_du_manque(dossier)
-            if phrase:
-                retour["texte_a_dire"] = phrase
+        deja = retour.get(CLE_DU)
+        if CONV.question_de(dossier) is None and not (isinstance(deja, dict) and deja.get("manque")):
+            valeur = valeur_du_manque(dossier)
+            if valeur:
+                retour[CLE_DU] = {**(deja if isinstance(deja, dict) else {}), "manque": valeur}  # C5 : la valeur fermée de ce qui manque (jamais sa phrase), lue par la parole ; le modèle ne la reçoit pas ici
         if not retour.get("refus") and retour.get("statut") != "REJETEE" and ce_qui_se_voit(dossier) == vu_avant:
             retour[RIEN_CHANGE] = True
             posees.append((C.RIEN_CHANGE, A_FAIRE_RIEN_CHANGE))
         q = CONV.question_de(dossier) or {}
         bloquant = (retour.get("faits") or {}).get("fait_bloquant")
-        signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
+        signature = [json.dumps(CONV.identite_de_la_question(q), default=str), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
         memes_lignes = _articles_par_ref((vu_avant or {}).get("lignes")) == _articles_par_ref(ce_qui_se_voit(dossier).get("lignes"))  # la commande n'avance pas : mêmes articles, mêmes quantités
         sortie = J.boucle(dossier, signature, memes_lignes, seuil_de_sortie)  # RC6 : la même chose ``seuil_de_sortie`` fois sans issue : la sortie, dite par ``une_consigne`` d'après ``Du.boucle``
     except Exception:  # noqa: BLE001

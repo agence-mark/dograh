@@ -79,3 +79,72 @@ def test_l_interrupteur_de_l_agent_eteint_la_fin_passe():
 def test_aucun_mot_de_metier_dans_le_mecanisme_de_l_action_ouverte():
     corps = (Path(fin.__file__)).read_text(encoding="utf-8")
     assert not re.search(r"commande|panier|r[ée]servation|restaura|pizza|caisse", corps, re.IGNORECASE)
+
+
+# --------------------------------------------------------------------------- G36 (lot 7b) : le mode seul est ouvert pour le retour d'un détour, pas pour la fin
+
+def _moteur_a_porte(fiche: dict):
+    """Un moteur dont l'étape a une sortie de fin réglée ``fermee_si_action_ouverte``."""
+    porte = SimpleNamespace(data=SimpleNamespace(fermee_si_action_ouverte=True), get_function_name=lambda: "fin")
+    moteur = _moteur(fiche)
+    moteur.active_agent.current_node = SimpleNamespace(out_edges=[porte])
+    return moteur
+
+
+def test_un_mode_choisi_sans_article_ne_retient_ni_la_porte_de_fin_ni_la_fin():
+    """G36, option B : « à emporter » puis « au revoir » : la sortie de fin reste ouverte et la fin passe, comme avant (rien d'autre ne change à l'oreille)."""
+    from api.services.workflow import portes_fermees
+
+    p = panier.nouveau()
+    p["mode"] = "emporter"
+    moteur = _moteur_a_porte({panier.CLE: p})
+    assert portes_fermees.portes_fermees(moteur) == set()
+    assert fin.verifier_la_fin(moteur) is None
+
+
+def test_un_panier_avec_un_article_ferme_toujours_la_porte_de_fin():
+    from api.services.workflow import portes_fermees
+
+    p = _panier()
+    p["mode"] = "emporter"
+    assert portes_fermees.portes_fermees(_moteur_a_porte({panier.CLE: p})) == {"fin"}
+
+
+def test_une_action_sans_la_cle_a_finir_reste_a_finir_la_reservation_ferme_la_porte():
+    """Une clé absente vaut « à finir » : la réservation (qui ne déclare pas ``a_finir``) retient toujours la porte et la fin."""
+    from api.services.actions_communes import conversation as CONV
+    from api.services.reservation.moteur import CLE
+    from api.services.workflow import portes_fermees
+
+    fiche = {CLE: {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}}}}
+    assert portes_fermees.portes_fermees(_moteur_a_porte(fiche)) == {"fin"}
+    from api.services.integrations.connectors.actions import reservation
+
+    assert "a_finir" not in reservation._action_ouverte(fiche)  # la déclaration de la réservation ne dit rien : une clé absente vaut « à finir »
+
+
+def _deux_actions(agent: int) -> SimpleNamespace:
+    """Commande au mode seul tenue par 300 (rien à perdre), réservation commencée tenue par 301, ``agent`` demande la fin."""
+    from api.services.actions_communes import conversation as CONV
+    from api.services.groupe.passations import CLE_PORTEURS
+    from api.services.reservation.moteur import CLE
+
+    p = panier.nouveau()
+    p["mode"] = "emporter"
+    reservation = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}}}
+    moteur = _moteur({panier.CLE: p, CLE: reservation, "conversation": {CLE_PORTEURS: {"commande": 300, "reservation": 301}}})
+    moteur.active_agent.workflow_id = agent
+    return moteur
+
+
+def test_le_refus_de_fin_ne_regarde_que_les_actions_qui_retiennent_la_fin():
+    """G36 (audit) : la commande au mode seul est chez 300 mais ne retient pas la fin ; la réservation de 301 la retient : 301 finit sa réservation avec sa fiche, on ne lui dit pas de rendre la main."""
+    refus = fin.verifier_la_fin(_deux_actions(301))
+    assert refus is not None and refus["outils_a_appeler"] == ["fiche"], refus
+    assert "collègue" not in refus["message"]
+
+
+def test_a_l_accueil_une_reservation_commencee_chez_un_collegue_reste_a_lui_rendre_la_main():
+    """Voisin : l'agent actif n'est pas celui qui tient l'action qui retient la fin, le message « chez un collègue » reste."""
+    refus = fin.verifier_la_fin(_deux_actions(299))
+    assert refus is not None and "collègue" in refus["message"] and "outils_a_appeler" not in refus, refus

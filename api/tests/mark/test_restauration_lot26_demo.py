@@ -31,7 +31,7 @@ async def test_voir_la_commande_sous_le_minimum_rend_les_lignes_et_ce_qui_manque
     assert [(l["nom"], l["quantite"], l["prix_unitaire"]) for l in r.faits["lignes"]] == [("Regina Normale", 1, 1290)]
     assert r.faits["minimum_non_atteint"] == {"minimum": 1500, "manque": 210}
     assert r.faits["total"] is None
-    assert "il manque deux euros dix" in r.suggestion and "quinze euros" in r.suggestion
+    assert r.suggestion == ""  # C7a : le minimum et ce qui manque sont des faits (``minimum_non_atteint``), le modèle les dit
     await a.ajouter("coca")  # 14,90 € : encore 10 centimes
     r = await a.voir()
     assert r.statut == "OK" and r.faits["minimum_non_atteint"]["manque"] == 10 and len(r.faits["lignes"]) == 2
@@ -50,7 +50,7 @@ async def test_une_commune_reelle_hors_de_toute_zone_est_hors_zone_avec_les_comm
         r = await verifier_adresse(commerce.c, commerce.a, adresse)
         assert r.statut == "HORS_ZONE", (adresse, r)
         assert r.faits["commune"]["nom"] == "Pont-Sainte-Maxence" and "Chantilly" in r.faits["communes_livrees"]
-        assert "Nous ne livrons pas à Pont-Sainte-Maxence." in r.suggestion and "Nous livrons" in r.suggestion and "Chantilly" in r.suggestion
+        assert r.suggestion == ""  # C7a : la commune refusée et les communes livrées sont des faits
 
 
 async def test_un_nom_de_rue_n_est_jamais_une_commune_de_livraison(commerce):  # noqa: F811
@@ -88,11 +88,12 @@ async def test_la_vente_en_plus_propose_la_boisson_precise_quand_le_panier_n_en_
     assert (r.statut, r.manque) == ("INCOMPLETE", "vente_en_plus")
     proposition = r.faits["proposition"]
     assert proposition["raison"] == "categorie_manquante" and proposition["nom"] == "Coca-Cola"
-    # lot 4 (D33) : le modèle pose la question (« proposer Coca-Cola ») ; le code dit le prix après sa phrase, et garde le repli de B8
-    assert r.suggestion == "proposer Coca-Cola" and "prix" not in proposition
+    # lot 4 (D33) : le modèle pose la question (« proposer Coca-Cola ») ; C6 n° 11 et 12 (décision d'Evan 25/11 9 h 30) : le prix est un fait que le modèle dit dans sa question,
+    # le code ne compose plus ni « Le Coca-Cola est à deux euros. » ni le repli de B8
+    # C7 B5 (Evan 25/11 8 h 45) : plus de texte au retour ; le texte d'avant se refait de la proposition (son nom, sa raison)
+    assert r.suggestion == "" and f"proposer {proposition['nom']}" == "proposer Coca-Cola" and "prix" not in proposition
     cachee = a.p["proposition_en_plus"]
-    assert cachee["chiffre"] == "Le Coca-Cola est à deux euros."
-    assert cachee["repli"] == "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?" and "quelque chose" not in cachee["repli"]
+    assert cachee["prix"] == 200 and "chiffre" not in cachee and "repli" not in cachee, cachee
 
 
 async def test_la_meilleure_vente_passe_devant(commerce):  # noqa: F811
@@ -107,7 +108,8 @@ async def test_apres_la_boisson_le_dessert_puis_plus_rien_de_generique(commerce)
     a = await AppelFinal(commerce).pret(A("regina", 1, "Normale"), "coca")
     r = await a.finaliser()
     assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "categorie_manquante"
-    assert r.faits["proposition"]["nom"] == "Mousse au chocolat" and "une mousse au chocolat" in a.p["proposition_en_plus"]["repli"]  # accordés
+    # C6 n° 12 (décision d'Evan 25/11 9 h 30) : plus de repli de B8 composé (le modèle accorde l'article dans sa question)
+    assert r.faits["proposition"]["nom"] == "Mousse au chocolat" and "repli" not in a.p["proposition_en_plus"]
     complet = await AppelFinal(commerce).pret(A("regina", 1, "Normale"), "coca", "mousse au chocolat")
     r = await complet.finaliser()
     assert r.manque == "relecture", r  # rien de pertinent à proposer : la commande continue, sans question générique
@@ -127,8 +129,7 @@ async def test_l_offre_atteinte_est_dite_sans_l_article_offert_au_panier(commerc
     a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 2, "Normale"))
     r = await moteur.remises_disponibles(a.source, a.p, a.regles)
     assert r.faits["a_dire"] is True and r.faits["moment"] == "offre_atteinte", r
-    assert r.faits["remise"]["choix"][0] == "Coca-Cola" and "Coca-Cola" in r.suggestion and "deux pizzas achetées" in r.suggestion
-    assert not any(c.isdigit() for c in r.suggestion)
+    assert r.faits["remise"]["choix"][0] == "Coca-Cola" and r.suggestion == ""
     # une seule fois (T-08)
     assert (await moteur.remises_disponibles(a.source, a.p, a.regles)).faits["raison"] == "deja_dite"
 
@@ -137,7 +138,7 @@ async def test_l_offre_presque_atteinte_est_dite_avec_ce_qui_manque(commerce):  
     await _offre_deux_pizzas_une_boisson(commerce)
     a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"))
     r = await moteur.remises_disponibles(a.source, a.p, a.regles)
-    assert r.faits["moment"] == "offre_presque_atteinte" and r.faits["remise"]["manque_articles"] == 1 and "Il vous manque encore un article" in r.suggestion
+    assert r.faits["moment"] == "offre_presque_atteinte" and r.faits["remise"]["manque_articles"] == 1 and r.suggestion == ""
 
 
 async def test_l_offre_ne_se_dit_ni_a_un_appelant_presse_ni_apres_un_refus(commerce):  # noqa: F811
@@ -153,8 +154,10 @@ async def test_la_vente_en_plus_propose_l_article_offert_et_compte_comme_une_men
     a = await AppelFinal(commerce).pret(A("regina", 2, "Normale"))
     r = await a.finaliser()
     assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "offre", r
-    assert r.suggestion == "proposer Coca-Cola offert"  # lot 4 (D33) : la question du modèle ; le repli de B8 reste au code
-    assert a.p["proposition_en_plus"]["repli"] == "Remise DEUX-UNE : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?"
+    # lot 4 (D33) : la question du modèle ; C7 B5 (Evan 25/11 8 h 45) : plus de texte au retour, la proposition (nom, raison « offre ») refait celui d'avant
+    assert r.suggestion == "" and f"proposer {r.faits['proposition']['nom']} offert" == "proposer Coca-Cola offert"
+    # C6 n° 12 (décision d'Evan 25/11 9 h 30) : le repli de B8 n'est plus composé ; l'offre est un fait de la proposition (``offre``, ``offerte``)
+    assert r.faits["proposition"]["offre"] == "Remise DEUX-UNE" and a.p["proposition_en_plus"]["offerte"] is True and "repli" not in a.p["proposition_en_plus"]
     assert a.p["mentions_de_remise"] == 1
     # après un refus de l'appelant, la vente en plus ne parle plus de l'offre : elle propose ce qui manque, sans la mentionner
     b = await AppelFinal(commerce, mentions_de_remise=3).pret(A("regina", 2, "Normale"))
@@ -253,9 +256,9 @@ async def test_les_pizzas_de_la_carte_d_essai_ont_leur_composition_et_l_inconnu_
     a = AppelFinal(commerce)
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
     r = await VOIR.voir_produit(a.source, a.p, a.regles, "calzone")
-    assert r.faits["renseigne"] is True and r.suggestion == "Dans Calzone, il y a jambon, champignons et œuf."
+    assert r.faits["renseigne"] is True and r.suggestion == "" and r.faits["ingredients"] == ["jambon", "champignons", "œuf"]  # C7 B5 (Evan 25/11 8 h 45) : le modèle les dit
     r = await VOIR.voir_produit(a.source, a.p, a.regles, "bolognese")
-    assert r.faits["renseigne"] is False and r.suggestion == moteur.NON_CONFIRMABLE
+    assert r.faits["renseigne"] is False and r.suggestion == ""  # C7 B5 : « je ne peux pas vous le confirmer » se dit d'après ``renseigne`` faux
 
 
 # M38 (SA-18) : le comptoir branche la colonne « Dite » (l'offre rendue à dire) et « Acceptée » (la commande enregistrée qui la porte).

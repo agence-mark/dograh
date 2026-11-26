@@ -23,7 +23,6 @@ from types import SimpleNamespace
 import pytest
 
 from api.schemas.phrases_du_code import ReglePhrase
-from api.services.commande.moteur import Reglages
 from api.services.commande.resultat import question_du_numero_affiche
 from api.services.mots_dits import numero_en_lettres
 from api.services.phrases.catalogue import MOTIFS, NUMERO_AFFICHE_GARDE
@@ -127,7 +126,6 @@ def _regle(**plus):
 def test_le_motif_est_au_catalogue_avec_son_texte_par_defaut_et_se_regle():
     motif = MOTIFS[NUMERO_AFFICHE_GARDE]
     assert motif.variantes_defaut == (QUESTION,) and motif.actif_par_defaut and motif.libelle_en
-    assert Reglages().question_numero_affiche == QUESTION
     ReglePhrase.model_validate(_regle())  # la règle se pose comme les autres (``regler_phrases`` n'accepte que les motifs du catalogue)
     assert question_du_numero_affiche(None) == QUESTION
     assert question_du_numero_affiche(SimpleNamespace(configurations={"phrases_regles": [_regle()]})) == "Je garde ce numéro pour vous joindre, ça vous va ?"
@@ -165,11 +163,10 @@ async def test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit
 
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
-    assert r.suggestion.endswith("C'est bon ?") and "numéro" not in r.suggestion
+    assert r.suggestion == "" and a.p["relecture"]["motif_du_total"] == "total_relecture"  # C6 (décision d'Evan 25/11 9 h 30) : le modèle relit, le code dit le total et la question
     assert (await a.finaliser(confirmer=True, prenom="Alice")).manque == "paiement"
     r = await a.finaliser(moyen="carte", prenom="Alice")
-    assert r.manque == "confirmer_numero" and r.suggestion == QUESTION, r.suggestion
-    assert r.suggestion.count("?") == 1 and "depuis lequel vous appelez" not in r.suggestion and "zéro six" not in r.suggestion
+    assert r.manque == "confirmer_numero" and r.suggestion == "", r.suggestion  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le modèle propose le numéro qui s'affiche, le code ne dit rien
     moteur.repondre_au_numero_affiche(a.p, "accepte", a.appelant)
     r = await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")
     assert r.statut == "ENREGISTREE"
@@ -207,7 +204,7 @@ async def test_d_numero_affiche_puis_un_autre_dit_relu_par_paires_sans_reposer_l
     await a.jusqu_a_la_relecture()
     await a.finaliser(confirmer=True, prenom="Alice")
     r = await a.finaliser(moyen="carte", prenom="Alice")
-    assert r.manque == "confirmer_numero" and r.suggestion == QUESTION
+    assert r.manque == "confirmer_numero" and r.suggestion == ""  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le numéro qui s'affiche est proposé par le modèle
     r = await a.finaliser(telephone="zéro six, quatre-vingt-dix-huit, soixante-seize, cinquante-quatre, trente-deux", prenom="Alice", moyen="carte")
     dit = numero_en_lettres("+33698765432")
     assert r.manque == "confirmer_numero_dicte" and r.suggestion == f"Je note le {dit}, c'est bon ?" and QUESTION not in r.suggestion, r.suggestion
@@ -218,17 +215,19 @@ async def test_d_numero_affiche_puis_un_autre_dit_relu_par_paires_sans_reposer_l
 
 async def test_f_la_phrase_reglee_remplace_le_texte_par_defaut(commerce):
     reglee = question_du_numero_affiche(SimpleNamespace(configurations={"phrases_regles": [_regle()]}))
-    a = await Appel(commerce, vente_en_plus=False, question_numero_affiche=reglee).pret()
+    assert reglee == "Je garde ce numéro pour vous joindre, ça vous va ?"
+    a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
     await a.finaliser(confirmer=True, prenom="Alice")
     r = await a.finaliser(moyen="carte", prenom="Alice")
-    assert r.manque == "confirmer_numero" and r.suggestion == "Je garde ce numéro pour vous joindre, ça vous va ?"
+    assert r.manque == "confirmer_numero" and r.suggestion == ""  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le numéro qui s'affiche est proposé par le modèle ; le réglage ne vaut plus que pour la relecture de la réservation
 
 
 @pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : la règle de phrase du numéro éteinte ne supprime plus la question (``moteur.py`` retombe sur « Je note le numéro qui s'affiche, c'est bon ? »)")
 async def test_f_eteinte_la_question_du_numero_n_est_pas_posee(commerce):
     eteinte = question_du_numero_affiche(SimpleNamespace(configurations={"phrases_regles": [_regle(active=False, variantes=[])]}))
-    b = await Appel(commerce, vente_en_plus=False, question_numero_affiche=eteinte).pret()
+    assert eteinte is None
+    b = await Appel(commerce, vente_en_plus=False).pret()
     await b.jusqu_a_la_relecture()
     await b.finaliser(confirmer=True, prenom="Alice")
     r = await b.finaliser(moyen="carte", prenom="Alice")
@@ -246,16 +245,22 @@ async def test_reservation_numero_affiche_une_question_et_dicte_relu_une_fois(sa
 
     base = {"jour": "samedi", "heure": "20h", "personnes": 2, "prenom": "Alice"}
     a = AppelResa(salle)
+    from types import SimpleNamespace
+
+    from api.services.phrases.catalogue import MOTIFS, NUMERO_DICTE_RELU
+    from api.services.reservation.porte import question_du_code
+
+    # C6 n° 8 (décision d'Evan 25/11 9 h 30 ; Q2 = A) : la relecture est dite par le modèle ; la porte dit après elle la question réglée du numéro, seule question, à la fin
+    ctx = SimpleNamespace()
     r = await a.reserver(**base)
-    assert r.manque == "relecture" and r.suggestion.endswith(" " + QUESTION) and r.suggestion.count("?") == 1, r.suggestion
+    assert r.manque == "relecture" and not r.suggestion and question_du_code(ctx, r) == QUESTION, r
     assert r.faits["numero_affiche_dit"] == numero_en_lettres(TEL_RESA)
     r = await a.reserver(telephone="0698765432")  # « non, plutôt le 06… »
-    assert r.suggestion.startswith(f"Je note le {numero_en_lettres('+33698765432')}.") and r.suggestion.endswith("C'est bon ?") and QUESTION not in r.suggestion
+    relu = MOTIFS[NUMERO_DICTE_RELU].variantes_defaut[0].replace("{numero}", numero_en_lettres("+33698765432"))
+    assert question_du_code(ctx, r) == relu and QUESTION not in relu, r
     assert "numero_affiche_dit" not in r.faits
     assert (await a.reserver(confirmer=True)).statut == "ENREGISTREE"
 
     d = AppelResa(salle, affiche=None)
     r = await d.reserver(**base, telephone="0610203040")
-    assert r.suggestion.startswith(f"Je note le {DIT_2569}.") and r.suggestion.count(DIT_2569) == 1 and r.suggestion.endswith("C'est bon ?")
-    reglee = await AppelResa(salle).reserver(**base, question_numero_affiche="Ce numéro vous va ?")
-    assert reglee.suggestion.endswith(" Ce numéro vous va ?")
+    assert question_du_code(ctx, r).count(DIT_2569) == 1 and r.faits["numero_retenu_dit"] == DIT_2569, r

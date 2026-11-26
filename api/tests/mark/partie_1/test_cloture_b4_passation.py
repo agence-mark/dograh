@@ -86,3 +86,17 @@ def test_gabarit_les_specialises_portent_les_passages_et_leurs_sorties_gardent_l
         assert all(n.get("passages") for n in e["noeuds"] if n["type"] == "startCall"), etape
         sorties = {s["sortie"]: s for s in e["sorties"]}
         assert sorties["rendre_la_main"].get("garde_l_action_ouverte") and sorties["fin"].get("fermee_si_action_ouverte"), sorties
+
+
+def test_l_inverse_une_reservation_commencee_un_detour_par_la_commande_retour_a_la_reservation():
+    """G36, voisin : la réservation est commencée, la commande (sans article, mode seul) rend la main : l'appel revient à la réservation, pas l'inverse."""
+    from api.services.actions_communes import conversation as CONV
+    from api.services.reservation.moteur import CLE
+
+    commande, reservation = 300, 301
+    fiche = {
+        CLE: {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}}},
+        P.CLE: {**P.nouveau(), "mode": "emporter"},
+        "conversation": {PA.CLE_PORTEURS: {"commande": commande, "reservation": reservation}},
+    }
+    assert PA.porteur_de_l_action_ouverte(fiche, sauf=commande) == reservation

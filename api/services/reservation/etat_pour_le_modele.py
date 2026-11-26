@@ -9,6 +9,7 @@ et sur ce que les gestes ont retenu (``retenir_la_reservation_visee``). Des fait
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE
 from typing import Any
 
 from loguru import logger
@@ -33,22 +34,32 @@ def _la_visee(etat: dict[str, Any]) -> str:
     return f"{moteur._personnes_dites(int(v['personnes']))}, {v['quand_dit']}, au nom de {v['prenom']}" if v.get("personnes") and v.get("quand_dit") else ""
 
 
+# Les valeurs fermées de ce qui manque ensuite (``ce_qui_manque_ensuite``) : une seule écriture chacune, lue par la porte et par ``phrases_du_manque``.
+LES_PERSONNES = "le nombre de personnes"
+LE_JOUR = "le jour"
+L_HEURE = "l'heure"
+LE_NOM = "le nom"
+LE_TELEPHONE = "le numéro de téléphone"
+LA_RESERVATION_D_AVANT = "le nom et le jour de sa réservation d'avant"
+MANQUES = (LES_PERSONNES, LE_JOUR, L_HEURE, LE_NOM, LE_TELEPHONE, LA_RESERVATION_D_AVANT)
+
+
 def ce_qui_manque_ensuite(etat: dict[str, Any], numero_affiche: bool) -> str | None:
     if etat.get("derniere") or etat.get("cible"):
         return None
     if etat.get("recherche"):
-        return "le nom et le jour de sa réservation d'avant"
+        return LA_RESERVATION_D_AVANT
     b = etat.get("brouillon") or {}
     if not b.get("personnes"):
-        return "le nombre de personnes"
+        return LES_PERSONNES
     if not b.get("jour"):
-        return "le jour"
+        return LE_JOUR
     if not b.get("heure"):
-        return "l'heure"
+        return L_HEURE
     if not b.get("prenom"):
-        return "le nom"
+        return LE_NOM
     if not numero_affiche and not b.get("telephone_dit"):
-        return "le numéro de téléphone"
+        return LE_TELEPHONE
     return None
 
 
@@ -58,7 +69,10 @@ def objet_en_cours(etat: dict[str, Any]) -> bool:
 
 
 def _question(q: dict[str, Any]) -> str:
-    return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
+    """Le texte n'y est que pour une question que le code dit lui-même ; le choix entre réservations n'a que ses candidats (ligne « Ses réservations à venir »)."""
+    nom = NOMS_DES_QUESTIONS.get(q.get("type"), q.get("type"))
+    dite = f" : « {q.get('texte') or ''} »" if q.get("type") in QUESTIONS_DITES_PAR_LE_CODE else ""
+    return f"- Question en attente : {q['id']} ({nom}){dite} ; réponses : accepte, refuse, autre."
 
 
 def texte(fiche: dict | None, appel: dict | None = None) -> str | None:

@@ -67,8 +67,8 @@ def test_la_reprise_d_une_lecture_lente_n_efface_pas_ce_que_la_fiche_a_ecrit_ent
     p = {"lignes": []}
     copie = copy.deepcopy(p)
     avant = copy.deepcopy(J._lu(p))
-    J.dire_le_fait(p, "C'est noté.", 1)  # la fiche écrit pendant que la lecture dure
+    J.dire_le_fait(p, {"fait": "enregistree"}, 1)  # la fiche écrit pendant que la lecture dure (C7 B9 : le fait accompli se garde en faits)
     J.poser(p, "faits_d_allergie", 1, texte="x")
     J.noter(copie, "regle_servie", 1)  # ce que la lecture a écrit sur sa copie
     J.reprendre(p, copie, avant)
-    assert J.fait_accompli(p) == "C'est noté." and J.deja_dit(p, "faits_d_allergie") and J.deja_dit(p, "regle_servie")
+    assert J.fait_accompli(p) == {"fait": "enregistree"} and J.deja_dit(p, "faits_d_allergie") and J.deja_dit(p, "regle_servie")

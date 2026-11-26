@@ -37,12 +37,14 @@ _source_du_catalogue()
 
 
 def _action_ouverte(fiche: dict) -> dict | None:
-    """Un panier avec au moins une ligne, jamais enregistré ni annulé : l'action ouverte, à finir par la fiche."""
+    """Une commande commencée (un mode choisi ou au moins une ligne), jamais enregistrée ni annulée : l'action ouverte, à finir par la fiche.
+    Au retour d'un détour, l'appel revient à l'agent qui la tient, même sans article. ``a_finir`` (fait brut) dit s'il y a déjà de quoi perdre
+    (au moins une ligne) : la porte de fin et le refus de fin ne retiennent que les actions où ``a_finir`` n'est pas ``False``."""
     from api.services.commande import etape, panier
 
     p = panier.du_dossier(fiche) if isinstance(fiche, dict) and "lignes" in (fiche.get(panier.CLE) or {}) else None  # un panier d'avant le lot 2 monte à cette lecture, seule
-    if isinstance(p, dict) and p.get("lignes") and not etape.finie(p):
-        return {"outil": "fiche", "attend_une_reponse": bool(CONV.question_de(p))}
+    if isinstance(p, dict) and (p.get("lignes") or p.get("mode")) and not etape.finie(p):
+        return {"outil": "fiche", "attend_une_reponse": bool(CONV.question_de(p)), "a_finir": bool(p.get("lignes"))}
     return None
 
 

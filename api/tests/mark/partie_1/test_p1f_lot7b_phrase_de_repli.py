@@ -45,15 +45,13 @@ async def test_sans_reglage_la_phrase_du_catalogue_et_une_ligne_au_journal(monke
     assert any("phrase de repli" in l for l in lignes), lignes
 
 
-def test_des_cases_illisibles_disent_la_phrase_reglee_quand_le_repli_n_a_rien(monkeypatch):
-    monkeypatch.setattr("api.services.actions_communes.repli.repli_dit_par_le_code", lambda *a, **k: None)
+def test_des_cases_illisibles_disent_la_phrase_reglee_sans_fait_accompli():  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : plus de repli composé
     llm = SimpleNamespace(**{ATTRIBUT_PHRASE_DE_REPLI: lambda: REGLEE})
     moteur = SimpleNamespace(_gathered_context={})
     assert AR.phrase_si_les_cases_sont_illisibles(moteur, llm) == REGLEE
 
 
-async def test_l_ouverture_aux_cases_illisibles_dit_la_phrase_du_repli(monkeypatch):
-    monkeypatch.setattr("api.services.actions_communes.repli.repli_dit_par_le_code", lambda *a, **k: None)
+async def test_l_ouverture_aux_cases_illisibles_dit_la_phrase_reglee(monkeypatch):
     async def illisible(*_a, **_k):
         raise CasesIllisibles("état illisible")
 

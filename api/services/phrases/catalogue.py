@@ -81,6 +81,9 @@ class Motif:
     sortie_par_le_code: bool = False
     # L3e : un motif verrouillé ne s'éteint jamais et n'est jamais vide (l'annonce « vous parlez à une IA ») : on change son texte, pas son existence.
     verrouille: bool = False
+    # C6 (Q1 = A, Pierre 25/11) : les variables que le CODE remplace dans la phrase (« {total} »). Une variante réglée qui en perd une est refusée (schemas.phrases_du_code) ;
+    # l'écran les montrera comme étiquettes avec la ligne S de la Partie 2 (la Partie 1 ne touche pas l'écran, F14).
+    variables: tuple[str, ...] = ()
 
 
 PASSATION_TARDE = "passation_tarde"
@@ -114,7 +117,15 @@ NUMERO_AFFICHE_GARDE = "numero_affiche_garde"
 # M108 : la question qui finit la confirmation d'un enregistrement dite par le code : la personne répond avant que l'appel se termine (une question
 # du code rend la parole, M92 ; la fin d'appel attend sa réponse). Dite DANS le résultat de l'outil, jamais en plus.
 APRES_ENREGISTREMENT = "apres_enregistrement"
+# C6 (décision d'Evan 25/11 9 h 30, § 8 bis) : le total reste dit par le code, mot pour mot, après la phrase du modèle (la relecture, puis la correction) ; le modèle ne le dit jamais.
+TOTAL_RELECTURE = "total_relecture"
+TOTAL_APRES_CORRECTION = "total_apres_correction"
+TOTAL_APRES_CHANGEMENT = "total_apres_changement"  # C6 n° 6 : le nouveau total d'une commande enregistrée puis changée, dit après la phrase du modèle
+RENDU_DE_MONNAIE = "rendu_de_monnaie"  # C6 n° 5 : le rendu calculé par le code, dit après la confirmation du modèle et avant la question M108
 NUMERO_DICTE_RELU = "numero_dicte_relu"  # DC10 (Evan, 22/11) : le numéro dicté relu avant l'enregistrement, réglable, allumé par défaut
+# C6 n° 10 (§ 8 bis) : le numéro dicté et retenu, dit par le code après la phrase du modèle et avant la suite du code (total, rendu, question) ; sa forme qui pose la question est
+# ``numero_dicte_relu`` (DC10). Le modèle ne dit jamais le numéro.
+NUMERO_RETENU = "numero_retenu"
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
 
@@ -508,14 +519,14 @@ MOTIFS: dict[str, Motif] = {
             famille=FAMILLE_ANNONCE,
             libelle_fr="Relecture : le numéro qui s'affiche est gardé",
             libelle_en="Read-back: the caller's displayed number is kept",
-            quand_fr="À la fin de la relecture (commande, réservation), quand le numéro d'où la personne appelle est gardé : cette question remplace le « C'est bon ? » final. Un « oui » vaut pour la relecture et le numéro ; un autre numéro dit à la place est relu par paires.",
-            quand_en="At the end of the read-back (order, booking), when the number the person calls from is kept: this question replaces the final « Is that right? ». A « yes » covers the read-back and the number; another number given instead is read back in pairs.",
+            quand_fr="Après la relecture d'une réservation, quand le numéro d'où la personne appelle est gardé : le code pose cette question à la place du « C'est bon ? » final. Un « oui » vaut pour la relecture et le numéro ; un autre numéro dit à la place est relu par paires.",
+            quand_en="After a booking read-back, when the number the person calls from is kept: the agent asks this question instead of the final « Is that right? ». A « yes » covers the read-back and the number; another number given instead is read back in pairs.",
             a_un_delai=False,
             variantes_defaut=("Je note ce numéro de téléphone pour vous joindre en cas de problème, c'est bon ?",),
             delai_defaut_s=None,
             actif_par_defaut=True,
-            eteinte_fr="La relecture finit par « C'est bon ? » sans parler du numéro : il reste gardé.",
-            eteinte_en="The read-back ends with « Is that right? » without mentioning the number: it is still kept.",
+            eteinte_fr="Le modèle finit la relecture de la réservation par sa propre question, sans parler du numéro : il reste gardé.",
+            eteinte_en="The model ends the booking read-back with its own question, without mentioning the number: it is still kept.",
             moment=MOMENT_ACTION,
         ),
         Motif(
@@ -534,6 +545,74 @@ MOTIFS: dict[str, Motif] = {
             moment=MOMENT_ACTION,
         ),
         Motif(
+            id=TOTAL_RELECTURE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Relecture de la commande : le total et la question",
+            libelle_en="Order read-back: the total and the question",
+            quand_fr="Après la phrase de relecture de l'agent, le code dit le total puis pose la question (« c'est bon ? »). « {total} » est remplacé par le montant en lettres : une phrase sans « {total} » est refusée.",
+            quand_en="After the agent's read-back sentence, the code says the total then asks the question (« is that right? »). « {total} » is replaced by the amount in words: a sentence without « {total} » is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Cela fait {total}, c'est bon pour vous ?", "Ça fait {total}, c'est bon ?"),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne ne saurait pas le total. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the total. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("total",),
+        ),
+        Motif(
+            id=TOTAL_APRES_CORRECTION,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Relecture après une correction : le nouveau total et la question",
+            libelle_en="Read-back after a correction: the new total and the question",
+            quand_fr="Après la phrase de l'agent qui dit ce qui a changé, le code dit le nouveau total puis pose la question. « {total} » est remplacé par le montant en lettres : une phrase sans « {total} » est refusée.",
+            quand_en="After the agent's sentence about what changed, the code says the new total then asks the question. « {total} » is replaced by the amount in words: a sentence without « {total} » is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Ça fait maintenant {total}, c'est bon ?", "Cela fait maintenant {total}, c'est bon pour vous ?"),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne ne saurait pas le nouveau total. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the new total. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("total",),
+        ),
+        Motif(
+            id=TOTAL_APRES_CHANGEMENT,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Commande changée après l'enregistrement : le nouveau total",
+            libelle_en="Order changed after the save: the new total",
+            quand_fr="Après la phrase de l'agent qui dit que la commande enregistrée est changée, quand son total change : le code dit le nouveau total, puis la question qui suit l'enregistrement. « {total} » est remplacé par le montant en lettres : une phrase sans « {total} » est refusée.",
+            quand_en="After the agent's sentence saying the saved order is changed, when its total changes: the code says the new total, then the follow-up question. « {total} » is replaced by the amount in words: a sentence without « {total} » is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Votre commande fait maintenant {total}.", "Elle fait maintenant {total}."),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne ne saurait pas le nouveau total. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the new total. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("total",),
+        ),
+        Motif(
+            id=RENDU_DE_MONNAIE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Après un enregistrement : le rendu de monnaie",
+            libelle_en="After a save: the change to give back",
+            quand_fr="Après la phrase de l'agent qui confirme l'enregistrement, quand la personne paie en espèces avec un billet : le code dit la monnaie à rendre, puis la question qui suit l'enregistrement. « {billet} » et « {monnaie} » sont remplacés par les montants en lettres : une phrase sans l'un d'eux est refusée.",
+            quand_en="After the agent's sentence confirming the save, when the person pays cash with a note: the code says the change to give back, then the follow-up question. « {billet} » and « {monnaie} » are replaced by the amounts in words: a sentence without either is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Sur votre billet de {billet}, on vous rend {monnaie}.", "Sur votre billet de {billet}, on vous rendra {monnaie}."),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne ne saurait pas la monnaie à rendre. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the change. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("billet", "monnaie"),
+        ),
+        Motif(
             id=NUMERO_DICTE_RELU,
             famille=FAMILLE_ANNONCE,
             libelle_fr="Avant l'enregistrement : le numéro dicté relu",
@@ -547,11 +626,33 @@ MOTIFS: dict[str, Motif] = {
             eteinte_fr="Le numéro dicté est enregistré dès qu'il est dit, sans relecture.",
             eteinte_en="The dictated number is saved as soon as it is said, without read-back.",
             moment=MOMENT_ACTION,
+            variables=("numero",),
+        ),
+        Motif(
+            id=NUMERO_RETENU,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Le numéro dicté, retenu",
+            libelle_en="The dictated number, kept",
+            quand_fr="Quand la personne dicte un numéro et qu'il n'est pas relu avec une question, le code le dit tel que retenu, après la phrase de l'agent et avant la suite. « {numero} » est remplacé par le numéro : une phrase sans « {numero} » est refusée.",
+            quand_en="When the person dictates a number that is not read back with a question, the code says it as kept, after the agent's sentence and before what follows. « {numero} » is replaced by the number: a sentence without « {numero} » is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Je note le {numero}.", "C'est noté, le {numero}."),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne n'entendrait pas le numéro retenu. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would not hear the number kept. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("numero",),
         ),
     )
 }
 
 # Les motifs d'un problème (déclenchés par un fait) : un compteur dans l'appel, jamais de délai.
+# C6 : la liste FERMÉE des phrases que le code dit encore mot pour mot (les autres sont dites par le modèle d'après les faits). Complétée par chaque commit de C6 qui rend un motif neuf.
+PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, TOTAL_APRES_CHANGEMENT, RENDU_DE_MONNAIE, NUMERO_RETENU, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE,
+                             APRES_ENREGISTREMENT})
+
 MOTIFS_DE_PROBLEME = tuple(m.id for m in MOTIFS.values() if m.moment == MOMENT_PROBLEME)
 
 
@@ -611,6 +712,7 @@ def catalogue_pour_l_ecran() -> dict[str, Any]:
                 "silence_de_l_appelant": m.silence_de_l_appelant,
                 "sortie_par_le_code": m.sortie_par_le_code,
                 "verrouille": m.verrouille,
+                "variables": list(m.variables),
             }
             for m in MOTIFS.values()
         ],

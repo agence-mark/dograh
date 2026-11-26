@@ -1,13 +1,16 @@
 """[.mark] Lot 7a : preuve que la table de la parole décide comme l'ancienne cascade (``_decision_du_tour`` d'avant 260210e9c), recopiée ici comme référence, SANS le préfixe : lot 7b (Q1), le code ne dit plus rien avant la phrase du modèle (un refus au chiffre
-ou au lieu, un maximum atteint, est un fait que le modèle dit ; la cascade de référence a perdu ces deux cas).
+ou au lieu, un maximum atteint, est un fait que le modèle dit ; la cascade de référence a perdu ces deux cas). Lot 7b-C4 (E1 = A, Evan 25/11) : le doute « Vous voulez dire… ? » est rendu au
+modèle avec ses candidats ; la cascade de référence a perdu le troisième cas, la question d'ambiguïté dite mot pour mot.
 
 Sur une grille de retours, de phrases, de textes du code, de dossiers et d'états du tour : même mode, même motif, même phrase dite, et mêmes mouvements de
-l'état du tour (fiches, rattrapage, retenues, question donnée, prix). La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
+l'état du tour (fiches, rattrapage, retenues, question donnée, prix). Lot 7b-C5 (décision d'Evan 25/11 8 h 45) : la référence ne complète plus la phrase par la question ou le manque, elle relance le modèle une fois. Reprise R1 de C6 (décisions d'Evan 25/11 8 h 45 et 9 h 30, P3) : elle ne redit plus le fait accompli après la phrase. T12 (coordinateur 26/11 10 h 45) : une fiche qui ne change rien
+après la relance du tour est une relance ratée (la suite réglée, sinon P3), jamais une seconde relance. La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
 
 from __future__ import annotations
 
 import copy
 import itertools
+import json
 
 import pytest
 
@@ -17,22 +20,34 @@ from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_
 from api.services.actions_communes.du import BLOQUANTS, CLE_DU, CLES_DES_FAITS_DU_REFUS, CLE_FAITS_A_DIRE, RETRAIT_D_UNE_LIGNE, RIEN_CHANGE
 from api.services.actions_communes.parole import A_DIRE_SEUL, SECOND_PASSAGE, Decision, EtatDuTour
 from api.services.actions_communes.repli import refuse
+from api.services.phrases.catalogue import REPONSE_PERDUE
 
 
 def _compose(retour):
     return any(isinstance(r, dict) and r.get("operation") == "ajouter" and isinstance((r.get("faits") or {}).get("composition"), list) for r in retour.get("resultats") or [])
 
 
-def _remplace(retour, p, tour):
-    q = retour.get("question") if isinstance(retour.get("question"), dict) else None
-    texte_q = sans_balisage(str((q or {}).get("texte") or "")) or None
-    ambiguite = q is not None and q.get("type") == "ambiguite" and texte_q is not None and P.question_nee_dans_ce_tour(p, tour)
-    if ambiguite:
-        return texte_q
-    return None
-
-
 def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
+    """L'ancienne cascade, puis la reprise R3 de C6 (ordre de « C6 révisée ») : quand le modèle repasse, la phrase réglée qui n'est pas dite tient (celle de cette fiche, sinon celle d'avant).
+    Reprise S1 : celle d'avant ne tient que si la fiche n'a rien changé ou si la question qui la portait attend toujours ; sinon elle est jetée avant la cascade."""
+    if etat.suffixe and not _phrase_d_avant_encore_vraie(retour, etat, p):
+        etat.suffixe = None
+    suffixe_avant = etat.suffixe
+    decision = _cascade(retour, a_dire, etat, paroles, p, textes, objet_en_cours)
+    if decision.mode == SECOND_PASSAGE and not etat.suffixe:
+        etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or suffixe_avant
+    return decision
+
+
+def _phrase_d_avant_encore_vraie(retour, etat, p):
+    """S1 : la fiche n'a rien changé, ou la question qui attend est celle de la phrase réglée d'avant. C7 (a) : une seule ancre, l'identité de la question posée avec la phrase."""
+    if retour.get(RIEN_CHANGE):
+        return True
+    q = CONV.question_de(p) if isinstance(p, dict) else None
+    return bool(etat.ancre) and isinstance(q, dict) and json.dumps(CONV.identite_de_la_question(q), default=str) == etat.ancre
+
+
+def _cascade(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
     """L'ancienne cascade, telle qu'elle était, avec les mêmes mouvements de l'état du tour."""
     etat.fiches += 1
     suffixe_avant = etat.suffixe
@@ -42,9 +57,6 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
     q_dossier = CONV.question_de(p) if isinstance(p, dict) else None
     if avant:
         return Decision(A_DIRE_SEUL, a_dire=avant, motif="texte_du_code")
-    remplace = _remplace(retour, p, etat.tour)
-    if remplace:
-        return Decision(A_DIRE_SEUL, a_dire=remplace, motif="texte_du_code")
     if refuse(retour):
         return Decision(SECOND_PASSAGE, motif="refus")
     if retour.get(RIEN_CHANGE) and retour.get(CLE_FAITS_A_DIRE):
@@ -52,31 +64,37 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
         return Decision(SECOND_PASSAGE, motif=P.FAITS_A_DIRE)
     question_deja_donnee = bool(
         P.question_nee_dans_ce_tour(p, etat.tour) and (q_dossier or {}).get("id") == etat.question_donnee and etat.question_donnee
-        and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and phrase and not chiffre_dans_la_phrase(phrase, etat.executees, paroles))
+        and phrase and not chiffre_dans_la_phrase(phrase, etat.executees, paroles))  # C6 n° 11 (décision d'Evan 25/11 9 h 30) : plus de prix dit par le code après la phrase
     if retour.get(RIEN_CHANGE) and not question_deja_donnee:
         etat.fiches -= 1
-        if not etat.rattrapage_a_joue and (objet_en_cours or isinstance(q_dossier, dict)):
-            etat.rattrapage_a_joue = True
+        if etat.rattrapage_a_joue or etat.relance_du_fait:  # T12 (coordinateur 26/11 10 h 45) : la relance du tour est faite, relance ratée : la suite réglée, sinon P3
+            etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or suffixe_avant
+            dit = P.la_suite_reglee(etat)
+            return Decision(A_DIRE_SEUL, a_dire=dit, motif=P.SUFFIXE if dit else REPONSE_PERDUE)
+        if objet_en_cours or isinstance(q_dossier, dict):
+            etat.rattrapage_a_joue = etat.relance_du_fait = True  # la relance du tour (une seule)
             etat.retenues.append(P.SANS_OUTIL)
             return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE)
         if not phrase or chiffre_dans_la_phrase(phrase, etat.executees, paroles):
             return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre")
-        reprise = P.reprise_apres_la_phrase(phrase, etat, p, rien_change=True) or (None if P.pose_une_question(phrase) else sans_balisage(str(retour.get("texte_a_dire") or "")) or None)
-        if reprise:
-            return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=P.REPRISE)
+        due = not P.pose_une_question(phrase) and (isinstance(q_dossier, dict) or bool((retour.get(CLE_DU) or {}).get("manque")))
+        if due and not etat.relance_du_fait:  # lot 7b-C5 (décision d'Evan 25/11 8 h 45) : le modèle repasse une fois au lieu que le code complète sa phrase
+            etat.relance_du_fait = True
+            etat.suffixe = suffixe_avant
+            return Decision(SECOND_PASSAGE, motif=P.MANQUE)
         return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
     if retour.get("statut") in BLOQUANTS or any((retour.get("faits") or {}).get(k) for k in CLES_DES_FAITS_DU_REFUS):
         return Decision(SECOND_PASSAGE, motif="fait_bloquant")
     if retour.get(CLE_FAITS_A_DIRE):
         return Decision(SECOND_PASSAGE, motif=P.FAITS_A_DIRE)
-    if P.question_nee_dans_ce_tour(p, etat.tour) or retour.get("prix_dit_par_le_code_apres_ta_phrase"):
+    if P.question_nee_dans_ce_tour(p, etat.tour):
         question_id = (q_dossier or {}).get("id")
-        if (question_id and question_id == etat.question_donnee and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and phrase
+        if (question_id and question_id == etat.question_donnee and phrase
                 and not chiffre_dans_la_phrase(phrase, etat.executees, paroles)):
-            if not P.pose_une_question(phrase):
-                suite = P.repli_sans_le_fait_bloquant_de(p)
-                if suite:
-                    return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {suite}", motif=P.QUESTION_DEJA_DONNEE)
+            if not P.pose_une_question(phrase) and not etat.relance_du_fait:  # lot 7b-C5 : le modèle repasse une fois au lieu que le code complète sa phrase
+                etat.relance_du_fait = True
+                etat.suffixe = suffixe_avant
+                return Decision(SECOND_PASSAGE, motif=P.MANQUE)
             return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suffixe_avant) if x), motif=P.QUESTION_DEJA_DONNEE)
         etat.question_donnee = question_id
         etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or None
@@ -89,7 +107,7 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
         return Decision(SECOND_PASSAGE, motif="sans_phrase")
     if chiffre_dans_la_phrase(phrase, etat.executees, paroles):
         return Decision(SECOND_PASSAGE, motif="chiffre")
-    if retour.get("texte_a_dire") and not P.pose_une_question(phrase):
+    if (retour.get(CLE_DU) or {}).get("manque") and not P.pose_une_question(phrase):
         return Decision(SECOND_PASSAGE, motif=P.MANQUE)
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
 
@@ -102,8 +120,7 @@ RETOURS = {
     "rien": {RIEN_CHANGE: True},
     "rien_faits": {RIEN_CHANGE: True, CLE_FAITS_A_DIRE: True},
     "faits": {CLE_FAITS_A_DIRE: True},
-    "manque": {"texte_a_dire": "Quelle taille ?"},
-    "prix": {"prix_dit_par_le_code_apres_ta_phrase": True},
+    "manque": {CLE_DU: {"manque": "Quelle taille ?"}},
     "question": {"question": QUESTION},
     "ambiguite": {"question": {**QUESTION, "type": "ambiguite"}},
     "maximum": {"resultats": [{"statut_du_module": "MAXIMUM_ATTEINT"}]},
@@ -114,7 +131,9 @@ RETOURS = {
 PHRASES = ["", "Très bien.", "Très bien. Autre chose ?", "Cela fait 12 euros."]
 TEXTES = [{}, {"avant": "Je vous relis la commande."}, {"suffixe": "Prix : 8 euros."}]
 DOSSIERS = ["aucun", "objet", "question_nee"]
-ETATS = [{}, {"rattrapage_a_joue": True}, {"question_donnee": "Q-1"}, {"question_donnee": "Q-1", "suffixe": "Prix : 8 euros."}]
+ANCRE = json.dumps(CONV.identite_de_la_question(QUESTION), default=str)  # C7 (a) : la table pose l'ancre avec la phrase réglée
+ETATS = [{}, {"rattrapage_a_joue": True}, {"question_donnee": "Q-1"}, {"question_donnee": "Q-1", "suffixe": "Prix : 8 euros.", "ancre": ANCRE},
+         {"rattrapage_a_joue": True, "relance_du_fait": True}]
 
 
 def _dossier(nom):
@@ -127,7 +146,7 @@ def _dossier(nom):
 
 
 def _cle(d, e):
-    return (d.mode, d.motif, d.a_dire), (e.fiches, e.rattrapage_a_joue, tuple(e.retenues), e.question_donnee, e.suffixe)
+    return (d.mode, d.motif, d.a_dire), (e.fiches, e.rattrapage_a_joue, tuple(e.retenues), e.question_donnee, e.suffixe, e.relance_du_fait)
 
 
 @pytest.mark.parametrize("nom", list(RETOURS))
