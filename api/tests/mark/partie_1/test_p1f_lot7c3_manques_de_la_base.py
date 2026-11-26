@@ -1,4 +1,4 @@
-"""[.mark] Lot 7b-C3, commit 2 : les manques et les refus de saisie de la base de la réservation rendent le texte d'avant, au caractère près, ET ce texte se refait de leurs faits
+"""[.mark] Lot 7b-C3, commit 2 : les manques et les refus de saisie de la base de la réservation ne portent plus de texte (lot 7b-C7, B7) ; le texte d'avant se refait toujours de leurs faits
 (``textes_de_secours``). Le numéro illisible porte le fait ``numero_illisible`` (le même nom que la commande) ; les valeurs de ``phrases_du_manque`` sont les constantes de la feuille."""
 
 from __future__ import annotations
@@ -17,8 +17,9 @@ salle, demande = RESA.salle, RESA.demande  # la fixture du classeur, reprise par
 
 
 def _verifie(r, statut: str, manque: str, texte: str, secours):
-    assert (r.statut, r.manque, r.suggestion) == (statut, manque, texte), r
-    assert r.suggestion == secours(faits_publics(r)), r
+    """C7 (B7) : la base ne porte plus de texte ; le texte d'avant se refait toujours de ses seuls faits (il sort avec le catalogue, B9)."""
+    assert (r.statut, r.manque, r.suggestion) == (statut, manque, ""), r
+    assert secours(faits_publics(r)) == texte, r
 
 
 async def _creer(salle, retire: str | None = None, **plus):

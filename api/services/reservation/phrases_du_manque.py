@@ -13,17 +13,17 @@ from api.services.reservation import etat_pour_le_modele as E
 from api.services.reservation import textes_de_secours as TS
 
 PHRASES_DU_MANQUE: dict[str, str] = {
-    "le nombre de personnes": TS.PERSONNES,
-    "le jour": TS.JOUR,
-    "l'heure": TS.HEURE,
-    "le nom": TS.NOM,
-    "le numéro de téléphone": TS.TELEPHONE,
-    "le nom et le jour de sa réservation d'avant": TS.NOM_ET_JOUR_D_AVANT,
+    E.LES_PERSONNES: TS.PERSONNES,
+    E.LE_JOUR: TS.JOUR,
+    E.L_HEURE: TS.HEURE,
+    E.LE_NOM: TS.NOM,
+    E.LE_TELEPHONE: TS.TELEPHONE,
+    E.LA_RESERVATION_D_AVANT: TS.NOM_ET_JOUR_D_AVANT,
 }
 
 
-# Liste fermée : les valeurs de ce qui manque que l'état rend (``ce_qui_manque_ensuite``), que la relance du modèle reçoit.
-VALEURS_DU_MANQUE = frozenset({"le nombre de personnes", E.LE_JOUR, "l'heure", "le nom", "le numéro de téléphone", "le nom et le jour de sa réservation d'avant"})
+# Liste fermée : les valeurs de ce qui manque que l'état rend (``ce_qui_manque_ensuite``), que la relance du modèle reçoit ; lues dans le module d'état, jamais recopiées.
+VALEURS_DU_MANQUE = frozenset(E.MANQUES)
 
 
 def phrase_du_manque(manque: str | None) -> str | None:

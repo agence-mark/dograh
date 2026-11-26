@@ -28,7 +28,7 @@ from api.tests.mark import test_base_client as _BASE
 from api.tests.mark import test_restauration_classeur_commande as _CLASSEUR
 from api.tests.mark import test_restauration_commande_panier as _PANIER
 from api.tests.mark import test_restauration_reservation as _RESA
-from api.tests.mark.partie_1.aides_signal import Carte, Cas, article_de_carte, controler, fidele, jouer, pareilles, parametres
+from api.tests.mark.partie_1.aides_signal import Carte, Cas, article_de_carte, controler, fidele, jouer, pareilles, parametres, signal
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 
@@ -364,8 +364,13 @@ def _propositions(r) -> list[tuple[str, str]]:
     return pareilles(*[p["quand_dit"] for p in r.faits.get("propositions") or []])
 
 
-A_FAIRE_DU_GROUPE = "dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe"  # la consigne d'aujourd'hui (``groupe_trop_grand`` de la base)
+A_FAIRE_DU_GROUPE = RR.A_FAIRE_DU_GROUPE  # F6 : la consigne d'offre de message, une constante de la base (plus une copie ici)
 GROUPE = [(A_FAIRE_DU_GROUPE, "c'est l'équipe qui s'en occupe")]
+
+
+async def _groupe_trop_grand_au_changement(salle_, _mp):
+    n = (await _RESA.creer(salle_)).faits["numero"]
+    return await RR.modifier_reservation(salle_.c, salle_.a, n, {"couverts": 7})
 
 CAS_DE_LA_SALLE: list[Cas] = [
     Cas("passe", TSR.refus_de_la_base, _creer(debut=datetime(2026, 11, 12, 11, 0, tzinfo=PARIS)), "Rv", [], "passe"),
@@ -376,10 +381,9 @@ CAS_DE_LA_SALLE: list[Cas] = [
     Cas("ferme", TSR.refus_de_la_base, lambda _s, _m: RR._refus("ferme"), "Rv", [], "ferme"),
     Cas("complet", TSR.refus_de_la_base, _complet, "Rv", _propositions, "complet"),
     Cas("groupe_trop_grand_avant_le_jour", TSR.refus_de_la_base, lambda s, _m: RR.groupe_trop_grand(s.c, s.a, 25), "Rv", GROUPE, "groupe_trop_grand"),
-    Cas("groupe_trop_grand_de_la_capacite", TSR.refus_de_la_base, lambda s, _m: RR.capacite_du_jour(s.c, s.a, _RESA.SAMEDI_20H.date(), 7), "Rv", GROUPE, "groupe_trop_grand",
-        manque="F6 : la consigne d'offre de message n'est posée qu'avant le jour (groupe_trop_grand), pas à la capacité du jour"),
-    Cas("groupe_trop_grand_a_l_enregistrement", TSR.refus_de_la_base, _creer(couverts=7), "Rv", GROUPE, "groupe_trop_grand",
-        manque="F6 : la consigne d'offre de message n'est posée qu'avant le jour (groupe_trop_grand), pas à l'enregistrement"),
+    Cas("groupe_trop_grand_de_la_capacite", TSR.refus_de_la_base, lambda s, _m: RR.capacite_du_jour(s.c, s.a, _RESA.SAMEDI_20H.date(), 7), "Rv", GROUPE, "groupe_trop_grand"),
+    Cas("groupe_trop_grand_a_l_enregistrement", TSR.refus_de_la_base, _creer(couverts=7), "Rv", GROUPE, "groupe_trop_grand"),
+    Cas("groupe_trop_grand_au_changement", TSR.refus_de_la_base, _groupe_trop_grand_au_changement, "Rv", GROUPE, "groupe_trop_grand"),  # le voisin (refus 11)
     Cas("passee", TSR.refus_de_la_base, _passee, "Rv", [], "passee"),
     Cas("plus_modifiable", TSR.refus_de_la_base, _plus_modifiable, "Rv", [], "plus_modifiable"),
     Cas("combien_de_personnes_a_la_base", TSR.combien_de_personnes, _creer("couverts"), "Rv", [], "couverts"),
@@ -484,9 +488,11 @@ CAS_DU_MOTEUR_DE_LA_RESERVATION: list[Cas] = [
 
 CAS_DU_MOTEUR_SANS_SALLE: list[Cas] = [
     Cas("jour_ambigu_a_la_recherche", _texte_des_jeudis, _sans_salle(_SourceDuSamedi([], ambigu=True), "retrouver_une_reservation", appelant=None, jour="jeudi"), "Rv",
-        JEUDIS, "jour", manque="F5 : la recherche redemande le jour sans les jours possibles (candidats retirés)"),
+        JEUDIS, "jour"),
     Cas("jour_ambigu_a_la_reservation", _texte_des_jeudis, _sans_salle(_SourceDuSamedi([], ambigu=True), "reserver", personnes=2, jour="jeudi"), "Rv",
-        JEUDIS, "jour", manque="F5 : les jours possibles sont dans candidats, que la réservation cache"),
+        JEUDIS, "jour"),
+    Cas("jour_ambigu_aux_disponibilites", _texte_des_jeudis, _sans_salle(_SourceDuSamedi([], ambigu=True), "disponibilites", jour="jeudi", personnes=2), "Rv",
+        JEUDIS, "jour"),  # le voisin (refus 11)
     Cas("quel_jour_introuvable", TSR.quel_jour, lambda: RESA_MOTEUR.disponibilites(_SourceSansJour(), {}, "samedi", 2), "Rv", [], "jour"),
     Cas("complets_ce_jour", TSR.complets_ce_jour, _sans_salle(_SourceDuSamedi([]), "disponibilites", jour="samedi", personnes=2), "Rv", [], "complet"),
     Cas("complets_ce_jour_pour_le_soir", TSR.complets_ce_jour, _sans_salle(_SourceDuSamedi([_a(12)], heure_dite=False), "disponibilites", jour="samedi soir", personnes=2),
@@ -498,6 +504,32 @@ CAS_DU_MOTEUR_SANS_SALLE: list[Cas] = [
     Cas("refus_complet_avec_les_plus_proches", TSR.refus_complet_du_moteur,
         _sans_salle(_SourceDuSamedi([_a(19), _a(21)]), "reserver", personnes=2, jour="samedi", heure="vingt heures", prenom="Alice"), "Rv", _heures, "complet"),
 ]
+
+
+async def test_f5_les_jours_possibles_sont_dits_et_les_candidats_restent_caches():
+    """F5 : Client « Jeudi. » / avant, le modèle n'a que « jour » à redemander (« Lequel ? ») / après, il lit les jours possibles (« Ce jeudi ou le suivant ? ») ; les candidats de la
+    source (avec leurs dates) restent cachés, au changement aussi (le voisin)."""
+    r = await _sans_salle(_SourceDuSamedi([], ambigu=True), "reserver", personnes=2, jour="jeudi")()
+    vus = signal(r, "Rv")["faits"]
+    assert vus["jours_possibles"] == ["jeudi dix-neuf novembre", "jeudi vingt-six novembre"] and "candidats" not in vus, vus
+    etat = {"cible": "r1"}
+    source = _SourceDuSamedi([], ambigu=True)
+    source.retrouver = _une_reservation_visee
+    m = await RESA_MOTEUR.modifier(source, etat, RESA_MOTEUR.Appelant(TEL, None), jour="jeudi")
+    assert (m.statut, m.faits.get("jours_possibles")) == ("AMBIGU", ["jeudi dix-neuf novembre", "jeudi vingt-six novembre"]), m
+
+
+async def test_f5_la_lecture_des_places_libres_garde_les_jours_possibles():
+    """F5 par l'outil ``lire`` (le vrai chemin des disponibilités) : Client « Vous avez de la place jeudi pour deux ? » / avant « Lequel ? » (``manque`` seul) / après « Ce jeudi
+    ou le suivant ? » ; les candidats, avec leurs dates, ne sortent pas."""
+    from api.services.reservation.lire import lire
+    r = await lire(_SourceDuSamedi([], ambigu=True), {}, {"sujet": "places_libres", "jour": "jeudi", "personnes": 2})
+    assert r["statut"] == "A_PRECISER" and r["faits"]["manque"] == "jour", r
+    assert r["faits"]["jours_possibles"] == ["jeudi dix-neuf novembre", "jeudi vingt-six novembre"] and "candidats" not in r["faits"], r
+
+
+async def _une_reservation_visee(**_criteres):
+    return Resultat("OK", {"reservations": [{"numero": "r1", "quand_dit": "samedi quatorze novembre à vingt heures", "jour_dit": "samedi", "personnes": 2, "prenom": "Alice"}]})
 
 
 class _SourceSansJour:
@@ -556,6 +588,27 @@ async def test_la_table_du_moteur_de_la_commande_est_fidele_au_texte(cas, appel,
 @pytest.mark.parametrize("cas", CAS_DE_LA_SALLE + CAS_DU_MOTEUR_DE_LA_RESERVATION, ids=lambda c: c.nom)
 async def test_la_table_de_la_reservation_est_fidele_au_texte(cas, salle, monkeypatch):
     fidele(cas, await jouer(cas.scenario, salle, monkeypatch))
+
+
+# ── B7 : la base et le moteur de la réservation n'écrivent plus aucun texte de secours (le modèle formule d'après le statut, le manque et les faits) ─────────
+
+@pytest.mark.parametrize("cas", CAS_DE_LA_SALLE, ids=lambda c: c.nom)
+async def test_aucun_retour_de_la_base_de_la_reservation_n_ecrit_de_texte(cas, salle, monkeypatch):
+    r = await jouer(cas.scenario, salle, monkeypatch)
+    assert r.suggestion == "", r
+
+
+@pytest.mark.parametrize("cas", CAS_DU_MOTEUR_DE_LA_RESERVATION, ids=lambda c: c.nom)
+async def test_aucun_retour_du_moteur_de_la_reservation_n_ecrit_de_texte(cas, salle, monkeypatch):
+    r = await jouer(cas.scenario, salle, monkeypatch)
+    assert r.suggestion == "", r
+
+
+@pytest.mark.parametrize("cas", CAS_DU_MOTEUR_SANS_SALLE, ids=lambda c: c.nom)
+async def test_aucun_retour_du_moteur_sans_salle_n_ecrit_de_texte(cas):
+    """Aucun retour du moteur sans salle n'écrit de texte, le jour ambigu non plus : il rend ses faits (``jours_possibles``), jamais le texte de la source."""
+    r = await jouer(cas.scenario)
+    assert r.suggestion == "", r
 
 
 # ── A3 : la base de la commande n'écrit plus aucun texte de secours (le modèle formule d'après le statut, le manque et les faits) ─────────────────────────

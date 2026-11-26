@@ -1,4 +1,4 @@
-"""[.mark] Lot 7b-C3, commit 1 : les refus de la base de la réservation (``restauration_reservation``) rendent le texte d'avant, au caractère près, ET ce texte se refait de
+"""[.mark] Lot 7b-C3, commit 1 : les refus de la base de la réservation (``restauration_reservation``) ne portent plus de texte (lot 7b-C7, B7) ; le texte d'avant se refait toujours de
 leurs faits seuls (``textes_de_secours``). Le modèle lit ``resultats[].faits`` (``detail``, ``maximum``, ``propositions``) ; la raison qu'il reçoit porte le même ``detail`` (``porte._raison_du_refus``).
 Le groupe trop grand garde son fait ``maximum`` (refus 14 et 17 : aucun fait neuf)."""
 
@@ -19,8 +19,9 @@ PARIS = ZoneInfo("Europe/Paris")
 
 
 def _verifie(r, detail: str, texte: str, secours):
-    assert (r.statut, r.faits["raison"], r.faits["detail"], r.suggestion) == ("REFUSEE", "autre", detail, texte), r
-    assert r.suggestion == secours(faits_publics(r)), r
+    """C7 (B7) : la base ne porte plus de texte ; le texte d'avant se refait toujours de ses seuls faits (il sort avec le catalogue, B9)."""
+    assert (r.statut, r.faits["raison"], r.faits["detail"], r.suggestion) == ("REFUSEE", "autre", detail, ""), r
+    assert secours(faits_publics(r)) == texte, r
 
 
 async def test_ce_moment_est_passe(salle):
@@ -43,7 +44,7 @@ async def test_hors_service_dit_ses_propositions_quand_il_y_en_a(salle):
     assert (r.statut, r.faits["detail"]) == ("REFUSEE", "hors_service"), r
     dites = [p["quand_dit"] for p in r.faits.get("propositions") or []]
     attendu = "Nous ne prenons pas de réservation à cette heure-là." + (f" Je peux vous proposer {' ou '.join(dites)}." if dites else "")
-    assert r.suggestion == attendu == TS.refus_de_la_base(faits_publics(r)), r
+    assert r.suggestion == "" and TS.refus_de_la_base(faits_publics(r)) == attendu, r  # C7 (B7) : le texte se refait des faits
 
 
 async def test_ferme_est_le_texte_d_avant():
@@ -80,8 +81,8 @@ async def test_complet_dit_ses_propositions(salle):
     r = await creer(salle, telephone="+33600000009", appel_id="p9")
     assert (r.statut, r.faits["detail"]) == ("REFUSEE", "complet"), r
     dites = [p["quand_dit"] for p in r.faits["propositions"]]
-    assert dites and r.suggestion == f"Nous sommes complets à cette heure-là. Je peux vous proposer {' ou '.join(dites)}.", r
-    assert r.suggestion == TS.refus_de_la_base(faits_publics(r)), r
+    assert dites and r.suggestion == "", r  # C7 (B7) : le texte se refait des faits
+    assert TS.refus_de_la_base(faits_publics(r)) == f"Nous sommes complets à cette heure-là. Je peux vous proposer {' ou '.join(dites)}.", r
     assert TS.complet({"propositions": []}) == "Nous sommes complets à cette heure-là."
 
 

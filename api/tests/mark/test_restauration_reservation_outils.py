@@ -101,7 +101,7 @@ async def test_un_creneau_pris_est_refuse_avec_les_plus_proches_et_la_place_est_
     a = Appel(salle)
     r = await a.reserver(jour="samedi", heure="20h", personnes=2, prenom="Alice")
     assert (r.statut, r.faits["detail"]) == ("REFUSEE", "complet") and r.faits["propositions"]
-    assert "Je peux vous proposer" in r.suggestion
+    assert r.suggestion == "" and all(p.get("heure_dite") for p in r.faits["propositions"])  # C7 (B7) : les heures proposées sont des faits
     # la place est REVÉRIFIÉE : relue quand c'était libre, prise entre-temps
     b = Appel(salle, affiche="+33600000009")
     assert (await b.reserver(jour="samedi", heure="19h", personnes=6, prenom="Bob")).manque == "relecture"

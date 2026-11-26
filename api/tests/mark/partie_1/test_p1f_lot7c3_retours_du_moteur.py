@@ -1,5 +1,5 @@
-"""[.mark] Lot 7b-C3, commit 5 : les retours du moteur de la réservation (complet, créneaux, déjà fait, introuvable, rien ne change, un choix) rendent le texte d'avant, au caractère près,
-ET ce texte se refait des faits du résultat (``textes_de_secours``). Le texte du choix se refait de ``candidats[].dit`` : la fonction reçoit le résultat entier (le modèle ne lit pas
+"""[.mark] Lot 7b-C3, commit 5 : les retours du moteur de la réservation (complet, créneaux, déjà fait, introuvable, rien ne change, un choix) ne portent plus de texte (lot 7b-C7, B7) ;
+le texte d'avant se refait toujours des faits du résultat (``textes_de_secours``). Le texte du choix se refait de ``candidats[].dit`` : la fonction reçoit le résultat entier (le modèle ne lit pas
 ``candidats``, E4). « Rien ne change » gagne les faits ``quand_dit`` et ``personnes`` ; « déjà annulée » et « aucune réservation » ne lisent aucun fait."""
 
 from __future__ import annotations
@@ -17,8 +17,9 @@ salle, creer, TEL, PARIS = RESA.salle, RESA.creer, RESA.TEL, RESA.PARIS  # la fi
 
 
 def _verifie(r, statut: str, texte: str, secours):
-    assert (r.statut, r.suggestion) == (statut, texte), r
-    assert r.suggestion == secours(faits_publics(r)), r
+    """C7 (B7) : le moteur ne porte plus de texte ; le texte d'avant se refait toujours de ses seuls faits (il sort avec le catalogue, B9)."""
+    assert (r.statut, r.suggestion) == (statut, ""), r
+    assert secours(faits_publics(r)) == texte, r
 
 
 class SourceDuSamedi:
@@ -92,8 +93,8 @@ async def test_plusieurs_reservations_le_choix_se_refait_des_candidats(salle, mo
     await creer(salle, appel_id="deux", debut=RESA.SAMEDI_20H.replace(day=15, hour=19), couverts=3)
     r = await moteur.retrouver_une_reservation(essai.source, essai.etat, essai.moteur_appelant, nom="Alice")
     assert (r.statut, r.manque) == ("AMBIGU", "reservation"), r
-    assert r.suggestion == "Vous en avez plusieurs : samedi quatorze novembre à vingt heures, pour deux personnes ou dimanche quinze novembre à dix-neuf heures, pour trois personnes. Laquelle ?"
-    assert r.suggestion == TS.plusieurs_a_choisir(r.faits), r
+    assert r.suggestion == "", r  # C7 (B7) : le texte se refait des candidats (« dit »), que la porte donne au modèle (candidats_dits)
+    assert TS.plusieurs_a_choisir(r.faits) == "Vous en avez plusieurs : samedi quatorze novembre à vingt heures, pour deux personnes ou dimanche quinze novembre à dix-neuf heures, pour trois personnes. Laquelle ?"
 
 
 async def test_deja_annulee_au_changement_et_a_l_annulation(salle, monkeypatch):

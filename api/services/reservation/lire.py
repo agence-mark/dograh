@@ -31,7 +31,10 @@ async def _places_libres(source: Any, copie: dict[str, Any], arguments: dict[str
         return Enveloppe("LU", resultats=[{"operation": "lire", "sujet": "places_libres", "statut_du_module": r.statut}], raison=str(r.faits.get("detail") or "rien_a_faire"),
                          a_faire=str(r.faits.get("a_faire") or "") or None)
     if r.statut != "OK":
-        return Enveloppe("A_PRECISER", resultats=[{"operation": "lire", "sujet": "places_libres", "statut_du_module": r.statut}], faits={"manque": r.manque or "jour"})
+        manque = {"manque": r.manque or "jour"}   # F5 : un jour ambigu garde les jours possibles dits (« ce jeudi ou le suivant ? »), jamais ``candidats`` et leurs dates
+        if r.faits.get("jours_possibles"):
+            manque["jours_possibles"] = r.faits["jours_possibles"]
+        return Enveloppe("A_PRECISER", resultats=[{"operation": "lire", "sujet": "places_libres", "statut_du_module": r.statut}], faits=manque)
     faits = {
         "jour": dates_futures.jour_dit(date.fromisoformat(r.faits["jour"])), "horaires_libres": [c["heure_dite"] for c in r.faits.get("creneaux") or []],
         "complet": bool(r.faits.get("complet")),

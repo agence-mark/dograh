@@ -60,3 +60,16 @@ def test_reservation_une_valeur_hors_de_la_liste_ne_sort_pas(monkeypatch, manque
 def test_reservation_la_liste_fermee_est_celle_de_l_etat():
     """La liste lue par ``valeur_du_manque`` est exactement ce que l'état peut rendre (``ce_qui_manque_ensuite``), le jour compris par sa constante."""
     assert ETAT_RESERVATION.LE_JOUR in PMR.VALEURS_DU_MANQUE and set(PMR.VALEURS_DU_MANQUE) == set(MANQUES_DE_LA_RESERVATION)
+
+
+ETATS_DE_LA_RESERVATION = [
+    ({"recherche": True}, True), ({}, True), ({"brouillon": {"personnes": 2}}, True), ({"brouillon": {"personnes": 2, "jour": "samedi"}}, True),
+    ({"brouillon": {"personnes": 2, "jour": "samedi", "heure": "20h"}}, True), ({"brouillon": {"personnes": 2, "jour": "samedi", "heure": "20h", "prenom": "Alice"}}, False),
+]
+
+
+def test_reservation_les_valeurs_sont_les_constantes_du_module_d_etat():
+    """Audit du lot A de C7 (A5) : ``VALEURS_DU_MANQUE`` ne recopie plus les mots de l'état ; elle lit ses constantes (une seule écriture), et chaque valeur que l'état rend en est une."""
+    assert PMR.VALEURS_DU_MANQUE == frozenset(ETAT_RESERVATION.MANQUES)
+    rendues = [ETAT_RESERVATION.ce_qui_manque_ensuite(etat, affiche) for etat, affiche in ETATS_DE_LA_RESERVATION]
+    assert rendues == list(ETAT_RESERVATION.MANQUES[-1:] + ETAT_RESERVATION.MANQUES[:-1]), rendues
