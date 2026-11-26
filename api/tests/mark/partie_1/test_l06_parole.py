@@ -98,7 +98,7 @@ def test_relance_question_en_attente():
     assert puis == {"question": {"id": "Q-1", "type": "proposition", "article_propose": "Coca-Cola"}} and proposition not in consigne
 
 
-async def test_repli_phrase_du_manque(essai_de):
+async def test_repli_valeur_du_manque(essai_de):
     """L06-28 (f307 t2) : sous le minimum, sans question en attente, la relance porte ce qui manque en valeur fermée (lot 7b-C5), jamais la phrase du module."""
     e = await essai_de("casa-italia", minimum=5000)
     await e.tour("en livraison au 9 avenue du Bouteiller à Chantilly", mode_de_retrait="livraison", commune="Chantilly", adresse="9 avenue du Bouteiller")

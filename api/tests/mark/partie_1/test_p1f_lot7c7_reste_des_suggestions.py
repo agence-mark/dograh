@@ -34,7 +34,7 @@ from api.tests.mark import test_base_client as _BASE
 base_essai, base_prete, commerce = _BASE.base_essai, _BASE.base_prete, _CLASSEUR.commerce  # les fixtures du classeur, reprises sans import inutile
 
 TOUR = "tour_de_l_appel"
-ADRESSE_AVANT = "Quelle est l'adresse de livraison ?"  # le texte d'avant (``phrase_du_manque(Manque.ADRESSE_ET_COMMUNE)``), refait du seul manque
+ADRESSE_AVANT = "Quelle est l'adresse de livraison ?"  # le texte d'avant (la phrase du manque ``Manque.ADRESSE_ET_COMMUNE``, retirée en C7 B9), refait du seul manque
 
 
 @pytest.fixture

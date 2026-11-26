@@ -22,7 +22,6 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte
 from api.services.commande import moteur, panier
-from api.services.commande import textes_de_secours as TS
 from api.services.commande.moteur import Reglages
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.caisse.prises.prise_essai import PriseTest
@@ -103,11 +102,10 @@ async def test_un_rangement_dit_renvoie_a_ses_rangements_jamais_je_ne_trouve_pas
     r = await a.ajouter(articles)
     assert (r.statut, r.manque) == ("INCOMPLETE", "articles"), r
     # C7 B12 (T9, rouge depuis 9cd42f70, C7a) : « Nous avons… : qu'est-ce que je vous mets ? » est sorti du retour (décision d'Evan 25/11 8 h 45, le modèle parle) ;
-    # les rangements sont dans les faits, d'où le texte d'avant se refait (« pas juste une suppression »)
+    # les rangements sont dans les faits, d'où le texte d'avant se refait (« pas juste une suppression ») ; C7 B9 : le catalogue parti, les rangements suffisent (« Nous avons » + rangements)
     rangements = r.faits.get("rangements") or []
     assert r.suggestion == "" and "Pizzas Classiques" in rangements and "Salades" not in rangements, r.faits
     assert "Bambino" not in rangements                                      # les rangements, pas leurs articles un par un
-    assert TS.quel_rangement(r.faits).startswith("Nous avons")
     assert a.p["lignes"] == []
 
 

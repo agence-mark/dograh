@@ -9,7 +9,6 @@ from types import SimpleNamespace
 
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import porte
-from api.services.commande import textes_de_secours as TS
 from api.services.commande.resultat import Resultat
 
 
@@ -32,17 +31,11 @@ def test_la_deduplication_des_refus_de_la_fiche_se_fait_par_identite():
     assert [r.faits["dit"] for r in porte.refusants_de_la_fiche(f)] == ["zzzquoi", "autre"]
 
 
-async def test_le_compteur_ne_repart_pas_quand_le_texte_de_suggestion_change(essai_de, monkeypatch):
-    """Client « un zzzquoi » trois fois, le texte de la suggestion change à chaque tour : issue au 2e, sortie au 3e (le compteur ne repart pas)."""
+async def test_le_compteur_ne_repart_pas_quand_le_texte_de_suggestion_change(essai_de):
+    """Client « un zzzquoi » trois fois : issue au 2e, sortie au 3e (le compteur ne repart pas). C7 B9 : le refus ne porte plus aucun texte (catalogue supprimé) ;
+    qu'un texte différent ne compte pas est vérifié par ``test_l_identite_ignore_le_texte_et_les_listes_et_garde_l_objet``."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
-    tour = {"n": 0}
-
-    def liste_changeante(noms):
-        tour["n"] += 1
-        return f"variante {tour['n']}"
-
-    monkeypatch.setattr(TS, "liste_dite", liste_changeante)  # le texte de secours de l'article introuvable (7b-C1) lit la liste dite
     retours = []
     for _ in range(3):
         retours.append(await e.tour("un zzzquoi", ajouter=[{"article": "zzzquoi", "quantite": 1}]))

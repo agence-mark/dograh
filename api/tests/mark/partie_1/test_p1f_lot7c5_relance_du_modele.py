@@ -469,7 +469,7 @@ NOMS_RETIRES = ("repli_dit_par_le_code", "_repli_sans_le_fait_bloquant", "_quest
 
 
 def test_c9_aucun_nom_du_repli_compose_ne_reste_dans_le_code():
-    """Grep à zéro : ni la fonction, ni son appelant, ni le champ ``textes`` du fait bloquant ; ``TS.du_refus`` non plus (le refus de la réservation se lit par ``refuse_a_dire``)."""
+    """Grep à zéro : ni la fonction, ni son appelant, ni le champ ``textes`` du fait bloquant ; ``du_refus`` (catalogue de la réservation, supprimé en C7 B9) non plus (le refus de la réservation se lit par ``refuse_a_dire``)."""
     import re
 
     from api.outils import inventaire_rustines as I

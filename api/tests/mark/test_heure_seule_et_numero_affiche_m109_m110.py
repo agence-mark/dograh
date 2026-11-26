@@ -25,7 +25,6 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.services.commande.resultat import CLE_NUMERO_S_AFFICHE
 from api.services.restauration.source_commande import resolution_du_jour_et_de_l_heure
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
@@ -53,7 +52,6 @@ def test_m109_une_heure_deja_passee_sans_jour_est_une_question():
     r = resolution_du_jour_et_de_l_heure("dix-neuf heures", "dix-neuf heures", SOIR)
     assert r.statut != "RETENU" and r.manque == "jour" and r.suggestion == "" and "heure_voulue" not in r.faits
     assert r.faits["heure_dite"] == "dix-neuf heures" and r.faits["heure_passee_aujourd_hui"] is True
-    assert TSC.heure_passee_sans_jour(r.faits) == "Il est déjà plus de dix-neuf heures : pour quel jour ?"
 
 
 def test_m109_sept_heures_sans_moment_reste_ambigu():
