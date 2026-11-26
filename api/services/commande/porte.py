@@ -900,7 +900,7 @@ async def _refus_des_cases(f: LaFiche, refus: list[dict]) -> None:
         # l'une après l'autre, la seconde échouait (« Il n'y a encore rien dans la commande. ») ; les deux sont refusées, avec la question à poser
         refus.append(B.refus("conflit_sur_une_ligne", [c for c in ("retirer_article", "changer_quantite") if fiche.get(c)],
                              a_faire=f"rien n'est changé sur la ligne {', '.join(doublees)} : elle y a dit deux choses ; demande-lui ce qu'elle veut pour cette ligne"))
-    fin_redite = [c for c in contrat.CASES_DE_FIN if fiche.get(c) not in (None, "")]
+    fin_redite = [c for c in contrat.CASES_DE_FIN if fiche.get(c) not in (None, "") and not _prenom_qui_change(p, c, fiche.get(c))]
     if ETAPE.courante(p) == RQ.ENREGISTREE and fin_redite:
         # B4 (M7, table « phase → cases ») : enregistrée, le règlement, le numéro et le prénom ne changent plus rien ; avant, notés en silence et
         # « C'est noté » dit (RC4, E16 → G19)
@@ -912,6 +912,12 @@ async def _refus_des_cases(f: LaFiche, refus: list[dict]) -> None:
     fin = B.recapitulatif_pas_accepte(fiche, contrat.CASES_DE_FIN, ETAPE.accord(p), accepte_ici)
     if fin is not None:
         refus.append(fin)
+
+
+def _prenom_qui_change(p: dict[str, Any], case: str, valeur: Any) -> bool:
+    """T18 (Pierre, 26/11 ~18 h) : le prénom est une valeur de la commande en base, comme l'adresse : dit autrement après l'enregistrement, il la change (réécrite au tour même,
+    partie à la fin) ; le même prénom redit ne change rien (``deja_fait``, comme avant)."""
+    return case == P.CLE_DU_PRENOM and ETAPE.courante(p) == RQ.ENREGISTREE and moteur.prenom_retenu(str(valeur)) != P.prenom_de(p)
 
 
 def _cases_qui_changent(fiche: dict[str, Any]) -> list[str]:

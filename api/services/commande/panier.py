@@ -106,20 +106,28 @@ def remplacer_par(p: dict[str, Any], autre: dict[str, Any]) -> None:
 CLES_DE_LA_COMMANDE_ENREGISTREE = ("mode", "zone", "adresse", "heure_voulue", "moment_voulu", "heure_voulue_dite", "lignes", "note", "consigne_livreur")
 # T13 : ce que la base reçoit et que l'empreinte ne lit pas (l'empreinte dit si la relecture vaut encore : l'adresse n'y entre pas)
 CLES_HORS_EMPREINTE = ("adresse", "note", "consigne_livreur")
+# T18 (Pierre, 26/11 ~18 h) : le prénom de ``client``, gardé dans la copie sous cette clé, se compare et se réécrit comme l'adresse
+CLE_DU_PRENOM = "prenom"
+
+
+def prenom_de(p: dict[str, Any]) -> str | None:
+    return (p.get("client") or {}).get("prenom")
 
 
 def commande_recue(p: dict[str, Any]) -> dict[str, Any]:
     """Une copie de la commande telle que la base la reçoit à l'instant (jamais partagée avec le panier qui continue de changer)."""
-    return copy.deepcopy({k: p.get(k) for k in CLES_DE_LA_COMMANDE_ENREGISTREE})
+    return copy.deepcopy({**{k: p.get(k) for k in CLES_DE_LA_COMMANDE_ENREGISTREE}, CLE_DU_PRENOM: prenom_de(p)})
 
 
 def commande_changee(p: dict[str, Any]) -> bool:
     """La commande enregistrée de cet appel diffère-t-elle de ce que la base a reçu ? L'empreinte (les lignes, le mode, la zone, l'heure), puis ce qu'elle ne lit pas
-    (T13 : l'adresse, la note, la consigne au livreur), comparé à la copie ``commande_enregistree`` ; une commande enregistrée avant cette copie : l'empreinte seule."""
+    (T13 : l'adresse, la note, la consigne au livreur ; T18 : le prénom), comparé à la copie ``commande_enregistree`` ; une commande enregistrée avant cette copie : l'empreinte seule."""
     if empreinte(p) != p.get("empreinte_enregistree"):
         return True
     recue = p.get("commande_enregistree")
-    return isinstance(recue, dict) and any(recue.get(k) != p.get(k) for k in CLES_HORS_EMPREINTE)
+    if not isinstance(recue, dict):
+        return False
+    return any(recue.get(k) != p.get(k) for k in CLES_HORS_EMPREINTE) or (CLE_DU_PRENOM in recue and recue[CLE_DU_PRENOM] != prenom_de(p))
 
 
 def voie_de_l_adresse(adresse: Any) -> str | None:

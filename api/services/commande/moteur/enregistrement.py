@@ -44,6 +44,11 @@ def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None, appelant: "A
     return Resultat("OK", {"rien_ajoute": True}, "")
 
 
+def prenom_retenu(prenom: str) -> str:
+    """Le prénom tel que la commande le garde (espaces réduits, longueur bornée par la colonne)."""
+    return " ".join(str(prenom).split())[:60]
+
+
 def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | None, second_numero: str | None = None) -> Resultat | None:
     """n° 30 : le prénom et le numéro dits s'écrivent dans la commande (``client``) UNE fois, au tour où ils sont dits ; la fin ne les rejoue plus d'une seconde copie.
     PE-1 (Q7-3, Pierre 26/11) : le second numéro s'écrit de même (``client["second_numero"]``, joint au ticket et à la commande en base) ; illisible, il est refusé seul,
@@ -51,7 +56,7 @@ def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | N
     ``None`` : écrit (ou rien de dit) ; sinon le refus d'un numéro illisible, rien n'est écrit pour lui."""
     client = p["client"]
     if prenom and prenom.strip():
-        client["prenom"] = " ".join(prenom.split())[:60]
+        client["prenom"] = prenom_retenu(prenom)
     numero = _numero_dit(telephone) if telephone else None
     second = _numero_dit(second_numero) if second_numero else None
     if numero:
