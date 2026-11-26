@@ -203,3 +203,41 @@ async def test_s1_la_meme_margherita_redite_puis_c_etait_la_meme_le_total_est_di
     dit = await _voix(e, r3, phrase, [phrase])
     assert dit.startswith(phrase) and ancien in dit and dit.rstrip().endswith("?"), dit
     assert question_posee(e).get("type") == "relecture" and PAROLE.total_dit(e.p, e.p["relecture"]["jeton"]), dit
+
+
+async def test_s1_la_meme_margherita_redite_puis_c_etait_la_meme_seul_le_total_est_redit_tout_de_suite(essai_de):
+    """Décision d'Evan du 25/11 9 h 30 (« la phrase du total porte la question de l'accord ; le modèle relit sans poser la question ; le oui ne vaut qu'une fois le total entendu ») et
+    coordinateur 27/11 (R8) : Client « C'était la même. » seul (fiche vide) après « une deuxième, ou la même ? » / voulu : la phrase du modèle, puis le code redit tout de suite la relecture
+    restée en attente avec son total réglé, sa question à la fin ; le total est noté dit au jeton de la relecture. Jamais un « oui » écarté faute de total entendu."""
+    e, r2, ancien = await _relecture_puis_la_meme_margherita_redite(essai_de)
+    assert await _la_question_du_modele_apres_le_refus(e, r2) == QUESTION_DU_MODELE
+    jeton = e.p["relecture"]["jeton"]
+    assert not PAROLE.total_dit(e.p, jeton)
+    r3 = await e.tour("c'était la même")
+    phrase = "D'accord, une seule margherita alors."
+    dit = await _voix(e, r3, phrase, [phrase])
+    assert dit.startswith(phrase) and dit.endswith(f"Cela fait {ancien}, c'est bon pour vous ?"), dit
+    assert question_posee(e).get("type") == "relecture" and PAROLE.total_dit(e.p, e.p["relecture"]["jeton"]), dit
+
+
+async def test_s1_c_est_tout_puis_une_seconde_fiche_qui_appelle_la_fin_un_seul_total_dit_et_le_oui_vaut_accord(essai_de):
+    """R8 : Client « Non merci, c'est tout. » (la relecture naît, sa phrase réglée attend la phrase du modèle) puis, dans le même tour, une seconde fiche qui appelle la fin (rien n'a changé).
+    Rien n'est noté dit tant que la voix ne le dit pas (``voix = False``) / voulu : UN seul total dit, noté au jeton de la relecture qui attend ; le « oui » du tour suivant vaut accord."""
+    e = await essai_de("casa-italia")
+    e.voix = False
+    await a_emporter(e)
+    await premier_article(e)
+    q = question_posee(e)
+    r = await e.tour("non merci, c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("type") == "proposition" else {}))
+    assert question_posee(e).get("type") == "relecture", r
+    total = montant_en_lettres(e.p["relecture"]["total"])
+    assert PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Alors une margherita."}).mode == PAROLE.SECOND_PASSAGE
+    r2 = await e.fiche(c_est_tout=True)
+    phrase = "Alors une margherita à emporter."
+    dit = await _voix(e, r2, phrase, [phrase])
+    assert dit.count(total) == 1 and dit.rstrip().endswith("?"), dit
+    jeton = e.p["relecture"]["jeton"]
+    assert question_posee(e).get("type") == "relecture" and PAROLE.total_dit(e.p, jeton), dit
+    r3 = await e.tour("oui", reponse={"question_id": question_posee(e)["id"], "sens": "accepte"})
+    assert (r3.get("faits") or {}).get("recapitulatif") != "pas_entendue" and "pas_entendue" not in str(r3), r3
+
