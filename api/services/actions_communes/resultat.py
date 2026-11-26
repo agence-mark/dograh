@@ -94,7 +94,7 @@ def question_du_numero_dicte(ctx) -> str | None:
 
 def question_du_numero_affiche(ctx) -> str | None:
     """M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé, réglable à l'écran (motif ``numero_affiche_garde`` des
-    phrases du code : groupe, agent, étape). ``None`` : phrase éteinte, la relecture finit par « C'est bon ? ». ⛔ Ne lève jamais."""
+    phrases du code : groupe, agent, étape). ``None`` : phrase éteinte, le modèle pose la question à la fin de sa relecture (C6 n° 8). ⛔ Ne lève jamais."""
     from api.services.phrases.catalogue import NUMERO_AFFICHE_GARDE
 
     return _phrase_du_code_dans_un_resultat(ctx, NUMERO_AFFICHE_GARDE)

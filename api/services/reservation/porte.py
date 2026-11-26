@@ -39,7 +39,7 @@ from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
 from api.services.actions_communes.repli import poser_le_fait_bloquant
 from api.services.actions_communes.resultat import (
-    CLE_NUMERO_AFFICHE, CLE_NUMERO_RETENU, Resultat, avec_le_fait_du_numero_affiche, phrase_du_code, question_du_numero_affiche,
+    CLE_NUMERO_AFFICHE, CLE_NUMERO_RETENU, Resultat, avec_le_fait_du_numero_affiche, phrase_du_code, phrase_du_numero_retenu, question_du_numero_affiche,
 )
 from api.services.phrases.catalogue import NUMERO_DICTE_RELU
 from api.services.reservation import etat_pour_le_modele, moteur
@@ -233,17 +233,27 @@ def question_du_code(ctx: Any, dernier: Resultat | None) -> str | None:
     return None
 
 
-def _textes_du_fait_accompli(dernier: Resultat, operation: str | None) -> dict[str, Any]:
+def numero_apres_le_fait_accompli(ctx: Any, dernier: Resultat | None) -> str | None:
+    """Reprise R4 de C6 (§ 8 bis : le numéro reste au code ; aligné sur la commande du n° 10) : la phrase réglée du numéro dicté et retenu (motif ``numero_retenu``), dite après le fait
+    accompli du modèle, quand la question réglée du numéro dicté (DC10) est éteinte ; allumée, elle l'a déjà relu à la relecture. ``None`` : rien à dire."""
+    if dernier is None or dernier.statut not in STATUTS_ENREGISTRES or phrase_du_code(ctx, NUMERO_DICTE_RELU) is not None:
+        return None
+    return phrase_du_numero_retenu(ctx, dernier.faits)
+
+
+def _textes_du_fait_accompli(dernier: Resultat, operation: str | None, phrase_du_numero: str | None = None) -> dict[str, Any]:
     """C6 n° 9 (décision d'Evan 25/11 9 h 30 ; P2) : la réservation enregistrée, changée ou annulée est dite par le MODÈLE ; sa phrase doit dire les personnes et l'heure (``chiffres_exiges`` ;
-    rien pour une annulation). ``fait_accompli`` : le texte de secours de la base, gardé au journal du dit seulement (jamais dit à la voix, même relance ratée : reprise R1 de C6)."""
+    rien pour une annulation). Le code ne dit après elle que la phrase réglée du numéro retenu (``phrase_du_numero``, reprise R4 : DC10 éteint). ``fait_accompli`` : le texte de secours
+    de la base, gardé au journal du dit seulement (jamais dit à la voix, même relance ratée : reprise R1 de C6)."""
     faits = dernier.faits or {}
     geste = "reserver" if dernier.statut in STATUTS_ENREGISTRES else operation
     exiges = {} if geste == "annuler" else {k: str(v) for k, v in (("personnes", faits.get("personnes")), ("heure", faits.get("heure_dite"))) if v not in (None, "")}
-    return {"chiffres_exiges": exiges, "fait_accompli": dernier.suggestion, "a_faire": A_FAIRE_DU_FAIT_ACCOMPLI.get(geste or "", A_FAIRE_DU_FAIT_ACCOMPLI["reserver"])}
+    return {"chiffres_exiges": exiges, **({"suffixe": phrase_du_numero} if phrase_du_numero else {}), "fait_accompli": dernier.suggestion,
+            "a_faire": A_FAIRE_DU_FAIT_ACCOMPLI.get(geste or "", A_FAIRE_DU_FAIT_ACCOMPLI["reserver"])}
 
 
 def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str | None, nee: dict[str, Any] | None, deja_enregistree: bool,
-                   question_du_code: str | None = None) -> dict[str, Any]:
+                   question_du_code: str | None = None, phrase_du_numero: str | None = None) -> dict[str, Any]:
     """Ce que le code dit lui-même au retour de cette fiche, et ce que le modèle doit dire (C6, décision d'Evan 25/11 9 h 30) : une relecture née dans ce tour (n° 8,
     ``_textes_de_la_relecture``, ``question_du_code`` la suit) ou le fait accompli (n° 9, ``_textes_du_fait_accompli`` : enregistrée, changée, annulée) sont dits par le modèle ;
     vide : rien."""
@@ -251,7 +261,7 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
         return _textes_de_la_relecture(nee, dernier, question_du_code)
     if dernier is not None and bool(dernier.suggestion) and (
             dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)):
-        return _textes_du_fait_accompli(dernier, operation)
+        return _textes_du_fait_accompli(dernier, operation, phrase_du_numero)
     return {}
 
 
@@ -493,7 +503,8 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         jour_a_demander = etat_pour_le_modele.LE_JOUR if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" else None  # C5 : la valeur fermée de ce qui manque (jamais la phrase de ``suggestion``)
         if manque:
             plus["manque"] = manque
-    textes = textes_du_code(e, dernier, operation, nee, deja_enregistree, question_du_code(ctx.ctx, dernier) if nee is not None else None)
+    textes = textes_du_code(e, dernier, operation, nee, deja_enregistree, question_du_code(ctx.ctx, dernier) if nee is not None else None,
+                            numero_apres_le_fait_accompli(ctx.ctx, dernier))
     a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if not a_faire and textes.get("a_faire"):
         a_faire = str(textes["a_faire"])  # C6 n° 8 : la relecture, dite par le modèle

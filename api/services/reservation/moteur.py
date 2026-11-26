@@ -195,17 +195,22 @@ async def reserver(source: Source, etat: dict[str, Any], appelant: Appelant, **g
     qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
 
     M98 : quand le numéro gardé est celui qui s'affiche, il est porté dans les faits (``numero_affiche_dit``). C6 n° 8 (Q2 = A) : la porte dit alors, après la relecture
-    du modèle, la question réglée du numéro gardé, seule question, à la fin ; un numéro dicté est relu par la question réglée du numéro dicté."""
+    du modèle, la question réglée du numéro gardé, seule question, à la fin ; un numéro dicté est relu par la question réglée du numéro dicté (DC10). Reprise R4 de C6 (comme la
+    commande, n° 10) : le numéro dicté est aussi porté jusqu'à l'enregistrement ; DC10 éteint, la porte dit le motif ``numero_retenu`` après le fait accompli du modèle."""
     deja = reservation_de_l_appel(etat)
     if deja:
         # R01 : « on sera cinq » après l'enregistrement ne crée jamais une seconde table : un changement passe par modifier
         if deja in (etat.get("annulees") or []):
             return _une_seule_par_appel_annulee(deja, jour=gestes.get("jour"), heure=gestes.get("heure"), personnes=gestes.get("personnes"), prenom=gestes.get("prenom"))
         return _r("DEJA_FAIT", {"reservation": deja, "raison": "deja_une_reservation_dans_cet_appel"}, TS.deja_une_reservation_dans_cet_appel({}), "modification")
+    brouillon = etat.setdefault("brouillon", {})  # le même que celui de ``_reserver`` : gardé ici, il porte le numéro dicté jusqu'à l'enregistrement (qui le retire de l'état)
     r = await _reserver(source, etat, appelant, **gestes)
     b = etat.get("brouillon") or {}
     if appelant.telephone_affiche and _vers_e164(b.get("telephone_dit") or appelant.telephone_affiche) == appelant.telephone_affiche:
         r = avec_numero_affiche(r, appelant.telephone_affiche)
+    if r.statut == "ENREGISTREE":
+        dicte = _vers_e164(brouillon["telephone_dit"]) if brouillon.get("telephone_dit") else None
+        return avec_numeros_retenus(r, dicte) if dicte and dicte != appelant.telephone_affiche else r
     numero = _vers_e164(gestes["telephone"]) if gestes.get("telephone") else None
     if r.statut in ("ENREGISTREE", "DEJA_FAIT") or not numero or b.get("telephone_dit") != gestes.get("telephone"):
         return r
