@@ -429,7 +429,8 @@ class Partie:
     async def juger_la_fin(self) -> list[Faute]:
         numero = (self.p.get("enregistree") or {}).get("numero")
         base = await commande_complete(self.e.monde.c, self.e.monde.a, numero) if numero else None
-        return rc_base_fin(self.p, base, list(getattr(self.e.source.prise, "recues", [])))
+        lignes = await self.e.monde.c.fetch("SELECT numero::text AS numero, statut FROM mark.resto_commande WHERE appel_id = $1", str(self.e.ctx.run_id))
+        return rc_base_fin(self.p, base, list(getattr(self.e.source.prise, "recues", [])), [(r["numero"], r["statut"]) for r in lignes])
 
     def _effet_du_rejeu(self):
         """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste. 7c : une réponse au numéro d'une question qui n'est plus posée est écartée SEULE
@@ -875,9 +876,20 @@ def _panier_face_a_la_base(p: dict[str, Any], b: dict[str, Any]) -> list[Faute]:
     return f
 
 
-def rc_base_fin(p: dict[str, Any], b: dict[str, Any] | None, recues: list[dict[str, Any]]) -> list[Faute]:
+def rc_base_fin(p: dict[str, Any], b: dict[str, Any] | None, recues: list[dict[str, Any]], lignes_de_l_appel: list[tuple[str, str]]) -> list[Faute]:
     """§ 17, après la fin de l'appel : une commande accordée (enregistrée, pas annulée) est partie, et la caisse l'a reçue UNE fois, telle que la base la porte (lignes, total,
-    mode) ; une commande annulée ou jamais accordée n'a rien envoyé (sa ligne, s'il y en a une, est « annulee »)."""
+    mode) ; une commande annulée ou jamais accordée n'a rien envoyé (sa ligne, s'il y en a une, est « annulee »). Toute autre ligne de l'appel (``lignes_de_l_appel`` :
+    ``(numero, statut)`` de ``resto_commande``, une ancienne version) est « annulee » : aucune ne reste « retenue » (audit 8b-1a, R3)."""
+    return _autres_lignes_de_l_appel(b, lignes_de_l_appel) + _la_commande_a_la_fin(p, b, recues)
+
+
+def _autres_lignes_de_l_appel(b: dict[str, Any] | None, lignes_de_l_appel: list[tuple[str, str]]) -> list[Faute]:
+    jugee = str(b.get("numero")) if b is not None else None  # la commande du panier : jugée par ``_la_commande_a_la_fin``
+    return [("BASE", f"après la fin de l'appel, une autre ligne de l'appel ({numero}) au statut « {statut} » (attendu : annulee)")
+            for numero, statut in lignes_de_l_appel if numero != jugee and statut != "annulee"]
+
+
+def _la_commande_a_la_fin(p: dict[str, Any], b: dict[str, Any] | None, recues: list[dict[str, Any]]) -> list[Faute]:
     e = p.get("enregistree")
     if not e or p.get("annulee") or e.get("annulee"):
         f: list[Faute] = [("BASE", f"la caisse a reçu {len(recues)} envoi(s) d'une commande que l'appel n'a pas accordée")] if recues else []
