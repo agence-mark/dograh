@@ -205,22 +205,8 @@ def test_chaque_phrase_du_code_est_un_motif_regle_de_la_liste_fermee():
 def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
     assert "nouvelle_commande" not in CAT.PHRASES_DU_CODE, "DC5 n'est pas une phrase du code : un refus suivi d'une question, que le modèle dit"
     assert INFO.NOUVELLE_COMMANDE_PROPOSEE == "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
-    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation passe au modèle ; ses deux faits d'avant ne sont plus que des textes de secours (gardés au journal)
-    from api.services.commande import textes_de_secours as TS_A
-
-    assert TS_A.annulation_confirmee({}) == "Je vous confirme l'annulation de votre commande." and TS_A.annulee_en_cours({}) == "Je ne l'enregistre pas."
-    # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le changement passe au modèle ; son texte d'avant n'est plus qu'un texte de secours, le nouveau total est le motif réglé
-    from api.services.commande import textes_de_secours as TS_C
-
-    assert TS_C.commande_changee({"total": 1200}) == "C'est changé : votre commande fait maintenant douze euros."
-    assert TS_C.commande_changee({}) == "C'est changé dans votre commande."
-    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : la confirmation passe au modèle ; ses textes d'avant ne sont plus que des textes de secours (gardés au journal, jamais dits à sa place)
-    from api.db.bases_clients import textes_de_secours_commande as TSC
-    from api.services.commande import textes_de_secours as TS
-
-    assert TSC.commande_enregistree({"mode": "emporter", "quand_dit": "pour dix-neuf heures trente"}) == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente."
-    assert TS.commande_retrouvee({"quand_dit": "ce soir"}) == "Votre commande est enregistrée pour ce soir."
-    assert TS.commande_retrouvee({}) == "Votre commande est enregistrée."
+    # C6 n° 5 à 7 (décision d'Evan 25/11 9 h 30) : la confirmation, le changement et l'annulation passent au modèle ; C7 B9 : leurs textes de secours sont supprimés, le
+    # journal garde le fait accompli en faits (``fait`` : enregistree, changee, annulee, annulee_en_cours ; ``quand_dit``, ``total``), vérifié par ``test_p1f_lot7c7_fait_accompli_en_faits``
 
 
 def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
