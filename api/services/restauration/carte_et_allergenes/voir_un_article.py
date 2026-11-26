@@ -100,7 +100,7 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     inconnus = sum(1 for _, e in etats if e == "inconnu")
     faits = {"recherche": "sans", "code": code, **({"codes": codes} if len(codes) > 1 else {}), "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
     if surs:
-        faits = {**faits, "mot": mot, **INFO.consigne_si_liste(surs)}  # la chose évitée, que le texte dit ; la liste est entière, le modèle en dit quelques-uns (Q8)
+        faits = {**faits, "mot": mot, **INFO.consigne_si_liste(surs)}  # la liste est entière, le modèle en dit quelques-uns s'il y en a plusieurs (Q8) ; ``mot`` est la chose évitée, que le modèle dit
         return _r("OK", faits, "")
     if contiennent and not inconnus and not selon:
         return _r("OK", faits, "")  # les faits disent combien en contiennent : le modèle le dit
