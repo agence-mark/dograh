@@ -739,7 +739,6 @@ async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
 def test_conv_la_question_d_etape_redite_par_le_repli_finit_par_un_seul_point_d_interrogation():
     """Série 2 du lot 11 (FOR3-A) : « … cookie, donut ou dessert du jour ? ? » ; décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne redit plus la question d'étape, le modèle est relancé
     avec son objet (l'article en question) : aucune phrase du code, donc aucun « ? ? »."""
-    import json
 
     from api.services.actions_communes.parole import EtatDuTour
     from api.services.actions_communes.repli import consigne_de_relance
@@ -761,7 +760,6 @@ async def test_conv_lot_9_une_ambiguite_est_rendue_au_modele_avec_ses_candidats(
     """Lot 7b-C4, E1 = A (Evan, 25/11 ; avant : lot 9, OPT3-A, le code disait « Vous voulez dire : Bubble tea ? » mot pour mot à la place de la phrase du modèle) : une question d'ambiguïté
     née dans le tour suit la ligne de toute question née : le modèle repasse avec les candidats (``faits.candidats``, ``faits.dit``) et dit le doute avec ses mots ; si le modèle se tait, le repli
     est relancé avec le doute (lot 7b-C5), jamais avec le texte du registre, que le modèle ne reçoit jamais."""
-    import json
 
     from api.services.actions_communes import parole as PAROLE
     from api.services.actions_communes.repli import consigne_de_relance

@@ -15,6 +15,7 @@ import contextlib
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -345,3 +346,10 @@ def test_rc6_et_rc9_lisent_la_question_par_sa_structure_vu_rouge():
     assert C.rc9(_observation(geste="G1", avant=etat(q1), apres=etat(q2))), "même type et même objet, un autre numéro : la même question change de numéro"
     autre = {"id": "Q-2", "texte": "Quelle taille ?", "type": "variante", "article_en_question": "Margherita"}
     assert not [f for f in C.rc9(_observation(geste="G1", avant=etat(q1), apres=etat(autre))) if "change de numéro" in f[1]], "même texte, autre objet : deux questions"
+
+    def trois_fois(*qs):  # C7 B10 : RC6 (sortie de boucle) lit lui aussi la question par sa structure
+        return SimpleNamespace(observations=[_observation(geste="G1", avant=etat(q), apres=etat(q)) for q in qs])
+
+    q2_meme_numero = {**q2, "id": "Q-1"}
+    assert C.rc6(trois_fois(q1, q2_meme_numero, q1)), "même question (même structure), texte changé : trois fois la même chose"
+    assert not C.rc6(trois_fois(q1, {**autre, "id": "Q-1"}, q1)), "même texte, autre objet : pas trois fois la même chose"

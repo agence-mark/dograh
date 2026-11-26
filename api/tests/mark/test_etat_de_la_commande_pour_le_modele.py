@@ -74,9 +74,12 @@ def test_e1_debut_rien_de_pose():
 
 
 def test_e6_commande_enregistree():
+    """C7 B10 (T8) : depuis le lot 2 de P1F (``fc038c7b``), l'étape est stockée et ne se déduit plus de ``p["enregistree"]`` : la commande s'enregistre par sa transition."""
+    from api.services.commande import etape as ETAPE
+
     p = panier.nouveau()
     p["lignes"] = [{"n": 1, "nom": "X", "code": "x", "quantite": 1, "choix": [], "retires": []}]
-    p["enregistree"] = {"numero_court": "C12"}
+    ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero_court": "C12"}, empreinte=panier.empreinte(p))
     t = _etat(p)
     assert "Commande de cet appel enregistrée (numéro C12)" in t and "Ce qui manque" not in t
 
