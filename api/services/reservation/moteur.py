@@ -203,20 +203,21 @@ async def reserver(source: Source, etat: dict[str, Any], appelant: Appelant, **g
         if deja in (etat.get("annulees") or []):
             return _une_seule_par_appel_annulee(deja, jour=gestes.get("jour"), heure=gestes.get("heure"), personnes=gestes.get("personnes"), prenom=gestes.get("prenom"))
         return _r("DEJA_FAIT", {"reservation": deja, "raison": "deja_une_reservation_dans_cet_appel"}, TS.deja_une_reservation_dans_cet_appel({}), "modification")
-    brouillon = etat.setdefault("brouillon", {})  # le même que celui de ``_reserver`` : gardé ici, il porte le numéro dicté jusqu'à l'enregistrement (qui le retire de l'état)
+    # le même brouillon que celui de ``_reserver``, gardé ici : l'enregistrement le retire de l'état, il porte encore le numéro dicté (risque 6 des reprises : relu dans l'état,
+    # il était vide et le numéro qui s'affiche passait pour gardé)
+    brouillon = etat.setdefault("brouillon", {})
     r = await _reserver(source, etat, appelant, **gestes)
-    b = etat.get("brouillon") or {}
-    if appelant.telephone_affiche and _vers_e164(b.get("telephone_dit") or appelant.telephone_affiche) == appelant.telephone_affiche:
+    if appelant.telephone_affiche and _vers_e164(brouillon.get("telephone_dit") or appelant.telephone_affiche) == appelant.telephone_affiche:
         r = avec_numero_affiche(r, appelant.telephone_affiche)
     if r.statut == "ENREGISTREE":
         dicte = _vers_e164(brouillon["telephone_dit"]) if brouillon.get("telephone_dit") else None
         return avec_numeros_retenus(r, dicte) if dicte and dicte != appelant.telephone_affiche else r
     numero = _vers_e164(gestes["telephone"]) if gestes.get("telephone") else None
-    if r.statut in ("ENREGISTREE", "DEJA_FAIT") or not numero or b.get("telephone_dit") != gestes.get("telephone"):
+    if r.statut == "DEJA_FAIT" or not numero or brouillon.get("telephone_dit") != gestes.get("telephone"):
         return r
-    if numero == appelant.telephone_affiche or b.get("numero_dit") == numero:
+    if numero == appelant.telephone_affiche or brouillon.get("numero_dit") == numero:
         return r
-    b["numero_dit"] = numero
+    brouillon["numero_dit"] = numero
     return avec_numeros_retenus(r, numero)
 
 

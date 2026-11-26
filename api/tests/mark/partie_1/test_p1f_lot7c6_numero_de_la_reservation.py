@@ -63,3 +63,33 @@ async def test_voisin_le_numero_qui_s_affiche_n_est_jamais_dit(salle, monkeypatc
     r = await essai.tour("oui", reponse={"question_id": r["question"]["id"], "sens": "accepte"})
     assert r["statut"] == "ENREGISTREE", r
     assert not _textes(essai).get("suffixe"), _textes(essai)
+
+
+async def test_numero_dicte_a_l_enregistrement_le_numero_qui_s_affiche_n_est_pas_tenu_pour_garde(salle, monkeypatch):
+    """Risque 6 des reprises de C6 : à l'enregistrement, le brouillon est retiré de l'état ; ``reserver`` le relisait vide et tenait le numéro qui s'affiche pour gardé alors qu'un
+    autre numéro a été dicté. Défaut sans effet entendu aujourd'hui (``avec_numero_affiche`` ne touche pas un statut final) : le test regarde ce que ``reserver`` tient pour gardé."""
+    from api.services.reservation import moteur
+
+    gardes: list[tuple[str, str | None]] = []
+    vrai = moteur.avec_numero_affiche
+
+    def espion(r, affiche):
+        gardes.append((r.statut, affiche))
+        return vrai(r, affiche)
+
+    monkeypatch.setattr(moteur, "avec_numero_affiche", espion)
+    await _reservee(salle, monkeypatch, DC10_ETEINT, appelant="+33699887766")
+    assert [s for s, _ in gardes if s == "ENREGISTREE"] == [], gardes  # gardé au premier tour (rien de dicté), jamais après la dictée
+
+
+async def test_voisin_sans_numero_dicte_le_numero_qui_s_affiche_reste_garde(salle, monkeypatch):
+    from api.services.reservation import moteur
+
+    gardes: list[str] = []
+    vrai = moteur.avec_numero_affiche
+    monkeypatch.setattr(moteur, "avec_numero_affiche", lambda r, affiche: (gardes.append(r.statut), vrai(r, affiche))[1])
+    essai = EssaiReservation(salle, monkeypatch, appelant="+33699887766")
+    r = await essai.tour(MOTS, personnes=4, jour="samedi", heure="vingt heures", nom="Paul")
+    assert r["faits"].get("numero_affiche_dit"), r["faits"]  # M98 : gardé, porté dans les faits de la relecture
+    r = await essai.tour("oui", reponse={"question_id": r["question"]["id"], "sens": "accepte"})
+    assert r["statut"] == "ENREGISTREE" and gardes, (r, gardes)
