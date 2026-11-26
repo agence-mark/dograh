@@ -124,6 +124,8 @@ def _question(e: Entrees) -> Decision:
         e.etat.jetee = None
         if (relance := _relancer_le_fait(e, MANQUE)) is not None:
             return relance
+        if e.du.rien_change and not pose_une_question(phrase):
+            return _la_relance_ratee(e)  # 7c (T12) : la fiche ne change rien et la relance du tour est faite : jamais « C'est noté. » seul quand rien n'est noté
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id
     _poser_la_phrase_reglee(e, e.suffixe_du_code)
