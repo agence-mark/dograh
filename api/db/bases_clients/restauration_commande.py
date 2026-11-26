@@ -903,20 +903,14 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
             json.dumps(client["second_numero"]) if client.get("second_numero") else None,
             json.dumps(brouillon["adresse"]) if brouillon.get("adresse") else None,
             zone["id"] if zone else None,
-            json.dumps([{"nom": r["nom"], "montant": r["montant"], "ref_caisse": r["ref_caisse"], "taux_tva": taux_du_panier} for r in retenues]),
+            _remises_en_json(retenues, taux_du_panier),
             sous_total, frais, total,
             json.dumps({"moyens": moyens, "rendu_sur": paiement.get("rendu_sur"), "reste_par_moyen": reste}),
             brouillon.get("note"), cree_par, brouillon.get("appel_id"), cle, maintenant_, taux_du_panier if frais else None,
             (brouillon.get("consigne_livreur") or None),  # lot 16 : la consigne pour le livreur, envoyée à la caisse dans ``customer.delivery_notes``
             a.statut,
         )
-        for rang, l in enumerate(calculees, start=1):
-            await connexion.execute(
-                "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires, formule_ref, taux_tva, poids_g) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)",
-                numero, etablissement_id, rang, l["code_caisse"], l["nom"], l["prix_unitaire"], l["quantite"], l["note"],
-                json.dumps(l["choix"]), l["retires"], l["formule_id"], l["taux_tva"], l.get("poids_g"),
-            )
+        await _ecrire_les_lignes(connexion, numero, etablissement_id, calculees)
         # La fiche du client : créée ou mise à jour (consignes et adresses gardées).
         await connexion.execute(
             "INSERT INTO mark.resto_client (site_id, telephone, prenom, derniere_commande_id, derniere_commande_le, nb_commandes, cree_le, maj_le) "
@@ -928,14 +922,32 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
         # Lot 5 : la fiche du client et son nombre de commandes viennent de changer : relues à leur prochaine lecture dans cet appel
         oublier(connexion, cle_du_client(etablissement_id, client["telephone"]))
         oublier(connexion, ("nb_commandes_du_client", etablissement_id, client["telephone"]))
-        # M38 : les offres dites dans cet appel et portées par la commande passent à « acceptée » (sans appel connu, rien n'est noté).
-        # Dans son propre point de reprise : un compteur d'écran (table absente d'une base pas encore mise à niveau, par exemple) ne défait jamais une commande.
-        try:
-            async with connexion.transaction():
-                await noter_l_acceptation(connexion, etablissement_id, brouillon.get("appel_id"), [r["id"] for r in retenues if r.get("id") is not None], numero)
-        except Exception:  # un compteur d'écran (table absente d'une base pas encore mise à niveau, par exemple) ne défait jamais une commande, mais il se voit
-            logging.exception("[.mark] Offer acceptance not counted")  # journal standard, repris par celui de l'application (``InterceptHandler``)
+        await _noter_les_offres_acceptees(connexion, a, numero)
     return None, numero, numero_court
+
+
+async def _ecrire_les_lignes(connexion: asyncpg.Connection, numero: uuid.UUID, etablissement_id: int, calculees: list[dict]) -> None:
+    for rang, l in enumerate(calculees, start=1):
+        await connexion.execute(
+            "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires, formule_ref, taux_tva, poids_g) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)",
+            numero, etablissement_id, rang, l["code_caisse"], l["nom"], l["prix_unitaire"], l["quantite"], l["note"],
+            json.dumps(l["choix"]), l["retires"], l["formule_id"], l["taux_tva"], l.get("poids_g"),
+        )
+
+
+def _remises_en_json(retenues: list[dict], taux_du_panier: Any) -> str:
+    return json.dumps([{"nom": r["nom"], "montant": r["montant"], "ref_caisse": r["ref_caisse"], "taux_tva": taux_du_panier} for r in retenues])
+
+
+async def _noter_les_offres_acceptees(connexion: asyncpg.Connection, a: _ACommande, numero: uuid.UUID) -> None:
+    """M38 : les offres dites dans cet appel et portées par la commande passent à « acceptée » (sans appel connu, rien n'est noté). Dans son propre point de reprise :
+    un compteur d'écran (table absente d'une base pas encore mise à niveau, par exemple) ne défait jamais une commande, mais il se voit."""
+    try:
+        async with connexion.transaction():
+            await noter_l_acceptation(connexion, a.etablissement_id, a.brouillon.get("appel_id"), [r["id"] for r in a.retenues if r.get("id") is not None], numero)
+    except Exception:  # un compteur d'écran ne défait jamais une commande, mais il se voit
+        logging.exception("[.mark] Offer acceptance not counted")  # journal standard, repris par celui de l'application (``InterceptHandler``)
 
 
 async def enregistrer_commande(
@@ -945,7 +957,6 @@ async def enregistrer_commande(
     jeton_relecture: str | None,
     *,
     declencher_envoi: Callable[[uuid.UUID], Awaitable[None]] | None = None,
-    a_blanc: bool = False,
 ) -> Resultat:
     """Enregistre une commande. Recalcule les prix, le total, les frais et les remises depuis la carte ; revérifie
     ouverture, ruptures, zone, minimum et paiement ; rend ``ENREGISTREE`` (numéro, numéro court, heure annoncée, total),
@@ -956,63 +967,104 @@ async def enregistrer_commande(
     ``remises? [{ref|nom}]``, ``paiement {moyens, reste_par_moyen, rendu_sur?}``, ``note?``, ``appel_id?``, ``cree_par?``.
     ``jeton_relecture`` : exigé (la relecture en deux temps, lot 24, en définit la preuve ; ici : non vide).
     ``declencher_envoi`` : l'envoi tout de suite (le portail, l'essai de la prise) ; sans lui, une commande de l'agent est écrite ``retenue`` et ne part
-    qu'à la fin de l'appel (§ 17, Evan 24/11 : « tant qu'on n'est pas à la fin de l'appel, la commande n'est pas envoyée »).
-    ``a_blanc`` (clôture, Pierre A2) : fait tous les contrôles qui peuvent refuser (ouverture, ruptures relues, zone, remises, règlement, heure) et
-    s'arrête avant l'anti-doublon et toute écriture : ``OK`` ou le refus que l'enregistrement rendrait. Sert à changer une commande enregistrée en
-    tout ou rien : l'ancienne n'est annulée qu'une fois la nouvelle sûre d'entrer."""
-    maintenant_ = await maintenant(connexion)
-    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
-    mode = brouillon.get("mode")
-    client = brouillon.get("client") or {}
-    heure_voulue = brouillon.get("heure_voulue")
-    cree_par = brouillon.get("cree_par", "agent")
-
-    refus_de_la_demande = _manques_de_la_demande(brouillon, jeton_relecture, maintenant_)
-    if refus_de_la_demande is not None:
-        return refus_de_la_demande
-    # --- Ouverture, au moment de la commande (l'heure voulue si elle est planifiée), puis capacité du quart d'heure voulu ---
-    moment = heure_voulue or maintenant_
-    refus = await creneau_refuse(connexion, etablissement_id, mode, heure_voulue, maintenant_, fuseau)
-    if refus is not None:
-        return refus
-    etat = await etat_combine(connexion, etablissement_id, mode, moment)  # ouvert à ce moment : sert l'annonce de l'heure plus bas
-    # --- La carte, les ruptures, le panier ---
-    carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
-    # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
-    ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
-    reglages = await reglages_de_l_enregistrement(connexion, etablissement_id, relire=True)  # UNE lecture, relue à la base : moyens, plafond, module, préfixe du numéro
-    module = reglages["module"]
-    panier = _Panier(carte, mode, ruptures, module["moities_prix"], maintenant_.astimezone(fuseau), heure_voulue)  # RET6 : la règle de l'établissement
-    calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
-    if erreur:
-        return erreur
-    # --- Livraison : la zone de CET établissement, minimum, frais ---
-    zone, frais, erreur = await _zone_et_frais(connexion, etablissement_id, mode, brouillon.get("zone_id"), sous_total)
-    if erreur:
-        return erreur
-    # --- Remises : recalculées chez nous au centime, jamais le montant du modèle ; seules celles que le chiffrage de l'appel a nommées ---
-    erreur, retenues, calculees, sous_total, total = await _remises_et_total(connexion, etablissement_id, brouillon, panier, calculees, sous_total, frais, moment)
-    if erreur:
-        return erreur
-    # --- Paiement : moyens acceptés, plafond du titre-restaurant, le compte est bon ---
-    refus_du_reglement = _controler_le_reglement(brouillon, reglages, total, calculees)
-    if refus_du_reglement is not None:
-        return refus_du_reglement
-    paiement, moyens, reste = _reglement_du_brouillon(brouillon)
-    annonce, heure_annoncee = await _heure_annoncee(connexion, etablissement_id, mode, heure_voulue, maintenant_, zone, etat)  # écrite ici, sur la demande : la puce ne la touche plus
-    if a_blanc:
-        return Resultat("OK", {"total": total})
-    a = _ACommande(
-        etablissement_id, brouillon, mode, client, cree_par, heure_voulue, heure_annoncee, zone, retenues, calculees, sous_total, frais, total, paiement, moyens, reste,
-        _cle_doublon(brouillon, calculees), maintenant_, fuseau, reglages, "retenue" if cree_par == "agent" and declencher_envoi is None else "nouvelle",
-    )
+    qu'à la fin de l'appel (§ 17, Evan 24/11 : « tant qu'on n'est pas à la fin de l'appel, la commande n'est pas envoyée »)."""
+    retenue = brouillon.get("cree_par", "agent") == "agent" and declencher_envoi is None
+    refus, a, annonce = await _controler_la_commande(connexion, etablissement_id, brouillon, jeton_relecture, "retenue" if retenue else "nouvelle")
+    if refus is not None or a is None:
+        return refus or _refus("ARGUMENT_INVALIDE")
     deja_fait, numero, numero_court = await _ecrire_la_commande(connexion, a)
     if deja_fait is not None:
         return deja_fait
     if declencher_envoi is not None:
         await declencher_envoi(numero)  # l'envoi : après l'enregistrement validé, clé de tâche = le numéro
-    faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total}
-    return _enregistree(faits, annonce, mode, maintenant_, fuseau)
+    faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": a.heure_annoncee, "total": a.total}
+    return _enregistree(faits, annonce, a.mode, a.maintenant, a.fuseau)
+
+
+async def reecrire_la_commande(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, brouillon: dict, jeton_relecture: str | None) -> Resultat:
+    """Lot 8b-1b (E4 ; § 17 l.404) : la commande ``retenue`` de l'appel, changée après le « oui », est RÉÉCRITE à sa place : même numéro, même numéro court, même clé
+    anti-doublon ; ses lignes, ses totaux, ses remises, sa note, son adresse, le prénom et le règlement deviennent ceux du brouillon, contrôlé et chiffré comme à l'enregistrement
+    (tout ou rien : un refus ne touche à rien). Rien ne part en caisse : la fin de l'appel enverra cette version. ``ENREGISTREE`` (les mêmes faits que l'enregistrement), le
+    refus de l'enregistrement, ``INTERDIT`` (``statut_actuel`` : la ligne n'est plus ``retenue``) ou ``INTROUVABLE``."""
+    refus, a, annonce = await _controler_la_commande(connexion, etablissement_id, brouillon, jeton_relecture, "retenue")
+    if refus is not None or a is None:
+        return refus or _refus("ARGUMENT_INVALIDE")
+    numero = uuid.UUID(str(numero))
+    numero_court = await _reecrire_la_ligne(connexion, a, numero)
+    if numero_court is None:
+        actuel = await connexion.fetchval("SELECT statut FROM mark.resto_commande WHERE numero = $1 AND site_id = $2", numero, etablissement_id)
+        return Resultat("INTROUVABLE", {"numero": str(numero)}) if actuel is None else Resultat("INTERDIT", {"numero": str(numero), "statut_actuel": actuel})
+    faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": a.heure_annoncee, "total": a.total}
+    return _enregistree(faits, annonce, a.mode, a.maintenant, a.fuseau)
+
+
+async def _reecrire_la_ligne(connexion: asyncpg.Connection, a: _ACommande, numero: uuid.UUID) -> str | None:
+    """La réécriture en UNE transaction ; la requête vérifie elle-même que la ligne est encore ``retenue`` (une fin d'appel qui l'envoie en même temps attend ce verrou et part
+    avec la nouvelle version). Le compte de commandes du client ne bouge pas : c'est la même commande. Rend le numéro court, ``None`` si rien n'est réécrit."""
+    client, brouillon = a.client, a.brouillon
+    taux_du_panier = taux_majoritaire(a.calculees)
+    async with connexion.transaction():
+        await poser_session(connexion, "agent", "commande:reecriture")
+        numero_court = await connexion.fetchval(
+            "UPDATE mark.resto_commande SET mode = $3, heure_voulue = $4, heure_annoncee = $5, telephone = $6, prenom = $7, second_numero = $8::jsonb, adresse = $9::jsonb, "
+            "zone_id = $10, remises = $11::jsonb, sous_total = $12, frais = $13, total = $14, paiement = $15::jsonb, note = $16, maj_le = $17, taux_tva_frais = $18, "
+            "consigne_livreur = $19 WHERE numero = $1 AND site_id = $2 AND statut = 'retenue' RETURNING numero_court",
+            numero, a.etablissement_id, a.mode, a.heure_voulue, a.heure_annoncee, client["telephone"], client.get("prenom"),
+            json.dumps(client["second_numero"]) if client.get("second_numero") else None, json.dumps(brouillon["adresse"]) if brouillon.get("adresse") else None,
+            a.zone["id"] if a.zone else None, _remises_en_json(a.retenues, taux_du_panier), a.sous_total, a.frais, a.total,
+            json.dumps({"moyens": a.moyens, "rendu_sur": a.paiement.get("rendu_sur"), "reste_par_moyen": a.reste}), brouillon.get("note"), a.maintenant,
+            taux_du_panier if a.frais else None, brouillon.get("consigne_livreur") or None,
+        )
+        if numero_court is None:
+            return None
+        await connexion.execute("DELETE FROM mark.resto_commande_ligne WHERE numero = $1 AND site_id = $2", numero, a.etablissement_id)
+        await _ecrire_les_lignes(connexion, numero, a.etablissement_id, a.calculees)
+        await connexion.execute(
+            "UPDATE mark.resto_client SET prenom = coalesce($3, prenom), maj_le = $4 WHERE site_id = $1 AND telephone = $2",
+            a.etablissement_id, client["telephone"], client.get("prenom"), a.maintenant,
+        )
+        oublier(connexion, cle_du_client(a.etablissement_id, client["telephone"]))
+        await _noter_les_offres_acceptees(connexion, a, numero)
+    return numero_court
+
+
+async def _controler_la_commande(
+    connexion: asyncpg.Connection, etablissement_id: int, brouillon: dict, jeton_relecture: str | None, statut: str
+) -> tuple[Resultat | None, _ACommande | None, dict | None]:
+    """Les contrôles et le chiffrage d'une commande avant toute écriture (ouverture, carte et ruptures relues, zone, remises, règlement, heure annoncée) :
+    ``(refus, None, None)`` ou ``(None, commande à écrire, annonce)``. Partagés par l'enregistrement et la réécriture : la même règle pour les deux."""
+    maintenant_ = await maintenant(connexion)
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    mode = brouillon.get("mode")
+    heure_voulue = brouillon.get("heure_voulue")
+    refus = _manques_de_la_demande(brouillon, jeton_relecture, maintenant_) or await creneau_refuse(connexion, etablissement_id, mode, heure_voulue, maintenant_, fuseau)
+    if refus is not None:
+        return refus, None, None
+    moment = heure_voulue or maintenant_  # l'ouverture au moment de la commande (l'heure voulue si elle est planifiée)
+    etat = await etat_combine(connexion, etablissement_id, mode, moment)  # ouvert à ce moment : sert l'annonce de l'heure plus bas
+    carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
+    # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
+    ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
+    reglages = await reglages_de_l_enregistrement(connexion, etablissement_id, relire=True)  # UNE lecture, relue à la base : moyens, plafond, module, préfixe du numéro
+    panier = _Panier(carte, mode, ruptures, reglages["module"]["moities_prix"], maintenant_.astimezone(fuseau), heure_voulue)  # RET6 : la règle de l'établissement
+    calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
+    if erreur:
+        return erreur, None, None
+    zone, frais, erreur = await _zone_et_frais(connexion, etablissement_id, mode, brouillon.get("zone_id"), sous_total)  # livraison : la zone de CET établissement
+    if erreur:
+        return erreur, None, None
+    # Remises : recalculées chez nous au centime, jamais le montant du modèle ; seules celles que le chiffrage de l'appel a nommées
+    erreur, retenues, calculees, sous_total, total = await _remises_et_total(connexion, etablissement_id, brouillon, panier, calculees, sous_total, frais, moment)
+    erreur = erreur or _controler_le_reglement(brouillon, reglages, total, calculees)  # moyens acceptés, plafond du titre-restaurant, le compte est bon
+    if erreur:
+        return erreur, None, None
+    paiement, moyens, reste = _reglement_du_brouillon(brouillon)
+    annonce, heure_annoncee = await _heure_annoncee(connexion, etablissement_id, mode, heure_voulue, maintenant_, zone, etat)  # écrite ici, sur la demande : la puce ne la touche plus
+    a = _ACommande(
+        etablissement_id, brouillon, mode, brouillon.get("client") or {}, brouillon.get("cree_par", "agent"), heure_voulue, heure_annoncee, zone, retenues, calculees,
+        sous_total, frais, total, paiement, moyens, reste, _cle_doublon(brouillon, calculees), maintenant_, fuseau, reglages, statut,
+    )
+    return None, a, annonce
 
 
 # --------------------------------------------------------------------------- #

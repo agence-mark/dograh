@@ -171,13 +171,31 @@ def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: di
 async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, chiffre: Resultat, paiement: dict[str, Any]) -> Resultat:
     """Lot 4 (M39, M40) : l'enregistrement, une fois par appel (E30) ; le récapitulatif approuvé en est la preuve (son jeton). C6 n° 5 (décision d'Evan 25/11 9 h 30) : le résultat
     porte des faits (l'heure dite ``quand_dit``, le mode, le rendu de monnaie ``rendu``) ; le modèle dit la confirmation, la porte dit ensuite le rendu (motif réglé) et la question M108."""
-    client = p["client"]
-    if p.get("habitude"):
-        if not await retenir_une_habitude(source, client["telephone"], p["habitude"]):
-            p["note"] = (f"{p['note']} ; {p['habitude']}" if p.get("note") else p["habitude"])[:300]
-        p["habitude"] = None
+    await _garder_l_habitude(source, p)
     jeton = (p.get("relecture") or {}).get("jeton") or uuid.uuid4().hex
     r = await source.enregistrer(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
+    return _apres_l_ecriture(source, p, r, chiffre, paiement)
+
+
+async def reecrire(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, chiffre: Resultat, paiement: dict[str, Any], numero: str) -> Resultat:
+    """Lot 8b-1b (E4 ; § 17 l.404) : la commande ``numero`` de CET appel, changée après le « oui », est réécrite à sa place en base (même numéro) ; le résultat a les faits
+    de l'enregistrement, l'étape reste « enregistrée » avec la nouvelle empreinte. Rien ne part en caisse : la fin de l'appel enverra cette version."""
+    await _garder_l_habitude(source, p)
+    jeton = (p.get("relecture") or {}).get("jeton") or uuid.uuid4().hex
+    r = await source.reecrire_la_commande(numero, _brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
+    return _apres_l_ecriture(source, p, r, chiffre, paiement)
+
+
+async def _garder_l_habitude(source: Source, p: dict[str, Any]) -> None:
+    """Une habitude dite (M41) est retenue sur la fiche du client ; refusée par la fiche (donnée de santé), elle va dans la note de la commande."""
+    if p.get("habitude"):
+        if not await retenir_une_habitude(source, p["client"]["telephone"], p["habitude"]):
+            p["note"] = (f"{p['note']} ; {p['habitude']}" if p.get("note") else p["habitude"])[:300]
+        p["habitude"] = None
+
+
+def _apres_l_ecriture(source: Source, p: dict[str, Any], r: Resultat, chiffre: Resultat, paiement: dict[str, Any]) -> Resultat:
+    """Ce que l'écriture rend devient l'étape et les faits de la commande : écrite (ou déjà faite), ses faits et l'empreinte du panier écrit ; la relecture à refaire ; un refus tel quel."""
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
         faits = {**r.faits, "monnaie": paiement["monnaie"]}
         rendu = rendu_de_monnaie(paiement)

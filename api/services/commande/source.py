@@ -87,8 +87,9 @@ class Source(Protocol):
     async def enregistrer(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
         """L'enregistrement DÉFINITIF (recalcule tout, refuse l'incomplet, anti-doublon) ; rien ne part pendant l'appel : l'envoi part à sa fin (§ 17)."""
 
-    async def verifier_l_enregistrement(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
-        """Optionnel (Pierre A2) : ce que ``enregistrer`` refuserait, constaté sans rien écrire (``OK`` ou le refus). Sans, rien n'est vérifié d'avance."""
+    async def reecrire_la_commande(self, numero: str, brouillon: dict[str, Any], jeton: str) -> Resultat:
+        """Lot 8b-1b (E4) : la commande ``numero`` de l'appel, changée après le « oui », est réécrite à sa place (même numéro), contrôlée comme ``enregistrer`` (tout ou rien) ;
+        rien ne part pendant l'appel (§ 17 l.404). ``ENREGISTREE`` ou le refus."""
 
     def statut_de_l_enregistrement(self) -> str:
         """``ENREGISTREE``, ou ``TRANSMISE`` quand la destination ne sait pas dire « acceptée »."""
