@@ -14,7 +14,6 @@ from api.db.bases_clients import restauration_reservation as RR
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.reservation import porte as PORTE
-from api.services.reservation import textes_de_secours as TS
 from api.services.workflow import parole_de_la_fiche as PF
 from api.services.workflow.etat_des_connecteurs import ATTRIBUT
 from api.tests.mark.partie_1 import aides_de_la_reservation as _RESA
@@ -118,13 +117,15 @@ async def test_la_reservation_annulee_est_dite_par_le_modele(salle, monkeypatch)
     assert _dire(essai, r, phrase) == phrase
 
 
-async def test_la_base_ne_rend_que_des_textes_de_secours_en_lettres(salle):
+async def test_la_base_ne_rend_aucun_texte_et_ses_faits_portent_le_fait_accompli(salle):
+    """C7 (B7) : la base ne rend plus aucun texte ; B9 : le catalogue supprimé, ce que disait le texte d'avant (personnes, quand, nom ; « C'est annulé. ») est dans
+    ses faits, que le modèle reçoit et dit avec ses mots (les nombres en lettres sont l'affaire de la barrière des chiffres, plus d'un texte du code)."""
     from api.tests.mark.test_restauration_reservation import creer
 
     r = await creer(salle)
-    # C7 (B7) : la base ne rend plus aucun texte ; le texte d'avant se refait de ses faits (nombres en lettres)
-    assert r.suggestion == "" and "deux personnes" in TS.reservation_enregistree(r.faits), r
+    attendu = {"couverts": 2, "quand_dit": "samedi quatorze novembre à vingt heures", "prenom": "Alice"}
+    assert r.suggestion == "" and {k: r.faits.get(k) for k in attendu} == attendu, r
     m = await RR.modifier_reservation(salle.c, salle.a, r.faits["numero"], {"couverts": 3})
-    assert m.suggestion == "" and "trois personnes" in TS.reservation_modifiee(m.faits) and "3" not in TS.reservation_modifiee(m.faits), m
+    assert m.suggestion == "" and (m.faits["quand_dit"], m.faits["couverts"]) == ("samedi quatorze novembre à vingt heures", 3), m
     a = await RR.annuler_reservation(salle.c, salle.a, r.faits["numero"])
-    assert a.suggestion == "" and TS.reservation_annulee(a.faits) == "C'est annulé.", a
+    assert a.suggestion == "" and (a.statut, a.faits["statut"]) == ("OK", "annulee"), a
