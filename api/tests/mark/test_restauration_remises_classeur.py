@@ -179,7 +179,10 @@ async def test_ce_que_l_agent_dit_est_ce_qui_part_a_la_caisse(commerce):
     assert "économisez" in vu.suggestion
     relecture = await appel.jusqu_a_la_relecture()
     # B12 (lot 6, journal L06-41) : la relecture ne nomme plus la remise ; elle dit le total net, qui est juste
-    assert relecture.faits["total"] == 1341 and "Remise DIX" not in relecture.suggestion and "treize euros quarante et un" in relecture.suggestion
+    # C6 n° 3b (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle d'après ses faits ; le code n'en dit que le total net (motif réglé ``total_relecture``)
+    from api.services.mots_dits import montant_en_lettres
+
+    assert relecture.faits["total"] == 1341 and "Remise DIX" not in relecture.suggestion and montant_en_lettres(relecture.faits["total"]) == "treize euros quarante et un"
     fait = await appel.confirmer()
     assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
     envoyee = appel.prise.recues[0]
