@@ -388,7 +388,7 @@ async def test_jamais_transmise_avant_le_retour(essai_de):
     assert "transmis" not in dite.replace("transmise_a_l_equipe", "") and "en cuisine" not in dite
 
 
-async def test_envoi_hors_du_tour(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_envoi_hors_du_tour(db_session, seconde_base, sans_preparation_des_organisations, application_configuree, monkeypatch):  # noqa: F811
     """L'existant, réutilisé tel quel (D61, point 5) : l'envoi se fait hors du tour (§ 17 : à la fin de l'appel, ``caisse/envoi_a_la_fin``) ; une commande que la caisse a déjà
     (la réponse s'est perdue) est reconnue par NOTRE numéro (``private_ref``) : jamais deux commandes."""
     from api.services.restauration.caisse import envoi_caisse as ec

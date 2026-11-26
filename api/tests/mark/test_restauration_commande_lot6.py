@@ -37,7 +37,7 @@ from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa:
 
 
 @pytest.fixture
-def appel_de_test(commerce):  # noqa: F811
+def appel_de_test(commerce, monkeypatch):  # noqa: F811
     """La cuisine d'un appel sur la vraie base : la source du classeur, le panier gardé dans la fiche de l'appel, les gestes nommés du moteur.
     Lot 8b-1a (§ 17) : rien ne part pendant l'appel ; ``finir_l_appel`` joue l'envoi de la fin de l'appel (vers la prise que la fiche de liaison nomme)."""
     source = SourceClasseur(commerce.c, Lieu(commerce.base, commerce.a, 1), nom_prise="test")
