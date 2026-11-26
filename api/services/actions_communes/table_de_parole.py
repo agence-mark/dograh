@@ -168,9 +168,18 @@ def ligne_qui_decide(e: Entrees) -> str:
 
 
 def decider(e: Entrees) -> Decision:
-    """La décision de la parole pour ce retour : la première ligne dont la condition est vraie."""
+    """La décision de la parole pour ce retour : la première ligne dont la condition est vraie. Reprise R3 de C6 : la phrase réglée que le code doit dire (posée par cette fiche ou par
+    une fiche d'avant du tour) tient jusqu'à ce qu'elle soit dite ; une ligne qui fait repasser le modèle sans la garder la remet (``_garder_la_phrase_reglee``)."""
     nom = ligne_qui_decide(e)
-    return next(decider_ for n, _, decider_ in LIGNES if n == nom)(e)
+    return _garder_la_phrase_reglee(e, next(decider_ for n, _, decider_ in LIGNES if n == nom)(e))
+
+
+def _garder_la_phrase_reglee(e: Entrees, decision: Decision) -> Decision:
+    """Le modèle repasse et aucune phrase réglée n'attend sa phrase : celle de cette fiche, sinon celle d'une fiche d'avant du tour (``suffixe_avant``), est remise, comme
+    ``_relancer_le_fait``. Une phrase dite seule (``A_DIRE_SEUL``) garde ce que sa ligne a décidé."""
+    if decision.mode == SECOND_PASSAGE and not e.etat.suffixe:
+        e.etat.suffixe = e.suffixe_du_code or e.suffixe_avant
+    return decision
 
 
 def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list[str], p: dict | None, textes: dict, objet_en_cours: bool | None,

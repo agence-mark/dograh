@@ -25,6 +25,15 @@ def _compose(retour):
 
 
 def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
+    """L'ancienne cascade, puis la reprise R3 de C6 (ordre de « C6 révisée ») : quand le modèle repasse, la phrase réglée qui n'est pas dite tient (celle de cette fiche, sinon celle d'avant)."""
+    suffixe_avant = etat.suffixe
+    decision = _cascade(retour, a_dire, etat, paroles, p, textes, objet_en_cours)
+    if decision.mode == SECOND_PASSAGE and not etat.suffixe:
+        etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or suffixe_avant
+    return decision
+
+
+def _cascade(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
     """L'ancienne cascade, telle qu'elle était, avec les mêmes mouvements de l'état du tour."""
     etat.fiches += 1
     suffixe_avant = etat.suffixe
