@@ -1,15 +1,15 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "470bebdbae2ed2a7a23f2a0199598243c46e6db9",
+ "commit_teste": "db0d1c0369148eb14351851d405a9c172849ed9f",
  "base_de_comparaison": "76bdf2dfbe1c2172b989c3af63374d2f092b36c7",
- "poste": "sa10",
+ "poste": "sa12",
  "vert": true,
  "controles": {
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 1
+   "fichiers_de_la_zone": 19
   },
   "noqa": {
    "vert": true,
@@ -20,7 +20,7 @@
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1117 files, 3363 dependencies.",
+    "Analyzed 1119 files, 3368 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -30,21 +30,41 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 24.37s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 18.03s ========================"
   },
   "donnes": {
    "vert": true,
    "tests": [
+    "tests/mark/partie_1/test_p1f_lot8_famille_de_la_case.py",
+    "tests/mark/partie_1/test_p1f_lot8_ouverture_au_decroche.py",
+    "tests/mark/partie_1/test_p1f_lot8_crochets.py",
+    "tests/mark/partie_1/test_p1f_lot8_crochets_au_decroche.py",
+    "tests/mark/partie_1/test_p1f_lot8_crochets_fin.py",
+    "tests/mark/partie_1/test_p1f_lot8_issue_de_fin.py",
+    "tests/mark/partie_1/test_l05_latence.py",
+    "tests/mark/partie_1/test_l19bis_caisse.py",
+    "tests/mark/partie_1/test_l20_connexion_clavier.py",
+    "tests/mark/partie_1/test_p1f_lot10a_connexion_de_l_appel.py",
+    "tests/mark/partie_1/test_p1f_lot4_appel.py",
+    "tests/mark/partie_1/test_p1f_lot4_caisse.py",
+    "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
+    "tests/mark/partie_1/test_inventaire_rustines.py",
+    "tests/mark/partie_1/test_l06_parole.py",
+    "tests/mark/test_restauration_statut_portail.py",
+    "tests/mark/test_restauration_direct_appel.py",
+    "tests/mark/test_restauration_commande_outils.py",
+    "tests/test_workflow_text_chat.py",
+    "tests/test_text_chat_session_service.py",
+    "tests/test_text_chat_inactivity.py",
     "tests/mark/partie_1/test_p1f_lot8_etape_formule.py",
     "tests/mark/partie_1/test_l03_porte.py",
     "tests/mark/partie_1/test_l04_cuisine.py",
     "tests/mark/partie_1/test_l13_briques.py",
     "tests/mark/partie_1/test_l14_briques.py",
     "tests/mark/partie_1/test_p1f_lot5_g36.py",
-    "tests/mark/partie_1/test_p1f_lot2_etape.py",
-    "tests/mark/partie_1/test_inventaire_rustines.py"
+    "tests/mark/partie_1/test_p1f_lot2_etape.py"
    ],
-   "sortie": "\n== paquet 1/4 : poste coord, 1 fichiers, 95 s, code 0\n== paquet 2/4 : poste sa4, 1 fichiers, 79 s, code 0\n== paquet 3/4 : poste sa5, 3 fichiers, 73 s, code 0\n== paquet 4/4 : poste sa10, 3 fichiers, 71 s, code 0\n========== 162 passed, 4 xfailed en 4 paquets in 95s =========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_l_empreinte_ne_compte_pas_les_lignes_qui_attendent_et_la_commande_enregistree_garde_la_sienne\nPASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_une_proposition_fermee_sans_reponse_se_lit_dans_le_registre_pas_dans_un_drapeau\nPASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_chaque_ligne_du_md_des_phrases_est_rendue_au_modele_ou_une_exception_nommee_du_plan\nPASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_la_montee_d_un_ancien_panier_n_est_appelee_que_par_du_dossier\nPASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_a_clore_n_est_admis_que_si_c_est_tout_figure_dans_les_gestes_joues\n========== 463 passed, 13 xfailed, 28 warnings in 438.92s (0:07:18) ==========="
   }
  }
 }
