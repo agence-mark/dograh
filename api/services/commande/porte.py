@@ -1143,11 +1143,11 @@ async def _case_c_est_tout(f: LaFiche) -> tuple[Resultat, str] | None:
 
 
 async def _case_annuler_enregistree(f: LaFiche) -> tuple[Resultat, str]:
-    if moteur.commande_de_l_appel(f.p) is not None and moteur.annulation_possible(f.source):
+    if moteur.commande_de_l_appel(f.p) is not None:
         # DC4 (Evan, 22/11) : premier temps : la question de confirmation, posée par le modèle avec le montant (exigé de sa phrase, C6 n° 7) ; rien n'est annulé avant le « oui »
         RQ.demander_l_annulation(f.p)
         return Resultat("OK", {"confirmation_demandee": True}, ""), "annuler_une_commande_enregistree"
-    return await moteur.annuler_commande_enregistree(f.source, f.p, f.regles), "annuler_une_commande_enregistree"  # la raison du refus (introuvable, impossible)
+    return await moteur.annuler_commande_enregistree(f.source, f.p, f.regles), "annuler_une_commande_enregistree"  # la raison du refus (introuvable)
 
 
 async def _appliquer_la_case(f: LaFiche, case: str) -> tuple[Resultat, str | None] | None:
@@ -1227,7 +1227,7 @@ async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
     # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
     f.dernier = await moteur.changer_commande_enregistree(f.source, p, f.regles, f.appelant, avant)
     f.resultats.append(_resultat_public("changer_la_commande_enregistree", f.dernier))
-    if f.dernier.statut == "INCOMPLETE" and f.dernier.manque == "articles" and moteur.annulation_possible(f.source):
+    if f.dernier.statut == "INCOMPLETE" and f.dernier.manque == "articles":
         RQ.demander_l_annulation(p)  # B4 (M2) + DC4 : tout retirer d'une commande enregistrée, c'est l'annuler : rien n'a changé, la confirmation en deux temps est posée
 
 

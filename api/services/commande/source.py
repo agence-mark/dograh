@@ -91,6 +91,10 @@ class Source(Protocol):
         """Lot 8b-1b (E4) : la commande ``numero`` de l'appel, changée après le « oui », est réécrite à sa place (même numéro), contrôlée comme ``enregistrer`` (tout ou rien) ;
         rien ne part pendant l'appel (§ 17 l.404). ``ENREGISTREE`` ou le refus."""
 
+    async def annuler_une_commande(self, numero: str) -> Resultat:
+        """La commande ``numero`` de CET appel passe à « annulée » ; une commande que la caisse n'a pas reçue (« retenue », § 17) s'annule sans elle.
+        ``OK``, ``DEJA_FAIT``, ``INTERDIT`` ou ``INTROUVABLE``."""
+
     def statut_de_l_enregistrement(self) -> str:
         """``ENREGISTREE``, ou ``TRANSMISE`` quand la destination ne sait pas dire « acceptée »."""
 

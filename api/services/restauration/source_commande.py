@@ -497,19 +497,16 @@ class SourceClasseur:
             await flux.poser_le_panier(organisation, etablissement, ctx.run_id, await self._panier_chiffre(p, ctx))
             await flux.emettre(organisation, etablissement, "commande.panier", {"appel_id": str(ctx.run_id), "version": p["version"]})
 
-    def permet_l_annulation(self) -> bool:
-        """Lot 4 (E10) : la caisse de l'établissement sait-elle annuler une commande reçue ? Lu sur la fiche de capacités de la prise, jamais sur son nom."""
-        return bool(self.capacites.annulation)
-
     async def annuler_une_commande(self, numero: str) -> Resultat:
         """Lot 4 (E10) : la commande ``numero`` de CET établissement passe à ``annulee`` (chemin fermé du classeur, source ``agent``), puis la caisse est
         informée par sa prise. ``OK`` ; ``DEJA_FAIT`` ; ``INTERDIT`` (déjà préparée et remise, ou statut final) ; ``INTROUVABLE``. Une caisse en panne ne
-        défait pas l'annulation (R1 : au journal, le rattrapage la rejoint)."""
+        défait pas l'annulation (R1 : au journal, le rattrapage la rejoint). Lot 8b-1b (T24 (2), § 17) : une commande ``retenue`` n'a jamais été reçue par la caisse ni dite
+        au portail : elle s'annule en base seulement, rien n'est dit ni gardé « à dire »."""
         commande = await commande_complete(self.c, self.lieu.etablissement_id, numero)
         if commande is None:
             return Resultat("INTROUVABLE", {"numero": numero})
         r = await restauration.changer_statut(self.c, self.lieu.etablissement_id, numero, commande["statut"], "annulee", "agent")
-        if r.statut != "OK":
+        if r.statut != "OK" or commande["statut"] == "retenue":
             return r
         try:
             if self.prise is not None:
@@ -523,7 +520,7 @@ class SourceClasseur:
                 await _informer_la_caisse(self.lieu.organisation_id, self.c, self.lieu.etablissement_id, self.lieu.nom_base, numero, "annulee")
         except Exception as erreur:  # noqa: BLE001 -- R1 : la caisse en panne ne défait pas l'annulation ; on le voit ici
             logger.error(f"[.mark] Order {numero}: telling the till about the cancellation failed: {erreur!r}")
-        if self.lieu.organisation_id and commande["statut"] != "retenue":  # § 17 : une commande retenue n'a jamais été dite au portail (``commande.creee`` part à la fin de l'appel)
+        if self.lieu.organisation_id:
             await flux.emettre(self.lieu.organisation_id, self.lieu.etablissement_id, "commande.statut",
                                {"numero": numero, "de": commande["statut"], "vers": "annulee", "source": "agent"})
         return r

@@ -70,7 +70,6 @@ from api.services.commande.moteur.enregistrement import (
     repondre_au_numero_dicte,
 )
 from api.services.commande.moteur.changement import (
-    annulation_possible,
     annuler_commande_enregistree,
     changer_commande_enregistree,
     manque_pour_remplacer,
@@ -96,7 +95,6 @@ __all__ = [
     "Reglages",
     "TYPE_DE_LA_QUESTION_DU_NUMERO",
     "ajouter_un_article",
-    "annulation_possible",
     "annuler_commande_enregistree",
     "changer_commande_enregistree",
     "manque_pour_remplacer",

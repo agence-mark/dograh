@@ -20,27 +20,17 @@ from api.services.commande.moteur.reglement import _le_reglement
 from api.services.commande.moteur.enregistrement import reecrire
 
 
-def annulation_possible(source: Source) -> bool:
-    """La prise sait-elle annuler (fiche de capacités) ? Lu AVANT de demander « vous êtes sûr ? » (DC4) : jamais une confirmation pour un refus."""
-    return _permet_l_annulation(source)
-
-
-def _permet_l_annulation(source: Source) -> bool:
-    permet = getattr(source, "permet_l_annulation", None)
-    return bool(permet and permet() and getattr(source, "annuler_une_commande", None))
-
-
 async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
-    """Elle annule la commande de CET appel, déjà enregistrée : elle passe à « annulée » dans le classeur et la prise est informée. Refusée avec la
-    raison quand la prise ne sait pas annuler (fiche de capacités de sa prise) ou que la commande ne peut plus l'être (déjà remise)."""
+    """Elle annule la commande de CET appel, déjà enregistrée (lot 8b-1b, E6 ; § 17 l.404) : sa ligne ``retenue`` passe à « annulée » en base au tour même (le filet
+    du rattrapage ne peut jamais l'envoyer) ; la caisse n'en a jamais rien reçu, elle n'est ni lue ni informée (A8 tombe : plus de statut de caisse pendant l'appel). Refusée
+    avec la raison quand la commande est introuvable ou que la base refuse (la ligne n'est plus ``retenue``)."""
     commande = commande_de_l_appel(p)
     if commande is None:
         return _avec(_r("INTROUVABLE", {"raison": "commande_introuvable"}, ""), p)
-    if not _permet_l_annulation(source):
-        return _avec(_r("INTERDIT", {"raison": "annulation_impossible", "numero_court": commande.get("numero_court")}, ""), p)
     r = await source.annuler_une_commande(str(commande["numero"]))
     if r.statut not in ("OK", "DEJA_FAIT"):
-        return _avec(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""), p)
+        logger.error(f"[.mark] commande {commande.get('numero_court')} : l'annulation est refusée par la base ({r.statut})")
+        return _avec(_r("INTERDIT", {"raison": "annulation_impossible", "numero_court": commande.get("numero_court")}, ""), p)
     ETAPE.transition(p, ETAPE.ANNULEE_APRES_ENREGISTREMENT, numero_court=commande.get("numero_court"))
     CONV.poser_question(p, None)
     return _avec(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
