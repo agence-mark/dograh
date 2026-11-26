@@ -1239,7 +1239,7 @@ async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
         # 7c (Pierre A2, B4 M2) : un manque (l'adresse d'une livraison) se constate d'abord, même quand une ligne attend : rien ne change, le panier redevient celui d'avant
         return
     # RC8 : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2) : rien ne change, la confirmation est posée
-    # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
+    # E10, 8b-1b (E4, T13, T18) : la commande de cet appel, déjà enregistrée, a changé (lignes, mode, adresse, note, consigne, prénom) : sa ligne est réécrite en base (ou rien ne change, avec la raison)
     f.dernier = await moteur.changer_commande_enregistree(f.source, p, f.regles, f.appelant, avant)
     f.resultats.append(_resultat_public("changer_la_commande_enregistree", f.dernier))
     if f.dernier.statut == "INCOMPLETE" and f.dernier.manque == "articles":

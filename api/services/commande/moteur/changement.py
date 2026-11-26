@@ -1,6 +1,6 @@
 """[.mark] Moteur de la commande : le changement ou l'annulation d'une commande déjà enregistrée.
 
-Le moteur est découpé par sujet (``moteur/__init__.py`` garde tous les noms publics) ; les gestes sont ceux de l'ancien ``moteur.py``, inchangés.
+Le moteur est découpé par sujet (``moteur/__init__.py`` garde tous les noms publics). Lot 8b-1b (§ 17 l.404) : le changement réécrit la ligne en base, l'annulation ne touche pas la caisse.
 """
 
 from __future__ import annotations
