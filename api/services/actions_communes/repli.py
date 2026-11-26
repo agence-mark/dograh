@@ -139,21 +139,24 @@ def consigne_des_chiffres_exiges(etat: Any, question_due: bool = False) -> str |
     le prix d'une proposition, C6 n° 11) ; « sans question » seulement quand le code dit une suite après elle (``etat.suffixe``). ``question_due`` (reprise R2) : la phrase ne posait pas
     la question qui attend, et le code ne dit rien après elle : la consigne demande de la poser, à la fin. ``None`` quand la relance du tour est déjà faite
     (même compteur que les autres relances, C5). Les valeurs sont du JSON, jamais de la prose. L'appelant garde l'état."""
-    if etat.relance_du_fait:
+    if not _prendre_la_relance_du_tour(etat):
         return None
-    etat.relance_du_fait = True
-    etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True
     tete = CONSIGNE_DE_LA_QUESTION_DUE if question_due else CONSIGNE_DES_CHIFFRES_EXIGES + (SANS_LA_SUITE_DU_CODE if etat.suffixe else "")
     return tete + " : " + json.dumps(etat.exiges or {}, ensure_ascii=False, default=str)
 
 
 def consigne_de_ce_que_le_code_dit(etat: Any) -> str | None:
     """La consigne qui relance le modèle quand sa phrase dit ce que le code dit après elle ; ``None`` quand la relance du tour est déjà faite. L'appelant garde l'état."""
+    return CONSIGNE_DE_CE_QUE_LE_CODE_DIT if _prendre_la_relance_du_tour(etat) else None
+
+
+def _prendre_la_relance_du_tour(etat: Any) -> bool:
+    """C5 : la relance du fait, une fois par tour de la personne (le même compteur que les autres relances) ; faux quand elle est déjà prise."""
     if etat.relance_du_fait:
-        return None
+        return False
     etat.relance_du_fait = True
     etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True
-    return CONSIGNE_DE_CE_QUE_LE_CODE_DIT
+    return True
 
 
 CLES_DE_L_OBJET_D_UNE_QUESTION = ("article_en_question", "article_propose", "offerte", "offre", "heure_dite", "choix", "candidats_dits", "groupe")  # C7 B8 : offerte et le nom de l'offre
