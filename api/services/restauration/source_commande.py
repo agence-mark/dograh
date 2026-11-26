@@ -159,7 +159,7 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
     if voulue <= local:
         faits["heure_passee_aujourd_hui"] = True  # le jour retenu n'est jamais avant aujourd'hui (``dates_futures``) : une heure passée l'est aujourd'hui même
         return Resultat("ARGUMENT_INVALIDE", faits, "", "heure")
-    return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
+    return Resultat("RETENU", faits, "")  # C7 B5 : le jour et l'heure retenus sont des faits (``jour_dit``, ``heure_dite``), le modèle les dit
 
 
 def _heure_seule(texte: str | None, heure: str | None) -> dates_futures.HeureResolue | None:

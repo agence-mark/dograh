@@ -20,9 +20,9 @@ from api.services.commande.moteur.socle import Appelant
 
 async def envoyer_un_message(source: Source, p: dict[str, Any], regles: Reglages, appelant: "Appelant", quoi: str | None, organisation: int | None) -> Resultat:
     """Envoie à l'appelant le message qu'il demande (par le numéro qui s'affiche, jamais un numéro dicté) : le TEXTE est celui que l'établissement a écrit, le
-    modèle n'écrit rien. Éteint par défaut : ``INDISPONIBLE`` avec la phrase, rien ne part. Une seule fois par appel et par sorte de message."""
+    modèle n'écrit rien. Éteint par défaut : ``INDISPONIBLE``, rien ne part. Une seule fois par appel et par sorte de message."""
     if not quoi:
-        return _r("ARGUMENT_INVALIDE", {}, "Quel message voulez-vous recevoir ?", "quoi")
+        return _r("ARGUMENT_INVALIDE", {}, "", "quoi")  # C7 B5 (Evan 25/11 8 h 45) : le modèle demande quel message d'après le manque
     quoi = quoi.strip().casefold()
     cle = f"{appelant.appel_id or 'sans-appel'}:{quoi}:{appelant.telephone_affiche or ''}"
     return _avec(await source.envoyer(quoi, appelant.telephone_affiche, cle, organisation), p)

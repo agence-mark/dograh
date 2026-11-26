@@ -90,7 +90,8 @@ async def test_la_vente_en_plus_propose_la_boisson_precise_quand_le_panier_n_en_
     assert proposition["raison"] == "categorie_manquante" and proposition["nom"] == "Coca-Cola"
     # lot 4 (D33) : le modèle pose la question (« proposer Coca-Cola ») ; C6 n° 11 et 12 (décision d'Evan 25/11 9 h 30) : le prix est un fait que le modèle dit dans sa question,
     # le code ne compose plus ni « Le Coca-Cola est à deux euros. » ni le repli de B8
-    assert r.suggestion == "proposer Coca-Cola" and "prix" not in proposition
+    # C7 B5 (Evan 25/11 8 h 45) : plus de texte au retour ; le texte d'avant se refait de la proposition (son nom, sa raison)
+    assert r.suggestion == "" and f"proposer {proposition['nom']}" == "proposer Coca-Cola" and "prix" not in proposition
     cachee = a.p["proposition_en_plus"]
     assert cachee["prix"] == 200 and "chiffre" not in cachee and "repli" not in cachee, cachee
 
@@ -153,7 +154,8 @@ async def test_la_vente_en_plus_propose_l_article_offert_et_compte_comme_une_men
     a = await AppelFinal(commerce).pret(A("regina", 2, "Normale"))
     r = await a.finaliser()
     assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "offre", r
-    assert r.suggestion == "proposer Coca-Cola offert"  # lot 4 (D33) : la question du modèle
+    # lot 4 (D33) : la question du modèle ; C7 B5 (Evan 25/11 8 h 45) : plus de texte au retour, la proposition (nom, raison « offre ») refait celui d'avant
+    assert r.suggestion == "" and f"proposer {r.faits['proposition']['nom']} offert" == "proposer Coca-Cola offert"
     # C6 n° 12 (décision d'Evan 25/11 9 h 30) : le repli de B8 n'est plus composé ; l'offre est un fait de la proposition (``offre``, ``offerte``)
     assert r.faits["proposition"]["offre"] == "Remise DEUX-UNE" and a.p["proposition_en_plus"]["offerte"] is True and "repli" not in a.p["proposition_en_plus"]
     assert a.p["mentions_de_remise"] == 1

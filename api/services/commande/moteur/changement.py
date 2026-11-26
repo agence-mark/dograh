@@ -12,7 +12,6 @@ from loguru import logger
 
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _r, commande_de_l_appel
@@ -75,7 +74,7 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         # Clôture, lot B4 (M2) : ce qui manque à la nouvelle commande se constate AVANT de toucher à la caisse ; avant, l'ancienne était annulée,
         # la nouvelle refusée (« incomplète ») et la commande perdue (passer en livraison sans adresse, retirer la seule ligne)
         faits = {"raison": "changement_incomplet", "manque": manque, "numero_court": commande.get("numero_court")}
-        return remettre(_r("INCOMPLETE", faits, "" if manque == "articles" else phrase_du_manque(Manque.ADRESSE_ET_COMMUNE), manque))
+        return remettre(_r("INCOMPLETE", faits, "", manque))  # C7 B5 : le modèle dit ce qui manque (les articles : c'est une annulation ; l'adresse) d'après le manque
     if P.a_completer(p):
         return _avec(await etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part à la prise
     chiffre = await chiffrer_le_panier(source, p, regles)

@@ -444,7 +444,7 @@ async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles
         return Resultat("OK", {"rien_ajoute": True}, "")  # file d'attente : « autre » (elle dit ses pizzas) garde la question posée
     if not heure:
         faits = {"heure_manquante": True}
-        return Resultat("INCOMPLETE", faits, TS.pour_quel_jour_alors(faits), "heure_voulue")
+        return Resultat("INCOMPLETE", faits, "", "heure_voulue")  # C7 B5 : le modèle redemande le jour et l'heure d'après le manque et ``heure_manquante``
     r = await moteur.poser_l_heure(source, p, str(heure))
     if r is not None:
         return r

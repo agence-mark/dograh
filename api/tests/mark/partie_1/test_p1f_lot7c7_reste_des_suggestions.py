@@ -6,13 +6,16 @@ seuls faits du retour. Rien ne change à l'oreille : ces textes ne partaient plu
 
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import pytest
 
 from api.services.commande import moteur
 from api.services.commande.moteur import mode_et_adresse
 from api.services.commande.moteur.socle import Appelant
 from api.services.mots_dits import liste_dite
-from api.services.restauration.source_commande import SourceClasseur
+from api.services.restauration.source_commande import SourceClasseur, resolution_du_jour_et_de_l_heure
 from api.tests.mark import test_restauration_commande_panier as _PANIER
 from api.tests.mark import test_restauration_classeur_commande as _CLASSEUR
 from api.tests.mark import test_base_client as _BASE
@@ -91,3 +94,19 @@ async def test_une_adresse_vide_se_redemande_par_le_seul_manque(vierge):
 def test_la_source_n_a_plus_de_question_de_la_zone():
     """La question de la zone ne vit plus dans la source : le manque (``zone``, ``adresse``) la porte, le modèle la pose (Evan 25/11 8 h 45)."""
     assert not hasattr(SourceClasseur, "question_de_la_zone")
+
+
+# ── le message, l'heure retenue (message.py, source_commande.py) ───────────────────────────────────────────────────────────────
+
+
+async def test_un_message_sans_quoi_se_redemande_par_le_seul_manque(vierge):
+    """Le texte d'avant, « Quel message voulez-vous recevoir ? », ne disait que le manque ``quoi``."""
+    r = await moteur.envoyer_un_message(vierge.source, vierge.p, vierge.regles, Appelant(), None, None)
+    assert r.statut == "ARGUMENT_INVALIDE" and r.faits == {}
+    _sans_texte_au_manque(r, "quoi")
+
+
+def test_le_jour_et_l_heure_retenus_n_ont_plus_de_texte_et_se_disent_par_leurs_faits():
+    r = resolution_du_jour_et_de_l_heure("demain", "dix-neuf heures", datetime(2026, 11, 17, 10, 50, tzinfo=ZoneInfo("Europe/Paris")))
+    assert r.statut == "RETENU" and r.suggestion == "", r
+    assert f"{r.faits['jour_dit']} à {r.faits['heure_dite']}." == "mercredi dix-huit novembre à dix-neuf heures.", r.faits  # le texte d'avant, refait des faits

@@ -48,7 +48,8 @@ VIDES = {TS.n_est_plus_disponible, TS.maximum_atteint, TS.ne_se_prend_pas_avec_d
          TS.question_d_un_choix, TS.vous_voulez_dire, TS.sur_lequel, TS.sur_quelle_moitie, TS.vous_voulez_retirer, TS.laquelle,  # C7 B3
          TS.quel_numero_de_commande, TS.commande_introuvable, TS.commandes_plusieurs, TS.commande_annulee,  # C7 B4
          TS.moyen_non_accepte, TS.quel_montant, TS.et_le_reste, TS.billet_insuffisant, TS.sur_quel_reglement,  # C7 B5 (règlement)
-         TS.numero_pas_compris}  # C7 B5 (enregistrement)
+         TS.numero_pas_compris,  # C7 B5 (enregistrement)
+         TS.pour_quel_jour_alors}  # C7 B5 (la porte : l'heure proposée refusée sans autre heure)
 
 
 def le_texte_de_secours_suffit(r, texte_de_secours, attendu: str | None = None) -> None:
@@ -762,7 +763,7 @@ async def test_tout_retirer_d_une_commande_enregistree_dit_que_c_est_une_annulat
 async def test_changer_en_livraison_sans_adresse_demande_l_adresse_par_la_phrase_du_manque(appel, monkeypatch):
     r = await _changer(appel, monkeypatch, mode="livraison")
     assert (r.statut, r.manque) == ("INCOMPLETE", "adresse")
-    assert r.suggestion == phrase_du_manque(Manque.ADRESSE_ET_COMMUNE) == "Quelle est l'adresse de livraison ?"
+    assert r.suggestion == "" and phrase_du_manque(Manque.ADRESSE_ET_COMMUNE) == "Quelle est l'adresse de livraison ?"  # C7 B5 (Evan 25/11 8 h 45) : le modèle la demande d'après le manque
 
 
 async def test_une_heure_proposee_refusee_sans_autre_heure_redemande_le_jour(appel):
