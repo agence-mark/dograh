@@ -147,12 +147,13 @@ def chiffre_dans_la_phrase(texte: Any, fiches: Iterable[dict] = (), paroles: Ite
     return all(_retenue(t, fiches, sources) for t in dict.fromkeys((texte, _sans_virgule(texte))))
 
 
-_VIRGULE = re.compile(r"\s*[,;]\s*")
+_VIRGULE_EN_ESPACE = str.maketrans({",": " ", ";": " "})
 
 
 def _sans_virgule(texte: Any) -> str:
-    """Le texte sans ses virgules : la lecture où deux nombres qu'elle sépare se suivent (« vingt-quatre, cinquante euros » se lit « vingt-quatre cinquante euros »)."""
-    return _VIRGULE.sub(" ", str(texte or ""))
+    """Le texte sans ses virgules : la lecture où deux nombres qu'elle sépare se suivent (« vingt-quatre, cinquante euros » se lit « vingt-quatre cinquante euros »). Les espaces
+    sont repliés (les lectures des valeurs coupent aux espaces)."""
+    return " ".join(str(texte or "").translate(_VIRGULE_EN_ESPACE).split())
 
 
 def _retenue(texte: str, fiches: list, sources: list[str]) -> bool:

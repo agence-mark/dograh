@@ -109,8 +109,10 @@ def _mots_de_valeur(texte: object) -> list[str]:
     s = unicodedata.normalize("NFD", str(texte or "").replace("€", " euros ")).encode("ascii", "ignore").decode().lower().replace("€", " € ")
     s = re.sub(r"(\d)[,.](\d)", r"\1 virgule \2", s)
     # C6 : une ponctuation entre deux nombres les sépare (« pour quatre, vingt heures » : 4 puis 20, jamais 80) ; elle reste un mot (``SEPARATEUR``), qui n'est pas un nombre
-    s = re.sub(r"[,;.!?]", f" {SEPARATEUR} ", s)
-    return re.sub(r"[^a-z0-9€| ]", " ", s).split()
+    return re.sub(r"[^a-z0-9€| ]", " ", s.translate(_PONCTUATION_EN_SEPARATEUR)).split()
+
+
+_PONCTUATION_EN_SEPARATEUR = str.maketrans({c: f" {SEPARATEUR} " for c in ",;.!?"})  # chaque signe devient le mot ``SEPARATEUR`` (``_mots_de_valeur``)
 
 
 def _est_nombre(w: str) -> bool:
