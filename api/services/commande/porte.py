@@ -1675,7 +1675,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 return await _outil_de_l_accueil(action.nom, source, p, regles, dict(arguments or {}), ctx)
             if action.nom == "lire":
                 retour = await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
-                # PRX5, C6 n° 11 : les valeurs que la lecture donne au modèle (le prix lu) passent la barrière des chiffres dans ce tour ; le code ne les dit plus
+                # PRX5, C6 n° 11 : le prix lu (seul, jamais le total : R2) passe la barrière des chiffres dans ce tour ; le code ne le dit plus
                 PAROLE.admettre_les_valeurs(getattr(ctx, "fiche", None), retour.get("faits"))
                 return retour
             if action.nom == "fiche":

@@ -137,10 +137,12 @@ def etat_du_tour(fiche_de_l_appel: Any) -> EtatDuTour:
 
 def admettre_les_valeurs(fiche_de_l_appel: Any, faits: Any) -> None:
     """C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis : les prix D33 passent au modèle, vérifiés par la barrière) : les valeurs que le code donne au modèle hors d'une fiche (le prix
-    d'une lecture, PRX5) passent la barrière des chiffres jusqu'à la fin du tour, dans sa réponse à la lecture comme dans la phrase de sa fiche ; une autre valeur est retenue."""
-    if isinstance(fiche_de_l_appel, dict) and faits:
+    d'une lecture, PRX5) passent la barrière des chiffres jusqu'à la fin du tour, dans sa réponse à la lecture comme dans la phrase de sa fiche ; une autre valeur est retenue.
+    Seul le prix (``faits["prix"]``) est admis : jamais le total ni le sous-total d'une lecture du panier, que la phrase réglée du code dit (brief C6 § 7, reprise R2)."""
+    prix = faits.get("prix") if isinstance(faits, dict) else None
+    if isinstance(fiche_de_l_appel, dict) and prix:
         etat = etat_du_tour(fiche_de_l_appel)
-        etat.faits_du_refus.append(faits)
+        etat.faits_du_refus.append({"prix": prix})
         garder(fiche_de_l_appel, etat)
 
 
