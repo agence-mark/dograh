@@ -47,7 +47,8 @@ VIDES = {TS.n_est_plus_disponible, TS.maximum_atteint, TS.ne_se_prend_pas_avec_d
          TS.offre_presque_atteinte, TS.seuil_presque_atteint,
          TS.question_d_un_choix, TS.vous_voulez_dire, TS.sur_lequel, TS.sur_quelle_moitie, TS.vous_voulez_retirer, TS.laquelle,  # C7 B3
          TS.quel_numero_de_commande, TS.commande_introuvable, TS.commandes_plusieurs, TS.commande_annulee,  # C7 B4
-         TS.moyen_non_accepte, TS.quel_montant, TS.et_le_reste, TS.billet_insuffisant, TS.sur_quel_reglement}  # C7 B5 (règlement)
+         TS.moyen_non_accepte, TS.quel_montant, TS.et_le_reste, TS.billet_insuffisant, TS.sur_quel_reglement,  # C7 B5 (règlement)
+         TS.numero_pas_compris}  # C7 B5 (enregistrement)
 
 
 def le_texte_de_secours_suffit(r, texte_de_secours, attendu: str | None = None) -> None:
@@ -515,13 +516,13 @@ async def test_a_la_fin_un_numero_illisible_dit_le_meme_secours(appel):
 
 async def test_le_numero_qui_manque_se_demande_par_la_phrase_du_manque(appel):
     r = await enregistrement.identifier(appel.source, appel.p, appel.regles, Appelant(), telephone=None, prenom="Paul")
-    assert r.manque == "telephone" and r.suggestion == phrase_du_manque(Manque.TELEPHONE) == "Quel est votre numéro de téléphone ?"
+    assert r.manque == "telephone" and r.suggestion == "" and phrase_du_manque(Manque.TELEPHONE) == "Quel est votre numéro de téléphone ?"  # C7 B5 : le modèle le demande
 
 
 async def test_le_prenom_qui_manque_se_demande_par_la_phrase_du_manque(appel):
     appel.p["client"]["telephone"] = "0612345678"
     r = await enregistrement.identifier(appel.source, appel.p, appel.regles, Appelant(), telephone=None, prenom=None)
-    assert r.manque == "prenom" and r.suggestion == phrase_du_manque(Manque.PRENOM) == "À quel nom je mets la commande ?"
+    assert r.manque == "prenom" and r.suggestion == "" and phrase_du_manque(Manque.PRENOM) == "À quel nom je mets la commande ?"  # C7 B5 : le modèle le demande
 
 
 async def test_le_numero_affiche_est_propose_par_le_modele_sans_phrase_du_code(appel):

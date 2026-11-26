@@ -16,7 +16,7 @@ from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_n
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande.etat_pour_le_modele import manque_de_l_identite
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
+from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, noter_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
@@ -54,7 +54,7 @@ def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | N
     numero = _numero_dit(telephone) if telephone else None
     if telephone and numero is None:
         faits = {"numero_illisible": True}
-        return _avec(_r("ARGUMENT_INVALIDE", faits, TS.numero_pas_compris(faits), "telephone"), p)
+        return _avec(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
     if numero:
         client["telephone"] = numero
     return None
@@ -81,9 +81,9 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
                 J.noter(p, CLE_NUMERO_PROPOSE)  # une proposition « en cours » de plus que de refus : la question du registre est ouverte
             return _avec(_r("INCOMPLETE", {}, "", "confirmer_numero"), p)  # C6 n° 10 : le modèle propose le numéro qui s'affiche (la question née, par son type)
     if manque is Manque.TELEPHONE:
-        return _avec(_r("INCOMPLETE", {}, phrase_du_manque(Manque.TELEPHONE), "telephone"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "telephone"), p)  # C7 B5 : le modèle demande le numéro d'après le manque
     if manque is Manque.PRENOM:
-        return _avec(_r("INCOMPLETE", {}, phrase_du_manque(Manque.PRENOM), "prenom"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "prenom"), p)  # C7 B5 : le modèle demande le prénom d'après le manque
     return _relire_le_numero_dicte(p, regles, appelant)
 
 
@@ -211,7 +211,7 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
         dicte = _numero_dit(gestes["telephone"])
         if dicte is None:
             faits = {"numero_illisible": True}
-            return _avec(_r("ARGUMENT_INVALIDE", faits, TS.numero_pas_compris(faits), "telephone"), p)
+            return _avec(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
         if not p.get("enregistree"):
             p.setdefault("client", {})["telephone"] = dicte
     r = await _finaliser(source, p, regles, appelant, **gestes)

@@ -69,7 +69,7 @@ async def test_un_numero_invalide_garde_son_refus(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(prenom="Alice", telephone="12 34")
     assert r.statut == "ARGUMENT_INVALIDE" and "numero_retenu_dit" not in r.faits
-    assert r.suggestion == "Je n'ai pas bien compris le numéro : vous pouvez le redire ?"
+    assert r.suggestion == "" and r.manque == "telephone" and r.faits["numero_illisible"] is True  # C7 B5 (Evan 25/11 8 h 45) : le modèle le redemande d'après le fait
 
 
 # test_le_second_numero_retenu_est_dit_aussi : supprimé au lot 4 (D49), la fiche du contrat n'a plus de case pour un second numéro (a-trancher.md, SA-2 « second numéro sans case dans la fiche »)
