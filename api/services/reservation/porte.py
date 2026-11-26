@@ -443,23 +443,9 @@ METIER_DU_FAIT_BLOQUANT = "reservation"  # la case du fait bloquant de la fiche 
 OPERATIONS_QUI_ECRIVENT = ("reserver", "modifier", "annuler")  # les gestes de la fiche qui créent, changent ou annulent une réservation (``noter``, ``executer_la_fiche_de_reservation``)
 
 
-def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: list[dict], ecartees: set[str], dernier: Resultat | None, operation: str | None,
-               question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
-    e = ctx.etat
-    # La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
-    q = _question_de(operation or "", dernier, e, tour) if dernier is not None else None
-    if q is not None:
-        CONV.poser_question(e, q)
-        if q["type"] == "choix":
-            J.oublier(e, CHOIX_NON_COMPRIS)  # un nouveau choix : ses essais repartent
-    nee = q
-    for op, r in ctx.operations:  # ce que les gestes ont dit de la réservation visée, pour l'état (aucune requête de plus)
-        faits = r.faits or {}
-        if (op in ("modifier", "reserver") and r.statut in ("ENREGISTREE", "OK")) or (op == "retrouver" and r.statut == "OK" and "reservation" in faits):
-            etat_pour_le_modele.retenir_la_reservation_visee(e, faits.get("reservation") if isinstance(faits.get("reservation"), dict) else faits)
-        elif op == "reponse" and "reservation_choisie" in faits:
-            etat_pour_le_modele.retenir_la_reservation_visee(e, faits["reservation_choisie"])
-    metier = []
+def _refus_du_metier(ctx: Any, dernier: Resultat | None) -> tuple[list[dict], bool]:
+    """Les refus du métier que le modèle dit (une réservation par appel, la capacité non réglée, un refus du module), et si la demande a été transmise à l'équipe."""
+    metier: list[dict] = []
     transmise = False
     if dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel":
         if (dernier.faits or {}).get("deja_annulee"):  # Pierre F : la réservation de l'appel est annulée ; une nouvelle ne se prend pas ici, l'équipe la prend
@@ -477,6 +463,26 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         # B4 (M9) : « propose les horaires libres » seulement quand il y en a (avant : la consigne de tout refus, même d'un choix non compris)
         defaut = "dis-lui la raison et propose les horaires libres" if (dernier.faits or {}).get("propositions") else "dis-lui la raison"
         metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or defaut)})
+    return metier, transmise
+
+
+def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: list[dict], ecartees: set[str], dernier: Resultat | None, operation: str | None,
+               question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
+    e = ctx.etat
+    # La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
+    q = _question_de(operation or "", dernier, e, tour) if dernier is not None else None
+    if q is not None:
+        CONV.poser_question(e, q)
+        if q["type"] == "choix":
+            J.oublier(e, CHOIX_NON_COMPRIS)  # un nouveau choix : ses essais repartent
+    nee = q
+    for op, r in ctx.operations:  # ce que les gestes ont dit de la réservation visée, pour l'état (aucune requête de plus)
+        faits = r.faits or {}
+        if (op in ("modifier", "reserver") and r.statut in ("ENREGISTREE", "OK")) or (op == "retrouver" and r.statut == "OK" and "reservation" in faits):
+            etat_pour_le_modele.retenir_la_reservation_visee(e, faits.get("reservation") if isinstance(faits.get("reservation"), dict) else faits)
+        elif op == "reponse" and "reservation_choisie" in faits:
+            etat_pour_le_modele.retenir_la_reservation_visee(e, faits["reservation_choisie"])
+    metier, transmise = _refus_du_metier(ctx, dernier)
     statut = _statut(e, dernier, operation, [*refus, *metier])
     faits: dict[str, Any] = {}
     if dernier is not None:
