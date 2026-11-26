@@ -215,8 +215,7 @@ async def _commande_introuvable(commerce, _mp):
 
 CAS_DU_CLASSEUR: list[Cas] = [
     Cas("hors_zone_sans_commune", TSC.hors_zone, _hors_zone, "F", [], "HORS_ZONE"),
-    Cas("minimum_non_atteint", TSC.minimum_non_atteint, _minimum_non_atteint, "F", [("quinze euros", "quinze euros")], "MINIMUM_NON_ATTEINT",
-        manque="F3 : le minimum est retiré de la copie du modèle (montant en centimes), aucun minimum_dit"),
+    Cas("minimum_non_atteint", TSC.minimum_non_atteint, _minimum_non_atteint, "F", [("quinze euros", "quinze euros")], "MINIMUM_NON_ATTEINT"),  # F3 porté (C7 B6)
     Cas("mode_non_compris_au_chiffrage", TSC.mode_non_compris, _mode_au_chiffrage, "F", [], "mode"),
     Cas("pas_de_commande_pour_plus_tard", TSC.pas_de_commande_pour_plus_tard, _creneau(JEUDI_MIDI + timedelta(hours=1)), "F", [], "plus_tard_refuse"),
     Cas("commandes_jusqu_a", TSC.commandes_jusqu_a, _creneau(JEUDI_MIDI + timedelta(days=3), planifiee_permise=True, jours_a_l_avance=1), "F",

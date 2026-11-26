@@ -29,7 +29,7 @@ from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
 from api.services.commande import textes_de_secours as TS
-from api.services.mots_dits import heure_en_lettres
+from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.article_simple import brique_art1_chiffrer
 from api.services.commande.briques import conditions_de_vente, supplement_de_formule, menu_a_taille_liee, lot_a_prix_fixe, choix_entre_deux_contenus, inclus_par_rubrique, a_volonte, livraison_offerte, quota_inclus_puis_payant, option_conditionnelle, prix_par_mode, consigne_et_emballage, produit_au_poids, supplement_selon_la_taille, changer_d_accompagnement, retrait_d_ingredient
@@ -444,7 +444,7 @@ async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: in
     if zone is None:
         return None, 0, _refus("HORS_ZONE")
     if sous_total < zone["minimum"]:
-        return None, 0, _refus("MINIMUM_NON_ATTEINT", minimum=zone["minimum"], sous_total=sous_total)
+        return None, 0, _refus("MINIMUM_NON_ATTEINT", minimum=zone["minimum"], sous_total=sous_total, minimum_dit=montant_en_lettres(zone["minimum"]))  # F3 (C7) : le montant en lettres
     return zone, livraison_offerte.brique_off4_frais_retires(zone, sous_total)["frais"], None  # lot 14 (OFF4) : la règle nommée
 
 

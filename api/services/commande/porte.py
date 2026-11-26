@@ -140,7 +140,8 @@ def _consigne_du_journal(etape: str) -> tuple[int, str]:
 
 
 def faits_du_minimum(p: dict[str, Any]) -> dict[str, Any] | None:
-    """Les faits du minimum de la livraison : ``{commune, minimum, manque}`` (centimes), lus dans l'ÉTAT du panier à la fin de la fiche (minimum de sa zone et chiffrage retenus,
+    """Les faits du minimum de la livraison : ``{commune, minimum, manque}`` (centimes) et les mêmes montants en lettres (``minimum_dit``, ``manque_dit`` : F3, C7, la copie du modèle
+    retire les centimes), lus dans l'ÉTAT du panier à la fin de la fiche (minimum de sa zone et chiffrage retenus,
     ``etat_pour_le_modele.retenir``), pas dans la dernière opération (une proposition peut la suivre). ``None`` : pas en livraison, pas de lignes, minimum atteint ou inconnu."""
     from api.services.commande.etat_pour_le_modele import CLE_CONNU, _commune, cle_du_chiffrage
 
@@ -156,7 +157,8 @@ def faits_du_minimum(p: dict[str, Any]) -> dict[str, Any] | None:
     sous_total = chiffrage.get("sous_total")
     if not isinstance(sous_total, int) or sous_total >= int(minimum):
         return None
-    return {"commune": commune, "minimum": int(minimum), "manque": int(minimum) - sous_total}
+    manque = int(minimum) - sous_total
+    return {"commune": commune, "minimum": int(minimum), "manque": manque, "minimum_dit": montant_en_lettres(int(minimum)), "manque_dit": montant_en_lettres(manque)}
 
 
 def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.Du | None:

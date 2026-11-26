@@ -199,7 +199,8 @@ async def test_minimum_donne_au_modele_puis_issue(essai_de):
     r = await e.tour("une margherita normale", **cases)
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, une margherita.", **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE, (d, r)
-    assert r["faits"]["minimum_de_la_commande"] == {"commune": "Chantilly", "minimum": 5000, "manque": 3910}, r["faits"]
+    assert r["faits"]["minimum_de_la_commande"] == {"commune": "Chantilly", "minimum": 5000, "manque": 3910,  # F3 (C7 B6) : les montants aussi en lettres
+                                                     "minimum_dit": "cinquante euros", "manque_dit": "trente-neuf euros dix"}, r["faits"]
     assert not (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("prefixe") and r["a_faire"].startswith(PORTE.A_FAIRE_DU_MINIMUM), r
     q = CONV.question_de(e.p) or {}
     if q.get("type") == "proposition":

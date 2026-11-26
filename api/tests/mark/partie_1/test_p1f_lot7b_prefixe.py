@@ -46,7 +46,8 @@ async def test_minimum_le_modele_dit_le_minimum_et_ce_qui_manque(essai_de):
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, une margherita.", **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE, (d, r)
     _rien_dit_avant(e, r)
-    assert r["faits"]["minimum_de_la_commande"] == {"commune": "Chantilly", "minimum": 5000, "manque": 3910}, r["faits"]
+    assert r["faits"]["minimum_de_la_commande"] == {"commune": "Chantilly", "minimum": 5000, "manque": 3910,  # F3 (C7 B6) : les montants aussi en lettres
+                                                     "minimum_dit": "cinquante euros", "manque_dit": "trente-neuf euros dix"}, r["faits"]
     assert PORTE.A_FAIRE_DU_MINIMUM in r["a_faire"], r["a_faire"]
     dite = "Pour Chantilly il faut cinquante euros minimum, il vous manque trente-neuf euros dix ; vous ajoutez quelque chose ?"
     assert not chiffre_dans_la_phrase(dite, faits=faits_du_refus(r)), "les chiffres du minimum sont portés par les faits"

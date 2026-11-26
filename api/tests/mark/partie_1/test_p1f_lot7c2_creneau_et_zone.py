@@ -46,7 +46,7 @@ async def test_hors_zone(commerce):
 async def test_minimum_non_atteint(commerce):
     _, _, r = await RC._zone_de_livraison(commerce.c, commerce.a, commerce.zones["Proches"], 200)
     _verifie(r, "MINIMUM_NON_ATTEINT", "Le minimum de commande est de quinze euros.", TSC.minimum_non_atteint)
-    assert r.faits == {"minimum": 1500, "sous_total": 200}
+    assert r.faits == {"minimum": 1500, "sous_total": 200, "minimum_dit": "quinze euros"}  # F3 (C7 B6) : le montant en lettres, la copie du modèle retire les centimes
 
 
 # --- le mode ----------------------------------------------------------------------------------------------------------------------------------------
