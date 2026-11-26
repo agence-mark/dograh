@@ -122,3 +122,21 @@ async def test_rc2_une_taille_a_donner_sur_une_commande_enregistree_attend_toujo
     o = await partie.geste("G2")
     assert C.question(o.apres).get("type") == "variante" and C.lignes_de(o.apres)[C.REGINA] == 1 and not C.rc2(o) and not C.rc8(o)
 
+
+SUITES_DU_REJEU = [("E1", ("G5+G28", "G32")), ("E7", ("G21", "G11+G27", "G32")), ("E6", ("G2", "G29+G11", "G32")), ("E8", ("G7+G3", "G32"))]
+
+
+async def test_rc2_le_juge_du_rejeu_suit_b1_b4_et_le_oui_a_la_proposition(faire_monde, monkeypatch):
+    """Les quatre suites tirées réduites (graine 20261122) : l'attente du juge pour « je répète » (G32) contredisait ses propres règles écrites. B1 : une réponse au mauvais numéro est
+    écartée SEULE, le reste passe (E7 : la regina du remplacement rejoué entre) ; B4 (M6) : deux cases sur la même ligne sont refusées, le reste passe (E6 : l'ajout entre, comme
+    ``fusion``) ; ``_oui`` : « oui » à la proposition posée ajoute l'article proposé (E1 : le « oui » rejoué vise maintenant la proposition du Coca, posée au tour d'avant) ; G3 :
+    un article inconnu ne change rien (E8, effet déclaré). Le code n'a pas bougé : ces paniers sont ceux que les règles écrites donnent."""
+    from api.tests.mark.partie_1 import combinaisons as C
+
+    monde = await faire_monde("casa-italia")
+    fautes = []
+    for etat, suite in SUITES_DU_REJEU:
+        r = await C.jouer(monde, monkeypatch, etat, suite)
+        assert r.atteint and r.joues == len(suite), (etat, suite, r)
+        fautes += [f"{etat} {suite} {f}" for f in r.fautes]
+    assert not fautes, fautes

@@ -186,6 +186,7 @@ def _oui(avant: Counter, p) -> Counter | None:
 
 
 ARTICLES_DITS = {"margherita": MARGHERITA, "regina": REGINA}
+ARTICLES_SANS_EFFET = {"bubble tea", "salmone"}  # 7c : les articles de G3 (inconnu) et G4 (ambigu, la question d'abord) : rejoués, ils ne changent pas le panier (leur effet, ``_inchange``)
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", "etape")
 
 
@@ -212,17 +213,18 @@ def _effet_par_numero(fiche: dict[str, Any], avant: Counter, p: dict[str, Any]) 
         return Counter(avant)
     lignes = {l.get("n"): l for l in p.get("lignes") or []}
     visees = [n for n in fiche.get("retirer_article") or [] if isinstance(n, int)] + [c.get("ligne") for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
-    if len(visees) != len(set(visees)):
-        return Counter(avant)  # B4 : deux cases sur la même ligne, refusées
+    conflit = len(visees) != len(set(visees))  # B4 (M6, RC5) : deux cases sur la même ligne sont refusées toutes les deux ; le reste de la fiche passe (7c : l'ajout aussi, comme ``fusion``)
     c = Counter(avant)
-    for n in fiche.get("retirer_article") or []:
+    for n in [] if conflit else fiche.get("retirer_article") or []:
         if n in lignes:
             c[lignes[n]["ref"]] -= int(lignes[n].get("quantite") or 0)
-    for ch in fiche.get("changer_quantite") or []:
+    for ch in [] if conflit else fiche.get("changer_quantite") or []:
         l = lignes.get(ch.get("ligne"))
         if l and ch.get("quantite"):
             c[l["ref"]] += int(ch["quantite"]) - int(l.get("quantite") or 0)
     for a in fiche.get("ajouter") or []:
+        if str(a.get("article")).casefold() in ARTICLES_SANS_EFFET:
+            continue
         ref = ARTICLES_DITS.get(str(a.get("article")).casefold())
         if ref is None:
             return None
@@ -420,11 +422,16 @@ class Partie:
         return base, (copy.deepcopy(recues[-1]) if recues else None)
 
     def _effet_du_rejeu(self):
-        """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste, sauf une réponse au numéro d'une question qui n'est plus posée (écartée)."""
+        """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste. 7c : une réponse au numéro d'une question qui n'est plus posée est écartée SEULE
+        (B1 : le reste de la fiche passe, ses articles entrent) ; une réponse qui vise maintenant la proposition posée est un « oui » à elle (``_oui`` : l'article proposé entre)."""
         fiche = self.derniere_fiche or {}
         reponse = fiche.get("reponse")
-        if isinstance(reponse, dict) and reponse.get("question_id") != question(self.p).get("id"):
-            return _inchange
+        q = question(self.p)
+        vivante = isinstance(reponse, dict) and bool(q.get("id")) and reponse.get("question_id") == q.get("id")
+        if isinstance(reponse, dict) and not vivante:
+            return (lambda avant, p: _effet_par_numero(fiche, avant, p)) if fiche.get("retirer_article") or fiche.get("changer_quantite") or fiche.get("ajouter") else _inchange
+        if vivante and reponse.get("sens") == "accepte" and q.get("type") == "proposition":
+            return lambda avant, p: (lambda c: None if c is None else _oui(c, p))(_effet_par_numero(fiche, avant, p))
         if fiche.get("retirer_article") or fiche.get("changer_quantite"):
             # Les numéros de ligne restent attachés à LEUR ligne : rejoués, ils visent la ligne d'avant, qui n'existe plus si elle a été retirée ou remplacée
             return lambda avant, p: _effet_par_numero(fiche, avant, p)
