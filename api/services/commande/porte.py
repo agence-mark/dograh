@@ -1065,6 +1065,15 @@ def _le_doute_est_leve_par_un_candidat(f: LaFiche, r: Resultat) -> bool:
     return any(str(ligne.get("ref")) in candidats for ligne in f.p.get("lignes") or [] if ligne.get("nom") == (r.faits or {}).get("ajoute"))
 
 
+def _ranger_la_fiche_ajoutee(f: LaFiche, articles: int) -> None:
+    """Un article de cette fiche est PRIS (une ligne posée, sa taille encore à demander comprise) : la fiche compte pour « la même au tour d'après » (``_fiche_identique_au_tour_d_avant``).
+    ``articles`` : les derniers résultats de ``f.bruts`` sont ceux des articles de la case."""
+    if any(r.statut in ("OK", "CHOIX_OBLIGATOIRE") for r in f.bruts[-articles:]):
+        ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
+        ajoutees.append(f.cle)
+        del ajoutees[:-4]
+
+
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     """Les articles dits, un à un ; chaque article qui demande quelque chose ouvre sa question au registre (D25) ; l'état du panier après les ajouts (chiffrage, minimum de la
     zone) est le résultat du dernier ajout, comme ``moteur.ajouter`` le rend après sa phrase."""
@@ -1078,12 +1087,10 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     publics: list[dict[str, Any]] = []
     premiere_demande: Resultat | None = None
     derniere_prise: Resultat | None = None
-    pris = False  # un article est pris (ligne posée, sa taille encore à demander comprise) : la fiche compte pour « la même au tour d'après »
     place_de_la_prise = -1
     for article in f.fiche["ajouter"]:
         r = await ajouter_un_article(f.source, f.p, f.regles, article)
         publics.append(_resultat_public("ajouter", r))
-        pris = pris or r.statut in ("OK", "CHOIX_OBLIGATOIRE")
         if r.statut == "OK":
             derniere_prise, place_de_la_prise = r, len(publics) - 1
         f.bruts.append(r)  # chaque article est un résultat de la fiche : ses refus se lisent sur l'ensemble (``refusants_de_la_fiche``)
@@ -1099,10 +1106,7 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     # Le résultat de la fiche ne dépend pas de l'ordre des articles : le premier article qui demande est le fait de la fiche ; sinon, dès qu'un article est pris, c'est l'état du
     # panier après le dernier article PRIS (total, proposition), qu'un refus placé avant ou après ne recouvre pas ; les refus se lisent sur tous les résultats (``refusants_de_la_fiche``)
     r = premiere_demande or derniere_prise or r
-    if pris:
-        ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
-        ajoutees.append(f.cle)
-        del ajoutees[:-4]
+    _ranger_la_fiche_ajoutee(f, len(f.fiche["ajouter"]))
     if r.statut == "OK" and "garde" not in (r.faits or {}):
         etat = await moteur.etat_apres_ajout(f.source, f.p, f.regles, dict(r.faits or {}))
         r = Resultat(etat.statut, etat.faits, etat.suggestion, etat.manque)
