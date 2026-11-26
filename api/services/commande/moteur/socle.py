@@ -14,7 +14,6 @@ from api.services.actions_communes import phrases_d_information as INFO
 from api.schemas.workflow_configurations import DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE
 from api.services.actions_communes.petits_mots import ARTICLES
 from api.services.commande import panier as P
-from api.services.mots_dits import chiffres_en_lettres, montant_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_DICTE_RELU
@@ -88,20 +87,6 @@ def commande_de_l_appel(p: dict[str, Any]) -> dict[str, Any] | None:
     """La commande enregistrée dans CET appel (numéro, numéro court, heure annoncée, total), tant qu'elle n'est pas annulée ; ``None`` sinon."""
     commande = p.get("enregistree")
     return commande if isinstance(commande, dict) and commande.get("numero") and not p.get("annulee") else None
-
-
-# --------------------------------------------------------------------------- #
-# remises_disponibles : la parole des remises (lot 7, T-08)
-# --------------------------------------------------------------------------- #
-
-
-def _dit(texte: str) -> str:
-    """Une phrase écrite par une personne (une offre, un nom d'offre), prête à être dite : chiffres en lettres, un seul point final."""
-    return phrase_nette(chiffres_en_lettres(texte))
-
-
-def phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
-    return _dit(r["phrase"]) if r.get("phrase") else f"Bonne nouvelle : {_dit(r['nom'])}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
 
 
 # --------------------------------------------------------------------------- #

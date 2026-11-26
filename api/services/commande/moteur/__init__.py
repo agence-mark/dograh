@@ -18,7 +18,6 @@ from api.services.commande.moteur.socle import (
     cle_de_la_remise,
     commande_de_l_appel,
     faits_du_metier_a_donner,
-    phrase_d_une_remise_appliquee,
     noter_les_faits_donnes,
 )
 from api.services.commande.moteur.prealables import (
@@ -119,7 +118,6 @@ __all__ = [
     "modifier",
     "noter_la_commande",
     "noter_le_client",
-    "phrase_d_une_remise_appliquee",
     "placer_les_choix",
     "poser_l_heure",
     "poser_la_relecture",

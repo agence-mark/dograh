@@ -226,7 +226,8 @@ async def test_l_agent_ne_parle_d_une_remise_de_lui_meme_qu_une_fois_jamais_pres
     assert (r.statut, r.faits["a_dire"], r.faits["raison"]) == ("OK", False, "presse")
     # une première fois : la remise qui s'applique, dans la phrase du restaurant
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
-    assert r.faits["a_dire"] is True and r.faits["moment"] == "appliquee" and r.suggestion == "Dix pour cent de moins sur la commande."
+    # C7 B5 (Evan 25/11 8 h 45) : plus de texte au retour ; la phrase du restaurant est un fait de la remise, que le modèle dit
+    assert r.faits["a_dire"] is True and r.faits["moment"] == "appliquee" and r.suggestion == "" and r.faits["remise"]["texte_de_l_offre"] == "Dix pour cent de moins sur la commande."
     # la limite par appel (1 par défaut) : plus rien de lui-même
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
     assert (r.faits["a_dire"], r.faits["raison"]) == (False, "deja_dite")

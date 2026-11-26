@@ -12,6 +12,10 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from api.services.commande import moteur
+from api.services.commande import panier as P
+from api.services.commande.moteur import articles, lecture
+from api.services.commande.resultat import Resultat
+from api.services.mots_dits import chiffres_en_lettres, phrase_nette
 from api.services.commande.moteur import mode_et_adresse
 from api.services.commande.moteur.socle import Appelant
 from api.services.mots_dits import liste_dite
@@ -110,3 +114,83 @@ def test_le_jour_et_l_heure_retenus_n_ont_plus_de_texte_et_se_disent_par_leurs_f
     r = resolution_du_jour_et_de_l_heure("demain", "dix-neuf heures", datetime(2026, 11, 17, 10, 50, tzinfo=ZoneInfo("Europe/Paris")))
     assert r.statut == "RETENU" and r.suggestion == "", r
     assert f"{r.faits['jour_dit']} à {r.faits['heure_dite']}." == "mercredi dix-huit novembre à dix-neuf heures.", r.faits  # le texte d'avant, refait des faits
+
+
+# ── les remises et la carte lues (articles.py, lecture.py) : la remise est un fait, son montant aussi en lettres ─────────────────
+
+
+def _remise_d_avant(remise: dict) -> str:
+    """Le texte d'avant (``phrase_d_une_remise_appliquee``), refait des seuls faits de la remise : le texte du restaurant, sinon son nom et son montant dit."""
+    if remise.get("texte_de_l_offre"):
+        return phrase_nette(chiffres_en_lettres(remise["texte_de_l_offre"]))
+    return f"Bonne nouvelle : {phrase_nette(chiffres_en_lettres(remise['nom']))}, cela vous fait {remise['montant_dit']} de moins."
+
+
+class _SourceDesRemises:
+    modes = ("emporter",)
+
+    def __init__(self, phrase: str | None = None, en_cours: list | None = None):
+        self.remise = {"ref": "R1", "nom": "Bienvenue", "montant": 230, "phrase": phrase}
+        self.en_cours = en_cours or []
+
+    async def codes_de_remise(self):
+        return [{"code": "BIENVENUE", "ref": "R1", "nom": "Bienvenue", "phrase": self.remise["phrase"]}]
+
+    async def remises_en_cours(self):
+        return self.en_cours
+
+
+def _panier_pret() -> dict:
+    p = P.nouveau()
+    p.update({"mode": "emporter", "lignes": [{"n": 1, "nom": "Margherita", "code": "m", "quantite": 1, "choix": [], "retires": []}]})
+    return p
+
+
+def _chiffre(source, sous_total: int = 2300):
+    async def chiffrer(_source, _p, _regles):
+        return Resultat("OK", {"remises": [source.remise], "sous_total": sous_total, "lignes": []}, "")
+    return chiffrer
+
+
+@pytest.mark.parametrize("phrase", [None, "10 % de moins sur la commande"])
+async def test_le_code_de_remise_applique_n_a_plus_de_texte_et_porte_sa_remise_en_lettres(monkeypatch, phrase):
+    """Client « J'ai le code BIENVENUE. » / le retour ne compose plus « Bonne nouvelle : Bienvenue, cela vous fait deux euros trente de moins. » ; la réduction est aussi dite en lettres."""
+    source = _SourceDesRemises(phrase)
+    monkeypatch.setattr(articles, "chiffrer_le_panier", _chiffre(source))
+    r = await articles.poser_le_code_de_remise(source, _panier_pret(), moteur.Reglages(), "BIENVENUE", False)
+    assert r.statut == "OK" and r.suggestion == "", r
+    assert r.faits["reduction"] == 230 and r.faits["reduction_dite"] == "deux euros trente", r.faits  # voisin : le montant brut reste
+    remise = {"nom": r.faits["remise"], "montant_dit": r.faits["reduction_dite"], **({"texte_de_l_offre": r.faits["texte_de_l_offre"]} if "texte_de_l_offre" in r.faits else {})}
+    assert _remise_d_avant(remise) == ("Bonne nouvelle : Bienvenue, cela vous fait deux euros trente de moins." if phrase is None else "dix pour cent de moins sur la commande")
+
+
+@pytest.mark.parametrize("phrase", [None, "10 % de moins sur la commande"])
+async def test_la_remise_appliquee_lue_n_a_plus_de_texte_et_porte_son_montant_en_lettres(monkeypatch, phrase):
+    source = _SourceDesRemises(phrase)
+    monkeypatch.setattr(lecture, "chiffrer_le_panier", _chiffre(source))
+    r = await lecture.remises_disponibles(source, _panier_pret(), moteur.Reglages())
+    assert r.faits["moment"] == "appliquee" and r.suggestion == "", r
+    remise = r.faits["remise"]
+    assert remise["montant"] == 230 and remise["montant_dit"] == "deux euros trente", remise
+    assert _remise_d_avant(remise) == ("Bonne nouvelle : Bienvenue, cela vous fait deux euros trente de moins." if phrase is None else "dix pour cent de moins sur la commande")
+
+
+async def test_le_seuil_presque_atteint_porte_ce_qui_manque_en_lettres(monkeypatch):
+    """Le texte d'avant disait le montant qui manque ; le fait brut était en centimes (L) : il passe aussi en lettres (``manque_dit``)."""
+    source = _SourceDesRemises(en_cours=[{"ref": "S1", "nom": "Frites offertes", "phrase": None, "minimum": 2000}])
+    source.remise = {"ref": "AUTRE", "nom": "x", "montant": 0, "phrase": None}
+
+    async def chiffrer(_source, _p, _regles):
+        return Resultat("OK", {"remises": [], "sous_total": 1950, "lignes": []}, "")
+    monkeypatch.setattr(lecture, "chiffrer_le_panier", chiffrer)
+    r = await lecture.remises_disponibles(source, _panier_pret(), moteur.Reglages())
+    assert r.faits["moment"] == "seuil_presque_atteint" and r.faits["remise"]["manque"] == 50 and r.faits["remise"]["manque_dit"] == "cinquante centimes", r.faits
+
+
+async def test_la_carte_lue_n_a_plus_de_texte(vierge, monkeypatch):
+    """Le texte du jour (tel que saisi) et « je ne peux pas vous le confirmer » (``renseigne`` faux) sont des faits de la carte : le retour n'a plus de texte."""
+    async def carte(_mode):
+        return {"rubriques": [], "du_moment": [{"article": "Plat du jour", "renseigne": False}]}
+    monkeypatch.setattr(vierge.source, "carte_a_lire", carte)
+    r = await lecture.voir_la_carte(vierge.source, vierge.p, vierge.regles)
+    assert r.suggestion == "" and r.faits["du_moment"][0]["renseigne"] is False, r

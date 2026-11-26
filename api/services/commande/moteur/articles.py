@@ -16,11 +16,11 @@ from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
 from api.services.commande.briques import conditions_de_vente, declinaison_nommee, taille_fixant_le_nombre, menu_a_composition_fixe, formule_a_etapes, menu_a_taille_liee, menu_pour_n_personnes, choix_entre_deux_contenus, a_volonte, inconnue, code_de_remise, choix_unique_obligatoire, option_conditionnelle, hors_jours_feries, produit_alcoolise, produit_au_poids, lot_de_vente, taille
 from api.services.commande.briques import formule as FO
-from api.services.mots_dits import liste_dite_et, nom_dit
+from api.services.mots_dits import liste_dite_et, montant_en_lettres, nom_dit
 from api.services.commande.resultat import Resultat
 from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, phrase_d_une_remise_appliquee, _r, _sans_accent
+from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, _r, _sans_accent
 from api.services.commande.moteur.prealables import _article_de_la_carte, chiffrer_le_panier, _prealables, _servi_le, _valider
 
 
@@ -444,7 +444,9 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
     faits = {"code": verdict["code"], "remise": verdict["nom"], "appliquee": appliquee is not None}
     if appliquee is None:
         return _avec(_r("OK", faits, ""), p)
-    return _avec(_r("OK", {**faits, "reduction": appliquee["montant"]}, phrase_d_une_remise_appliquee(appliquee)), p)
+    # C7 B5 (Evan 25/11 8 h 45) : la remise est un fait (son montant aussi en lettres, le texte du restaurant s'il en a un), le modèle la dit
+    texte = {"texte_de_l_offre": appliquee["phrase"]} if appliquee.get("phrase") else {}
+    return _avec(_r("OK", {**faits, "reduction": appliquee["montant"], "reduction_dite": montant_en_lettres(appliquee["montant"]), **texte}, ""), p)
 
 
 # --------------------------------------------------------------------------- #
