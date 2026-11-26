@@ -288,7 +288,7 @@ async def test_voir_produit_composition_seulement_signalement_seulement_sur_dema
     # un produit sans composition renseignée : « je ne peux pas vous le confirmer », sans passer la main
     await c.execute("UPDATE mark.resto_produit SET ingredients = '[]'::jsonb WHERE ref = 'P-PIZZAS-TOMATE-REGINA'")
     r = await vu("la regina")
-    assert (r.faits["renseigne"], r.suggestion) == (False, "Je ne peux pas vous le confirmer.")
+    assert (r.faits["renseigne"], r.suggestion) == (False, "")  # C7 B5 (72573e7d) : le texte vidé, « pas renseigné » est le fait ; le modèle le dit
     # un produit ambigu ou inconnu : le statut fermé de la recherche
     assert (await vu("zzzzzz")).statut == "INTROUVABLE"
     assert (await vu(None)).statut == "ARGUMENT_INVALIDE"
