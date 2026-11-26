@@ -1,6 +1,6 @@
 """[.mark] Restauration : voir un article (lot 7, E-14, E-15) : sa composition, ses signalements (allergènes, régimes, ingrédients) et « avez-vous des X sans Y ».
 
-Sorti du moteur commun de la commande : ce vocabulaire est celui du métier. Le moteur commun l'appelle par ``moteur.socle.METIER.voir_un_article``.
+Sorti du moteur commun de la commande : ce vocabulaire est celui du métier. Le moteur commun l'appelle par ``moteur.socle.METIER.voir_un_article`` (branché par ``restauration/crochets.inscrire``).
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from api.services.commande.briques import formule as FO
 from api.services.commande.moteur.articles import _option_dite, _un_seul_candidat
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import METIER, Reglages, _avec, _r, _racines
+from api.services.commande.moteur.socle import Reglages, _avec, _r, _racines
 from api.services.restauration.carte_et_allergenes.allergie_de_la_commande import _consigne_d_allergie, _faits_du_prix, _informations_de_la_fiche, _lecture_de_la_formule, _nomme_une_categorie, _option_signale, _regime_dit, _regime_du_catalogue, _regles_d_information, _signalement_dit, _signalements_dits
 
 # M104 (appel 2591) : « vous avez des X sans Y ? », « quelque chose sans Y ? », un régime : chercher dans le catalogue ce qui est SANS une chose.
@@ -230,5 +230,3 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     dit = _signalement_dit(source, fiche, option, signale)
     return _avec(Resultat(dit.statut, {**dit.faits, **_consigne_d_allergie(info)}, dit.suggestion, dit.manque), p)
 
-
-METIER.voir_un_article = voir_produit

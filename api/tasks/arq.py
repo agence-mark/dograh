@@ -90,7 +90,16 @@ from api.tasks.webhook_delivery import deliver_webhook, sweep_webhook_deliveries
 from api.tasks.workflow_completion import process_workflow_completion
 
 
+async def inscrire_les_modules(ctx: dict) -> None:
+    """[.mark] Lot 8a (75) : l'ouvrier joue lui aussi des appels (séries simulées, clôture des parties au clavier inactives) : ses modules s'inscrivent au démarrage, comme ceux de l'API. Ne rattrape rien :
+    un métier non inscrit (l'allergie) arrête le démarrage plutôt que de se taire."""
+    from api.services.modules import crochets
+
+    crochets.au_demarrage()
+
+
 class WorkerSettings:
+    on_startup = inscrire_les_modules
     functions = [
         run_integrations_post_workflow_run,
         process_workflow_completion,

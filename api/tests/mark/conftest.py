@@ -54,6 +54,14 @@ def _sources_des_cerveaux_sur_cle_api_par_defaut(monkeypatch):
     monkeypatch.setattr(sources_cerveaux, "DEFAUT", "cle_api")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _modules_inscrits():
+    """Lot 8a (75) : le métier (l'allergie) s'inscrit au démarrage de chaque processus, plus à l'import ; la séance de tests se démarre comme l'API."""
+    from api.services.modules import crochets
+
+    crochets.au_demarrage()
+
+
 # [.mark] builder-agent-vocal : la fixture ``monde`` (base en mémoire) est offerte à tous les tests du builder.
 from api.tests.mark.builder_commun import monde  # noqa: E402, F401
 

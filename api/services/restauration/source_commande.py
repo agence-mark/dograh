@@ -51,7 +51,6 @@ from api.db.bases_clients.restauration_zone import (
     verifier_adresse as verifier_l_adresse,
 )
 from api.services.actions_communes.moyens_de_paiement import LIBELLES_DITS, MOYEN_DE_BASE_SELON_LA_FICHE, RESERVES_AU_MODE
-from api.services.restauration.carte_et_allergenes import allergie_de_la_commande, voir_un_article  # noqa: F401  # branchent l'allergie et la lecture d'un article sur le moteur commun (``moteur.socle.METIER``)
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source

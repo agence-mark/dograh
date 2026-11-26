@@ -1,8 +1,7 @@
 """[.mark] Restauration : l'allergie de la commande (lot 15, D22 ; proposition de Pierre du 19/11, tranchée par Evan le 20/11).
 
 Sorti du moteur commun de la commande (``services/commande/moteur/``) : le vocabulaire du métier (allergie, régime, allergène) vit dans le module
-du métier ; le moteur commun ne garde que le mécanisme générique (« un fait bloquant connu de l'appel », ``moteur.socle.METIER``), que ce module
-branche en fin de fichier.
+du métier ; le moteur commun ne garde que le mécanisme générique (« un fait bloquant connu de l'appel », ``moteur.socle.METIER``), que ``restauration/crochets.inscrire`` branche au démarrage de chaque processus.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ from api.services.commande.briques import allergenes_du_produit, allergenes_d_un
 from api.services.commande.briques import formule as FO
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, METIER, Reglages, _avec, _r, _racines
+from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r, _racines
 from api.services.commande.moteur.articles import _groupes_a_remplir
 
 RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
@@ -434,8 +433,3 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
         logger.exception("allergie : les faits de l'allergie n'ont pas pu être lus ni donnés au modèle")
     return None
 
-
-# --- ce que le moteur commun appelle, sans connaître l'allergie
-METIER.prealable = allergie_sans_reponse
-METIER.faits_a_donner = poser_les_faits_de_l_allergie
-METIER.noter_les_faits_donnes = noter_les_faits_a_dire

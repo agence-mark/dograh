@@ -165,7 +165,7 @@ def etat_dit(statut: str) -> str:
 
 class _Metier:
     """Le moteur commun ne connaît aucun vocabulaire de métier (règle « le vocabulaire du métier vit hors du moteur commun »). Il ne garde que le mécanisme
-    générique : « un fait bloquant connu de l'appel », que le module du métier branche ici à son import (la restauration y branche l'allergie) :
+    générique : « un fait bloquant connu de l'appel », que le module du métier branche par ``enregistrer_metier`` au démarrage (la restauration y branche l'allergie) :
 
     - ``prealable(source, p, regles)`` : un préalable avant l'enregistrement (``Resultat`` INCOMPLETE) ou ``None`` ;
     - ``faits_a_donner(ctx, source, p, regles, retour)`` : les faits connus de l'appel que le code donne au modèle dans le retour de la fiche ;
@@ -179,6 +179,13 @@ class _Metier:
 
 
 METIER = _Metier()
+
+
+def enregistrer_metier(*, prealable: Any = None, faits_a_donner: Any = None, noter_les_faits_donnes: Any = None, voir_un_article: Any = None) -> None:
+    """La SEULE écriture de ``METIER`` : le module du métier s'inscrit ici au démarrage de chaque processus qui joue des appels (``modules/crochets.au_demarrage``), jamais par un
+    effet d'import. Sans argument : plus aucun métier branché (un essai du moteur commun seul)."""
+    METIER.prealable, METIER.faits_a_donner = prealable, faits_a_donner
+    METIER.noter_les_faits_donnes, METIER.voir_un_article = noter_les_faits_donnes, voir_un_article
 
 
 async def prealable_du_metier(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:

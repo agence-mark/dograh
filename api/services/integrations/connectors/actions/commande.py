@@ -78,6 +78,12 @@ async def _sans_tiers(ctx) -> bool:
     return bool(getattr(prise, "sans_tiers", False))
 
 
+def _issue_de_fin(fiche: dict) -> str | None:
+    from api.services.commande.porte import issue_de_fin_d_appel
+
+    return issue_de_fin_d_appel(fiche)
+
+
 def _etat_final(fiche: dict) -> dict:
     """D28 : la commande à la fin de l'appel, comparée à l'état attendu d'un scénario joué : enregistrée (arrivée par la prise) ou non, articles et
     quantités, mode."""
@@ -104,6 +110,7 @@ COMMANDE = declarer(
         actions_a_cases=frozenset({"fiche"}),  # lot 6 : la lecture garde ses cases (sujet, article), toujours
         forme_selon_l_etat=contrat.forme_selon_l_etat,
         etat_final=_etat_final,
+        issue_de_fin=_issue_de_fin,
         libelle="Commande (interne)",
         integration="interne",
         interne=True,

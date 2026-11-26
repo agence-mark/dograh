@@ -87,6 +87,12 @@ def _valeur_du_manque(dossier: dict, _fiche: dict) -> str | None:
     return valeur_du_manque(dossier)
 
 
+def _issue_de_fin(fiche: dict) -> str | None:
+    from api.services.reservation.porte import issue_de_fin_d_appel
+
+    return issue_de_fin_d_appel(fiche)
+
+
 RESERVATION = declarer(
     Connecteur(
         nom="reservation",
@@ -102,6 +108,7 @@ RESERVATION = declarer(
         porte_la_lecture="lire",
         actions_a_cases=frozenset({"fiche"}),  # la lecture garde ses cases (sujet, jour, personnes), toujours
         forme_selon_l_etat=contrat.forme_selon_l_etat,
+        issue_de_fin=_issue_de_fin,
         libelle="Réservation (interne)",
         integration="interne",
         interne=True,

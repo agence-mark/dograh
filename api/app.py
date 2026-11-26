@@ -110,6 +110,11 @@ async def lifespan(app: FastAPI):
 
         balayage_des_appels = demarrer_le_balayage()
 
+        # [.mark] Lot 8a (75): the modules register at start-up (the restaurant's allergy rule among them), never by an import side effect. Not fail-open: an unregistered trade must stop the start.
+        from api.services.modules import crochets as crochets_des_modules
+
+        crochets_des_modules.au_demarrage()
+
         # Event-loop lag gauge — per-pod saturation signal read off
         # /health/active-calls during autoscaling load tests.
         metrics.start()
