@@ -440,7 +440,7 @@ def test_e2a_une_phrase_qui_pose_une_question_est_dite_seule():
 
 def test_e2b_le_prix_a_dire_apres_la_phrase_survit_au_second_passage():
     e = _entrees(_fiche(question=_question()), "C'est noté.", question_donnee=True)
-    e.suffixe_avant = "Cela fait deux euros."
+    e.suffixe_avant, e.ancre_avant = "Cela fait deux euros.", TABLE.ancre_de_la_question(e.p)  # C7 (a) : la table pose la phrase réglée avec l'ancre de sa question
     assert TABLE.decider(e).mode == PAROLE.SECOND_PASSAGE and e.etat.suffixe == "Cela fait deux euros."
 
 

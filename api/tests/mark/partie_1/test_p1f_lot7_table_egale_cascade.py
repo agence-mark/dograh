@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import itertools
+import json
 
 import pytest
 
@@ -37,13 +38,11 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
 
 
 def _phrase_d_avant_encore_vraie(retour, etat, p):
-    """S1 : la fiche n'a rien changé, ou la question qui attend est celle de la phrase réglée d'avant (la question donnée, son texte dans la phrase, son jeton à entendre)."""
+    """S1 : la fiche n'a rien changé, ou la question qui attend est celle de la phrase réglée d'avant. C7 (a) : une seule ancre, l'identité de la question posée avec la phrase."""
     if retour.get(RIEN_CHANGE):
         return True
-    q = (CONV.question_de(p) if isinstance(p, dict) else None) or {}
-    attendu = etat.total_a_dire or {}
-    return bool(q.get("id")) and (q["id"] == etat.question_donnee or bool(q.get("texte") and sans_balisage(q["texte"]) in etat.suffixe)
-                                  or bool(q.get("jeton") and q.get("jeton") == attendu.get("jeton")))
+    q = CONV.question_de(p) if isinstance(p, dict) else None
+    return bool(etat.ancre) and isinstance(q, dict) and json.dumps(CONV.identite_de_la_question(q), default=str) == etat.ancre
 
 
 def _cascade(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
@@ -126,7 +125,9 @@ RETOURS = {
 PHRASES = ["", "Très bien.", "Très bien. Autre chose ?", "Cela fait 12 euros."]
 TEXTES = [{}, {"avant": "Je vous relis la commande."}, {"suffixe": "Prix : 8 euros."}]
 DOSSIERS = ["aucun", "objet", "question_nee"]
-ETATS = [{}, {"rattrapage_a_joue": True}, {"question_donnee": "Q-1"}, {"question_donnee": "Q-1", "suffixe": "Prix : 8 euros."}, {"rattrapage_a_joue": True, "relance_du_fait": True}]
+ANCRE = json.dumps(CONV.identite_de_la_question(QUESTION), default=str)  # C7 (a) : la table pose l'ancre avec la phrase réglée
+ETATS = [{}, {"rattrapage_a_joue": True}, {"question_donnee": "Q-1"}, {"question_donnee": "Q-1", "suffixe": "Prix : 8 euros.", "ancre": ANCRE},
+         {"rattrapage_a_joue": True, "relance_du_fait": True}]
 
 
 def _dossier(nom):
