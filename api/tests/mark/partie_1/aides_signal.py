@@ -85,13 +85,12 @@ def pareilles(*mots: str) -> Valeurs:
 
 @dataclass
 class Cas:
-    """Un texte de secours et le scénario qui joue le vrai module : le signal doit porter son discriminant et chaque valeur que le texte disait."""
+    """Le scénario qui joue le vrai module à la place d'un texte de secours d'avant (supprimé en B9) : le signal doit porter son discriminant et chaque valeur que le texte disait."""
 
     nom: str
-    texte: Callable[[dict], str] | None  # le texte de secours d'avant, refait des faits qu'il lisait (``None`` : aucun mot à vérifier)
     scenario: Callable[..., Any]         # joue le vrai module et rend son retour
     chemin: str                          # un des ``CHEMINS``
-    valeurs: Valeurs | Callable[[Any], Valeurs]  # ``(forme dans le signal, forme dans le texte)``, ou une fonction du retour qui les rend
+    valeurs: Valeurs | Callable[[Any], Valeurs]  # ``(forme dans le signal, forme dans le texte d'avant)``, ou une fonction du retour qui les rend
     discriminant: str                    # ce qui distingue ce refus d'un autre : statut, raison ou manque
     manque: str | None = None            # le fait qui manque encore (xfail strict), ou ``None``
 
@@ -108,16 +107,6 @@ def parametres(cas_list: list[Cas]):
 def controler(cas: Cas, r: Any) -> None:
     absentes = valeurs_absentes(r, cas.chemin, valeurs_du_cas(cas, r), cas.discriminant)
     assert not absentes, f"{cas.nom} : le signal ne porte pas {absentes}"
-
-
-def fidele(cas: Cas, r: Any) -> None:
-    """La table dit ce que disait le texte : chaque valeur est dans le texte d'avant, refait des faits qu'il lisait (les faits publics de la fiche, sinon ceux du module)."""
-    if cas.texte is None:
-        return
-    lus = faits_vus_par_le_modele(r) if cas.chemin == "F" else r.faits
-    texte = norm(cas.texte(lus))
-    pas_dites = [d for _, d in valeurs_du_cas(cas, r) if norm(d) not in texte]
-    assert not pas_dites, f"{cas.nom} : le texte ne disait pas {pas_dites} : {texte}"
 
 
 async def jouer(scenario: Callable[..., Any], *args: Any) -> Any:
