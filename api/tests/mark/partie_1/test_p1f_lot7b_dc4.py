@@ -13,7 +13,6 @@ from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase
 from api.services.commande import porte as PORTE
 from api.services.commande import registre as RQ
-from api.services.commande import textes_de_secours as TS
 from api.services.workflow import parole_de_la_fiche as PF
 from api.tests.mark.partie_1.aides_de_la_commande import (
     jusqu_a_l_enregistrement_de_la_proposition as _jusqu_a_l_enregistrement,
@@ -47,7 +46,7 @@ async def test_le_oui_donne_toujours_la_confirmation_du_code(essai_de):
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le « oui » annule toujours ; le modèle le dit, le code garde le fait au journal (jamais redit, reprise R1)
     textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
-    assert e.p.get("annulee") and not textes.get("avant") and textes.get("fait_accompli") == TS.annulation_confirmee({}), textes
+    assert e.p.get("annulee") and not textes.get("avant") and textes.get("fait_accompli") == {"fait": "annulee"}, textes
 
 
 async def test_la_question_d_annulation_ne_change_pas_le_verdict_de_la_commande(essai_de):

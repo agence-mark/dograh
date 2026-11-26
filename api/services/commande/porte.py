@@ -49,7 +49,6 @@ from api.services.commande import etape as ETAPE
 from api.services.mots_dits import montant_en_lettres
 from api.services.phrases.catalogue import RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
 from api.services.commande import panier as P
-from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
@@ -186,23 +185,30 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.
     return None
 
 
+def fait_de_la_confirmation(dernier: Resultat) -> dict[str, Any]:
+    """Ce que dit la confirmation d'une commande enregistrée, en faits : livrée ou prête (M121 : une livraison dit son arrivée) et l'heure (``quand_dit``) ; le journal la garde pour savoir
+    si un changement redit quelque chose (RC3), jamais une phrase."""
+    faits = dernier.faits or {}
+    return {"fait": "enregistree", "livree": faits.get("mode") == "livraison", "quand_dit": faits.get("quand_dit")}
+
+
 def _textes_de_la_confirmation(p: dict[str, Any], dernier: Resultat, question_apres: str | None, phrase_du_rendu: str | None, phrase_du_numero: str | None = None) -> dict[str, Any]:
     """C6 n° 5 (décision d'Evan 25/11 9 h 30 ; P4) : la confirmation est dite par le MODÈLE, l'heure exigée de sa phrase (``chiffres_exiges``) ; le code dit ensuite, dans cet ordre, le rendu
-    de monnaie (motif réglé) puis la question M108, seulement si aucune question n'attend ; C6 n° 10 : un numéro dicté et retenu dans ce geste (``phrase_du_numero``) passe avant le rendu (sinon le modèle la pose). ``fait_accompli`` : le texte de secours de la source, gardé au journal
-    du dit seulement (jamais dit à la voix, même relance ratée : reprise R1 de C6)."""
+    de monnaie (motif réglé) puis la question M108, seulement si aucune question n'attend ; C6 n° 10 : un numéro dicté et retenu dans ce geste (``phrase_du_numero``) passe avant le rendu (sinon le modèle la pose). ``fait_accompli`` : les faits de la confirmation
+    (``fait_de_la_confirmation``), gardés au journal du dit seulement (jamais dits à la voix, même relance ratée : reprise R1 de C6)."""
     apres = (question_apres or "").strip() if CONV.question_de(p) is None else ""
     quand = (dernier.faits or {}).get("quand_dit")
     return {"suffixe": " ".join(x for x in (phrase_du_numero, phrase_du_rendu, apres) if x), "chiffres_exiges": {"quand": str(quand)} if quand else {},
-            "fait_accompli": dernier.suggestion, "a_faire": A_FAIRE_DE_LA_CONFIRMATION}
+            "fait_accompli": fait_de_la_confirmation(dernier), "a_faire": A_FAIRE_DE_LA_CONFIRMATION}
 
 
 def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_du_changement: str | None, montant: bool) -> dict[str, Any]:
     """C6 n° 6 (décision d'Evan 25/11 9 h 30) : la commande enregistrée est changée ; le MODÈLE le dit, le code dit ensuite le nouveau total (motif réglé ``total_apres_changement``, quand
-    le total a changé : ``montant``) puis la question M108, seulement si aucune question n'attend. ``fait_accompli`` : le texte de secours, gardé au journal du dit seulement (jamais dit à la voix : reprise R1 de C6)."""
+    le total a changé : ``montant``) puis la question M108, seulement si aucune question n'attend. ``fait_accompli`` : le nouveau total en faits, gardé au journal du dit seulement (jamais dit à la voix : reprise R1 de C6)."""
     apres = (question_apres or "").strip() if CONV.question_de(p) is None else ""
     total = (p.get("enregistree") or {}).get("total") if montant else None
     return {"suffixe": " ".join(x for x in ((phrase_du_changement if montant else None), apres) if x), "chiffres_exiges": {},
-            "fait_accompli": TS.commande_changee({"total": total}), "a_faire": A_FAIRE_DU_CHANGEMENT}
+            "fait_accompli": {"fait": "changee", "total": total}, "a_faire": A_FAIRE_DU_CHANGEMENT}
 
 
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
@@ -225,18 +231,18 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     enregistree = dernier.statut in STATUTS_ENREGISTRES
     if enregistree and dernier.faits.get("remplace"):
         # B2 (M3, TF2) : changée après l'être : le modèle le dit, le code dit le nouveau total ; rien de ce qui se dit n'a changé, sans le total (RC3) ; l'heure a changé : la confirmation
-        if (p.get("enregistree") or {}).get("total") != total_d_avant or not dernier.suggestion:
+        if (p.get("enregistree") or {}).get("total") != total_d_avant:
             return _textes_du_changement(p, question_apres, phrase_du_changement, montant=True)
-        if dernier.suggestion == J.fait_accompli(p):
+        if fait_de_la_confirmation(dernier) == J.fait_accompli(p):
             return _textes_du_changement(p, question_apres, phrase_du_changement, montant=False)
         return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero)
-    if enregistree and bool(dernier.suggestion) and not deja_enregistree:
+    if enregistree and not deja_enregistree:
         return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero)
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation est dite par le modèle, DC4 garde ses deux temps ; le code ne dit rien après sa phrase
     if dernier.faits.get("commande_annulee"):
-        return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": TS.annulation_confirmee({}), "a_faire": A_FAIRE_DE_L_ANNULATION_FAITE}
-    if dernier.faits.get("annulee") and dernier.suggestion:
-        return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": dernier.suggestion, "a_faire": A_FAIRE_DE_L_ANNULATION_EN_COURS}
+        return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": {"fait": "annulee"}, "a_faire": A_FAIRE_DE_L_ANNULATION_FAITE}
+    if dernier.faits.get("annulee"):
+        return {"suffixe": "", "chiffres_exiges": {}, "fait_accompli": {"fait": "annulee_en_cours"}, "a_faire": A_FAIRE_DE_L_ANNULATION_EN_COURS}
     if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION:
         montant = RQ.montant_enregistre_dit(p)  # DC4, premier temps : la question du modèle doit dire le montant d'aujourd'hui ; faux ou absent, il est relancé
         return {"suffixe": "", "chiffres_exiges": {"montant": montant} if montant else {}}
@@ -322,7 +328,7 @@ def _faits_publics(r: Resultat) -> dict[str, Any]:
 
 
 def faits_vus_par_le_modele(r: Resultat) -> dict[str, Any]:
-    """Les faits d'un refus tels que le modèle les reçoit : ce que doit suffire à dire un texte de secours (``textes_de_secours``)."""
+    """Les faits d'un refus tels que le modèle les reçoit : ils portent tout ce qu'il doit dire (le code n'écrit plus aucun texte de secours, lot 7b-C7)."""
     return _faits_publics(r)
 
 
@@ -332,7 +338,7 @@ def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
 
 def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
     """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…), sans phrase : le modèle le dit avec ses mots d'après les faits ;
-    le texte de secours du module (``r.suggestion``) n'est plus dit par le code (C5) : il reste jusqu'à C7, qui en traduit chaque information en fait."""
+    le module n'écrit plus de texte de secours (lot 7b-C7) : chaque information est un fait."""
     return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r)}
 
 
@@ -1273,7 +1279,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
             consignes.append((C.QUESTION, A_FAIRE_DE_LA_QUESTION))  # n° 12 : une question que le code dit (DC10) suit la phrase du modèle, il ne la pose pas
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("fait_accompli"):
-        J.dire_le_fait(p, str(textes["fait_accompli"]), tour)  # C6 n° 5 : la confirmation dite par le modèle ; le journal en garde le fait (jamais redit par le code, R1)
+        J.dire_le_fait(p, textes["fait_accompli"], tour)  # C6 n° 5 : la confirmation dite par le modèle ; le journal en garde le fait (jamais redit par le code, R1)
     poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [_refus_pour_le_modele(r) for r in refusants])
     return consignes
 
@@ -1406,7 +1412,7 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     await moteur.vider_commande(source, p, regles)
     ETAPE.transition(p, ETAPE.ANNULEE_EN_COURS)
     CONV.poser_question(p, None)
-    return Resultat("OK", {"annulee": True}, TS.annulee_en_cours({}))  # C6 n° 7 : le texte de secours, gardé au journal ; le modèle le dit avec ses mots
+    return Resultat("OK", {"annulee": True})  # C6 n° 7 : le modèle le dit avec ses mots ; le journal en garde le fait
 
 
 def _laisser_un_message(message: Any, fiche: dict[str, Any], ctx: Any, resultats: list[dict], refus: list[dict]) -> None:

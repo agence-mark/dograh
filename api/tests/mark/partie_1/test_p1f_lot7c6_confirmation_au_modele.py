@@ -83,7 +83,7 @@ async def test_une_confirmation_sans_l_heure_est_relancee_puis_le_code_ne_dit_qu
     e, r = await _jusqu_a_la_confirmation(essai_de)
     dit = _dire(e, r, "C'est enregistré.") or ""
     assert dit == QUESTION_M108, dit
-    assert J.fait_accompli(e.p) and J.fait_accompli(e.p) not in dit, (dit, J.fait_accompli(e.p))
+    assert (J.fait_accompli(e.p) or {}).get("fait") == "enregistree" and "est enregistrée" not in dit, (dit, J.fait_accompli(e.p))  # le fait gardé au journal en faits (B9), jamais redit par le code (reprise R1 de C6)
 
 
 async def test_la_relance_qui_dit_l_heure_part_avec_la_suite_du_code(essai_de):

@@ -11,7 +11,6 @@ from typing import Any
 
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
-from api.services.commande import textes_de_secours as TS
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -181,7 +180,7 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
             faits["rendu"] = rendu
         ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits=P.serialisable(faits), empreinte=P.empreinte(p))
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
-        return _avec(Resultat(statut, faits, r.suggestion.strip()), p)  # la suggestion : le texte de secours de la source, jamais dit (le fait accompli gardé au journal)
+        return _avec(Resultat(statut, faits), p)  # aucune phrase : le modèle dit le fait accompli d'après ses faits, le journal en garde les faits
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)  # la relecture repart : l'accord d'avant ne vaut plus
         return poser_la_relecture(source, p, chiffre)
@@ -243,7 +242,7 @@ async def _finaliser(
     qui a changé). Le total est celui de la source."""
     deja = p.get("enregistree")
     if deja and p["lignes"]:
-        return _avec(Resultat("DEJA_FAIT", dict(deja), TS.deja_enregistree({})), p)
+        return _avec(Resultat("DEJA_FAIT", dict(deja)), p)
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque

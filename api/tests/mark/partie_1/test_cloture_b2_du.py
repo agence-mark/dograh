@@ -14,7 +14,6 @@ from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import table_de_parole as T
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
@@ -133,7 +132,7 @@ async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
     assert _dit_par_le_code(e) == "" and q["texte"] == "", (_dit_par_le_code(e), q)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
-    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == TS.annulation_confirmee({})  # C6 n° 7 : le modèle le dit, le journal en garde le fait
+    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == {"fait": "annulee"}  # C6 n° 7 : le modèle le dit, le journal en garde le fait (en faits, B9)
 
 
 async def test_dc4_non_laisse_la_commande_enregistree(essai_de):
@@ -184,8 +183,7 @@ async def test_regle_3_le_repli_ne_redit_plus_le_fait_accompli(essai_de):
     await _jusqu_a_l_enregistrement(e)
     from api.services.actions_communes import journal_du_dit as J
 
-    confirmation = (J.fait_accompli(e.p) or "")
-    assert confirmation.startswith("Votre commande est enregistrée"), e.p
+    assert (J.fait_accompli(e.p) or {}).get("fait") == "enregistree", e.p  # le fait gardé au journal en faits (B9)
     from types import SimpleNamespace
 
     e.montrer()

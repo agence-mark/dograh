@@ -60,7 +60,7 @@ async def test_confirmation_relance_ratee_seule_la_suite_reglee_part(essai_de):
     """Client « Oui, c'est bon. » / modèle « C'est enregistré. » (sans l'heure exigée), relance en 429 / code : la suite réglée seule (M108), jamais « Votre commande est enregistrée… »."""
     e, r = await _enregistree(essai_de)
     dit, suite = await _voix_apres_la_fiche(e, r, "C'est enregistré.")
-    assert J.fait_accompli(e.p) and J.fait_accompli(e.p) not in dit, dit
+    assert (J.fait_accompli(e.p) or {}).get("fait") == "enregistree" and "est enregistrée" not in dit, dit  # le fait gardé au journal en faits (B9), jamais redit par le code (reprise R1 de C6)
     assert dit == (suite or REGLEE), (dit, suite)
 
 
@@ -70,7 +70,7 @@ async def test_changement_relance_ratee_le_total_n_est_dit_qu_une_fois(essai_de)
     r = await e.tour("finalement mettez-en deux", changer_quantite=[{"ligne": e.p["lignes"][0]["n"], "quantite": 2}])
     total = montant_en_lettres(e.p["enregistree"]["total"])
     dit, suite = await _voix_apres_la_fiche(e, r, f"C'est changé, ça fait {total}.")
-    assert J.fait_accompli(e.p) and J.fait_accompli(e.p) not in dit, dit
+    assert (J.fait_accompli(e.p) or {}).get("fait") == "changee" and "C'est changé" not in dit, dit  # le fait gardé au journal en faits (B9), jamais redit par le code (reprise R1 de C6)
     assert suite and dit == suite and dit.count(total) == 1, (dit, suite)
 
 
