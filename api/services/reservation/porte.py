@@ -510,7 +510,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         jour_a_demander = etat_pour_le_modele.LE_JOUR if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" else None  # C5 : la valeur fermée de ce qui manque (jamais la phrase de ``suggestion``)
         if manque:
             plus["manque"] = manque
-        ensemble = etat_pour_le_modele.a_demander_avec_le_jour(e) if dernier.manque == "jour" else []  # Q10 : le nom, quand il est le manque suivant le jour
+        ensemble = etat_pour_le_modele.a_demander_avec_le_jour(e) if dernier.manque == "jour" and dernier.statut in ("AMBIGU", "INCOMPLETE") else []  # Q10 : le nom, quand il est le manque suivant le jour ; jamais sur un INTROUVABLE (date illisible ou passée), qui garde son bloc
         if ensemble:
             faits["a_demander_ensemble"] = ensemble
     textes = textes_du_code(e, dernier, operation, nee, deja_enregistree, question_du_code(ctx.ctx, dernier) if nee is not None else None,
