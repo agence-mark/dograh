@@ -37,8 +37,12 @@ async def test_le_modele_a_parle_le_code_ne_redit_pas_la_confirmation(essai_de):
 
 
 def test_le_motif_est_regle_et_fait_partie_des_phrases_du_code():
+    from api.services.actions_communes.resultat import phrase_du_code
     from api.services.phrases.catalogue import MOTIFS, PHRASES_DU_CODE
 
     motif = MOTIFS["confirmation_reglee"]
     assert motif.variantes_defaut == (CONFIRMATION,) and "confirmation_reglee" in PHRASES_DU_CODE
-    assert not motif.verrouille or motif.actif_par_defaut  # réglable : son texte se change à l'écran des phrases
+    assert motif.verrouille and motif.actif_par_defaut  # jamais éteint
+    for regle in ({"variantes": ["Voilà, c'est pris."]}, {"variantes": ["Voilà, c'est pris."], "active": False}):  # le texte se change à l'écran des phrases, l'extinction ne prend pas
+        ctx = SimpleNamespace(configurations={"phrases_regles": [{"motif": "confirmation_reglee", "portee": "agent", **regle}]})
+        assert phrase_du_code(ctx, "confirmation_reglee") == "Voilà, c'est pris."
