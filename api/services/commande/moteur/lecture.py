@@ -13,6 +13,7 @@ from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import phrases_d_information as INFO
 from api.services.commande.moteur.socle import Reglages, _avec, _r, cle_de_la_remise, remise_dite
 from api.services.mots_dits import montant_en_lettres
 from api.services.commande.moteur.prealables import chiffrer_le_panier
@@ -24,6 +25,8 @@ async def voir_la_carte(source: Source, p: dict[str, Any], regles: Reglages) -> 
     """``lire`` avec ``sujet: carte`` sans article (E16, ART3) : les rubriques de la carte et le texte du jour de chaque produit du moment, tel que saisi ; un texte absent est dit
     non renseigné (``renseigne`` faux, jamais inventé). C7 B5 (Evan 25/11 8 h 45) : aucun texte au retour, le modèle dit le texte du jour ou qu'il ne peut pas le confirmer."""
     carte = await source.carte_a_lire(p.get("mode") or "emporter")
+    noms = [n for r in carte.get("rubriques") or [] for n in r.get("articles") or []]
+    carte = {**carte, **INFO.consigne_si_liste(noms)}  # Q8 : la liste complète reste dans les faits, le modèle en dit quelques-uns
     return _avec(_r("OK", carte, ""), p)
 
 

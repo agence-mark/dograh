@@ -286,7 +286,7 @@ async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -
         etiquetes = regime_d_un_article.articles_etiquetes((await lire(p.get("mode") or source.modes[0])).get("articles") or [], code)
     restaurant = code == halal.CODE and bool(info.get("halal_restaurant"))
     if etiquetes:
-        faits = {**faits, "renseigne": True, "articles": etiquetes, "autres_a_confirmer": True, **({"restaurant": True} if restaurant else {})}  # F8 : le reste de la carte n'est pas étiqueté
+        faits = {**faits, "renseigne": True, "articles": etiquetes, "autres_a_confirmer": True, **INFO.consigne_si_liste(etiquetes), **({"restaurant": True} if restaurant else {})}  # F8 : le reste de la carte n'est pas étiqueté ; Q8 : plusieurs noms
         return _r("OK", faits, "")
     if restaurant:
         faits = {**faits, "renseigne": True, "restaurant": True}

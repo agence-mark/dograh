@@ -111,7 +111,6 @@ _MOTS_DE_LA_QUESTION = ARTICLES | {
     "d", "vous", "avez", "auriez", "est", "ce", "que", "qu", "quoi", "qui", "il", "y", "a",
     "en", "pour", "moi", "nous", "quelque", "chose", "choses", "truc", "trucs", "rien", "autre", "aussi", "chez", "votre", "vos",
 }
-_PLUS_DE_NOMS = 5
 _PAS_SUR = INFO.PAS_SUR
 
 

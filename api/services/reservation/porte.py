@@ -95,6 +95,7 @@ TABLE = RC.Table(ordre=("choix", "recapitulatif", "recap_modif", "annulation"), 
 def _numerotee(q: dict[str, Any], e: dict[str, Any]) -> dict[str, Any]:
     """RC9 : la question naît (son objet est fixé) et prend le numéro attaché à son objet."""
     return {**q, "id": RC.numero(e, RC.nommer(TABLE, q, e)), "objet": q["objet"]}
+CONSIGNE_UNE_QUESTION_POUR_LES_DEUX = "pose une seule question pour le jour à préciser et pour ce que dit a_demander_ensemble"
 MANQUES_DU_MODELE = {"prenom": "nom", "reference": "nom_et_jour_de_la_reservation"}   # les mots du classeur sont traduits à la source
 RAISONS_DE_REFUS = {"complet": "complet_a_cette_heure"}  # le reste : le détail du classeur, tel quel (rangé « métier »)
 GESTES_DE_LA_SOURCE = {"reserver": "reserver", "modifier": "modifier_reservation", "annuler": "annuler_reservation"}
@@ -509,9 +510,14 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         jour_a_demander = etat_pour_le_modele.LE_JOUR if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" else None  # C5 : la valeur fermée de ce qui manque (jamais la phrase de ``suggestion``)
         if manque:
             plus["manque"] = manque
+        ensemble = etat_pour_le_modele.a_demander_avec_le_jour(e) if dernier.manque == "jour" and dernier.statut in ("AMBIGU", "INCOMPLETE") else []  # Q10 : le nom, quand il est le manque suivant le jour ; jamais sur un INTROUVABLE (date illisible ou passée), qui garde son bloc
+        if ensemble:
+            faits["a_demander_ensemble"] = ensemble
     textes = textes_du_code(e, dernier, operation, nee, deja_enregistree, question_du_code(ctx.ctx, dernier) if nee is not None else None,
                             numero_apres_le_fait_accompli(ctx.ctx, dernier))
     a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
+    if not a_faire and faits.get("a_demander_ensemble"):
+        a_faire = CONSIGNE_UNE_QUESTION_POUR_LES_DEUX
     if not a_faire and textes.get("a_faire"):
         a_faire = str(textes["a_faire"])  # C6 n° 8 : la relecture, dite par le modèle
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:

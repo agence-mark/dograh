@@ -100,7 +100,7 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     inconnus = sum(1 for _, e in etats if e == "inconnu")
     faits = {"recherche": "sans", "code": code, **({"codes": codes} if len(codes) > 1 else {}), "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
     if surs:
-        faits = {**faits, "mot": mot}  # la chose évitée, que le texte dit
+        faits = {**faits, "mot": mot, **INFO.consigne_si_liste(surs)}  # la liste est entière, le modèle en dit quelques-uns s'il y en a plusieurs (Q8) ; ``mot`` est la chose évitée, que le modèle dit
         return _r("OK", faits, "")
     if contiennent and not inconnus and not selon:
         return _r("OK", faits, "")  # les faits disent combien en contiennent : le modèle le dit
@@ -144,7 +144,7 @@ async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reg
     etats = [(a, _contient_l_ingredient(source, a.get("ingredients"), chose)) for a in articles]
     trouves = list(dict.fromkeys(a["nom"] for a, e in etats if e is (True if contient else False)))
     inconnus = sum(1 for _, e in etats if e is None)
-    faits = {"recherche": "ingredient", "chose": chose, "contient": contient, "articles": trouves, "inconnus": inconnus}
+    faits = {"recherche": "ingredient", "chose": chose, "contient": contient, "articles": trouves, "inconnus": inconnus, **INFO.consigne_si_liste(trouves)}  # Q8
     return _r("OK", faits, "")
 
 

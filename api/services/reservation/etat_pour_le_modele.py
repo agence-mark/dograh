@@ -63,6 +63,14 @@ def ce_qui_manque_ensuite(etat: dict[str, Any], numero_affiche: bool) -> str | N
     return None
 
 
+def a_demander_avec_le_jour(etat: dict[str, Any]) -> list[str]:
+    """Le jour est à préciser : ce qui manquerait ENSUITE, une fois le jour dit, quand c'est le nom (Q10) ; le modèle pose alors une seule question pour les deux.
+    L'ordre des manques est celui de ``ce_qui_manque_ensuite`` : l'heure passe avant le nom, elle n'est jamais regroupée avec le jour."""
+    brouillon = etat.get("brouillon") or {}
+    ensuite = ce_qui_manque_ensuite({**etat, "brouillon": {**brouillon, "jour": True}}, bool(etat.get("numero_affiche")))
+    return [LE_NOM] if ensuite == LE_NOM else []
+
+
 def objet_en_cours(etat: dict[str, Any]) -> bool:
     b = etat.get("brouillon") or {}
     return bool(any(b.get(k) for k in ("personnes", "jour", "heure", "prenom")) or etat.get("derniere") or etat.get("cible") or etat.get("recherche"))

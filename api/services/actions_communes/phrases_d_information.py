@@ -7,14 +7,24 @@ donnée) ; le code ne les dit lui-même que dans le repli. Les textes sont ceux 
 
 from __future__ import annotations
 
+from typing import Any
+
 NON_CONFIRMABLE = "Je ne peux pas vous le confirmer."
 PAS_SUR = "la fiche ne le précise pas, l'équipe peut vous répondre."
 NON_GARANTI = "je ne peux pas le garantir : l'équipe peut vous le confirmer."
 # Consigne donnée AU MODÈLE (ligne 82) quand la fiche ne dit rien : il la dit avec ses mots, le code ne la dit jamais.
 CONSIGNE_NON_GARANTI = "dis-lui que tu ne peux pas le garantir et que l'équipe pourra le confirmer"
+# Consigne donnée AU MODÈLE, posée par ``consigne_si_liste`` quand une lecture rend plus d'un nom (rubriques, « sans », ingrédient, régime) : la liste complète est dans les faits, il en dit quelques-uns avec ses mots (aucun nombre écrit).
+CONSIGNE_QUELQUES_NOMS = "dis-lui quelques noms avec tes mots, puis propose-lui d'en dire plus ; la liste complète est dans les faits"
 POUR_LES_AUTRES_NON_GARANTI = "Pour les autres, je ne peux pas le garantir."
 POUR_LES_AUTRES_NON_CONFIRMABLE = "Pour les autres, je ne peux pas vous le confirmer."
 CA_DEPEND_DU_CHOIX_NON_GARANTI = "ça dépend du choix : je ne peux pas le garantir."
+
+
+def consigne_si_liste(noms: list[Any]) -> dict[str, str]:
+    """La consigne « quelques noms » seulement pour une liste (plus d'un nom) : avec un seul nom il n'y a rien à « dire en plus » (règle de structure, aucun chiffre du métier)."""
+    return {"a_faire": CONSIGNE_QUELQUES_NOMS} if len(noms) > 1 else {}
+
 
 SOURCE_FICHE = "D'après la fiche"
 SOURCE_FICHE_DU_RESTAURANT = "D'après la fiche du restaurant"
