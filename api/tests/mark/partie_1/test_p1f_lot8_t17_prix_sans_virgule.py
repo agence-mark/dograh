@@ -108,3 +108,11 @@ def test_deux_prix_dits_avec_virgule_ne_se_lisent_pas_comme_un_seul():
 def test_un_point_entre_deux_nombres_les_separe_toujours():
     """Le point de fin de phrase ne colle pas deux nombres : « quatre. Vingt-quatre, cinquante euros » = 4 puis 24,50 € (jamais 8450)."""
     assert not chiffre_dans_la_phrase("Vous êtes quatre. Vingt-quatre, cinquante euros.", faits=[{"personnes": 4, "total": 2450}])
+
+
+# --------------------------------------------------------------------------- reprise (second passage) : un point de fin de phrase n'est jamais la virgule des centimes
+
+def test_un_point_de_fin_de_phrase_n_est_pas_la_virgule_des_centimes():
+    """« quatre. Vingt euros. » dit 4 puis 20 € : face à 4,20 € (420) la phrase est fausse (sens 2) ; face à 4 personnes et 20 € (2000) elle est juste."""
+    assert chiffre_dans_la_phrase("Vous êtes quatre. Vingt euros.", faits=[{"total": 420}])
+    assert not chiffre_dans_la_phrase("Vous êtes quatre. Vingt euros.", faits=[{"personnes": 4, "total": 2000}])
