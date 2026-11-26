@@ -33,13 +33,15 @@ async def _fermer(e, monkeypatch) -> datetime:
 
 
 async def _repondre_aux_tailles(e) -> list[str]:
-    """Répond « Normale » à chaque question de taille posée, une par une ; rend les articles demandés, dans l'ordre."""
+    """Répond « Normale » à chaque question de taille posée, une par une ; rend les articles demandés, dans l'ordre (le fait que porte la question,
+    ``article_en_question`` : son texte est vide depuis B3, le modèle la dit)."""
     demandes = []
     for _ in range(6):
         q = CONV.question_de(e.p) or {}
         if q.get("type") != "variante":
             break
-        demandes.append(q.get("texte"))
+        assert q.get("groupe") == "taille", q  # l'objet du choix, au registre et dans la relance
+        demandes.append(q.get("article_en_question") or "")
         await e.tour("normale", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Normale"]})
     return demandes
 
@@ -52,7 +54,9 @@ async def test_ferme_annonce_au_debut_et_propose_l_ouverture(essai_de, monkeypat
     await e.tour("à emporter", mode_de_retrait="emporter")
     q = CONV.question_de(e.p) or {}
     assert q.get("type") == "heure_proposee", (q, e.retours[-1])
-    assert "Voulez-vous que je prépare votre commande pour" in q["texte"], q  # la question du registre, que le modèle pose (lot 7b, Q1 : le code ne la dit plus avant)
+    # la question du registre, que le modèle pose (lot 7b, Q1 ; B3 : plus aucun texte au registre) : vérifiée par les faits qu'elle porte, l'heure de la
+    # réouverture (posée au « oui ») et la même heure en mots (seule montrée au modèle)
+    assert q["texte"] == "" and datetime.fromisoformat(q["heure"]) == reouverture and q.get("heure_dite"), q
     r = await e.tour("oui, une margherita et une regina", reponse={"question_id": q["id"], "sens": "accepte"},
                      ajouter=[{"article": "Margherita", "quantite": 1}, {"article": "Regina", "quantite": 1}])
     assert e.p.get("heure_voulue") and datetime.fromisoformat(e.p["heure_voulue"]) == reouverture, e.p.get("heure_voulue")
@@ -97,7 +101,7 @@ async def test_l_heure_proposee_en_attente_garde_la_taille_pour_apres(essai_de, 
     assert (CONV.question_de(e.p) or {}).get("id") == q["id"] and len(e.p["lignes"]) == 1, (CONV.question_de(e.p), e.retours[-1])
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     q2 = CONV.question_de(e.p) or {}
-    assert q2.get("type") == "variante" and "Regina" in (q2.get("texte") or ""), (q2, e.p["lignes"], e.retours[-2:])
+    assert q2.get("type") == "variante" and q2.get("groupe") == "taille" and "Regina" in (q2.get("article_en_question") or ""), (q2, e.p["lignes"], e.retours[-2:])
 
 
 async def test_hesitation_nee_pendant_une_question_attend_son_tour(essai_de):

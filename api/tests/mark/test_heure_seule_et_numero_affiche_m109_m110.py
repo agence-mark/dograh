@@ -47,9 +47,11 @@ def test_m109_une_heure_a_venir_sans_jour_vaut_aujourd_hui(texte, heure):
 
 
 def test_m109_une_heure_deja_passee_sans_jour_est_une_question():
+    """C7 B12 (T9, rouge depuis 9cd42f70, C7a) : le texte « Il est déjà plus de dix-neuf heures : pour quel jour ? » est sorti du retour (décision d'Evan 25/11 8 h 45, le modèle
+    parle) ; la question reste (manque ``jour``) et ce qu'elle disait est dans les faits, d'où le texte d'avant se refait (« pas juste une suppression »)."""
     r = resolution_du_jour_et_de_l_heure("dix-neuf heures", "dix-neuf heures", SOIR)
-    assert r.statut != "RETENU" and r.manque == "jour" and r.suggestion.endswith("?") and "heure_voulue" not in r.faits
-    assert "dix-neuf heures" in r.suggestion
+    assert r.statut != "RETENU" and r.manque == "jour" and r.suggestion == "" and "heure_voulue" not in r.faits
+    assert r.faits["heure_dite"] == "dix-neuf heures" and r.faits["heure_passee_aujourd_hui"] is True
 
 
 def test_m109_sept_heures_sans_moment_reste_ambigu():
@@ -61,7 +63,8 @@ def test_m109_sept_heures_sans_moment_reste_ambigu():
 @pytest.mark.parametrize("texte, heure", [("", None), ("bientôt", None), ("dans deux heures", None), ("2026-11-17T19:00:00", None)])
 def test_m109_sans_heure_du_jour_lisible_la_question_du_jour_reste(texte, heure):
     r = resolution_du_jour_et_de_l_heure(texte, heure, MATIN)
-    assert (r.statut, r.suggestion, r.manque) == ("INTROUVABLE", "Pour quel jour ?", "jour")
+    # C7 B12 (T9, rouge depuis 9cd42f70, C7a) : « Pour quel jour ? » est dit par le modèle d'après le manque (décision d'Evan 25/11 8 h 45), plus par le retour
+    assert (r.statut, r.suggestion, r.manque) == ("INTROUVABLE", "", "jour")
 
 
 def test_m109_un_jour_dit_ne_change_pas():

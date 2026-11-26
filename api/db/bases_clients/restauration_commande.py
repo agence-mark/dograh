@@ -25,11 +25,9 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
-from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
-from api.services.commande import textes_de_secours as TS
-from api.services.mots_dits import heure_en_lettres
+from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.article_simple import brique_art1_chiffrer
 from api.services.commande.briques import conditions_de_vente, supplement_de_formule, menu_a_taille_liee, lot_a_prix_fixe, choix_entre_deux_contenus, inclus_par_rubrique, a_volonte, livraison_offerte, quota_inclus_puis_payant, option_conditionnelle, prix_par_mode, consigne_et_emballage, produit_au_poids, supplement_selon_la_taille, changer_d_accompagnement, retrait_d_ingredient
@@ -444,7 +442,7 @@ async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: in
     if zone is None:
         return None, 0, _refus("HORS_ZONE")
     if sous_total < zone["minimum"]:
-        return None, 0, _refus("MINIMUM_NON_ATTEINT", minimum=zone["minimum"], sous_total=sous_total)
+        return None, 0, _refus("MINIMUM_NON_ATTEINT", minimum=zone["minimum"], sous_total=sous_total, minimum_dit=montant_en_lettres(zone["minimum"]))  # F3 (C7) : le montant en lettres
     return zone, livraison_offerte.brique_off4_frais_retires(zone, sous_total)["frais"], None  # lot 14 (OFF4) : la règle nommée
 
 
@@ -824,17 +822,17 @@ async def _remises_et_total(
 
 def _enregistree(faits: dict, annonce: dict | None, mode: str, maintenant_: datetime, fuseau: ZoneInfo) -> Resultat:
     """La réponse d'une commande enregistrée : ses faits, dont ``quand_dit`` (l'annonce du délai dans le format réglé, ou l'heure voulue) et le mode. C6 n° 5 (décision d'Evan
-    25/11 9 h 30) : le modèle dit la confirmation d'après ces faits ; la suggestion n'est qu'un texte de secours, jamais dit."""
+    25/11 9 h 30) : le modèle dit la confirmation d'après ces faits ; aucune phrase."""
     # M121 : l'heure annoncée d'une livraison compte le délai de la zone en entier (E-42) : c'est son ARRIVÉE, pas l'heure où elle est prête.
     faits["mode"] = mode
     if annonce is None:
         # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` ``_enregistrer``) : la même forme que l'annonce d'un délai.
         faits["quand_dit"] = f"pour {_quand_dit(faits['heure_annoncee'], maintenant_, fuseau)}"
-        return Resultat("ENREGISTREE", faits, TSC.commande_enregistree(faits))
+        return Resultat("ENREGISTREE", faits)
     a = annonce["annonce"]
     faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
     faits["quand_dit"] = dite(a, fuseau)
-    return Resultat("ENREGISTREE", faits, TSC.commande_enregistree(faits))
+    return Resultat("ENREGISTREE", faits)
 
 
 @dataclass
@@ -886,7 +884,7 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
         if existante is not None:
             deja = {"numero": str(existante["numero"]), "numero_court": existante["numero_court"], "heure_annoncee": existante["heure_annoncee"], "total": existante["total"],
                     "quand_dit": _heure_dite(existante["heure_annoncee"], fuseau) if existante["heure_annoncee"] else None}
-            return Resultat("DEJA_FAIT", deja, TS.deja_enregistree(deja)), numero, ""
+            return Resultat("DEJA_FAIT", deja), numero, ""
         prefixe = _prefixe_du_numero(
             module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,
             reglages["prefixe_numero_court"],

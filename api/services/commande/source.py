@@ -21,7 +21,6 @@ class Source(Protocol):
 
     modes: tuple[str, ...]
     libelles_des_modes: dict[str, str]  # le mot que l'appelant entend pour chaque mode
-    question_de_la_zone: str  # la question quand le mode exige une zone et qu'elle manque
     libelles_des_moyens: dict[str, str]  # le mot que l'appelant entend pour chaque moyen de règlement (« en espèces »)
 
     def exige_une_zone(self, mode: str) -> bool: ...

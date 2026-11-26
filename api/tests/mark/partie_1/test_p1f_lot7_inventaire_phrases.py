@@ -1,8 +1,8 @@
 """[.mark] Plan final Partie 1, lot 7b-C, L2 : inventaire des phrases du code. Un fichier du lot ne contient aucune phrase dite au client : un morceau de texte à lire par une
 personne (deux mots ou plus, ou une phrase courte qui finit par ``?``, ``!`` ou ``.``), en majuscule, ou en minuscule quand il continue une phrase (il commence par une espace ou
 une ponctuation). Sont lus les morceaux d'une f-string un par un, les chaînes courtes et celles qui commencent par une minuscule ; ne comptent pas : les docstrings, les messages
-des journaux et des exceptions, les consignes au modèle (elles commencent par un verbe, jamais par une espace), les catalogues de secours (``textes_de_secours*.py`` et
-``phrases_du_manque.py``, lus par le repli seul) les requêtes SQL et les textes pour l'équipe (``ENVOIS_POUR_L_EQUIPE``, liste blanche). Exceptions : les motifs réglés de ``PHRASES_DU_CODE``
+des journaux et des exceptions, les consignes au modèle (elles commencent par un verbe, jamais par une espace), les valeurs fermées de ce qui manque
+(``phrases_du_manque.py`` ; C7 B9 : les catalogues de secours sont supprimés) les requêtes SQL et les textes pour l'équipe (``ENVOIS_POUR_L_EQUIPE``, liste blanche). Exceptions : les motifs réglés de ``PHRASES_DU_CODE``
 (``phrases/catalogue.py``, C6 n° 12) ; le module d'information commun dont les phrases sont des propositions faites au modèle, jamais dites telles quelles.
 
 Chaque fichier est joué à part. Tant qu'il porte des phrases à rendre, son test est un xfail strict : le commit qui rend ses phrases au modèle le retire de ``A_RENDRE``
@@ -39,13 +39,12 @@ FICHIERS_DU_LOT = (
     "services/restauration/source_commande.py",
 )
 
-# Un catalogue de secours n'est lu que par le repli (le texte que le code dit quand le modèle se tait deux fois sur un refus, jamais donné au modèle) : ses phrases sont permises.
-# Il s'exempte par son nom, jamais par une liste de phrases : ranger une phrase au catalogue ailleurs ne la rend pas permise (I-7).
-CATALOGUES_DE_SECOURS = (
-    "db/bases_clients/textes_de_secours_commande.py", "services/commande/phrases_du_manque.py", "services/commande/textes_de_secours.py",
-    "services/reservation/phrases_du_manque.py", "services/reservation/textes_de_secours.py", "services/restauration/carte_et_allergenes/textes_de_secours.py",
-)
-NOM_D_UN_CATALOGUE_DE_SECOURS = re.compile(r"(?:^|/)(?:textes_de_secours[^/]*|phrases_du_manque)\.py$")
+# C7 B9 : les catalogues de secours (``textes_de_secours*.py``) sont supprimés ; restent les deux ``phrases_du_manque.py``, qui ne gardent que la valeur fermée de ce qui manque
+# (``Manque``, lue par la relance du modèle, jamais une phrase dite). Ils s'exemptent par leur nom, jamais par une liste de phrases : ranger une phrase ailleurs ne la rend pas
+# permise (I-7).
+CATALOGUES_DU_MANQUE = ("services/commande/phrases_du_manque.py", "services/reservation/phrases_du_manque.py")
+NOM_D_UN_CATALOGUE_DU_MANQUE = re.compile(r"(?:^|/)phrases_du_manque\.py$")
+NOM_D_UN_CATALOGUE_DE_SECOURS = re.compile(r"(?:^|/)textes_de_secours[^/]*\.py$")  # C7 B9 : plus aucun
 
 # Textes écrits pour l'équipe du restaurant (ticket, SMS au gérant), jamais dits à la personne au téléphone : un morceau passé à l'un de ces envois est permis (liste blanche,
 # chaque envoi nommé). Un envoi à l'équipe de plus entre ici avec sa raison, jamais par une phrase écrite autrement.
@@ -114,8 +113,8 @@ def _ne_se_dit_pas(noeud: ast.AST, parents: dict[int, ast.AST]) -> bool:
 
 
 def phrases_du_fichier(chemin: str) -> list[tuple[int, str]]:
-    """Les phrases dites au client écrites dans le fichier (voir la tête du module) ; un catalogue de secours n'en a aucune qui compte."""
-    if NOM_D_UN_CATALOGUE_DE_SECOURS.search(chemin):
+    """Les phrases dites au client écrites dans le fichier (voir la tête du module) ; un catalogue du manque (valeurs fermées) n'en a aucune qui compte."""
+    if NOM_D_UN_CATALOGUE_DU_MANQUE.search(chemin):
         return []
     arbre = ast.parse((I.RACINE_API / chemin).read_text(encoding="utf-8"))
     parents = {id(enfant): noeud for noeud in ast.walk(arbre) for enfant in ast.iter_child_nodes(noeud)}
@@ -171,12 +170,13 @@ def test_le_detecteur_voit_les_phrases_courtes_et_les_morceaux_en_minuscule_et_i
     ]
 
 
-def test_un_catalogue_de_secours_est_exempte_par_son_nom_et_les_deux_connus_existent(tmp_path, monkeypatch):
-    """Ce qui est exempté, c'est le fichier nommé ``textes_de_secours*.py`` ou ``phrases_du_manque.py`` (lu par le repli seul), jamais une phrase rangée ailleurs."""
-    for chemin in CATALOGUES_DE_SECOURS:
+def test_un_catalogue_du_manque_est_exempte_par_son_nom_et_aucun_catalogue_de_secours_ne_reste(tmp_path, monkeypatch):
+    """Ce qui est exempté, c'est le fichier nommé ``phrases_du_manque.py`` (valeurs fermées), jamais une phrase rangée ailleurs ; C7 B9 : plus aucun ``textes_de_secours*.py``."""
+    for chemin in CATALOGUES_DU_MANQUE:
         assert (I.RACINE_API / chemin).exists() and phrases_du_fichier(chemin) == [], chemin
-    trouves = sorted(str(f.relative_to(I.RACINE_API)).replace("\\", "/") for dossier in ("services", "db") for f in (I.RACINE_API / dossier).rglob("*.py") if NOM_D_UN_CATALOGUE_DE_SECOURS.search(f.name))
-    assert trouves == sorted(CATALOGUES_DE_SECOURS), "un nouveau catalogue de secours s'ajoute ici, avec sa raison"
+    fichiers = [str(f.relative_to(I.RACINE_API)).replace("\\", "/") for dossier in ("services", "db") for f in (I.RACINE_API / dossier).rglob("*.py")]
+    assert sorted(f for f in fichiers if NOM_D_UN_CATALOGUE_DU_MANQUE.search(f)) == sorted(CATALOGUES_DU_MANQUE), "un nouveau catalogue du manque s'ajoute ici, avec sa raison"
+    assert not [f for f in fichiers if NOM_D_UN_CATALOGUE_DE_SECOURS.search(f)], "C7 B9 : les catalogues de secours sont supprimés"
     monkeypatch.setattr(I, "RACINE_API", tmp_path)
     (tmp_path / "phrases_rangees.py").write_text('P = "Nous ne livrons pas à cette adresse."', encoding="utf-8")
     assert phrases_du_fichier("phrases_rangees.py") != [], "ranger une phrase dans un fichier de n'importe quel nom ne l'exempte pas"

@@ -4,8 +4,8 @@ Evan, 25/11 : « ce n'est pas juste une suppression ». Un texte de secours est 
 distingue le refus, puis chaque valeur) existe dans ce que le modèle reçoit (``aides_signal.signal``) : un cas par texte des fichiers de C7a. Une valeur manquante est un
 xfail strict (``raises=AssertionError``) qui passe au vert dans le commit du fait (F1, F2, F7, F8, F9). La comparaison est sur une valeur entière, jamais une sous-chaîne.
 
-``valeurs`` : ``(forme dans le signal, forme dans le texte)``, ou une fonction du retour qui les rend. ``test_la_table_est_fidele_au_texte`` prouve que la table dit bien ce
-que disait le texte (elle sort avec les textes).
+``valeurs`` : ``(forme dans le signal, forme dans le texte d'avant)``, ou une fonction du retour qui les rend. B9 : les catalogues sont supprimés (la table fidèle au texte
+sort avec eux) ; la forme d'avant reste comme mémoire, le test lit le signal.
 """
 
 from __future__ import annotations
@@ -17,16 +17,14 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from api.db.bases_clients import restauration_zone as Z
-from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes.forme import norm
-from api.services.commande import moteur, panier as P, textes_de_secours as TS
+from api.services.commande import moteur, panier as P
 from api.services.commande.briques import formule as FO
 from api.services.commande.moteur import articles, changement
 from api.services.commande.moteur.socle import Appelant, Reglages
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as A_
-from api.services.restauration.carte_et_allergenes import textes_de_secours as TSA
 from api.services.restauration.carte_et_allergenes import voir_un_article as V_
 from api.services.restauration.source_commande import resolution_du_jour_et_de_l_heure
 from api.tests.mark import test_base_client as _BASE
@@ -36,7 +34,7 @@ from api.tests.mark import test_restauration_zones as ZONES
 from api.tests.mark.commande_sur_la_fiche import article as ART
 from api.tests.mark.partie_1.aides_briques import brique
 from api.tests.mark.partie_1.aides_signal import (
-    Carte, Cas, SourceAllergie, article_de_carte, controler, etape_de_boissons, feuilles, fiche, fidele, formule_du_menu, jouer, option, pareilles, parametres, signal,
+    Carte, Cas, SourceAllergie, article_de_carte, controler, etape_de_boissons, feuilles, fiche, formule_du_menu, jouer, option, pareilles, parametres, signal,
 )
 from api.tests.mark import test_commande_kebab_sa52 as _KEBAB
 
@@ -262,42 +260,42 @@ async def _tout_retirer(appel, mp):
 
 
 CAS_DE_LA_COMMANDE: list[Cas] = [
-    Cas("question_d_un_choix", TS.question_d_un_choix, lambda a, m: a.ajouter("regina"), "F", pareilles("Normale", "Mega"), "CHOIX_OBLIGATOIRE"),
-    Cas("article_introuvable", TS.article_introuvable, lambda a, m: a.ajouter(ART("pizza au homard", 1, "Normale")), "F", pareilles("pizza au homard"), "INTROUVABLE"),
-    Cas("article_introuvable_avec_proches", TS.article_introuvable, lambda a, m: a.ajouter(ART("quatre fromagez", 1, "Normale")), "F",
+    Cas("question_d_un_choix", lambda a, m: a.ajouter("regina"), "F", pareilles("Normale", "Mega"), "CHOIX_OBLIGATOIRE"),
+    Cas("article_introuvable", lambda a, m: a.ajouter(ART("pizza au homard", 1, "Normale")), "F", pareilles("pizza au homard"), "INTROUVABLE"),
+    Cas("article_introuvable_avec_proches", lambda a, m: a.ajouter(ART("quatre fromagez", 1, "Normale")), "F",
         lambda r: pareilles("quatre fromagez", *_noms(r.faits["plus_proches"])), "INTROUVABLE"),
-    Cas("ne_se_prend_pas_avec_des_choix", TS.ne_se_prend_pas_avec_des_choix, lambda a, m: a.ajouter(ART("tiramisu", moities=["regina", "margherita"])), "F", [], "aucun_choix"),
-    Cas("vous_voulez_dire_une_option", TS.vous_voulez_dire, lambda a, m: a.ajouter(ART("margherita", 1, "Normale", supplements=["jambon cru"])), "F",
+    Cas("ne_se_prend_pas_avec_des_choix", lambda a, m: a.ajouter(ART("tiramisu", moities=["regina", "margherita"])), "F", [], "aucun_choix"),
+    Cas("vous_voulez_dire_une_option", lambda a, m: a.ajouter(ART("margherita", 1, "Normale", supplements=["jambon cru"])), "F",
         lambda r: pareilles(*_noms(r.faits["candidats"])), "AMBIGU"),
-    Cas("option_hors_carte_avec_proche", TS.option_hors_carte, lambda a, m: a.ajouter(ART("margherita", 1, "Normale", supplements=["mozza"])), "F",
+    Cas("option_hors_carte_avec_proche", lambda a, m: a.ajouter(ART("margherita", 1, "Normale", supplements=["mozza"])), "F",
         lambda r: pareilles(*_noms(r.faits["plus_proches"])), "HORS_CARTE"),
-    Cas("option_hors_carte_sans_proche", TS.option_hors_carte, lambda a, m: a.ajouter(ART("margherita", 1, "Normale", supplements=["viande"])), "F",
+    Cas("option_hors_carte_sans_proche", lambda a, m: a.ajouter(ART("margherita", 1, "Normale", supplements=["viande"])), "F",
         lambda r: pareilles(*_noms(r.faits["choix_possibles"])), "HORS_CARTE"),
-    Cas("quel_rangement", TS.quel_rangement, lambda a, m: a.ajouter(ART("pizzas", 1)), "F", lambda r: pareilles(*_noms(r.faits["rangements"])), "articles"),
-    Cas("pas_servi_maintenant", TS.pas_servi_maintenant, _pas_servi, "F", pareilles("margherita"), "pas_servi_maintenant"),
-    Cas("beaucoup_combien_exactement", TS.beaucoup_combien_exactement, lambda a, m: a.ajouter(ART("margherita", 99999, "Normale")), "F", [("99999", "99999")], "quantite"),
-    Cas("taille_en_rupture", TS.taille_en_rupture, _en_rupture, "F", pareilles("Normale"), "RUPTURE"),
-    Cas("plus_au_catalogue", TS.plus_au_catalogue, _plus_au_catalogue, "F", [], "INTROUVABLE"),
-    Cas("commande_vide", TS.commande_vide, lambda a, m: a.modifier(ligne="1", quantite=2), "F", [], "panier_vide"),
-    Cas("pas_de_ligne", TS.pas_de_ligne, _ligne_9, "F", [("9", "9")], "INTROUVABLE"),
-    Cas("quelle_ligne", TS.quelle_ligne, _quelle_ligne, "F", [], "ligne"),
-    Cas("pas_dans_la_commande", TS.pas_dans_la_commande, _pas_dans_la_commande, "F", pareilles("xylophone"), "INTROUVABLE"),
-    Cas("combien_exactement", TS.combien_exactement, _quantite_invalide, "F", [], "quantite"),
-    Cas("que_change_t_on", TS.que_change_t_on, _rien_a_changer, "F", [], "modification"),
-    Cas("commande_vide_a_lire", TS.commande_vide_a_lire, lambda a, m: a.voir(), "L", [], "vide"),
-    Cas("la_commande_se_lit", lambda f: TS.la_commande_se_lit({**f, "lignes_dites": "un Coca-Cola"}), _commande_lue, "L", [("200", "deux euros"), ("Coca-Cola", "Coca-Cola")],
+    Cas("quel_rangement", lambda a, m: a.ajouter(ART("pizzas", 1)), "F", lambda r: pareilles(*_noms(r.faits["rangements"])), "articles"),
+    Cas("pas_servi_maintenant", _pas_servi, "F", pareilles("margherita"), "pas_servi_maintenant"),
+    Cas("beaucoup_combien_exactement", lambda a, m: a.ajouter(ART("margherita", 99999, "Normale")), "F", [("99999", "99999")], "quantite"),
+    Cas("taille_en_rupture", _en_rupture, "F", pareilles("Normale"), "RUPTURE"),
+    Cas("plus_au_catalogue", _plus_au_catalogue, "F", [], "INTROUVABLE"),
+    Cas("commande_vide", lambda a, m: a.modifier(ligne="1", quantite=2), "F", [], "panier_vide"),
+    Cas("pas_de_ligne", _ligne_9, "F", [("9", "9")], "INTROUVABLE"),
+    Cas("quelle_ligne", _quelle_ligne, "F", [], "ligne"),
+    Cas("pas_dans_la_commande", _pas_dans_la_commande, "F", pareilles("xylophone"), "INTROUVABLE"),
+    Cas("combien_exactement", _quantite_invalide, "F", [], "quantite"),
+    Cas("que_change_t_on", _rien_a_changer, "F", [], "modification"),
+    Cas("commande_vide_a_lire", lambda a, m: a.voir(), "L", [], "vide"),
+    Cas("la_commande_se_lit", _commande_lue, "L", [("200", "deux euros"), ("Coca-Cola", "Coca-Cola")],
         "OK"),
-    Cas("pas_d_offre", TS.pas_d_offre, _pas_d_offre, "L", [], "aucune"),
-    Cas("offres_en_ce_moment", TS.offres_en_ce_moment, _offres_en_cours, "L", pareilles("Dix pour cent", "Boisson offerte"), "OK"),
-    Cas("offre_atteinte", TS.offre_atteinte, _offre_atteinte, "L", pareilles("Burger offert", "Cheese", "Bacon"), "offre_atteinte"),
-    Cas("offre_presque_atteinte", TS.offre_presque_atteinte, _offre_presque, "L", [("Dessert offert", "Dessert offert"), ("1", "un")], "offre_presque_atteinte"),
-    Cas("seuil_presque_atteint", TS.seuil_presque_atteint, _seuil, "L", [("Frites offertes", "Frites offertes"), ("50", "cinquante centimes")], "seuil_presque_atteint"),
-    Cas("pas_de_commande_en_ce_moment", TS.pas_de_commande_en_ce_moment, _fermeture, "F", [], "ferme"),
-    Cas("ce_sera_pret", TS.ce_sera_pret, _heure_annoncee, "L", pareilles("à vingt heures"), "OK"),
-    Cas("commande_pour", TS.commande_pour, _commande_pour, "F", pareilles("demain à dix-neuf heures"), "FERME_PLANIFIABLE"),
-    Cas("preparer_pour_l_ouverture", TS.preparer_pour_l_ouverture, _proposition_d_ouverture, "F", pareilles("dix-huit heures"), "heure_proposee"),
-    Cas("quel_jour_et_quelle_heure", TS.quel_jour_et_quelle_heure, _quel_jour_et_quelle_heure, "F", [], "a_planifier"),
-    Cas("tout_retirer_c_est_annuler", TS.tout_retirer_c_est_annuler, _tout_retirer, "F", [], "changement_incomplet"),
+    Cas("pas_d_offre", _pas_d_offre, "L", [], "aucune"),
+    Cas("offres_en_ce_moment", _offres_en_cours, "L", pareilles("Dix pour cent", "Boisson offerte"), "OK"),
+    Cas("offre_atteinte", _offre_atteinte, "L", pareilles("Burger offert", "Cheese", "Bacon"), "offre_atteinte"),
+    Cas("offre_presque_atteinte", _offre_presque, "L", [("Dessert offert", "Dessert offert"), ("1", "un")], "offre_presque_atteinte"),
+    Cas("seuil_presque_atteint", _seuil, "L", [("Frites offertes", "Frites offertes"), ("50", "cinquante centimes")], "seuil_presque_atteint"),
+    Cas("pas_de_commande_en_ce_moment", _fermeture, "F", [], "ferme"),
+    Cas("ce_sera_pret", _heure_annoncee, "L", pareilles("à vingt heures"), "OK"),
+    Cas("commande_pour", _commande_pour, "F", pareilles("demain à dix-neuf heures"), "FERME_PLANIFIABLE"),
+    Cas("preparer_pour_l_ouverture", _proposition_d_ouverture, "F", pareilles("dix-huit heures"), "heure_proposee"),
+    Cas("quel_jour_et_quelle_heure", _quel_jour_et_quelle_heure, "F", [], "a_planifier"),
+    Cas("tout_retirer_c_est_annuler", _tout_retirer, "F", [], "changement_incomplet"),
 ]
 
 async def _plusieurs_etapes(essai_de):
@@ -315,8 +313,8 @@ async def _hors_sous_ensemble(essai_de):
 
 
 CAS_DE_L_ESSAI: list[Cas] = [
-    Cas("pour_quelle_etape", TS.pour_quelle_etape, _plusieurs_etapes, "F", pareilles("Entrée", "Entrée 2"), "etape"),
-    Cas("pas_dans_la_formule", TS.pas_dans_la_formule, _hors_sous_ensemble, "F", pareilles("tiramisu", "Formule complète"), "hors_sous_ensemble"),
+    Cas("pour_quelle_etape", _plusieurs_etapes, "F", pareilles("Entrée", "Entrée 2"), "etape"),
+    Cas("pas_dans_la_formule", _hors_sous_ensemble, "F", pareilles("tiramisu", "Formule complète"), "hors_sous_ensemble"),
 ]
 
 
@@ -328,45 +326,42 @@ async def _regime_du_catalogue():
 
 
 CAS_PURS: list[Cas] = [
-    Cas("n_est_plus_disponible", TS.n_est_plus_disponible, lambda: articles._choisir({"choix": []}, (), _groupe(2, 2), {**MAYO, "rupture": True}, 1), "F", pareilles("Mayonnaise"), "RUPTURE"),
-    Cas("maximum_atteint", TS.maximum_atteint,
-        lambda: articles._choisir({"choix": [{"option_code": "A", "nom": "Ketchup", "quantite": 1, "choix": []}]}, (), _groupe(1, 3), MAYO, 1), "F",
+    Cas("n_est_plus_disponible", lambda: articles._choisir({"choix": []}, (), _groupe(2, 2), {**MAYO, "rupture": True}, 1), "F", pareilles("Mayonnaise"), "RUPTURE"),
+    Cas("maximum_atteint", lambda: articles._choisir({"choix": [{"option_code": "A", "nom": "Ketchup", "quantite": 1, "choix": []}]}, (), _groupe(1, 3), MAYO, 1), "F",
         [("Sauces", "Sauces"), ("Mayonnaise", "Mayonnaise"), ("1", "un")], "MAXIMUM_ATTEINT"),
-    Cas("sur_quelle_moitie", TS.sur_quelle_moitie, lambda: articles._noter_un_retrait_par_moitie({}, "olives", ["Reine", "Reine", "4 fromages"]), "F",
+    Cas("sur_quelle_moitie", lambda: articles._noter_un_retrait_par_moitie({}, "olives", ["Reine", "Reine", "4 fromages"]), "F",
         pareilles("olives", "Reine", "4 fromages"), "AMBIGU"),
-    Cas("quoi_retirer", TS.quoi_retirer, lambda: articles._noter_un_retrait_par_moitie({}, "sur la Reine", ["Reine", "4 fromages"]), "F", [], "retrait_sans_ingredient"),
-    Cas("vous_voulez_retirer", TS.vous_voulez_retirer,
-        lambda: articles._appliquer_les_retraits({"retirables": ["Olives noires", "Olives vertes", "Oignons"], "declinaisons": [], "groupes": []}, {"nom": "Reine", "retires": [], "choix": []}, "olives"),
+    Cas("quoi_retirer", lambda: articles._noter_un_retrait_par_moitie({}, "sur la Reine", ["Reine", "4 fromages"]), "F", [], "retrait_sans_ingredient"),
+    Cas("vous_voulez_retirer", lambda: articles._appliquer_les_retraits({"retirables": ["Olives noires", "Olives vertes", "Oignons"], "declinaisons": [], "groupes": []}, {"nom": "Reine", "retires": [], "choix": []}, "olives"),
         "F", pareilles("Olives noires", "Olives vertes"), "AMBIGU"),
-    Cas("ne_se_retire_pas", TS.ne_se_retire_pas,
-        lambda: articles._appliquer_les_retraits({"declinaisons": [], "groupes": [], "retirables": ["Oignons", "Olives"], "ingredients": ["Tomate", "Oignons", "Olives"]},
+    Cas("ne_se_retire_pas", lambda: articles._appliquer_les_retraits({"declinaisons": [], "groupes": [], "retirables": ["Oignons", "Olives"], "ingredients": ["Tomate", "Oignons", "Olives"]},
                                                  {"nom": "Reine", "retires": [], "choix": []}, "tomate"), "F", pareilles("tomate", "Reine", "Oignons", "Olives"), "HORS_CARTE"),
-    Cas("notes_non_acceptees", TS.notes_non_acceptees, lambda: articles._noter({}, "sans stress", Reglages(notes_libres=False)), "F", [], "notes_non_acceptees"),
-    Cas("notes_refusees_a_la_commande", TS.notes_non_acceptees, lambda: articles.noter_la_commande(P.nouveau(), Reglages(notes_libres=False), "pour Léa"), "F", [], "notes_non_acceptees"),
-    Cas("melange_refuse", TS.melange_refuse, _melange, "F", [("3", "trois"), ("Coca Canette", "Coca Canette"), ("Fanta", "Fanta"), ("1", "un"), ("Coca Bouteille", "Coca Bouteille")],
+    Cas("notes_non_acceptees", lambda: articles._noter({}, "sans stress", Reglages(notes_libres=False)), "F", [], "notes_non_acceptees"),
+    Cas("notes_refusees_a_la_commande", lambda: articles.noter_la_commande(P.nouveau(), Reglages(notes_libres=False), "pour Léa"), "F", [], "notes_non_acceptees"),
+    Cas("melange_refuse", _melange, "F", [("3", "trois"), ("Coca Canette", "Coca Canette"), ("Fanta", "Fanta"), ("1", "un"), ("Coca Bouteille", "Coca Bouteille")],
         "alternatives_melangees"),
-    Cas("valeur_parmi_les_choix", TS.valeur_parmi_les_choix, _valeur_sans_la_taille, "F", pareilles("Coca Bouteille"), "choix_sans_la_taille"),
-    Cas("sur_lequel", TS.sur_lequel, _retrait_sur_deux_plats, "F", pareilles("Pizza", "Pâtes"), "AMBIGU"),
-    Cas("code_inconnu", TS.code_inconnu, lambda: _un_code("FAUX"), "F", [], "code_inconnu"),
-    Cas("code_de_remise_bon", TS.code_de_remise_bon, lambda: _un_code("BIENVENUE"), "F", [("BIENVENUE", "BIENVENUE"), ("Bienvenue 10 %", "Bienvenue dix pour cent")], "OK"),
-    Cas("regime_d_un_article", TSA.regime_d_un_article, lambda: A_._regime_dit(SourceAllergie(), {"nom": "Burger", "regimes": ["halal"]}, "halal", {"halal_restaurant": False}), "L",
+    Cas("valeur_parmi_les_choix", _valeur_sans_la_taille, "F", pareilles("Coca Bouteille"), "choix_sans_la_taille"),
+    Cas("sur_lequel", _retrait_sur_deux_plats, "F", pareilles("Pizza", "Pâtes"), "AMBIGU"),
+    Cas("code_inconnu", lambda: _un_code("FAUX"), "F", [], "code_inconnu"),
+    Cas("code_de_remise_bon", lambda: _un_code("BIENVENUE"), "F", [("BIENVENUE", "BIENVENUE"), ("Bienvenue 10 %", "Bienvenue dix pour cent")], "OK"),
+    Cas("regime_d_un_article", lambda: A_._regime_dit(SourceAllergie(), {"nom": "Burger", "regimes": ["halal"]}, "halal", {"halal_restaurant": False}), "L",
         pareilles("Burger", "halal"), "etiquete"),
-    Cas("regime_du_restaurant", TSA.regime_d_un_article, lambda: A_._regime_dit(SourceAllergie(), {"nom": "Burger", "regimes": []}, "halal", {"halal_restaurant": True}), "L",
+    Cas("regime_du_restaurant", lambda: A_._regime_dit(SourceAllergie(), {"nom": "Burger", "regimes": []}, "halal", {"halal_restaurant": True}), "L",
         pareilles("halal"), "restaurant"),
-    Cas("regime_du_catalogue", TSA.regime_du_catalogue, _regime_du_catalogue, "L",
+    Cas("regime_du_catalogue", _regime_du_catalogue, "L",
         [("Margherita", "Margherita"), ("Veggie", "Veggie"), ("autres_a_confirmer", "Pour les autres")], "renseigne",
         ),
 ]
 
 CAS_DE_LA_SOURCE: list[Cas] = [
-    Cas("quel_jour", TSC.quel_jour, lambda: resolution_du_jour_et_de_l_heure("bientôt", None, MATIN), "F", [], "jour"),
-    Cas("heure_passee_sans_jour", TSC.heure_passee_sans_jour, lambda: resolution_du_jour_et_de_l_heure("dix-neuf heures", "dix-neuf heures", SOIR), "F", pareilles("dix-neuf heures"),
+    Cas("quel_jour", lambda: resolution_du_jour_et_de_l_heure("bientôt", None, MATIN), "F", [], "jour"),
+    Cas("heure_passee_sans_jour", lambda: resolution_du_jour_et_de_l_heure("dix-neuf heures", "dix-neuf heures", SOIR), "F", pareilles("dix-neuf heures"),
         "heure_passee_aujourd_hui"),
-    Cas("heure_ambigue", TSC.heure_ambigue, lambda: resolution_du_jour_et_de_l_heure("demain", "sept heures", MATIN), "F", lambda r: pareilles(*r.faits["candidats_heure"]), "heure"),
-    Cas("jour_ambigu", TSC.jour_ambigu, lambda: resolution_du_jour_et_de_l_heure("le 17", None, MATIN), "F", lambda r: pareilles(*[c["jour_dit"] for c in r.faits["candidats"]]), "jour"),
-    Cas("quelle_heure_ce_jour", TSC.quelle_heure_ce_jour, lambda: resolution_du_jour_et_de_l_heure("demain", None, MATIN), "F", pareilles("mercredi dix-huit novembre"), "heure"),
-    Cas("quelle_heure_exactement", TSC.quelle_heure_exactement, lambda: resolution_du_jour_et_de_l_heure("demain", "bientôt", MATIN), "F", [], "heure"),
-    Cas("heure_passee", TSC.heure_passee, lambda: resolution_du_jour_et_de_l_heure("aujourd'hui", "neuf heures du matin", MATIN), "F", [], "heure"),
+    Cas("heure_ambigue", lambda: resolution_du_jour_et_de_l_heure("demain", "sept heures", MATIN), "F", lambda r: pareilles(*r.faits["candidats_heure"]), "heure"),
+    Cas("jour_ambigu", lambda: resolution_du_jour_et_de_l_heure("le 17", None, MATIN), "F", lambda r: pareilles(*[c["jour_dit"] for c in r.faits["candidats"]]), "jour"),
+    Cas("quelle_heure_ce_jour", lambda: resolution_du_jour_et_de_l_heure("demain", None, MATIN), "F", pareilles("mercredi dix-huit novembre"), "heure"),
+    Cas("quelle_heure_exactement", lambda: resolution_du_jour_et_de_l_heure("demain", "bientôt", MATIN), "F", [], "heure"),
+    Cas("heure_passee", lambda: resolution_du_jour_et_de_l_heure("aujourd'hui", "neuf heures du matin", MATIN), "F", [], "heure"),
 ]
 
 
@@ -381,10 +376,10 @@ async def _senlis(commerce):
 
 
 CAS_DE_LA_ZONE: list[Cas] = [
-    Cas("hors_zone", TSC.hors_zone, lambda c: Z.verifier_adresse(c.c, c.a, "7 rue Victor Hugo, Compiègne"), "F", lambda r: pareilles("Compiègne", *r.faits["communes_livrees"]), "HORS_ZONE"),
-    Cas("adresse_non_comprise", TSC.adresse_non_comprise, lambda c: Z.verifier_adresse(c.c, c.a, "  "), "F", [], "adresse"),
-    Cas("quelle_commune", TSC.quelle_commune, lambda c: Z.verifier_adresse(c.c, c.a, "rue de Paris"), "F", [], "commune"),
-    Cas("commune_ambigue", TSC.commune_ambigue, lambda c: Z.verifier_adresse(c.c, c.a, "5 rue de la Mairie, Saint-Just"), "F",
+    Cas("hors_zone", lambda c: Z.verifier_adresse(c.c, c.a, "7 rue Victor Hugo, Compiègne"), "F", lambda r: pareilles("Compiègne", *r.faits["communes_livrees"]), "HORS_ZONE"),
+    Cas("adresse_non_comprise", lambda c: Z.verifier_adresse(c.c, c.a, "  "), "F", [], "adresse"),
+    Cas("quelle_commune", lambda c: Z.verifier_adresse(c.c, c.a, "rue de Paris"), "F", [], "commune"),
+    Cas("commune_ambigue", lambda c: Z.verifier_adresse(c.c, c.a, "5 rue de la Mairie, Saint-Just"), "F",
         lambda r: pareilles(*{c["nom"] for c in r.faits["candidats"]}, *{c["departement"] for c in r.faits["candidats"]}), "commune",
         ),
 ]
@@ -398,7 +393,7 @@ async def _minimum_de_l_adresse(kebab_):
 
 
 CAS_DU_KEBAB: list[Cas] = [
-    Cas("minimum_de_l_adresse", TS.minimum_de_l_adresse, _minimum_de_l_adresse, "F", [("quinze euros", "quinze euros")], "RETENU",
+    Cas("minimum_de_l_adresse", _minimum_de_l_adresse, "F", [("quinze euros", "quinze euros")], "RETENU",
         ),
 ]
 
@@ -412,16 +407,16 @@ def _allergie(*, signalements, option_=None, mot="lait", options=None):
 
 
 CAS_DE_L_ALLERGIE: list[Cas] = [
-    Cas("present", TSA.signalement_dit, _allergie(signalements=["lait"]), "L", [("du lait", "du lait")], "present"),
-    Cas("absent_de_la_fiche", TSA.signalement_dit, _allergie(signalements=["gluten"]), "L", [("du lait", "du lait")], "absent_de_la_fiche"),
-    Cas("hors_liste", TSA.signalement_dit, _allergie(signalements=["lait"], mot="kiwi"), "L", [], "hors_liste"),
-    Cas("sans_fiche", TSA.signalement_dit, _allergie(signalements=None), "L", [], "sans_fiche"),
-    Cas("inconnu_selon_le_choix", TSA.signalement_dit, _allergie(signalements=[], options=[option("sauce maison", None)]), "L", [("options_a_confirmer", "Ça dépend du choix")], "inconnu",
+    Cas("present", _allergie(signalements=["lait"]), "L", [("du lait", "du lait")], "present"),
+    Cas("absent_de_la_fiche", _allergie(signalements=["gluten"]), "L", [("du lait", "du lait")], "absent_de_la_fiche"),
+    Cas("hors_liste", _allergie(signalements=["lait"], mot="kiwi"), "L", [], "hors_liste"),
+    Cas("sans_fiche", _allergie(signalements=None), "L", [], "sans_fiche"),
+    Cas("inconnu_selon_le_choix", _allergie(signalements=[], options=[option("sauce maison", None)]), "L", [("options_a_confirmer", "Ça dépend du choix")], "inconnu",
         ),
-    Cas("selon_option", TSA.signalement_dit, _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce maison", None)]), "L",
+    Cas("selon_option", _allergie(signalements=[], options=[option("sauce blanche", ["lait"]), option("sauce maison", None)]), "L",
         [("sauce blanche", "sauce blanche"), ("autres_a_confirmer", "Pour les autres")], "selon_option"),
-    Cas("liste_des_allergenes", TSA.signalement_dit, _allergie(signalements=["lait", "gluten"], mot="allergènes"), "L", [("du lait", "du lait"), ("du gluten", "du gluten")], "liste"),
-    Cas("plusieurs_allergenes", TSA.signalement_dit, _allergie(signalements=["lait"], mot="lait et kiwi"), "L", [("mot_inconnu", "Pour le reste de ce que vous citez")],
+    Cas("liste_des_allergenes", _allergie(signalements=["lait", "gluten"], mot="allergènes"), "L", [("du lait", "du lait"), ("du gluten", "du gluten")], "liste"),
+    Cas("plusieurs_allergenes", _allergie(signalements=["lait"], mot="lait et kiwi"), "L", [("mot_inconnu", "Pour le reste de ce que vous citez")],
         "a_confirmer_par_l_equipe"),
 ]
 
@@ -472,26 +467,6 @@ async def test_le_signal_porte_ce_que_le_secours_d_une_allergie_disait(cas, monk
 
 
 # Commit 0 seulement, retiré avec les textes : la table dit bien ce que disait le texte (les cas sans base ni moteur lourd).
-@pytest.mark.parametrize("cas", CAS_PURS, ids=lambda c: c.nom)
-async def test_la_table_pure_est_fidele_au_texte(cas):
-    fidele(cas, await jouer(cas.scenario))
-
-
-@pytest.mark.parametrize("cas", CAS_DE_L_ALLERGIE, ids=lambda c: c.nom)
-async def test_la_table_de_l_allergie_est_fidele_au_texte(cas, monkeypatch):
-    fidele(cas, await jouer(cas.scenario, monkeypatch))
-
-
-@pytest.mark.parametrize("cas", CAS_DE_LA_SOURCE, ids=lambda c: c.nom)
-def test_la_table_de_la_source_est_fidele_au_texte(cas):
-    fidele(cas, cas.scenario())
-
-
-@pytest.mark.parametrize("cas", CAS_DE_LA_COMMANDE, ids=lambda c: c.nom)
-async def test_la_table_de_la_commande_est_fidele_au_texte(cas, appel, monkeypatch):
-    fidele(cas, await jouer(cas.scenario, appel, monkeypatch))
-
-
 # ── R1 : « l'équipe pourra le confirmer » (la fin de INFO.NON_GARANTI) est un fait, pas seulement le statut `inconnu` ───────────────────
 
 def _inconnu_avec_option():
@@ -545,11 +520,6 @@ class CarteQuiRenvoie(Carte):
         return {"allergies_renvoyees_au_restaurant": True}
 
 
-def _en_etat(statut: str, texte: Callable[[dict], str] = TSC.fermeture):
-    """La fermeture d'avant se refait de ``statut``, ``reprise_dite`` et ``planifiee_permise`` : le statut est celui du retour, pas un fait."""
-    return lambda faits: texte({"statut": statut, **(faits["modes"][0] if "modes" in faits else faits)})  # la lecture de l'ouverture range l'état sous ``modes``
-
-
 def _pause(appel, mp):
     mp.setattr(appel.source, "etat", _etat_ferme(statut="PAUSE_TYPE", raison="pause_type", en_pause=True))
     return moteur.etat_ouverture(appel.source, appel.p, appel.regles, "emporter")
@@ -566,10 +536,10 @@ async def _fermee_et_planifiable(appel, mp):
 
 
 CAS_DE_LA_FERMETURE: list[Cas] = [
-    Cas("fermeture_planifiable", _en_etat("FERME"), _fermee_et_planifiable, "F",
+    Cas("fermeture_planifiable", _fermee_et_planifiable, "F",
         [("dix-sept heures", "dix-sept heures"), ("planifiee_permise", "Je peux prendre votre commande pour plus tard")], "FERME_PLANIFIABLE"),
-    Cas("fermeture_en_pause", _en_etat("PAUSE_TYPE"), _pause, "L", [("dix-huit heures", "dix-huit heures")], "PAUSE_TYPE"),
-    Cas("fermeture_livraison_terminee", _en_etat("LIVRAISON_TERMINEE"), _livraison_terminee, "L", [], "LIVRAISON_TERMINEE"),
+    Cas("fermeture_en_pause", _pause, "L", [("dix-huit heures", "dix-huit heures")], "PAUSE_TYPE"),
+    Cas("fermeture_livraison_terminee", _livraison_terminee, "L", [], "LIVRAISON_TERMINEE"),
 ]
 
 
@@ -597,8 +567,8 @@ def _envoi_parti(mp):
 
 
 CAS_DE_L_ENVOI: list[Cas] = [
-    Cas("envoi_indisponible", TSC.envoi_indisponible, _envoi_eteint, "F", [], "INDISPONIBLE"),
-    Cas("envoye", TSC.envoye, _envoi_parti, "F", [("envoye", "envoye")], "envoye"),
+    Cas("envoi_indisponible", _envoi_eteint, "F", [], "INDISPONIBLE"),
+    Cas("envoye", _envoi_parti, "F", [("envoye", "envoye")], "envoye"),
 ]
 
 
@@ -613,31 +583,27 @@ def _par_ingredient(articles_de_la_carte, chose="thon", *, contient=True):
 _SELON = {**article_de_carte("Burger", []), "obligatoires": [[{"nom": "pain", "signalements": [{"code": "gluten"}]}, {"nom": "salade", "signalements": []}]]}
 
 CAS_DE_LA_RECHERCHE: list[Cas] = [
-    Cas("article_sans_une_chose", TSA.article_sans_une_chose,
-        _sans([article_de_carte("Reine", ["lait"]), article_de_carte("Margherita", ["gluten"]), article_de_carte("Veggie", [])]), "L",
+    Cas("article_sans_une_chose", _sans([article_de_carte("Reine", ["lait"]), article_de_carte("Margherita", ["gluten"]), article_de_carte("Veggie", [])]), "L",
         [("Margherita", "Margherita"), ("Veggie", "Veggie"), ("lait", "lait")], "OK"),
-    Cas("article_sans_une_chose_code_opaque", TSA.article_sans_une_chose,
-        lambda: V_._chercher_ce_qui_est_sans(Carte([article_de_carte("Reine", ["ING-12"]), article_de_carte("Veggie", [])], libelles={"ING-12": "le lait"}), {}, REGLES,
+    Cas("article_sans_une_chose_code_opaque", lambda: V_._chercher_ce_qui_est_sans(Carte([article_de_carte("Reine", ["ING-12"]), article_de_carte("Veggie", [])], libelles={"ING-12": "le lait"}), {}, REGLES,
                                              "pizzas sans lait", None), "L", [("Veggie", "Veggie"), ("lait", "lait")], "OK"),
-    Cas("article_sans_une_chose_selon_le_choix", TSA.article_sans_une_chose, _sans([article_de_carte("Reine", []), _SELON], "sans gluten"), "L",
+    Cas("article_sans_une_chose_selon_le_choix", _sans([article_de_carte("Reine", []), _SELON], "sans gluten"), "L",
         [("Reine", "Reine"), ("Burger", "Burger"), ("gluten", "gluten")], "OK"),
-    Cas("article_sans_une_chose_et_des_inconnus", TSA.article_sans_une_chose, _sans([article_de_carte("Reine", []), article_de_carte("Maison", None)], "pizzas sans gluten"), "L",
+    Cas("article_sans_une_chose_et_des_inconnus", _sans([article_de_carte("Reine", []), article_de_carte("Maison", None)], "pizzas sans gluten"), "L",
         [("Reine", "Reine"), ("1", INFO.POUR_LES_AUTRES_NON_GARANTI)], "OK"),
-    Cas("articles_par_ingredient", TSA.articles_par_ingredient,
-        _par_ingredient([article_de_carte("Reine", None, ["jambon"]), article_de_carte("Marine", None, ["thon"]), article_de_carte("Maison", None, None)]), "L",
+    Cas("articles_par_ingredient", _par_ingredient([article_de_carte("Reine", None, ["jambon"]), article_de_carte("Marine", None, ["thon"]), article_de_carte("Maison", None, None)]), "L",
         [("Marine", "Marine"), ("thon", "thon"), ("1", INFO.POUR_LES_AUTRES_NON_CONFIRMABLE)], "OK"),
-    Cas("articles_par_ingredient_sans_la_chose", TSA.articles_par_ingredient, _par_ingredient([article_de_carte("Reine", None, ["jambon"])], contient=False), "L",
+    Cas("articles_par_ingredient_sans_la_chose", _par_ingredient([article_de_carte("Reine", None, ["jambon"])], contient=False), "L",
         [("Reine", "Reine"), ("thon", "thon")], "OK"),
-    Cas("de_quel_article", TSA.de_quel_article, lambda: V_.voir_produit(Carte([article_de_carte("Reine", [])]), PANIER_VIDE, REGLES, ""), "F", [], "ARGUMENT_INVALIDE"),
-    Cas("article_introuvable_de_la_fiche", TSA.article_introuvable, lambda: V_.voir_produit(Carte([article_de_carte("Reine", [])], fiche=None), PANIER_VIDE, REGLES, "Reine"), "F",
+    Cas("de_quel_article", lambda: V_.voir_produit(Carte([article_de_carte("Reine", [])]), PANIER_VIDE, REGLES, ""), "F", [], "ARGUMENT_INVALIDE"),
+    Cas("article_introuvable_de_la_fiche", lambda: V_.voir_produit(Carte([article_de_carte("Reine", [])], fiche=None), PANIER_VIDE, REGLES, "Reine"), "F",
         [], "INTROUVABLE"),
-    Cas("l_equipe_le_confirme", TSA.l_equipe_le_confirme,
-        lambda: V_.voir_produit(CarteQuiRenvoie([article_de_carte("Reine", [])], fiche=fiche([])), PANIER_VIDE, REGLES, "Reine", "lait"), "F",
+    Cas("l_equipe_le_confirme", lambda: V_.voir_produit(CarteQuiRenvoie([article_de_carte("Reine", [])], fiche=fiche([])), PANIER_VIDE, REGLES, "Reine", "lait"), "F",
         [("equipe_confirme", "L'équipe vous le confirme")], "renvoye_au_restaurant"),
 ]
 
 CAS_DE_L_ALLERGIE_AVEC_OPTION: list[Cas] = [
-    Cas("inconnu_avec_option", TSA.signalement_dit, _allergie(signalements=[], option_=option("sauce maison", None)), "L", [("sauce maison", "sauce maison")], "inconnu"),
+    Cas("inconnu_avec_option", _allergie(signalements=[], option_=option("sauce maison", None)), "L", [("sauce maison", "sauce maison")], "inconnu"),
 ]
 
 
@@ -669,21 +635,3 @@ async def test_f1_voisin_une_commune_hors_zone_porte_son_departement(commerce):
 
 
 # Commit R2, retirés avec les textes (C7) : la table dit bien ce que disaient les textes.
-@pytest.mark.parametrize("cas", CAS_DE_LA_FERMETURE, ids=lambda c: c.nom)
-async def test_la_table_de_la_fermeture_est_fidele_au_texte(cas, appel, monkeypatch):
-    fidele(cas, await jouer(cas.scenario, appel, monkeypatch))
-
-
-@pytest.mark.parametrize("cas", CAS_DE_L_ENVOI, ids=lambda c: c.nom)
-async def test_la_table_de_l_envoi_est_fidele_au_texte(cas, monkeypatch):
-    fidele(cas, await jouer(cas.scenario, monkeypatch))
-
-
-@pytest.mark.parametrize("cas", CAS_DE_LA_RECHERCHE, ids=lambda c: c.nom)
-async def test_la_table_de_la_recherche_est_fidele_au_texte(cas):
-    fidele(cas, await jouer(cas.scenario))
-
-
-@pytest.mark.parametrize("cas", CAS_DE_L_ALLERGIE_AVEC_OPTION, ids=lambda c: c.nom)
-async def test_la_table_de_l_option_est_fidele_au_texte(cas, monkeypatch):
-    fidele(cas, await jouer(cas.scenario, monkeypatch))

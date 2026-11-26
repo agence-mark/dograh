@@ -727,7 +727,8 @@ class RepliqueVerifiee:
 
     async def _relancer_sans_lever(self, retenue, appel, tenus, usage, du_fait=False):
         """Ce que rend la réplique quand elle est retenue : relancée UNE fois, et si cette relance est retenue à son tour avec une consigne (le fait, C5), relancée UNE fois encore (``du_fait``, la
-        même méthode, appelée par elle-même : une seule façon de relancer, un seul ``except`` qui ne laisse jamais une erreur sortir à la place du service). ⛔ Ne lève jamais."""
+        même méthode, appelée par elle-même : une seule façon de relancer, un seul ``except`` qui ne laisse jamais une erreur sortir à la place du service). Chemin direct, sans requête : une retenue
+        qui porte son texte, ou n'a ni consigne ni outil (``_rien_a_relancer``, dont la retenue vide du silence en erreur sur la fiche, T1) va à ``_dire_sans_relancer``. ⛔ Ne lève jamais."""
         if retenue is not None:
             if self._rien_a_relancer(retenue):
                 async for morceau in self._dire_sans_relancer(retenue, appel, tenus, usage):

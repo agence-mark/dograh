@@ -217,7 +217,8 @@ async def test_jamais_la_zone_d_un_autre_etablissement(appel_de_test, commerce):
 async def test_la_date_et_l_heure_dites_donnent_l_instant_exact(appel_de_test):
     jouer = appel_de_test.jouer
     r = await jouer("resoudre_une_date", texte="demain", heure="19 h 30")
-    assert r["statut"] == "RETENU" and r["faits"]["heure_voulue"] == "2026-11-13T19:30:00+01:00" and r["suggestion"] == "vendredi treize novembre à dix-neuf heures trente."
+    assert r["statut"] == "RETENU" and r["faits"]["heure_voulue"] == "2026-11-13T19:30:00+01:00" and r["suggestion"] == ""  # C7 B5 (1dc0a175) : le texte vidé, ses mots sont les faits
+    assert (r["faits"]["jour_dit"], r["faits"]["heure_dite"]) == ("vendredi treize novembre", "dix-neuf heures trente"), r
     r = await jouer("resoudre_une_date", texte="samedi", heure="sept heures et demie du soir")
     assert r["faits"]["heure_voulue"] == "2026-11-14T19:30:00+01:00"
     sans_heure = await jouer("resoudre_une_date", texte="demain")
@@ -249,7 +250,8 @@ async def test_une_commande_pour_plus_tard_de_bout_en_bout_dit_son_jour(appel_de
     assert r["manque"] == "relecture"
     fin = await jouer("finaliser", prenom="Alice", moyen="carte", confirmer=True)  # son accord au récapitulatif, avec les cases de fin
     assert fin["statut"] == "ENREGISTREE", fin
-    assert fin["suggestion"] == "Votre commande est enregistrée, elle sera prête pour vendredi treize novembre à dix-neuf heures trente."  # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le fait, sans M108 (la porte la dit après la phrase du modèle)
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le modèle dit le fait ; C7 B9 (0e89e408) : plus aucun texte, « prête pour vendredi treize novembre à dix-neuf heures trente » est dans les faits
+    assert fin["suggestion"] == "" and fin["faits"].get("quand_dit") == "pour vendredi treize novembre à dix-neuf heures trente", fin
 
 
 # --------------------------------------------------------------------------- #

@@ -16,7 +16,7 @@ def test_la_note_de_moitie_est_une_note_de_ticket_jamais_dite_par_le_code():
 import pytest
 
 from api.services.actions_communes.resultat import Resultat
-from api.services.commande import moteur, porte, textes_de_secours as TS
+from api.services.commande import moteur, porte
 from api.services.commande.moteur import socle
 from api.services.commande.moteur.socle import Appelant
 from api.tests.mark import test_base_client as _BASE
@@ -47,8 +47,11 @@ async def _retrouver(appel, monkeypatch, statut: str) -> Resultat:
 @pytest.mark.parametrize("statut", sorted(socle.STATUTS_PERDUS))
 async def test_une_commande_perdue_se_dit_par_une_offre_en_question(appel, monkeypatch, statut):
     r = await _retrouver(appel, monkeypatch, statut)
-    assert r.suggestion == TS.commande_pas_passee(porte.faits_vus_par_le_modele(r))
-    assert r.suggestion == "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe pour qu'elle vous rappelle ?"
+    # C7 B4 (Evan 25/11 8 h 45 : le modèle parle) : le retour n'a plus de texte ; ses faits refont l'offre d'avant, que la porte donne au modèle (A_FAIRE_DE_LA_COMMANDE_PERDUE)
+    assert r.suggestion == ""
+    # B9 : « pas passée à la préparation, je laisse un message ? » : le statut perdu dans les faits que voit le modèle (la consigne est A_FAIRE_DE_LA_COMMANDE_PERDUE)
+    # E-36 (C7) : une valeur fermée (« pas passée »), jamais le statut brut
+    assert porte.faits_vus_par_le_modele(r)["etat"] == "pas_passee" and "statut" not in porte.faits_vus_par_le_modele(r), r
 
 
 def test_les_statuts_perdus_sont_ceux_de_la_lecture():
@@ -113,14 +116,3 @@ async def test_une_quantite_trop_haute_a_la_modification_garde_la_meme_identite(
         assert r.statut == "ARGUMENT_INVALIDE", r
         identites.add(J.identite_du_refus(r))
     assert len(identites) == 1, identites
-
-
-# ── R6 : « une phrase écrite par une personne, prête à être dite » n'est écrite qu'une fois dans le catalogue de secours ─────
-
-def test_le_catalogue_de_secours_ne_fait_qu_une_fois_phrase_nette_de_chiffres_en_lettres():
-    from pathlib import Path
-
-    source = Path(TS.__file__).read_text(encoding="utf-8")
-    assert source.count("phrase_nette(chiffres_en_lettres(") == 1  # dans ``_dit`` seulement ; ``code_de_remise_bon`` l'appelle
-    assert source.index("def _dit(") < source.index("def code_de_remise_bon(")
-    assert TS.code_de_remise_bon({"code": "BIEN10", "remise": "2 pizzas offertes"}) == "Le code BIEN10 est bon, deux pizzas offertes s'appliquera dès que votre commande y donne droit."

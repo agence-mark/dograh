@@ -11,14 +11,13 @@ from typing import Any
 
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
-from api.services.commande import textes_de_secours as TS
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande.etat_pour_le_modele import manque_de_l_identite
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
+from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
-from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
+from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, noter_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
 from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, poser_la_relecture, regler, rendu_de_monnaie
@@ -54,7 +53,7 @@ def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | N
     numero = _numero_dit(telephone) if telephone else None
     if telephone and numero is None:
         faits = {"numero_illisible": True}
-        return _avec(_r("ARGUMENT_INVALIDE", faits, TS.numero_pas_compris(faits), "telephone"), p)
+        return _avec(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
     if numero:
         client["telephone"] = numero
     return None
@@ -81,9 +80,9 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
                 J.noter(p, CLE_NUMERO_PROPOSE)  # une proposition « en cours » de plus que de refus : la question du registre est ouverte
             return _avec(_r("INCOMPLETE", {}, "", "confirmer_numero"), p)  # C6 n° 10 : le modèle propose le numéro qui s'affiche (la question née, par son type)
     if manque is Manque.TELEPHONE:
-        return _avec(_r("INCOMPLETE", {}, phrase_du_manque(Manque.TELEPHONE), "telephone"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "telephone"), p)  # C7 B5 : le modèle demande le numéro d'après le manque
     if manque is Manque.PRENOM:
-        return _avec(_r("INCOMPLETE", {}, phrase_du_manque(Manque.PRENOM), "prenom"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "prenom"), p)  # C7 B5 : le modèle demande le prénom d'après le manque
     return _relire_le_numero_dicte(p, regles, appelant)
 
 
@@ -181,7 +180,7 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
             faits["rendu"] = rendu
         ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits=P.serialisable(faits), empreinte=P.empreinte(p))
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
-        return _avec(Resultat(statut, faits, r.suggestion.strip()), p)  # la suggestion : le texte de secours de la source, jamais dit (le fait accompli gardé au journal)
+        return _avec(Resultat(statut, faits), p)  # aucune phrase : le modèle dit le fait accompli d'après ses faits, le journal en garde les faits
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)  # la relecture repart : l'accord d'avant ne vaut plus
         return poser_la_relecture(source, p, chiffre)
@@ -211,7 +210,7 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
         dicte = _numero_dit(gestes["telephone"])
         if dicte is None:
             faits = {"numero_illisible": True}
-            return _avec(_r("ARGUMENT_INVALIDE", faits, TS.numero_pas_compris(faits), "telephone"), p)
+            return _avec(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
         if not p.get("enregistree"):
             p.setdefault("client", {})["telephone"] = dicte
     r = await _finaliser(source, p, regles, appelant, **gestes)
@@ -243,7 +242,7 @@ async def _finaliser(
     qui a changé). Le total est celui de la source."""
     deja = p.get("enregistree")
     if deja and p["lignes"]:
-        return _avec(Resultat("DEJA_FAIT", dict(deja), TS.deja_enregistree({})), p)
+        return _avec(Resultat("DEJA_FAIT", dict(deja)), p)
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque
@@ -275,10 +274,13 @@ async def _finaliser(
                 # Lot 19, aparté d'Evan (20/11) : « le plus naturel, c'est de proposer une commande pour le prochain service qui commence à telle heure,
                 # et de faire confirmer par le client » : l'heure de la réouverture est proposée, la personne la confirme (question ``heure_proposee``).
                 faits = {**faits_fermes, "a_planifier": True, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
-                return _avec(_r("FERME_PLANIFIABLE", faits, f"{annoncer_la_fermeture(p, etat)} {TS.je_vous_la_prepare_pour(faits)}".strip(), "heure_proposee"), p)
+                noter_la_fermeture(p)
+                return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
             faits = {**faits_fermes, "a_planifier": True}
-            return _avec(_r("FERME_PLANIFIABLE", faits, f"{annoncer_la_fermeture(p, etat)} {TS.quel_jour_et_quelle_heure(faits)}".strip(), "heure_voulue"), p)
-        return _avec(_r(etat["statut"], faits_fermes, annoncer_la_fermeture(p, etat)), p)
+            noter_la_fermeture(p)
+            return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_voulue"), p)
+        noter_la_fermeture(p)
+        return _avec(_r(etat["statut"], faits_fermes, ""), p)
     refus = await verifier_le_creneau(source, p)
     if refus is not None:
         return refus

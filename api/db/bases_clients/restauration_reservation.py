@@ -29,7 +29,6 @@ from api.db.bases_clients import capacite
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
 from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.instantane import stable, vivant
-from api.services.reservation import textes_de_secours as TS
 from api.db.bases_clients.restauration_commande import E164, _heure_dite, _quand_dit
 from api.db.bases_clients.restauration_commun import json_lu
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
@@ -46,7 +45,17 @@ RAISONS = frozenset(
 
 def _refus(detail: str, **plus: Any) -> Resultat:
     faits = {"raison": "autre", "detail": detail, **plus}
-    return Resultat("REFUSEE", faits, TS.refus_de_la_base(faits))
+    return Resultat("REFUSEE", faits)
+
+
+def _groupe_trop_grand(maximum: int | None) -> Resultat:
+    """Le refus d'un groupe trop grand : son ``maximum`` ; la suite (l'équipe, un message proposé) est une consigne de la porte (``reservation/lire.A_FAIRE_DU_GROUPE``, C7 B9)."""
+    return _refus(capacite.GROUPE_TROP_GRAND, maximum=maximum)
+
+
+def _refus_de_place(raison: str, regles: Regles) -> Resultat:
+    """Le refus que rend ``capacite.placer`` : le groupe trop grand porte son maximum et sa suite, les autres leur seule raison."""
+    return _groupe_trop_grand(regles.effectif_max) if raison == capacite.GROUPE_TROP_GRAND else _refus(raison)
 
 
 @dataclass(frozen=True)
@@ -193,7 +202,7 @@ def _avec_propositions(refus: Resultat, propositions: list[dict]) -> Resultat:
     if not propositions:
         return refus
     faits = {**refus.faits, "propositions": propositions}
-    return Resultat(refus.statut, faits, TS.refus_de_la_base(faits), refus.manque)
+    return Resultat(refus.statut, faits, manque=refus.manque)
 
 
 async def capacite_du_jour(
@@ -220,7 +229,7 @@ async def capacite_du_jour(
     if capacite.capacite_manquante(unites, regles):
         return Resultat("INCOMPLETE", {}, "", "capacite")
     if regles.effectif_max is not None and couverts > regles.effectif_max:
-        return _refus("groupe_trop_grand", maximum=regles.effectif_max)
+        return _groupe_trop_grand(regles.effectif_max)
     libres = capacite.creneaux_libres(jour, couverts, duree_minutes, unites, occupations, services, fuseau, maintenant_, regles)
     return Resultat("OK", {"creneaux": libres, "duree_minutes": duree_minutes, "complet": not libres})
 
@@ -235,7 +244,7 @@ async def groupe_trop_grand(connexion: asyncpg.Connection, etablissement_id: int
     maximum = await stable(connexion, ("groupe_max", etablissement_id), lire)
     if maximum is None or not isinstance(couverts, int) or couverts <= maximum:
         return None
-    return _refus("groupe_trop_grand", maximum=maximum, a_faire="dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe")
+    return _groupe_trop_grand(maximum)
 
 
 async def creer_reservation(
@@ -251,21 +260,21 @@ async def creer_reservation(
     couverts, debut = brouillon.get("couverts"), brouillon.get("debut")
     prenom, telephone = (brouillon.get("prenom") or "").strip(), brouillon.get("telephone")
     if not isinstance(couverts, int) or isinstance(couverts, bool) or couverts < 1:
-        return Resultat("INCOMPLETE", {}, TS.combien_de_personnes({}), "couverts")
+        return Resultat("INCOMPLETE", manque="couverts")
     if not isinstance(debut, datetime) or debut.tzinfo is None:
-        return Resultat("INCOMPLETE", {}, TS.quel_jour_et_quelle_heure({}), "debut")
+        return Resultat("INCOMPLETE", manque="debut")
     if not prenom:
-        return Resultat("INCOMPLETE", {}, TS.a_quel_nom_je_mets_la_reservation({}), "prenom")
+        return Resultat("INCOMPLETE", manque="prenom")
     if len(prenom) > PRENOM_MAX:
-        return Resultat("ARGUMENT_INVALIDE", {}, TS.nom_trop_long({}), "prenom")
+        return Resultat("ARGUMENT_INVALIDE", manque="prenom")
     if telephone is not None and not (isinstance(telephone, str) and E164.match(telephone)):
         faits = {"numero_illisible": True}
-        return Resultat("ARGUMENT_INVALIDE", faits, TS.numero_illisible(faits), "telephone")
+        return Resultat("ARGUMENT_INVALIDE", faits, manque="telephone")
     if telephone is None and cree_par == "agent":
-        return Resultat("INCOMPLETE", {}, TS.quel_numero({}), "telephone")
+        return Resultat("INCOMPLETE", manque="telephone")
     note = (brouillon.get("note") or "").strip() or None
     if note and len(note) > NOTE_MAX:
-        return Resultat("ARGUMENT_INVALIDE", {}, TS.note_trop_longue({}), "note")
+        return Resultat("ARGUMENT_INVALIDE", manque="note")
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     maintenant_ = await maintenant(connexion)
     duree = brouillon.get("duree_minutes") or await duree_du_groupe(connexion, etablissement_id, couverts)
@@ -288,10 +297,10 @@ async def creer_reservation(
         )
         if doublon is not None:
             faits = _fait(doublon, noms, fuseau, maintenant_)
-            return Resultat("DEJA_FAIT", faits, TS.deja_reservee(faits))
+            return Resultat("DEJA_FAIT", faits)
         raison, tables = capacite.placer(debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
         if raison != "ok":
-            refus = _refus(raison, maximum=regles.effectif_max) if raison == capacite.GROUPE_TROP_GRAND else _refus(raison)
+            refus = _refus_de_place(raison, regles)
             propositions = (
                 await _propositions(connexion, etablissement_id, debut, couverts, duree, fuseau, maintenant_, salle=salle)
                 if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
@@ -304,7 +313,7 @@ async def creer_reservation(
             numero, etablissement_id, debut, duree, couverts, telephone, prenom, list(tables), note, cree_par, brouillon.get("appel_id"), maintenant_,
         )
     faits = _fait(ligne, noms, fuseau, maintenant_)
-    return Resultat("ENREGISTREE", faits, TS.reservation_enregistree(faits))  # C6 n° 9 : un texte de secours ; le modèle dit le fait accompli
+    return Resultat("ENREGISTREE", faits)  # C7 (B7) : des faits ; le modèle dit le fait accompli
 
 
 async def modifier_reservation(
@@ -339,15 +348,15 @@ async def modifier_reservation(
         prenom = (changements["prenom"].strip() if isinstance(changements.get("prenom"), str) else r["prenom"]) or r["prenom"]
         note = (changements["note"].strip() or None) if isinstance(changements.get("note"), str) else r["note"]
         if not isinstance(couverts, int) or isinstance(couverts, bool) or couverts < 1:
-            return Resultat("ARGUMENT_INVALIDE", {}, TS.combien_de_personnes({}), "couverts")
+            return Resultat("ARGUMENT_INVALIDE", manque="couverts")
         if not isinstance(nouveau_debut, datetime) or nouveau_debut.tzinfo is None:
-            return Resultat("ARGUMENT_INVALIDE", {}, TS.quel_jour_et_quelle_heure({}), "debut")
+            return Resultat("ARGUMENT_INVALIDE", manque="debut")
         if len(prenom) > PRENOM_MAX or (note and len(note) > NOTE_MAX):
             return Resultat("ARGUMENT_INVALIDE", manque="prenom" if len(prenom) > PRENOM_MAX else "note")
         place_change = nouveau_debut != r["debut"] or couverts != r["couverts"]
         if (nouveau_debut, couverts, prenom, note) == (r["debut"], r["couverts"], r["prenom"], r["note"]):
             faits = _fait(r, noms, fuseau, maintenant_)
-            return Resultat("DEJA_FAIT", faits, TS.deja_comme_cela(faits))
+            return Resultat("DEJA_FAIT", faits)
         tables, duree = list(r["table_ids"]), r["duree_minutes"]
         if place_change:
             duree = await duree_du_groupe(connexion, etablissement_id, couverts) if couverts != r["couverts"] else r["duree_minutes"]
@@ -366,7 +375,7 @@ async def modifier_reservation(
                     await _propositions(connexion, etablissement_id, nouveau_debut, couverts, duree, fuseau, maintenant_, ignorer=numero, salle=salle)
                     if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
                 )
-                return _avec_propositions(_refus(raison), propositions)
+                return _avec_propositions(_refus_de_place(raison, regles), propositions)
             tables = list(attribuees)
         ligne = await connexion.fetchrow(
             "UPDATE mark.resto_reservation SET debut = $3, duree_minutes = $4, couverts = $5, prenom = $6, note = $7, table_ids = $8 "
@@ -374,7 +383,7 @@ async def modifier_reservation(
             numero, etablissement_id, nouveau_debut, duree, couverts, prenom, note, tables,
         )
     faits = _fait(ligne, noms, fuseau, maintenant_)
-    return Resultat("OK", faits, TS.reservation_modifiee(faits))  # C6 n° 9 : un texte de secours (nombres en lettres) ; le modèle dit le fait accompli
+    return Resultat("OK", faits)  # C7 (B7) : des faits ; le modèle dit le fait accompli
 
 
 async def annuler_reservation(
@@ -399,14 +408,14 @@ async def annuler_reservation(
         noms: dict[int, str] = {}
         if r["statut"] == "annulee":
             faits = _fait(r, noms, fuseau, maintenant_)
-            return Resultat("DEJA_FAIT", faits, TS.deja_annulee(faits))
+            return Resultat("DEJA_FAIT", faits)
         if r["statut"] != "confirmee":
             return _refus("plus_modifiable", statut=r["statut"])
         if r["debut"] <= maintenant_:
             return _refus("passee")
         ligne = await connexion.fetchrow("UPDATE mark.resto_reservation SET statut = 'annulee' WHERE numero = $1 AND site_id = $2 RETURNING *", numero, etablissement_id)
     faits = _fait(ligne, noms, fuseau, maintenant_)
-    return Resultat("OK", faits, TS.reservation_annulee(faits))  # C6 n° 9 : un texte de secours ; le modèle dit le fait accompli
+    return Resultat("OK", faits)  # C7 (B7) : des faits ; le modèle dit le fait accompli
 
 
 async def telephone_de_la_reservation(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> str | None:
@@ -433,7 +442,7 @@ async def retrouver_reservation(
         except ValueError:
             return Resultat("INTROUVABLE", {"reservations": []})
     elif not (telephone or (prenom and jour)):
-        return Resultat("INCOMPLETE", {}, TS.sous_quel_nom_et_quel_jour({}), "reference")
+        return Resultat("INCOMPLETE", manque="reference")
     elif telephone is not None and not E164.match(str(telephone)):
         return Resultat("INTROUVABLE", {"reservations": []})
     debut_jour = datetime(jour.year, jour.month, jour.day, tzinfo=fuseau) if jour else None
@@ -446,7 +455,7 @@ async def retrouver_reservation(
     )
     if not lignes:
         faits = {"reservations": []}
-        return Resultat("INTROUVABLE", faits, TS.pas_de_reservation(faits))
+        return Resultat("INTROUVABLE", faits)
     noms = {t["id"]: t["nom"] for t in await connexion.fetch("SELECT id, nom FROM mark.resto_table WHERE site_id = $1", etablissement_id)}
     faits = {"reservations": [_fait(r, noms, fuseau, maintenant_) for r in lignes]}
-    return Resultat("OK", faits, TS.une_reservation(faits) if len(lignes) == 1 else TS.plusieurs_reservations(faits))
+    return Resultat("OK", faits)

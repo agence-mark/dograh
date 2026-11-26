@@ -55,20 +55,20 @@ async def test_ferme_et_planifiable_une_precommande_est_enregistree_a_l_heure_vo
     jouer = appel_de_test.jouer
     r = await jouer("choisir_mode", mode="à emporter")
     assert r["statut"] == "FERME_PLANIFIABLE" and r["faits"]["a_planifier"] is True and r["faits"]["planifiee_permise"] is True, r
-    assert "pour dix-huit heures ?" in r["suggestion"] and r["faits"]["reprise_dite"] == "dix-huit heures", r  # C7a : la fermeture est un statut et des faits, seule la question reste dite
+    assert r["faits"]["heure_proposee_dite"] == "dix-huit heures" and r["faits"]["reprise_dite"] == "dix-huit heures", r  # C7a, C7 B3 : statut et faits, le modèle pose la question
     assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter" and appel_de_test.fiche[panier.CLE]["a_planifier"] is True
     ajout = await jouer("ajouter", articles=[A("regina", 1, "Normale"), "coca"])
     assert ajout["statut"] == "OK" and len(appel_de_test.fiche[panier.CLE]["lignes"]) == 2
     # finaliser propose le prochain service et le fait confirmer (aparté d'Evan du 20/11, lot 19) : une seule question
     demande = await jouer("finaliser")
-    assert demande["statut"] == "FERME_PLANIFIABLE" and demande["manque"] == "heure_proposee" and "Je vous la prépare pour dix-huit heures ?" in demande["suggestion"], demande
+    assert demande["statut"] == "FERME_PLANIFIABLE" and demande["manque"] == "heure_proposee" and demande["faits"]["heure_proposee_dite"] == "dix-huit heures", demande  # C7 B3
     assert demande["faits"]["heure_proposee"], demande
     quand = await jouer("resoudre_une_date", texte="ce soir", heure="19 h 30")
     assert quand["statut"] == "RETENU"
     relecture = await _jusqu_a_la_relecture(jouer, quand["faits"]["heure_voulue"])
     assert relecture["manque"] == "relecture" and relecture["faits"]["heure"] == "dix-neuf heures trente", relecture  # C6 (décision d'Evan 25/11 9 h 30) : l'heure est un fait
     fin = await jouer("finaliser", prenom="Alice", moyen="carte", confirmer=True)
-    assert fin["statut"] == "ENREGISTREE" and fin["suggestion"] == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente.", fin  # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le fait, sans M108 (la porte la dit après la phrase du modèle)
+    assert fin["statut"] == "ENREGISTREE" and (fin["suggestion"], fin["faits"]["quand_dit"]) == ("", "pour dix-neuf heures trente"), fin  # C7 B9 (0e89e408) : au fait ; C6 n° 5 (décision d'Evan 25/11 9 h 30) : le fait, sans M108 (la porte la dit après la phrase du modèle)
     ligne = await commerce.c.fetchrow("SELECT heure_voulue FROM mark.resto_commande WHERE site_id = $1", commerce.a)
     assert ligne["heure_voulue"].astimezone(ZoneInfo("Europe/Paris")).strftime("%H:%M") == "19:30"
 

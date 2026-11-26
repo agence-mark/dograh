@@ -14,11 +14,11 @@ from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import table_de_parole as T
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
 from api.services.commande.porte import CLE_TEXTES_DU_CODE, RIEN_CHANGE
+from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.workflow import parole_de_la_fiche as PF
 from api.tests.mark.partie_1.test_cloture_a2_regles_inversees import _jusqu_a_l_enregistrement
 
@@ -76,18 +76,16 @@ async def test_regle_2_une_fiche_qui_ne_change_rien_vaut_une_phrase_sans_outil(e
     assert r.get(RIEN_CHANGE) and CONV.question_de(e.p)["id"] == q["id"], r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE})
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == RIEN_CHANGE, d  # « C'est noté » n'est jamais dit sur une fiche qui ne fait rien
-    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne redit plus la question en attente après la phrase du modèle ; le modèle repasse une fois, puis sa phrase est dite seule
-    r = await e.fiche()  # le second passage rend encore une fiche vide dans le même tour : sa phrase oublie la question, le modèle repasse
-    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "D'accord."})
-    assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.MANQUE, d
+    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne redit plus la question en attente après la phrase du modèle. T12 (coordinateur 26/11 10 h 45) : la retenue
+    # est la relance du tour (une seule) ; le second passage rend encore une fiche vide : relance ratée, rien de réglé à dire, la phrase réglée « pas compris » (P3)
     r = await e.fiche()
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "D'accord."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == "D'accord.", d
+    assert (d.mode, d.a_dire, d.motif) == (PAROLE.A_DIRE_SEUL, None, REPONSE_PERDUE), d
 
 
 async def test_regle_2_trois_fois_la_meme_fiche_dans_un_tour_la_derniere_porte_la_question(essai_de):
     """M1 (RC4, profondeur 2 : E1, fiche corrigée puis rejouée) : une fiche a changé quelque chose dans le tour, puis deux fiches vides : la phrase
-    dite au bout du rattrapage est celle du modèle relancé une fois avec la question en attente (lot 7b-C5), jamais « C'est noté » complété par le code."""
+    dite au bout du rattrapage est la phrase réglée « pas compris » (P3, T12), jamais « C'est noté » seul ni complété par le code."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     cases = {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}
@@ -98,13 +96,11 @@ async def test_regle_2_trois_fois_la_meme_fiche_dans_un_tour_la_derniere_porte_l
     r = await e.fiche(**cases)
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
     assert r.get(RIEN_CHANGE) and d.mode == PAROLE.SECOND_PASSAGE and d.motif == RIEN_CHANGE, d
-    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne redit plus la proposition après la phrase du modèle ; le modèle repasse une fois, puis sa phrase est dite seule
+    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne redit plus la proposition après la phrase du modèle. T12 (coordinateur 26/11 10 h 45) : la retenue est la relance
+    # du tour ; la fiche rejouée ne change rien : relance ratée, P3 ; jamais « C'est noté » seul, jamais une seconde relance
     r = await e.fiche(**cases)
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
-    assert r.get(RIEN_CHANGE) and d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.MANQUE, d
-    r = await e.fiche(**cases)
-    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
-    assert r.get(RIEN_CHANGE) and d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == ANNONCE, d
+    assert r.get(RIEN_CHANGE) and (d.mode, d.a_dire, d.motif) == (PAROLE.A_DIRE_SEUL, None, REPONSE_PERDUE), d
 
 
 async def test_une_fiche_qui_change_quelque_chose_n_est_pas_rien(essai_de):
@@ -133,7 +129,7 @@ async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
     assert _dit_par_le_code(e) == "" and q["texte"] == "", (_dit_par_le_code(e), q)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
-    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == TS.annulation_confirmee({})  # C6 n° 7 : le modèle le dit, le journal en garde le fait
+    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == {"fait": "annulee"}  # C6 n° 7 : le modèle le dit, le journal en garde le fait (en faits, B9)
 
 
 async def test_dc4_non_laisse_la_commande_enregistree(essai_de):
@@ -184,8 +180,7 @@ async def test_regle_3_le_repli_ne_redit_plus_le_fait_accompli(essai_de):
     await _jusqu_a_l_enregistrement(e)
     from api.services.actions_communes import journal_du_dit as J
 
-    confirmation = (J.fait_accompli(e.p) or "")
-    assert confirmation.startswith("Votre commande est enregistrée"), e.p
+    assert (J.fait_accompli(e.p) or {}).get("fait") == "enregistree", e.p  # le fait gardé au journal en faits (B9)
     from types import SimpleNamespace
 
     e.montrer()

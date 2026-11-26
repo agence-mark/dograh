@@ -61,6 +61,7 @@ class EtatDuTour:
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     faits_du_refus: list[Any] = field(default_factory=list)  # les faits que les retours de ce tour donnent au modèle pour dire un refus, ou une lecture (C6 n° 11) : leurs valeurs passent la barrière des chiffres
     suffixe: str | None = None  # la phrase réglée que le code dit juste après la prochaine phrase du modèle (le total, le rendu, M108 ; C6)
+    ancre: str | None = None  # C7 (a) : l'identité de la question qui portait la phrase réglée (``suffixe``), posée par la table avec elle ; la seule ancre de « elle attend toujours »
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
@@ -203,8 +204,8 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
 
     textes = textes if isinstance(textes, dict) else {}
     etat.fiches += 1
-    suffixe_avant = etat.suffixe  # la phrase réglée que le code dit après la phrase du modèle, posée au passage précédent (C6)
-    etat.suffixe = None
+    suffixe_avant, ancre_avant = etat.suffixe, etat.ancre  # la phrase réglée que le code dit après la phrase du modèle, posée au passage précédent (C6), et sa question (C7 a)
+    etat.suffixe = etat.ancre = None
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
     from api.services.actions_communes.du import faits_du_refus
@@ -216,7 +217,7 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     etat.suite.append(REFUS_DE_LA_FICHE if de_la_fiche else REFUS if refusee else FAIT)  # ligne 23
     phrase = sans_balisage(str(a_dire or ""))
     jeter(etat, phrase)  # ce qui est jeté dans le tour (ligne 20) ; oubliée si la phrase est dite en un passage
-    return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant))
+    return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant, ancre_avant))
 
 
 def pose_une_question(phrase: str) -> bool:
@@ -233,7 +234,7 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
-    etat.suffixe = None
+    etat.suffixe = etat.ancre = None  # la phrase dite emporte son ancre (C7 a : une ancre sans phrase ne désigne plus rien)
     noter_le_total_dit(p, etat, dit)
     return dit
 
@@ -243,7 +244,7 @@ def la_suite_reglee(etat: EtatDuTour) -> str | None:
     (motifs de ``PHRASES_DU_CODE`` : le numéro, le total, le rendu, M108), jamais le fait accompli (gardé au journal seulement). Elle n'est dite qu'une fois. ``None`` : rien de réglé, la
     phrase réglée « pas compris » de l'agent (P3) la remplace."""
     dit = etat.suffixe or None
-    etat.suffixe = None
+    etat.suffixe = etat.ancre = None
     etat.exiges = None
     return dit
 

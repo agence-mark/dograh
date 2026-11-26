@@ -276,6 +276,8 @@ class TestOFF3:
         r = await e.tour("une margherita et une reine", ajouter=[{"article": "margherita", "quantite": 1}, {"article": "reine", "quantite": 1}])
         assert [x["montant"] for x in r["faits"]["remises_a_dire"]] == [230] and not suffixe(e) and "prix_dit_par_le_code_apres_ta_phrase" not in r, (r["faits"], suffixe(e))
         assert not chiffre_dans_la_phrase("Votre code vous fait deux euros trente de moins.", faits=faits_du_refus(r))  # le montant passe la barrière
+        # mineur de l'audit C7 commande : la remise dite porte aussi son montant en lettres (``montant_dit``), sous la même forme que la remise lue (``lecture``)
+        assert [x.get("montant_dit") for x in r["faits"]["remises_a_dire"]] == ["deux euros trente"], r["faits"]
         r = await e.tour("et une autre margherita", ajouter=[{"article": "margherita", "quantite": 1}])
         assert "remises_a_dire" not in r["faits"]  # une seule fois
         autre = await _essai_avec(essai_de, "OFF3", ("R-BIENVENUE", "pourcentage", {}, {"pourcentage": 10}, {}, {"code": "BIENVENUE"}))

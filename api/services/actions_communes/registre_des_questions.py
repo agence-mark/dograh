@@ -80,6 +80,11 @@ def numero(p: dict[str, Any], cle: str) -> str:
     return f"Q-{numeros[cle]}"
 
 
+def _meme_question(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """C7 B3 (refus 11) : deux questions sont la même par leur structure (``CONV.identite_de_la_question``, hors numéro), jamais par leur texte, vide quand le modèle la dit."""
+    return CONV.identite_de_la_question({**a, "id": None}) == CONV.identite_de_la_question({**b, "id": None})
+
+
 def ouvrir(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> None:
     """Une question née d'un résultat entre au registre (ou y remplace la même question sur le même objet : son texte peut changer)."""
     if not isinstance(q, dict) or not q.get("type"):
@@ -88,7 +93,7 @@ def ouvrir(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> None:
     ouvertes = CONV.de(p).setdefault(CLE_DES_QUESTIONS, {})
     neuve = {**{k: v for k, v in q.items() if k not in ("id",)}, "objet": cle}
     deja = ouvertes.get(cle)
-    meme = isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") and deja.get("jeton") == neuve.get("jeton")  # C6 : la relecture reposée (autre jeton) est neuve
+    meme = isinstance(deja, dict) and _meme_question(deja, neuve)  # C6 : la relecture reposée (autre jeton) est neuve ; C7 B3 : par la structure, jamais le texte
     if meme and "nee_au_tour" in deja:
         neuve["nee_au_tour"] = deja["nee_au_tour"]  # la même question redonnée (même objet, même texte) n'est pas née une seconde fois (RC3)
     ouvertes[cle] = {**deja, **neuve} if meme else neuve
@@ -99,7 +104,7 @@ def est_deja_ouverte(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> b
     if not isinstance(q, dict):
         return False
     signature = t.signature(q) if t.signature else None
-    return any(x.get("type") == q.get("type") and x.get("texte") == q.get("texte") and x.get("jeton") == q.get("jeton") and x.get("nee_au_tour") == q.get("nee_au_tour")
+    return any(_meme_question(x, q) and x.get("nee_au_tour") == q.get("nee_au_tour")
                and (t.signature(x) if t.signature else None) == signature for x in (CONV.de(p).get(CLE_DES_QUESTIONS) or {}).values() if isinstance(x, dict))
 
 

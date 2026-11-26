@@ -22,7 +22,6 @@ from zoneinfo import ZoneInfo
 from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration, restauration_en_plus
-from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.restauration_carte import accord_du_produit
 from api.db.bases_clients.restauration_signalement_carte import signaler_une_regle_inconnue
 from api.db.bases_clients.annonce_heure import dite
@@ -54,7 +53,6 @@ from api.db.bases_clients.restauration_zone import (
 from api.services.actions_communes.moyens_de_paiement import LIBELLES_DITS, MOYEN_DE_BASE_SELON_LA_FICHE, RESERVES_AU_MODE
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande, voir_un_article  # noqa: F401  # branchent l'allergie et la lecture d'un article sur le moteur commun (``moteur.socle.METIER``)
 from api.services.commande.parole import heure_en_lettres
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
 from api.services.restauration.envois_et_sms import envois
@@ -137,7 +135,7 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
             return Resultat("INTROUVABLE", {}, "", "jour")
         if seule.statut == dates_futures.AMBIGU:
             faits = {"candidats_heure": [dates_futures.heure_dite(c) for c in seule.candidats]}
-            return Resultat("AMBIGU", faits, TSC.heure_ambigue(faits), "heure")
+            return Resultat("AMBIGU", faits, "", "heure")
         if datetime.combine(local.date(), seule.heure, tzinfo=fuseau) <= local:
             faits = {"heure_dite": dates_futures.heure_dite(seule.heure), "heure_passee_aujourd_hui": True}
             return Resultat("INTROUVABLE", faits, "", "jour")
@@ -146,7 +144,7 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
     if jour.statut == dates_futures.AMBIGU:
         candidats = [{"jour": j.isoformat(), "jour_dit": dates_futures.jour_dit(j)} for j in jour.candidats]
         faits = {"candidats": candidats}
-        return Resultat("AMBIGU", faits, TSC.jour_ambigu(faits), "jour")
+        return Resultat("AMBIGU", faits, "", "jour")
     faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
     if not heure:
         return Resultat("INCOMPLETE", faits, "", "heure")
@@ -155,13 +153,13 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
         return Resultat("INCOMPLETE", faits, "", "heure")
     if h.statut == dates_futures.AMBIGU:
         faits = {**faits, "candidats_heure": [dates_futures.heure_dite(c) for c in h.candidats]}
-        return Resultat("AMBIGU", faits, TSC.heure_ambigue(faits), "heure")
+        return Resultat("AMBIGU", faits, "", "heure")
     voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
     faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
     if voulue <= local:
         faits["heure_passee_aujourd_hui"] = True  # le jour retenu n'est jamais avant aujourd'hui (``dates_futures``) : une heure passée l'est aujourd'hui même
         return Resultat("ARGUMENT_INVALIDE", faits, "", "heure")
-    return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
+    return Resultat("RETENU", faits, "")  # C7 B5 : le jour et l'heure retenus sont des faits (``jour_dit``, ``heure_dite``), le modèle les dit
 
 
 def _heure_seule(texte: str | None, heure: str | None) -> dates_futures.HeureResolue | None:
@@ -197,7 +195,6 @@ class SourceClasseur:
     champs_du_greffier = {"note": ("allergie", "consigne_livreur")}  # Evan (18/11) : la consigne pour le livreur part dans la note de la commande
     modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
-    question_de_la_zone = phrase_du_manque(Manque.ADRESSE_ET_COMMUNE)
     moyens_reserves_au_mode = RESERVES_AU_MODE  # M90 : le TPE à la porte n'existe qu'en livraison
     libelles_des_moyens = LIBELLES_DITS
 

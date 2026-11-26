@@ -127,3 +127,26 @@ async def test_s1_voisin_un_numero_refuse_dans_le_tour_la_question_dc10_qui_atte
     phrase = "Ce code de remise n'est pas ouvert maintenant, désolé."
     dit = await _voix(e, r2, phrase, [phrase])
     assert dit.endswith(QUESTION_DC10), dit
+
+
+async def test_c7_b_article_ajoute_dans_le_tour_puis_c_est_tout_la_nouvelle_relecture_dit_son_total(essai_de):
+    """C7 (b), suite de S1 de bout en bout. Client « Non merci, c'est tout. » puis, dans le même tour, une margherita ajoutée : rien de réglé ne suit la phrase du modèle. Tour
+    suivant, Client « C'est tout. » / voulu : la relecture reposée, puis le code « Cela fait <nouveau total>, c'est bon pour vous ? » ; jamais l'ancien total ; la phrase du
+    total est notée dite au jeton de la NOUVELLE relecture (un « oui » vaut accord pour elle seule)."""
+    e = await essai_de("casa-italia")
+    await a_emporter(e)
+    await premier_article(e)
+    q = question_posee(e)
+    r = await e.tour("non merci, c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("type") == "proposition" else {}))
+    ancien, jeton_ancien = montant_en_lettres(e.p["relecture"]["total"]), e.p["relecture"]["jeton"]
+    PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Alors une margherita."})
+    r2 = await e.fiche(ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    assert await _voix(e, r2, "Voilà, deux margherita alors.", ["Voilà, deux margherita alors."]) == "Voilà, deux margherita alors."
+    r3 = await e.tour("c'est tout", c_est_tout=True)
+    assert question_posee(e).get("type") == "relecture" and e.p["relecture"]["jeton"] != jeton_ancien, (r3, question_posee(e))
+    nouveau = montant_en_lettres(e.p["relecture"]["total"])
+    assert nouveau != ancien
+    phrase = "Alors deux margherita à emporter."
+    dit = await _voix(e, r3, phrase, [phrase])
+    assert dit.startswith(phrase) and nouveau in dit and ancien not in dit and dit.rstrip().endswith("?"), dit
+    assert PAROLE.total_dit(e.p, e.p["relecture"]["jeton"]) and not PAROLE.total_dit(e.p, jeton_ancien), dit

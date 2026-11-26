@@ -163,7 +163,7 @@ def test_l_ordre_des_cases_de_fin_est_celui_du_contrat():
 
 # --------------------------------------------------------------------------- M8 : ce qui manque est une valeur fermée
 
-def test_la_phrase_du_manque_se_fait_depuis_la_valeur_fermee_sans_lire_de_texte():
+def test_le_manque_se_donne_par_sa_valeur_fermee_sans_lire_de_texte():
     from api.services.commande import etat_pour_le_modele as E
     from api.services.commande import panier as P
     from api.services.commande import phrases_du_manque as PMQ
@@ -172,9 +172,6 @@ def test_la_phrase_du_manque_se_fait_depuis_la_valeur_fermee_sans_lire_de_texte(
     manque, modes = E.ce_qui_manque(P.nouveau(), connu)
     assert manque is PMQ.Manque.MODE and modes == ("à emporter", "en livraison")
     assert E.ce_qui_manque_ensuite(P.nouveau(), connu) == "le mode de retrait (à emporter ou en livraison)"
-    assert PMQ.phrase_du_manque(manque, modes) == "À emporter ou en livraison ?"
-    assert PMQ.phrase_du_manque(PMQ.Manque.MODE) is None
-    assert PMQ.phrase_du_manque(PMQ.Manque.ARTICLES) == "Qu'est-ce que je vous mets ?" and PMQ.phrase_du_manque(None) is None
 
 
 def test_la_decision_autre_chose_lit_le_membre_pas_un_texte():
@@ -208,22 +205,8 @@ def test_chaque_phrase_du_code_est_un_motif_regle_de_la_liste_fermee():
 def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
     assert "nouvelle_commande" not in CAT.PHRASES_DU_CODE, "DC5 n'est pas une phrase du code : un refus suivi d'une question, que le modèle dit"
     assert INFO.NOUVELLE_COMMANDE_PROPOSEE == "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
-    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation passe au modèle ; ses deux faits d'avant ne sont plus que des textes de secours (gardés au journal)
-    from api.services.commande import textes_de_secours as TS_A
-
-    assert TS_A.annulation_confirmee({}) == "Je vous confirme l'annulation de votre commande." and TS_A.annulee_en_cours({}) == "Je ne l'enregistre pas."
-    # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le changement passe au modèle ; son texte d'avant n'est plus qu'un texte de secours, le nouveau total est le motif réglé
-    from api.services.commande import textes_de_secours as TS_C
-
-    assert TS_C.commande_changee({"total": 1200}) == "C'est changé : votre commande fait maintenant douze euros."
-    assert TS_C.commande_changee({}) == "C'est changé dans votre commande."
-    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : la confirmation passe au modèle ; ses textes d'avant ne sont plus que des textes de secours (gardés au journal, jamais dits à sa place)
-    from api.db.bases_clients import textes_de_secours_commande as TSC
-    from api.services.commande import textes_de_secours as TS
-
-    assert TSC.commande_enregistree({"mode": "emporter", "quand_dit": "pour dix-neuf heures trente"}) == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente."
-    assert TS.commande_retrouvee({"quand_dit": "ce soir"}) == "Votre commande est enregistrée pour ce soir."
-    assert TS.commande_retrouvee({}) == "Votre commande est enregistrée."
+    # C6 n° 5 à 7 (décision d'Evan 25/11 9 h 30) : la confirmation, le changement et l'annulation passent au modèle ; C7 B9 : leurs textes de secours sont supprimés, le
+    # journal garde le fait accompli en faits (``fait`` : enregistree, changee, annulee, annulee_en_cours ; ``quand_dit``, ``total``), vérifié par ``test_p1f_lot7c7_fait_accompli_en_faits``
 
 
 def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
@@ -255,7 +238,8 @@ def test_les_phrases_d_information_sont_celles_d_avant_et_rangees_une_fois():
     from api.services.commande.moteur import socle
     from api.services.service_client import action
 
-    assert INFO.NON_CONFIRMABLE == "Je ne peux pas vous le confirmer." == socle.NON_CONFIRMABLE == action.PHRASE_INCONNUE
+    assert INFO.NON_CONFIRMABLE == "Je ne peux pas vous le confirmer." == action.PHRASE_INCONNUE
+    assert not hasattr(socle, "NON_CONFIRMABLE")  # C7 B5 (Evan 25/11 8 h 45) : la commande ne la compose plus, ``renseigne`` faux la porte
     assert INFO.PAS_SUR == socle._PAS_SUR == "la fiche ne le précise pas, l'équipe peut vous répondre."
     assert INFO.NON_GARANTI == "je ne peux pas le garantir : l'équipe peut vous le confirmer."
     assert INFO.POUR_LES_AUTRES_NON_GARANTI == "Pour les autres, je ne peux pas le garantir."

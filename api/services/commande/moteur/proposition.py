@@ -61,7 +61,7 @@ async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles:
         "ref": proposition.get("ref"), "nom": proposition["nom"], "choix": [c for c in (proposition.get("choix") or []) if isinstance(c, str)],
         "offerte": offerte, "prix": prix,
     }
-    return _r("INCOMPLETE", faits, f"proposer {proposition['nom']}" + (" offert" if offerte else ""), "vente_en_plus")
+    return _r("INCOMPLETE", faits, "", "vente_en_plus")  # C7 B5 : la proposition (nom, raison) est un fait ; le modèle la pose
 
 
 async def repondre_a_la_proposition(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, sens: str | None,

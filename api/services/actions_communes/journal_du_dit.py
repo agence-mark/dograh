@@ -119,18 +119,33 @@ def noter(dossier: dict[str, Any], cle: str, tour: Any = None) -> int:
     return int(e["fois"])
 
 
-FAIT_ACCOMPLI = "fait_accompli"  # la dernière phrase de fait accompli (enregistrée, changée, annulée), gardée au journal seulement : le modèle la dit (C6), le code ne la redit jamais (reprise R1 de C6)
+FAIT_ACCOMPLI = "fait_accompli"  # le dernier fait accompli (enregistrée, changée, annulée), gardé au journal en faits seulement : le modèle le dit (C6), le code ne le redit jamais (reprise R1 de C6)
 
 
-def dire_le_fait(dossier: dict[str, Any], texte: str, tour: Any = None) -> None:
-    """Un fait accompli vient d'être dit (par le modèle depuis C6, le code en garde le texte de secours) : une entrée du journal, avec sa phrase."""
+def dire_le_fait(dossier: dict[str, Any], faits: dict[str, Any], tour: Any = None) -> None:
+    """Un fait accompli vient d'être dit par le modèle : une entrée du journal avec ses faits (ce qui se dit, jamais une phrase)."""
     noter(dossier, FAIT_ACCOMPLI, tour)
-    _journal(dossier)[FAIT_ACCOMPLI]["texte"] = texte
+    _journal(dossier)[FAIT_ACCOMPLI]["faits"] = dict(faits)
 
 
-def fait_accompli(dossier: Any) -> str | None:
-    """La dernière phrase de fait accompli gardée au journal (identité du dernier fait, jamais dite par le code : reprise R1 de C6), ``None`` si aucune."""
-    return str((_lu(dossier).get(FAIT_ACCOMPLI) or {}).get("texte") or "").strip() or None
+def fait_accompli(dossier: Any) -> dict[str, Any] | None:
+    """Les faits du dernier fait accompli gardés au journal (son identité : jamais dite par le code, reprise R1 de C6), ``None`` si aucun."""
+    faits = (_lu(dossier).get(FAIT_ACCOMPLI) or {}).get("faits")
+    return dict(faits) if faits else None
+
+
+TOUR_DE_L_APPEL = "tour_de_l_appel"  # le tour de la conversation, posé par la porte de chaque métier (la même clé que ``registre_des_questions.CLE_DU_TOUR``)
+
+
+def tour_de_l_appel(dossier: Any) -> Any:
+    """Le tour de la conversation du dossier (``None`` hors d'une porte)."""
+    return (dossier.get(CONV.CLE) or {}).get(TOUR_DE_L_APPEL) if isinstance(dossier, dict) else None
+
+
+def dit_a_un_tour_d_avant(dossier: Any, cle: str) -> bool:
+    """T2 (C7) : le fait est noté à un tour d'avant celui-ci (au tour qui l'apprend, le modèle le dit encore ; ensuite il est « déjà dit »)."""
+    e = entree(dossier, cle)
+    return e is not None and e.get("tour") != tour_de_l_appel(dossier)
 
 
 def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:

@@ -51,3 +51,18 @@ def test_le_motif_du_numero_affiche_garde_ne_parle_que_de_la_reservation():
     m = CAT.MOTIFS[CAT.NUMERO_AFFICHE_GARDE]
     assert "commande" not in m.quand_fr and "order" not in m.quand_en and "réservation" in m.quand_fr, m.quand_fr
     assert "modèle" in m.eteinte_fr, m.eteinte_fr
+
+
+async def test_c7_e_le_prix_de_la_proposition_est_donne_au_modele_en_lettres(essai_de):
+    """C7 (e), audit de C6 (réservation et prix) : l'état donnait « son prix : 200 centimes, que tu dis » alors que la valeur exigée de sa question est le prix en lettres
+    (``chiffres_exiges``, comme le total et le minimum de l'état). Client « Une margherita. » / avant : le modèle lisait des centimes / après : « deux euros », la forme exigée."""
+    from api.services.commande.etat_pour_le_modele import texte
+    from api.services.mots_dits import montant_en_lettres
+
+    e = await essai_de()
+    await a_emporter(e)
+    await premier_article(e)
+    q = CONV.question_de(e.p) or {}
+    assert q.get("type") == "proposition" and q.get("prix"), q
+    etat = texte(e.fiche_de_l_appel) or ""
+    assert "centimes" not in etat and f"son prix : {montant_en_lettres(int(q['prix']))}" in etat, etat

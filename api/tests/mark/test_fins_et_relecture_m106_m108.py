@@ -80,13 +80,13 @@ async def test_m108_la_confirmation_de_la_commande_finit_par_la_question(commerc
     a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
     r = await a.confirmer()
-    # C6 n° 5 (décision d'Evan 25/11 9 h 30 ; P4) : le moteur rend le fait (texte de secours, jamais dit) ; la question M108 suit la phrase du modèle, posée par la porte
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30 ; P4) : le moteur rend le fait sans phrase (B9) ; la question M108 suit la phrase du modèle, posée par la porte
     from api.services.commande.porte import textes_du_code
 
-    assert r.statut == "ENREGISTREE" and r.suggestion.startswith("Votre commande est enregistrée") and "?" not in r.suggestion
+    assert r.statut == "ENREGISTREE" and r.suggestion == "" and r.faits["quand_dit"], r
     assert textes_du_code({}, r, None, [], False, None, QUESTION)["suffixe"] == QUESTION
     deja = await a.confirmer()
-    assert deja.statut == "DEJA_FAIT" and "?" not in deja.suggestion
+    assert deja.statut == "DEJA_FAIT" and deja.suggestion == "", deja
 
 
 async def test_m108_la_question_reglee_ou_eteinte(commerce):

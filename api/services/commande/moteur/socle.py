@@ -14,7 +14,6 @@ from api.services.actions_communes import phrases_d_information as INFO
 from api.schemas.workflow_configurations import DEFAULT_COMMANDE_FOIS_AVANT_LA_SORTIE
 from api.services.actions_communes.petits_mots import ARTICLES
 from api.services.commande import panier as P
-from api.services.mots_dits import chiffres_en_lettres, montant_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_DICTE_RELU
@@ -72,6 +71,19 @@ def cle_de_la_remise(ref: Any) -> str:
     return f"remise:{ref}"
 
 
+def texte_de_l_offre(remise: dict[str, Any]) -> dict[str, str]:
+    """Le texte du restaurant pour une remise (la source l'appelle ``phrase``), sous la seule clé que le modèle reçoit (``texte_de_l_offre``) ; vide s'il n'en a pas."""
+    return {"texte_de_l_offre": remise["phrase"]} if remise.get("phrase") else {}
+
+
+def remise_dite(remise: dict[str, Any]) -> dict[str, Any]:
+    """Une remise appliquée telle que le modèle la dit (C7 B5, C6 n° 11) : son nom, son montant en centimes et en lettres (``montant_dit``), le texte du restaurant s'il en a un.
+    La même forme pour la remise lue et la remise d'un code qui s'applique."""
+    from api.services.mots_dits import montant_en_lettres
+
+    return {"nom": remise["nom"], "montant": remise["montant"], "montant_dit": montant_en_lettres(remise["montant"]), **texte_de_l_offre(remise)}
+
+
 def _le(nom: str, genre: str | None) -> str:
     """« Le filtre », « La vis », « L'écrou » : l'article défini du nom proposé, d'après son genre (sans mot de métier)."""
     if _sans_accent(nom[:1]) in "aeiouyh":
@@ -91,24 +103,9 @@ def commande_de_l_appel(p: dict[str, Any]) -> dict[str, Any] | None:
 
 
 # --------------------------------------------------------------------------- #
-# remises_disponibles : la parole des remises (lot 7, T-08)
-# --------------------------------------------------------------------------- #
-
-
-def _dit(texte: str) -> str:
-    """Une phrase écrite par une personne (une offre, un nom d'offre), prête à être dite : chiffres en lettres, un seul point final."""
-    return phrase_nette(chiffres_en_lettres(texte))
-
-
-def phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
-    return _dit(r["phrase"]) if r.get("phrase") else f"Bonne nouvelle : {_dit(r['nom'])}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
-
-
-# --------------------------------------------------------------------------- #
 # voir_produit : la composition et les signalements d'un article (lot 7, E-14, E-15)
 # --------------------------------------------------------------------------- #
 
-NON_CONFIRMABLE = INFO.NON_CONFIRMABLE
 # Des mots de la langue qui ne nomment rien du catalogue (aucun mot de métier) : ce qui reste nomme une catégorie, un article ou rien.
 _MOTS_DE_LA_QUESTION = ARTICLES | {
     "d", "vous", "avez", "auriez", "est", "ce", "que", "qu", "quoi", "qui", "il", "y", "a",
@@ -149,6 +146,16 @@ def _racines(texte: str) -> set[str]:
 # --------------------------------------------------------------------------- #
 
 STATUTS_PERDUS = frozenset({"refusee", "echec"})  # la commande n'est jamais passée à la préparation : lue par le suivi (``lecture``) et par la porte
+# E-36 : à l'appelant on ne dit que « enregistrée » et l'heure. Le modèle reçoit une valeur fermée (``etat``), jamais l'étape brute de la préparation ;
+# le statut lu reste au code seul (``statut_lu`` : message urgent, commande perdue), jamais vu par le modèle.
+CLE_STATUT_LU = "statut_lu"
+
+
+def etat_dit(statut: str) -> str:
+    """La valeur fermée d'une commande retrouvée, dite au modèle : ``annulee``, ``pas_passee`` (refusée ou en échec) ou ``enregistree`` (toute autre étape)."""
+    if statut == "annulee":
+        return "annulee"
+    return "pas_passee" if statut in STATUTS_PERDUS else "enregistree"
 
 
 # --------------------------------------------------------------------------- #

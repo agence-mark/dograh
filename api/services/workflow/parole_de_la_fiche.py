@@ -18,6 +18,7 @@ from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.barriere_des_chiffres import porte_les_chiffres
 from api.services.actions_communes.repli import consigne_de_ce_que_le_code_dit, consigne_des_chiffres_exiges, consigne_de_relance
 from api.services.commande import panier as P
+from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.workflow.verite_des_actions import Retenue, tracer_une_retenue
 
 CLE_DES_PAROLES = "paroles_de_la_personne"
@@ -101,7 +102,7 @@ class VerificateurDeLaFiche:
             consigne = consigne_de_ce_que_le_code_dit(etat)
             a_dire = None
             if not consigne:
-                a_dire, etat.suffixe = etat.suffixe, None
+                a_dire, etat.suffixe, etat.ancre = etat.suffixe, None, None
                 PAROLE.noter_le_total_dit(p, etat, a_dire)  # la phrase du total est dite, seule : la relecture est entendue
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "", a_dire=a_dire)
@@ -174,9 +175,12 @@ class VerificateurDeLaFiche:
         appel au bout de ses passes (le flux, puis sa relance sans flux). Jamais un tour muet. C5 (décision d'Evan 25/11 8 h 45) : le code ne compose pas
         de phrase, il RELANCE le modèle avec le fait (``consigne_de_relance``) ; sans rien à relancer, la suite réglée déjà posée (R1, ``_suite_reglee``), sinon une retenue vide (sans consigne ni
         texte : ``RepliqueVerifiee`` dit alors la phrase réglée de l'agent, P3) : sur ces étapes elle ne rend jamais ``None``. ``sans_relance`` : la relance du modèle a échoué ou n'est plus permise,
-        seule la suite réglée reste. Ailleurs : le contrôle d'avant, s'il en a un (``None`` possible). En cas d'erreur de lecture : ``None`` (le flux rendu tel quel, jamais une exception)."""
+        seule la suite réglée reste. Ailleurs : le contrôle d'avant, s'il en a un (``None`` possible). En cas d'erreur de lecture (T1) : jamais ``None`` sur une étape qui porte la fiche,
+        une retenue vide (la phrase réglée, P3, sans requête de plus) et une ligne au journal ; ailleurs ``None`` (le flux rendu tel quel). Jamais une exception."""
+        fiche_portee = False
         try:
-            if not porte_la_fiche(self._fiche()):
+            fiche_portee = porte_la_fiche(self._fiche())
+            if not fiche_portee:
                 autre = getattr(self.autre, "controler_le_silence", None)
                 return autre(messages) if autre is not None else None
             fiche = self._fiche()
@@ -196,7 +200,8 @@ class VerificateurDeLaFiche:
             return Retenue(PAROLE.SILENCE, "", "", a_dire=a_dire)
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[parole] silence non contrôlé : {erreur!r}")
-            return None
+            # T1 : sur la fiche, jamais un tour muet : la retenue vide fait dire la phrase réglée (``RepliqueVerifiee._rien_a_relancer``)
+            return Retenue(PAROLE.SILENCE, "", "") if fiche_portee else None
 
     def controler_avant_outil(self, texte: str, messages: Any = None) -> Retenue | None:
         if porte_la_fiche(self._fiche()):
@@ -337,6 +342,13 @@ async def dire_le_retour(engine: Any, fiche: Any, donnees: Any, params: Any, con
 
     noter_le_porteur(fiche, connecteur, workflow_id)
     decision = decider_apres_la_fiche(fiche, donnees, params.arguments, connecteur)
+    if decision.mode == PAROLE.A_DIRE_SEUL and not decision.a_dire and decision.motif == REPONSE_PERDUE:
+        # T12 : relance ratée sans suite réglée : la phrase réglée « pas compris » de l'agent (P3), jamais un tour muet
+        from dataclasses import replace
+
+        from api.services.pipecat.reponse_avalee import phrase_de_repli_reglee
+
+        decision = replace(decision, a_dire=phrase_de_repli_reglee(getattr(getattr(engine, "active_agent", None), "llm", None)))
     if decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire:
         # Clôture, lot B2 (IC5, inventaire C5 : 390 retours sur 718 sans elle) : ce qui est dit entre dans l'historique du modèle comme
         # réplique de l'agent ; sans elle, le modèle ne sait pas ce que la personne a entendu (le récapitulatif, la question du code)

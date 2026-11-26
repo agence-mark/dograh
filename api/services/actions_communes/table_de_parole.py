@@ -11,14 +11,16 @@ mot pour mot que ses phrases réglées, après la phrase du modèle (``suffixe``
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
+import json
 from dataclasses import dataclass
 from typing import Any, Callable
 
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, porte_les_chiffres, sans_balisage
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
+from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.actions_communes.parole import (
-    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
-    apres_un_refus, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
+    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, SUFFIXE, Decision, EtatDuTour,
+    apres_un_refus, la_suite_reglee, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
 )
 
 FAIT_ACCOMPLI = "fait_accompli_du_modele"  # motif : le modèle dit le fait accompli (C6 n° 5), le code dit la suite après sa phrase
@@ -36,6 +38,7 @@ class Entrees:
     question_nee: bool  # elle est née dans CE tour
     question_id: Any
     suffixe_avant: str | None  # la phrase réglée que le code dit après la phrase (le total de la relecture), posée au passage précédent
+    ancre_avant: str | None  # C7 (a) : l'identité de la question qui la portait, posée par la table avec elle
     chiffre: bool
     objet_en_cours: bool
     en_attente: bool  # une question attend dans le dossier
@@ -81,17 +84,28 @@ def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
     if not _du_a_reposer(e) or e.etat.relance_du_fait:
         return None
     e.etat.relance_du_fait = True
-    e.etat.suffixe = e.suffixe_avant  # le prix que le code doit dire après la phrase n'est pas perdu : il suit la phrase du second passage
+    _poser_la_phrase_reglee(e, e.suffixe_avant)  # le prix que le code doit dire après la phrase n'est pas perdu : il suit la phrase du second passage
     return Decision(SECOND_PASSAGE, motif=motif)
 
 
+def _la_relance_ratee(e: Entrees) -> Decision:
+    """T12 (coordinateur 26/11 10 h 45 ; reprise R1 de C6) : la relance du tour est faite et la fiche ne change toujours rien : relance ratée. Le code dit la suite réglée
+    (la phrase réglée de cette fiche ou d'une fiche d'avant du tour, ``la_suite_reglee``), sinon la phrase réglée « pas compris » de l'agent (P3 : ``a_dire`` vide, motif
+    ``REPONSE_PERDUE``, dite par la voix) ; jamais la phrase du modèle écrite avant l'exécution, jamais une seconde relance."""
+    _poser_la_phrase_reglee(e, e.suffixe_du_code or e.suffixe_avant)
+    suite = la_suite_reglee(e.etat)
+    return Decision(A_DIRE_SEUL, a_dire=suite, motif=SUFFIXE if suite else REPONSE_PERDUE)
+
+
 def _rien_change(e: Entrees) -> Decision:
-    """Une fiche qui ne change rien est une phrase sans outil : retenue une fois par tour ; puis, si la phrase oublie la question en attente ou ce qui manque, le modèle repasse une fois ;
-    ensuite dite seule (reprise R1 de C6 : le fait accompli n'est jamais redit par le code, il reste au journal) ; jamais « C'est noté » seul quand rien n'est noté."""
+    """Une fiche qui ne change rien est une phrase sans outil : retenue une fois par tour (la relance du tour) ; rejouée sans rien changer, c'est une relance ratée
+    (``_la_relance_ratee``). Sans rien en cours : sa phrase est jetée si elle est vide, porte un chiffre ou oublie ce qui est dû (le modèle repasse une fois), sinon dite seule."""
     etat, phrase = e.etat, e.phrase
     etat.fiches -= 1
-    if not etat.rattrapage_a_joue and (e.objet_en_cours or e.en_attente):
-        etat.rattrapage_a_joue = True
+    if etat.rattrapage_a_joue or etat.relance_du_fait:
+        return _la_relance_ratee(e)
+    if e.objet_en_cours or e.en_attente:
+        etat.rattrapage_a_joue = etat.relance_du_fait = True
         etat.retenues.append(SANS_OUTIL)
         return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE)
     if not phrase or e.chiffre:
@@ -112,7 +126,7 @@ def _question(e: Entrees) -> Decision:
             return relance
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id
-    etat.suffixe = e.suffixe_du_code
+    _poser_la_phrase_reglee(e, e.suffixe_du_code)
     return Decision(SECOND_PASSAGE, motif="question_nouvelle")
 
 
@@ -127,7 +141,8 @@ def _fait_accompli(e: Entrees) -> Decision:
     if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and not due and porte_les_chiffres(phrase, exiges):
         etat.jetee = None
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite) if x), motif=FAIT_ACCOMPLI)
-    etat.suffixe, etat.exiges = suite, exiges
+    _poser_la_phrase_reglee(e, suite)
+    etat.exiges = exiges
     return Decision(SECOND_PASSAGE, motif=FAIT_ACCOMPLI)
 
 
@@ -180,20 +195,26 @@ def _garder_la_phrase_reglee(e: Entrees, decision: Decision) -> Decision:
     """Le modèle repasse et aucune phrase réglée n'attend sa phrase : celle de cette fiche, sinon celle d'une fiche d'avant du tour (``suffixe_avant``), est remise, comme
     ``_relancer_le_fait``. Une phrase dite seule (``A_DIRE_SEUL``) garde ce que sa ligne a décidé."""
     if decision.mode == SECOND_PASSAGE and not e.etat.suffixe:
-        e.etat.suffixe = e.suffixe_du_code or e.suffixe_avant
+        _poser_la_phrase_reglee(e, e.suffixe_du_code or e.suffixe_avant)
     return decision
 
 
+def ancre_de_la_question(p: dict | None) -> str | None:
+    """C7 (a) : l'identité de la question qui attend dans le dossier (``CONV.identite_de_la_question`` : son numéro, son type, son objet, jamais son texte dit par le modèle), en
+    texte pour survivre à l'état du tour ; ``None`` sans question."""
+    q = CONV.question_de(p)
+    return json.dumps(CONV.identite_de_la_question(q), default=str) if isinstance(q, dict) else None
+
+
+def _poser_la_phrase_reglee(e: Entrees, texte: str | None) -> None:
+    """La table pose la phrase réglée avec son ancre : celle de cette fiche est portée par la question qui attend maintenant ; celle d'un passage précédent garde la sienne."""
+    e.etat.suffixe = texte
+    e.etat.ancre = None if not texte else (ancre_de_la_question(e.p) if texte == e.suffixe_du_code else e.ancre_avant)
+
+
 def _la_question_qui_la_portait_attend(e: Entrees) -> bool:
-    """La question qui attend (même ``question_id``) est celle qui portait la phrase réglée d'avant : la question née donnée au modèle (``etat.question_donnee``), ou celle dont la phrase
-    réglée est encore celle-là (la relecture du numéro dicté : son texte ; la relecture : le jeton à entendre, ``etat.total_a_dire``). Lu sur le dossier et l'état, jamais sur les mots."""
-    q = CONV.question_de(e.p) or {}
-    if not e.question_id or not e.suffixe_avant:
-        return False
-    attendu = e.etat.total_a_dire if isinstance(e.etat.total_a_dire, dict) else {}
-    texte = sans_balisage(str(q.get("texte") or ""))
-    return (e.question_id == e.etat.question_donnee or bool(texte and texte in e.suffixe_avant)
-            or bool(q.get("jeton") and q.get("jeton") == attendu.get("jeton")))
+    """C7 (a) : la question qui attend est celle qui portait la phrase réglée d'avant : même identité que l'ancre posée par la table avec elle. Une seule ancre, lue sur le dossier."""
+    return bool(e.suffixe_avant and e.ancre_avant and ancre_de_la_question(e.p) == e.ancre_avant)
 
 
 def _jeter_la_phrase_perimee(e: Entrees) -> None:
@@ -211,7 +232,7 @@ def _jeter_la_phrase_perimee(e: Entrees) -> None:
 
 
 def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list[str], p: dict | None, textes: dict, objet_en_cours: bool | None,
-                      suffixe_avant: str | None) -> Entrees:
+                      suffixe_avant: str | None, ancre_avant: str | None = None) -> Entrees:
     """Ce que la table lit, rassemblé depuis le retour de la fiche et l'état du tour."""
     from api.services.actions_communes.du import du_du_retour
 
@@ -225,6 +246,6 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
     return Entrees(
         du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None, exiges=exiges,
         question_nee=question_nee_dans_ce_tour(p, etat.tour),
-        question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant,
+        question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant, ancre_avant=ancre_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),
         etat=etat, retour=retour, p=p)

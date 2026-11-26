@@ -11,7 +11,7 @@ from typing import Any
 
 from api.db.bases_clients import dates_futures
 from api.services.commande import lecture, panier as P
-from api.services.mots_dits import liste_dite, montant_en_lettres
+from api.services.mots_dits import montant_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -24,26 +24,26 @@ from api.services.commande.moteur.socle import Reglages, _avec, _r, _sans_accent
 # --------------------------------------------------------------------------- #
 
 
-def _phrase_des_modes(source: Source) -> str:
-    return liste_dite([source.libelles_des_modes.get(m, m) for m in source.modes])
+def _faits_des_modes(source: Source) -> dict[str, Any]:
+    """Les modes de la source : leurs codes et leurs libellés (``modes_dits``), que le modèle dit quand il demande le mode (C7 B5 : le code ne compose plus la question)."""
+    return {"modes": list(source.modes), "modes_dits": [source.libelles_des_modes.get(m, m) for m in source.modes]}
 
 
 async def question_du_mode(source: Source, p: dict[str, Any], statut: str) -> Resultat:
     """La question du mode. Appel 2610 : quand AUCUN mode ne prend de commande maintenant, la personne le sait dès cette première question
     (la fermeture et la reprise, dites une fois par commande), jamais à la fin. Aucun mode planifiable : la fermeture seule, sans question
-    de mode. Une heure déjà gardée vaut accord pour plus tard : rien n'est ajouté."""
-    question = f"{_phrase_des_modes(source).capitalize()} ?"
-    faits: dict[str, Any] = {"modes": list(source.modes)}
+    de mode. Une heure déjà gardée vaut accord pour plus tard : rien n'est ajouté. C7 B5 (Evan 25/11 8 h 45) : le modèle pose la question d'après le manque ``mode`` et ``modes_dits``."""
+    faits: dict[str, Any] = _faits_des_modes(source)
     if not J.deja_dit(p, J.FERMETURE) and not p.get("heure_voulue"):
         etats = [await source.etat(m) for m in source.modes]
         if etats and not any(e["ouvert"] for e in etats):
             ferme = etats[0]
             faits.update({k: ferme.get(k) for k in CLES_DE_L_ETAT})
-            phrase = annoncer_la_fermeture(p, ferme)
+            noter_la_fermeture(p)
             if not any(e.get("planifiee_permise") for e in etats):
-                return _r(ferme.get("statut") or "FERME", faits, phrase)
-            return _r(statut, {**faits, "ferme_maintenant": True}, f"{phrase} {question}", "mode")
-    return _r(statut, faits, question, "mode")
+                return _r(ferme.get("statut") or "FERME", faits, "")
+            return _r(statut, {**faits, "ferme_maintenant": True}, "", "mode")
+    return _r(statut, faits, "", "mode")
 
 
 async def _prealables(source: Source, p: dict[str, Any], regles: Reglages, pour_prendre: bool = False) -> Resultat | None:
@@ -54,7 +54,7 @@ async def _prealables(source: Source, p: dict[str, Any], regles: Reglages, pour_
     if pour_prendre and p.get("commune_hors_zone"):
         return None
     if regles.ordre_impose and source.exige_une_zone(p["mode"]) and not p.get("zone"):
-        return _avec(_r("INCOMPLETE", {}, source.question_de_la_zone, "zone"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "zone"), p)  # C7 B5 : le modèle demande l'adresse d'après le manque
     return None
 
 
@@ -248,7 +248,7 @@ async def etat_ouverture(source: Source, p: dict[str, Any], regles: Reglages, mo
     if mode:
         choisi = _mode_dit(source, mode)
         if choisi is None:
-            return _r("ARGUMENT_INVALIDE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode")
+            return _r("ARGUMENT_INVALIDE", _faits_des_modes(source), "", "mode")
         modes = [choisi]
     else:
         modes = list(source.modes)
@@ -268,9 +268,9 @@ async def heure_annoncee(source: Source, p: dict[str, Any], regles: Reglages, mo
     promis : seul l'enregistrement fixe l'heure. Le texte vient du code, jamais d'un calcul du modèle."""
     choisi = _mode_dit(source, mode) if mode else p.get("mode")
     if choisi is None:
-        return _avec(_r("INCOMPLETE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode"), p)
+        return _avec(_r("INCOMPLETE", _faits_des_modes(source), "", "mode"), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
-        return _avec(_r("INCOMPLETE", {"mode": choisi}, source.question_de_la_zone, "zone"), p)
+        return _avec(_r("INCOMPLETE", {"mode": choisi}, "", "zone"), p)
     etat = await source.etat(choisi)
     if not etat["ouvert"]:
         return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""), p)
@@ -375,8 +375,7 @@ async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | N
     return None
 
 
-def annoncer_la_fermeture(p: dict[str, Any], etat: dict[str, Any]) -> str:
-    """Lot 4 (M07, appel 2649) : la fermeture est marquée dite UNE fois par appel (``J.FERMETURE``, lu par la porte et par la question du mode). Lot 7b-C7a : le code n'écrit plus
-    la phrase (la source non plus) : la fermeture est dite par le modèle d'après le statut et les faits de l'état (``CLES_DE_L_ETAT``) ; la valeur rendue est donc toujours vide."""
-    J.une_fois(p, J.FERMETURE)  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part
-    return ""
+def noter_la_fermeture(p: dict[str, Any]) -> None:
+    """Lot 4 (M07, appel 2649) : la fermeture est notée UNE fois par appel (``J.FERMETURE``, lu par la porte et par la question du mode), avec le tour qui l'apprend. Le modèle
+    la dit d'après le statut et les faits de l'état (``CLES_DE_L_ETAT``, C7a) ; la porte ne lui donne ``fermeture_dite`` qu'aux tours suivants (T2, C7 : annoncée dès le début)."""
+    J.une_fois(p, J.FERMETURE, J.tour_de_l_appel(p))  # B3 (M5) : au journal de ce qui est dit, plus un drapeau à part

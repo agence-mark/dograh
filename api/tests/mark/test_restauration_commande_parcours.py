@@ -87,7 +87,7 @@ async def test_regina_et_coca_de_bout_en_bout_jusqu_a_la_prise(appel_de_test, pr
     assert prise.recues == []  # ni envoyé
     fait = await oui(jouer)
     assert fait["statut"] == "ENREGISTREE" and fait["faits"]["total"] == 1490
-    assert "enregistrée" in fait["suggestion"]
+    assert fait["suggestion"] == "" and fait["faits"]["quand_dit"], fait  # C7 B9 (0e89e408) : plus de texte ; « enregistrée, prête/livrée … » est dans les faits mode et quand_dit
     await attendre_les_envois()
     (commande,) = await commerce.c.fetch("SELECT * FROM mark.resto_commande")
     assert (commande["total"], commande["statut"], commande["cree_par"]) == (1490, "acceptee", "agent")
@@ -138,7 +138,7 @@ async def test_changer_de_mode_garde_les_articles_et_en_livraison_la_zone_et_son
     await jouer("choisir_mode", mode="à emporter")
     await jouer("ajouter", articles=["coca"])
     r = await jouer("choisir_mode", mode="en livraison")
-    assert r["statut"] == "OK" and r["manque"] == "zone" and r["suggestion"] == "Quelle est l'adresse de livraison ?"
+    assert r["statut"] == "OK" and r["manque"] == "zone" and r["suggestion"] == ""  # C7 B5 (Evan 25/11 8 h 45) : le modèle demande l'adresse d'après le manque
     assert [l["nom"] for l in appel_de_test.fiche[panier.CLE]["lignes"]] == ["Coca-Cola"]
     appel_de_test.fiche[panier.CLE]["zone"] = {"id": commerce.zones["Proches"], "nom": "Proches"}  # minimum 15 €, le coca fait 2 €
     voir = await jouer("voir_commande")

@@ -15,6 +15,7 @@ import contextlib
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -187,21 +188,23 @@ async def test_un_article_compte_en_trop_dans_une_fusion_est_vu(faire_monde, mon
     assert any(regle == "RC2" for _, regle, _ in r.fautes), r.fautes
 
 
-def _fait_dit(texte):
+def _fait_dit(faits):
     p: dict = {}
-    J.dire_le_fait(p, texte, 1)
+    J.dire_le_fait(p, faits, 1)
     return p
 
 
 def test_rc4_la_phrase_dite_doit_etre_celle_du_fait_accompli_vu_rouge():
-    annulee = dict(avant={"annulee": False}, apres={"annulee": True, **_fait_dit("Je ne l'enregistre pas.")})
-    assert C.rc4(_observation(**annulee, textes={"avant": "Voulez-vous autre chose ?"})), "n'importe quelle phrase du code ne dit pas l'annulation"
-    assert C.rc4(_observation(**annulee, textes={})), "aucune phrase : faute"
-    assert C.rc4(_observation(**{**annulee, "apres": {"annulee": True, **_fait_dit("autre")}}, textes={"avant": "Je ne l'enregistre pas."})), "phrase non gardée comme fait dit"
-    assert not C.rc4(_observation(**annulee, textes={"avant": "Je ne l'enregistre pas."}))
-    enregistree = dict(avant={}, apres={"enregistree": {"numero": "n1", "total": 1200}, **_fait_dit("Votre commande est enregistrée.")})
-    assert C.rc4(_observation(**enregistree, textes={"avant": "Je vous relis : une margherita."})), "la relecture n'est pas l'enregistrement"
-    assert not C.rc4(_observation(**enregistree, textes={"avant": "Votre commande est enregistrée."}))
+    # B9 : le fait accompli est un fait (plus une phrase du code) ; le contrôle lit le fait donné et celui que le journal garde
+    en_cours, enregistree_ = {"fait": "annulee_en_cours"}, {"fait": "enregistree", "livree": False, "quand_dit": "pour midi"}
+    annulee = dict(avant={"annulee": False}, apres={"annulee": True, **_fait_dit(en_cours)})
+    assert C.rc4(_observation(**annulee, textes={"fait_accompli": {"fait": "changee", "total": 1}})), "un autre fait ne dit pas l'annulation"
+    assert C.rc4(_observation(**annulee, textes={})), "aucun fait : faute"
+    assert C.rc4(_observation(**{**annulee, "apres": {"annulee": True, **_fait_dit({"fait": "autre"})}}, textes={"fait_accompli": en_cours})), "fait non gardé au journal"
+    assert not C.rc4(_observation(**annulee, textes={"fait_accompli": en_cours}))
+    enregistree = dict(avant={}, apres={"enregistree": {"numero": "n1", "total": 1200}, **_fait_dit(enregistree_)})
+    assert C.rc4(_observation(**enregistree, textes={"fait_accompli": {"fait": "annulee"}})), "l'annulation n'est pas l'enregistrement"
+    assert not C.rc4(_observation(**enregistree, textes={"fait_accompli": enregistree_}))
 
 
 def test_rc10_la_relecture_doit_etre_dite_dans_le_tour_ou_elle_est_marquee_vu_rouge():
@@ -312,7 +315,7 @@ async def test_defauts_connus_df12_reservation(salle, monkeypatch):  # noqa: F81
         textes = e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {}
         if r.get("statut") != "ENREGISTREE":
             fautes.append(f"RC4 : l'accord avec l'heure redite n'enregistre pas (statut {r.get('statut')}, {r.get('raison')})")
-        elif not (textes.get("chiffres_exiges") and textes.get("fait_accompli")):
+        elif not (textes.get("chiffres_exiges") and textes.get("a_faire")):  # C7 : la clé « fait_accompli » est retirée (aucun lecteur) ; la consigne du fait accompli fait foi
             fautes.append("RC4 : réservation enregistrée, ni le modèle ni le repli ne peuvent le dire")
     await creer_reservation(salle.c, salle.a, {"debut": SAMEDI_20H, "couverts": 6, "prenom": "Zoe", "telephone": "+33600000001", "appel_id": "z"})
     e2 = EssaiReservation(salle, monkeypatch, appelant="+33600000077")
@@ -345,3 +348,10 @@ def test_rc6_et_rc9_lisent_la_question_par_sa_structure_vu_rouge():
     assert C.rc9(_observation(geste="G1", avant=etat(q1), apres=etat(q2))), "même type et même objet, un autre numéro : la même question change de numéro"
     autre = {"id": "Q-2", "texte": "Quelle taille ?", "type": "variante", "article_en_question": "Margherita"}
     assert not [f for f in C.rc9(_observation(geste="G1", avant=etat(q1), apres=etat(autre))) if "change de numéro" in f[1]], "même texte, autre objet : deux questions"
+
+    def trois_fois(*qs):  # C7 B10 : RC6 (sortie de boucle) lit lui aussi la question par sa structure
+        return SimpleNamespace(observations=[_observation(geste="G1", avant=etat(q), apres=etat(q)) for q in qs])
+
+    q2_meme_numero = {**q2, "id": "Q-1"}
+    assert C.rc6(trois_fois(q1, q2_meme_numero, q1)), "même question (même structure), texte changé : trois fois la même chose"
+    assert not C.rc6(trois_fois(q1, {**autre, "id": "Q-1"}, q1)), "même texte, autre objet : pas trois fois la même chose"

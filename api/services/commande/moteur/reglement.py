@@ -12,11 +12,11 @@ from typing import Any
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes import parole as PAROLE
 from api.services.commande import etape as ETAPE
-from api.services.commande import lecture, panier as P, textes_de_secours as TS
-from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
+from api.services.commande import lecture, panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import _avec, _r
+from api.services.mots_dits import montant_en_lettres
 from api.services.phrases.catalogue import TOTAL_APRES_CORRECTION, TOTAL_RELECTURE
 
 
@@ -108,21 +108,21 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
     moyen, moyen_reste = le_seul_moyen_de_sa_famille(brut.get("moyen"), acceptes), le_seul_moyen_de_sa_famille(brut.get("moyen_reste"), acceptes)
     if not moyen:
         return None, _r(
-            "INCOMPLETE", {"moyens": [source.libelles_des_moyens.get(m, m) for m in acceptes], "acceptes": list(acceptes)}, phrase_du_manque(Manque.PAIEMENT), "paiement"
+            "INCOMPLETE", {"moyens": [source.libelles_des_moyens.get(m, m) for m in acceptes], "acceptes": list(acceptes)}, "", "paiement"
         )
     for m in (moyen, moyen_reste):
         if m and m not in acceptes:
             faits = {"moyen": m, "acceptes": list(acceptes), "acceptes_dits": [source.libelles_des_moyens.get(a, a) for a in acceptes]}
-            return None, _r("MOYEN_NON_ACCEPTE", faits, TS.moyen_non_accepte(faits))
+            return None, _r("MOYEN_NON_ACCEPTE", faits, "")
     part = brut.get("part")
     if part is None or part >= total:
         moyens = [{"moyen": moyen, "montant": total}]
     elif part <= 0:
         faits = {"montant_illisible": True}
-        return None, _r("ARGUMENT_INVALIDE", faits, TS.quel_montant(faits), "paiement")
+        return None, _r("ARGUMENT_INVALIDE", faits, "", "paiement")
     elif not moyen_reste:
-        faits = {"reste": total - part}
-        return None, _r("INCOMPLETE", faits, TS.et_le_reste(faits), "paiement_reste")
+        faits = {"reste": total - part, "reste_dit": montant_en_lettres(total - part)}  # C7 B5 : le montant aussi en lettres (la copie du modèle lit mal des centimes)
+        return None, _r("INCOMPLETE", faits, "", "paiement_reste")
     else:
         moyens = [{"moyen": moyen, "montant": part}, {"moyen": moyen_reste, "montant": total - part}]
     paiement: dict[str, Any] = {"moyens": moyens, "rendu_sur": None, "monnaie": 0}
@@ -132,10 +132,10 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
         cible = next((m for m in moyens if m["moyen"] == brut.get("moyen_du_billet", "especes")), None)
         if cible is None:
             faits = {"moyen_du_billet": brut.get("moyen_du_billet", "especes")}
-            return None, _r("ARGUMENT_INVALIDE", faits, TS.sur_quel_reglement(faits), "paiement")
+            return None, _r("ARGUMENT_INVALIDE", faits, "", "paiement")
         if rendu_sur < cible["montant"]:
             faits = {"montant": cible["montant"], "billet": rendu_sur}
-            return None, _r("ARGUMENT_INVALIDE", faits, TS.billet_insuffisant(faits), "paiement")
+            return None, _r("ARGUMENT_INVALIDE", faits, "", "paiement")
         paiement["rendu_sur"], paiement["monnaie"] = rendu_sur, rendu_sur - cible["montant"]
     return paiement, None
 
@@ -221,7 +221,7 @@ async def regler(
                 "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
         if (part is not None and brut["part"] is None) or (rendu_sur is not None and brut["rendu_sur"] is None):
             faits = {"montant_illisible": True}
-            return None, _avec(_r("ARGUMENT_INVALIDE", faits, TS.quel_montant(faits), "paiement"), p)
+            return None, _avec(_r("ARGUMENT_INVALIDE", faits, "", "paiement"), p)
         p["paiement"] = {**(p.get("paiement") or {}), **{k: v for k, v in brut.items() if v is not None}}
     paiement, refus = await _le_reglement(source, p, total, p.get("paiement") or {})
     if refus is not None:

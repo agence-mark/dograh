@@ -1,5 +1,5 @@
 """[.mark] Lot 7b-C2, fermeture (``SourceClasseur.etat``) : l'heure de reprise que dit la phrase est un fait de l'état (``reprise_dite``), la règle de la pause appliquée par le code,
-et le texte de secours d'avant (``TSC.fermeture``) se refait de ``statut``, ``reprise_dite`` et ``planifiee_permise`` seuls ; l'état ne porte plus de clé ``phrase`` (lot 7b-C7)."""
+et ce que disait le texte de secours d'avant tient dans ``statut``, ``reprise_dite`` et ``planifiee_permise`` (C7 B9 : catalogue supprimé) ; l'état ne porte plus de clé ``phrase`` (lot 7b-C7)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from datetime import timedelta
 import pytest
 
 from api.db.bases_clients import horloge
-from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
@@ -17,9 +16,6 @@ from api.tests.mark import test_restauration_classeur_commande as CLASSEUR
 
 # Les fixtures du classeur, reprises par affectation (jamais d'import qui ne sert qu'à les enregistrer).
 base_essai, base_prete, commerce = BASE.base_essai, BASE.base_prete, CLASSEUR.commerce
-
-PROPOSE = " Je peux prendre votre commande pour plus tard, sur un créneau de la prochaine ouverture."
-
 
 @pytest.fixture
 def source(commerce):
@@ -40,7 +36,7 @@ async def test_pause_a_reprise_connue_dit_la_reprise(commerce, source):
     etat = await source.etat("emporter")
     assert (etat["statut"], etat["en_pause"], etat["reprise_dite"]) == ("PAUSE_TYPE", True, "douze heures trente")
     assert "phrase" not in etat  # C7 : la source n'écrit aucune phrase, le modèle la dit des faits
-    assert TSC.fermeture(etat) == "Nous sommes en pause pour le moment. Nous reprenons à douze heures trente."
+    assert (etat["statut"], etat["reprise_dite"], etat["planifiee_permise"]) == ('PAUSE_TYPE', 'douze heures trente', False)
 
 
 async def test_pause_sans_reprise_connue_ne_dit_jamais_la_prochaine_ouverture(commerce, source):
@@ -49,14 +45,14 @@ async def test_pause_sans_reprise_connue_ne_dit_jamais_la_prochaine_ouverture(co
     assert etat["en_pause"] is True and etat["reprise"] is None
     assert etat["prochaine_ouverture"] is not None, "le cas n'a de dents que si les horaires donnent une prochaine ouverture"
     assert etat["reprise_dite"] is None
-    assert "phrase" not in etat and TSC.fermeture(etat) == "Nous sommes en pause pour le moment."
+    assert "phrase" not in etat and (etat["statut"], etat["reprise_dite"], etat["planifiee_permise"]) == ('PAUSE_TYPE', None, False)
 
 
 async def test_hors_horaires_dit_la_prochaine_ouverture(commerce, source):
     with horloge.remplacer(commerce.base, JEUDI_MIDI.replace(hour=16)):
         etat = await source.etat("emporter")
     assert (etat["statut"], etat["en_pause"], etat["reprise"], etat["reprise_dite"]) == ("FERME", False, None, "dix-huit heures")
-    assert "phrase" not in etat and TSC.fermeture(etat) == "Nous sommes fermés pour le moment. Nous reprenons à dix-huit heures."
+    assert "phrase" not in etat and (etat["statut"], etat["reprise_dite"], etat["planifiee_permise"]) == ('FERME', 'dix-huit heures', False)
 
 
 async def test_commande_pour_plus_tard_permise_la_propose(commerce, source):
@@ -64,22 +60,14 @@ async def test_commande_pour_plus_tard_permise_la_propose(commerce, source):
     with horloge.remplacer(commerce.base, JEUDI_MIDI.replace(hour=16)):
         etat = await source.etat("emporter")
     assert etat["planifiee_permise"] is True
-    assert "phrase" not in etat and TSC.fermeture(etat) == "Nous sommes fermés pour le moment. Nous reprenons à dix-huit heures." + PROPOSE
+    assert "phrase" not in etat and (etat["statut"], etat["reprise_dite"], etat["planifiee_permise"]) == ('FERME', 'dix-huit heures', True)
 
 
 async def test_livraison_terminee_dit_sa_phrase(commerce, source):
     await _regler(commerce, "fin_par_jour", '{"4": "11:30"}', "livraison")
     etat = await source.etat("livraison")
     assert etat["statut"] == "LIVRAISON_TERMINEE" and "phrase" not in etat
-    assert TSC.fermeture(etat).startswith("Les livraisons sont terminées pour aujourd'hui.")
-
-
-async def test_la_phrase_se_refait_des_seuls_faits_statut_reprise_dite_et_planifiee_permise():
-    """Rien d'autre que ces trois clés n'entre dans le texte : un état écrit à la main suffit."""
-    assert TSC.fermeture({"statut": "FERME", "reprise_dite": None, "planifiee_permise": False}) == "Nous sommes fermés pour le moment."
-    assert TSC.fermeture({"statut": "PAUSE_TYPE", "reprise_dite": "vingt heures", "planifiee_permise": True}) == (
-        "Nous sommes en pause pour le moment. Nous reprenons à vingt heures." + PROPOSE)
-    assert TSC.fermeture({"statut": "LIVRAISON_TERMINEE", "reprise_dite": None, "planifiee_permise": False}) == "Les livraisons sont terminées pour aujourd'hui."
+    assert (etat["statut"], etat["reprise_dite"], etat["planifiee_permise"]) == ('LIVRAISON_TERMINEE', 'dix-huit heures', False)
 
 
 async def test_l_etat_d_ouverture_n_a_pas_de_cle_phrase(commerce, source):

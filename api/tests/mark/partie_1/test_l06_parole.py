@@ -98,7 +98,7 @@ def test_relance_question_en_attente():
     assert puis == {"question": {"id": "Q-1", "type": "proposition", "article_propose": "Coca-Cola"}} and proposition not in consigne
 
 
-async def test_repli_phrase_du_manque(essai_de):
+async def test_repli_valeur_du_manque(essai_de):
     """L06-28 (f307 t2) : sous le minimum, sans question en attente, la relance porte ce qui manque en valeur fermée (lot 7b-C5), jamais la phrase du module."""
     e = await essai_de("casa-italia", minimum=5000)
     await e.tour("en livraison au 9 avenue du Bouteiller à Chantilly", mode_de_retrait="livraison", commune="Chantilly", adresse="9 avenue du Bouteiller")
@@ -199,7 +199,8 @@ async def test_minimum_donne_au_modele_puis_issue(essai_de):
     r = await e.tour("une margherita normale", **cases)
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, une margherita.", **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE, (d, r)
-    assert r["faits"]["minimum_de_la_commande"] == {"commune": "Chantilly", "minimum": 5000, "manque": 3910}, r["faits"]
+    assert r["faits"]["minimum_de_la_commande"] == {"commune": "Chantilly", "minimum": 5000, "manque": 3910,  # F3 (C7 B6) : les montants aussi en lettres
+                                                     "minimum_dit": "cinquante euros", "manque_dit": "trente-neuf euros dix"}, r["faits"]
     assert not (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("prefixe") and r["a_faire"].startswith(PORTE.A_FAIRE_DU_MINIMUM), r
     q = CONV.question_de(e.p) or {}
     if q.get("type") == "proposition":

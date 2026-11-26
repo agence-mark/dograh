@@ -43,9 +43,8 @@ from api.services.actions_communes.resultat import (
 )
 from api.services.phrases.catalogue import NUMERO_DICTE_RELU
 from api.services.reservation import etat_pour_le_modele, moteur
-from api.services.reservation import textes_de_secours as TS
 from api.services.reservation import source as registre_des_sources
-from api.services.reservation.lire import lire
+from api.services.reservation.lire import a_faire_du_refus, lire
 from api.services.actions_communes import du as DU
 from api.services.reservation.phrases_du_manque import valeur_du_manque
 from api.services.restauration.mesures import mesures as mesures_du_module
@@ -131,8 +130,8 @@ def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> d
     if operation == "retrouver" and r.statut == "AMBIGU" and isinstance((r.faits or {}).get("candidats"), list):
         # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
         candidats = en_json(r.faits["candidats"])
-        # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
-        return _numerotee({"type": "choix", "texte": (r.suggestion or TS.laquelle({})), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
+        # Lot 20 (n4) : la question porte les réservations (``candidats_dits``), jamais « Laquelle ? » seul ; C7 (B3) : sans texte, le modèle la dit avec ses mots
+        return _numerotee({"type": "choix", "texte": "", "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation"):
         # C6 n° 8 : la relecture est dite par le modèle, sans texte ; son JETON (neuf à chaque relecture posée) est son identité et lie le « oui » à la relecture entendue
         return _numerotee({"type": TYPES_DE_QUESTION[operation], "texte": "", "nee_au_tour": tour, "jeton": uuid.uuid4().hex}, e)
@@ -243,12 +242,12 @@ def numero_apres_le_fait_accompli(ctx: Any, dernier: Resultat | None) -> str | N
 
 def _textes_du_fait_accompli(dernier: Resultat, operation: str | None, phrase_du_numero: str | None = None) -> dict[str, Any]:
     """C6 n° 9 (décision d'Evan 25/11 9 h 30 ; P2) : la réservation enregistrée, changée ou annulée est dite par le MODÈLE ; sa phrase doit dire les personnes et l'heure (``chiffres_exiges`` ;
-    rien pour une annulation). Le code ne dit après elle que la phrase réglée du numéro retenu (``phrase_du_numero``, reprise R4 : DC10 éteint). ``fait_accompli`` : le texte de secours
-    de la base, une trace des textes du code seulement : ni au journal du dit (reprise R5), ni à la voix, même relance ratée (reprise R1 de C6)."""
+    rien pour une annulation). Le code ne dit après elle que la phrase réglée du numéro retenu (``phrase_du_numero``, reprise R4 : DC10 éteint). Le modèle lit le fait dans les faits du
+    retour (personnes, quand, nom) ; aucun texte de secours, ni au journal du dit (reprise R5), ni à la voix, même relance ratée (reprise R1 de C6)."""
     faits = dernier.faits or {}
     geste = "reserver" if dernier.statut in STATUTS_ENREGISTRES else operation
     exiges = {} if geste == "annuler" else {k: str(v) for k, v in (("personnes", faits.get("personnes")), ("heure", faits.get("heure_dite"))) if v not in (None, "")}
-    return {"chiffres_exiges": exiges, **({"suffixe": phrase_du_numero} if phrase_du_numero else {}), "fait_accompli": dernier.suggestion,
+    return {"chiffres_exiges": exiges, **({"suffixe": phrase_du_numero} if phrase_du_numero else {}),
             "a_faire": A_FAIRE_DU_FAIT_ACCOMPLI.get(geste or "", A_FAIRE_DU_FAIT_ACCOMPLI["reserver"])}
 
 
@@ -259,7 +258,8 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
     vide : rien."""
     if nee is not None and nee.get("type") in TYPES_DE_QUESTION.values() and dernier is not None:
         return _textes_de_la_relecture(nee, dernier, question_du_code)
-    if dernier is not None and bool(dernier.suggestion) and (
+    # C7 (B7) : le fait accompli se lit au statut (enregistrée, ou changée ou annulée sans manque), jamais au texte de la base, qui est vide
+    if dernier is not None and (
             dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)):
         return _textes_du_fait_accompli(dernier, operation, phrase_du_numero)
     return {}
@@ -462,7 +462,7 @@ def _refus_du_metier(ctx: Any, dernier: Resultat | None) -> tuple[list[dict], bo
         raison = _raison_du_refus(dernier)
         # B4 (M9) : « propose les horaires libres » seulement quand il y en a (avant : la consigne de tout refus, même d'un choix non compris)
         defaut = "dis-lui la raison et propose les horaires libres" if (dernier.faits or {}).get("propositions") else "dis-lui la raison"
-        metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or defaut)})
+        metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or a_faire_du_refus(dernier.faits) or defaut)})
     return metier, transmise
 
 

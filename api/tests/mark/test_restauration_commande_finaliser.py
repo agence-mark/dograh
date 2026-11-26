@@ -245,7 +245,7 @@ async def test_un_moyen_non_accepte_est_refuse_avec_ceux_qui_le_sont(commerce):
     await a.jusqu_a_la_relecture()
     r = await a.confirmer(moyen="cheque")
     assert r.statut == "MOYEN_NON_ACCEPTE" and set(r.faits["acceptes"]) == {"carte", "especes", "titre_restaurant"}
-    assert "par carte" in r.suggestion
+    assert r.suggestion == "" and "par carte" in r.faits["acceptes_dits"]  # C7 B5 (Evan 25/11 8 h 45) : le modèle dit les moyens pris, d'après les faits
 
 
 async def test_une_part_sans_le_reste_demande_le_reste(commerce):

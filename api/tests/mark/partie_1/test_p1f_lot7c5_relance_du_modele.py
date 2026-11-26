@@ -16,6 +16,7 @@ from api.services.actions_communes.repli import CLE_DU_TOUR, poser_le_fait_bloqu
 from api.services.commande import panier as P
 from api.services.pipecat import avant_la_requete as AR
 from api.services.pipecat.reponse_avalee import ATTRIBUT_PHRASE_DE_REPLI, RepliqueVerifiee
+from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.workflow import parole_de_la_fiche as PF
 from api.services.workflow.cases_selon_l_etat import CLE_DES_CASES_MONTREES
 
@@ -373,7 +374,7 @@ async def test_s2_mini_dialogue_la_relance_du_fait_repare_la_reponse():
 def _avec_fait_accompli(fiche: dict) -> dict:
     from api.services.actions_communes import journal_du_dit as J
 
-    J.dire_le_fait(P.du_dossier(fiche), "Votre commande est enregistrée.", 1)
+    J.dire_le_fait(P.du_dossier(fiche), {"fait": "enregistree", "livree": False, "quand_dit": "pour midi"}, 1)  # B9 : en faits
     return fiche
 
 
@@ -424,23 +425,28 @@ def _entrees_du_manque(fiche: dict, phrase: str):
     return TABLE.entrees_du_retour(retour, phrase, etat, [], P.du_dossier(fiche), {}, True, None)
 
 
-def test_e2a_un_manque_du_donne_un_second_passage_une_fois_puis_la_phrase_seule():
-    """Client « Et un coca. » / avant : modèle « C'est noté. » + code « Qu'est-ce que je vous mets ? » / après : le modèle repasse (« Un coca, c'est noté ; autre chose ? »), une fois ; ensuite sa phrase seule."""
+def test_e2a_un_manque_du_donne_un_second_passage_une_fois_puis_la_relance_est_ratee():
+    """Client « Et un coca. » / avant : modèle « C'est noté. » + code « Qu'est-ce que je vous mets ? » / après : le modèle repasse une fois (la relance du tour, sans
+    rattrapage avant elle) ; la fiche rejouée ne change rien : relance ratée, P3 (T12, coordinateur 26/11 10 h 45), jamais « C'est noté. » seul."""
     e = _entrees_du_manque(_fiche(), "C'est noté.")
+    e.etat.rattrapage_a_joue = False
+    e.objet_en_cours = False
     assert TABLE.decider(e).mode == PAROLE.SECOND_PASSAGE and e.etat.relance_du_fait
     decision = TABLE.decider(e)
-    assert decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire == "C'est noté.", decision
+    assert (decision.mode, decision.a_dire, decision.motif) == (PAROLE.A_DIRE_SEUL, None, REPONSE_PERDUE), decision
 
 
-def test_e2a_une_phrase_qui_pose_une_question_est_dite_seule():
+def test_e2a_apres_la_relance_du_tour_meme_une_phrase_qui_pose_une_question_n_est_pas_dite():
+    """T12 : la relance du tour est faite (rattrapage) ; la fiche ne change rien : relance ratée, P3. La phrase du modèle (écrite avant l'exécution) n'est jamais dite seule,
+    qu'elle pose une question ou non (la forme ne dit pas qu'elle est vraie) ; aucune seconde relance."""
     e = _entrees_du_manque(_fiche(), "C'est noté ; autre chose ?")
     decision = TABLE.decider(e)
-    assert decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire == "C'est noté ; autre chose ?" and not e.etat.relance_du_fait, decision
+    assert (decision.mode, decision.a_dire, decision.motif) == (PAROLE.A_DIRE_SEUL, None, REPONSE_PERDUE), decision
 
 
 def test_e2b_le_prix_a_dire_apres_la_phrase_survit_au_second_passage():
     e = _entrees(_fiche(question=_question()), "C'est noté.", question_donnee=True)
-    e.suffixe_avant = "Cela fait deux euros."
+    e.suffixe_avant, e.ancre_avant = "Cela fait deux euros.", TABLE.ancre_de_la_question(e.p)  # C7 (a) : la table pose la phrase réglée avec l'ancre de sa question
     assert TABLE.decider(e).mode == PAROLE.SECOND_PASSAGE and e.etat.suffixe == "Cela fait deux euros."
 
 
@@ -469,7 +475,7 @@ NOMS_RETIRES = ("repli_dit_par_le_code", "_repli_sans_le_fait_bloquant", "_quest
 
 
 def test_c9_aucun_nom_du_repli_compose_ne_reste_dans_le_code():
-    """Grep à zéro : ni la fonction, ni son appelant, ni le champ ``textes`` du fait bloquant ; ``TS.du_refus`` non plus (le refus de la réservation se lit par ``refuse_a_dire``)."""
+    """Grep à zéro : ni la fonction, ni son appelant, ni le champ ``textes`` du fait bloquant ; ``du_refus`` (catalogue de la réservation, supprimé en C7 B9) non plus (le refus de la réservation se lit par ``refuse_a_dire``)."""
     import re
 
     from api.outils import inventaire_rustines as I
@@ -527,3 +533,25 @@ def test_c10_une_relecture_reposee_avec_un_autre_jeton_reste_une_autre_question(
     relecture = {"id": "Q-2", "type": "relecture", "texte": "", "jeton": "a"}
     assert CONV.identite_de_la_question(relecture) != CONV.identite_de_la_question({**relecture, "jeton": "b"})
     assert CONV.identite_de_la_question(relecture) == CONV.identite_de_la_question({**relecture, "texte": "Un autre texte"})
+
+
+# --------------------------------------------------------------------------- C7 B1 (T1) : une erreur interne au silence ne laisse jamais le tour muet
+
+
+def _lecture_qui_leve(*_a, **_k):
+    raise KeyError("lignes")
+
+
+async def test_t1_une_lecture_qui_leve_au_silence_dit_la_phrase_reglee_sans_requete_de_plus(monkeypatch):
+    """T1 : Client « Une pizza au homard. » / le modèle se tait / la lecture de la fiche lève (erreur interne) / avant : rien n'est dit (``None``, flux vide) /
+    après : « Pardon, je n'ai pas bien saisi. Vous pouvez répéter ? » (P3), sans requête de plus."""
+    monkeypatch.setattr(PF, "dossier_de_la_parole", _lecture_qui_leve)
+    dit, consignes = await _tour_muet(_fiche_du_homard(), ["Un texte qui ne doit jamais partir."])
+    assert dit == REGLEE and consignes == [], (dit, consignes)
+
+
+def test_t1_voisin_hors_fiche_une_erreur_au_silence_rend_toujours_none():
+    """Voisin : une étape qui ne porte pas la fiche garde son comportement (le contrôle d'avant qui lève : ``None``, le flux rendu tel quel)."""
+    autre = SimpleNamespace(controler_le_silence=lambda *_a: _lecture_qui_leve())
+    fiche = {CLE_DU_TOUR: 1}
+    assert PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=fiche), autre).controler_le_silence() is None

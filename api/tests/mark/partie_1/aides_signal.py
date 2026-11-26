@@ -4,7 +4,8 @@ Le signal est le statut du module, ce qui manque et les faits bruts, tels que le
 - ``F`` (la fiche) : les faits publics du refus, puis la copie allégée de ``enveloppe_legere.pour_le_modele`` (``outil.py``) ;
 - ``L`` (lire) : les faits bruts (``lire.py``), seuls le panier et le prix à dire sont retirés ;
 - ``S`` (le suivi d'une commande) : les faits sans le panier ni les candidats (``commande/porte.py``) ;
-- ``Rv`` (réservation) : ``resultat_public`` de la porte commune ; ``RvQ`` y ajoute ``candidats_dits``, la question de choix que pose la porte de la réservation.
+- ``Rv`` (réservation) : ``resultat_public`` de la porte commune ; ``RvQ`` y ajoute ``candidats_dits``, la question de choix que pose la porte de la réservation ;
+  ``RvP`` y ajoute ``a_faire``, la consigne que la porte de la réservation pose sur un refus (C7 B9 : la suite d'un groupe trop grand vit dans la porte, plus dans la base).
 Une valeur est comparée ENTIÈRE (``norm``), jamais comme sous-chaîne : « Oise » n'est pas trouvé dans « Val-d'Oise ». Un nombre se compare par ses formes
 (``valeurs_des_faits`` : « 1500 », « quinze euros »). Un drapeau vrai (``panier_vide: true``) compte pour son nom.
 """
@@ -23,9 +24,10 @@ from api.services.actions_communes.barriere_des_chiffres import valeurs_des_fait
 from api.services.actions_communes.enveloppe_legere import pour_le_modele
 from api.services.actions_communes.forme import norm
 from api.services.commande.porte import faits_vus_par_le_modele
+from api.services.reservation.lire import a_faire_du_refus
 from api.services.reservation.porte import FAITS_GARDES_PAR_LA_RESERVATION
 
-CHEMINS = ("F", "L", "S", "Rv", "RvQ")
+CHEMINS = ("F", "L", "S", "Rv", "RvQ", "RvP")
 Valeurs = list[tuple[str, str]]
 
 
@@ -47,7 +49,7 @@ def feuilles(x: Any) -> set[str]:
     return {norm(str(x))}
 
 
-FAITS_CACHES_DU_SUIVI = ("panier", "candidats")  # ce que la porte de la commande retire du suivi d'une commande (``commande/porte.py``, ``faits_du_suivi``)
+FAITS_CACHES_DU_SUIVI = ("panier",)  # ce que la porte de la commande retire du suivi d'une commande (``commande/porte.py``, ``faits_du_suivi`` ; C7 B4 : les candidats restent)
 
 
 def signal(r: Any, chemin: str, operation: str = "fiche") -> Any:
@@ -68,6 +70,8 @@ def signal(r: Any, chemin: str, operation: str = "fiche") -> Any:
     if chemin == "RvQ":
         candidats = (r.faits or {}).get("candidats") or []
         return {**PC.resultat_public(operation, r, FAITS_GARDES_PAR_LA_RESERVATION), "candidats_dits": [c["dit"] for c in candidats if isinstance(c, dict) and c.get("dit")]}
+    if chemin == "RvP":
+        return {**PC.resultat_public(operation, r, FAITS_GARDES_PAR_LA_RESERVATION), "a_faire": a_faire_du_refus(r.faits)}
     raise ValueError(chemin)
 
 
@@ -85,13 +89,12 @@ def pareilles(*mots: str) -> Valeurs:
 
 @dataclass
 class Cas:
-    """Un texte de secours et le scénario qui joue le vrai module : le signal doit porter son discriminant et chaque valeur que le texte disait."""
+    """Le scénario qui joue le vrai module à la place d'un texte de secours d'avant (supprimé en B9) : le signal doit porter son discriminant et chaque valeur que le texte disait."""
 
     nom: str
-    texte: Callable[[dict], str] | None  # le texte de secours d'avant, refait des faits qu'il lisait (``None`` : aucun mot à vérifier)
     scenario: Callable[..., Any]         # joue le vrai module et rend son retour
     chemin: str                          # un des ``CHEMINS``
-    valeurs: Valeurs | Callable[[Any], Valeurs]  # ``(forme dans le signal, forme dans le texte)``, ou une fonction du retour qui les rend
+    valeurs: Valeurs | Callable[[Any], Valeurs]  # ``(forme dans le signal, forme dans le texte d'avant)``, ou une fonction du retour qui les rend
     discriminant: str                    # ce qui distingue ce refus d'un autre : statut, raison ou manque
     manque: str | None = None            # le fait qui manque encore (xfail strict), ou ``None``
 
@@ -108,16 +111,6 @@ def parametres(cas_list: list[Cas]):
 def controler(cas: Cas, r: Any) -> None:
     absentes = valeurs_absentes(r, cas.chemin, valeurs_du_cas(cas, r), cas.discriminant)
     assert not absentes, f"{cas.nom} : le signal ne porte pas {absentes}"
-
-
-def fidele(cas: Cas, r: Any) -> None:
-    """La table dit ce que disait le texte : chaque valeur est dans le texte d'avant, refait des faits qu'il lisait (les faits publics de la fiche, sinon ceux du module)."""
-    if cas.texte is None:
-        return
-    lus = faits_vus_par_le_modele(r) if cas.chemin == "F" else r.faits
-    texte = norm(cas.texte(lus))
-    pas_dites = [d for _, d in valeurs_du_cas(cas, r) if norm(d) not in texte]
-    assert not pas_dites, f"{cas.nom} : le texte ne disait pas {pas_dites} : {texte}"
 
 
 async def jouer(scenario: Callable[..., Any], *args: Any) -> Any:

@@ -1152,7 +1152,6 @@
    "_question",
    "_unites_dites",
    "_unites_dites.dite",
-   "_phrase_de_la_question",
    "_appliquer_les_defauts",
    "_choisir",
    "remplacer_un_choix",
@@ -1240,7 +1239,6 @@
    "envoyer_un_message"
   ],
   "services/commande/moteur/prealables.py": [
-   "_phrase_des_modes",
    "question_du_mode",
    "_prealables",
    "_rien_n_est_pris",
@@ -1272,8 +1270,7 @@
    "verifier_adresse",
    "_minimum_de_l_adresse",
    "resoudre_une_date",
-   "verifier_le_creneau",
-   "annoncer_la_fermeture"
+   "verifier_le_creneau"
   ],
   "services/commande/moteur/proposition.py": [
    "_peut_parler_d_offre",
@@ -1302,7 +1299,6 @@
    "_le",
    "commande_de_l_appel",
    "_dit",
-   "_phrase_d_une_remise_appliquee",
    "_mots_significatifs",
    "_sans_accent",
    "_racines",
@@ -1329,7 +1325,6 @@
   ],
   "services/commande/phrases_du_manque.py": [
    "valeur_fermee",
-   "phrase_du_manque",
    "texte_a_dire"
   ],
   "services/commande/porte.py": [
@@ -1721,7 +1716,6 @@
    "annuler"
   ],
   "services/reservation/phrases_du_manque.py": [
-   "phrase_du_manque",
    "texte_a_dire"
   ],
   "services/reservation/porte.py": [

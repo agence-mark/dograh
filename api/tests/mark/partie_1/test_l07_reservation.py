@@ -354,13 +354,13 @@ async def test_precision_seule_n_ouvre_pas(salle, monkeypatch):
 # --------------------------------------------------------------------------- L07-17 : les phrases du manque, mot pour mot (B12 décision 1)
 
 
-def test_phrases_du_manque_reservation():
+def test_valeurs_du_manque_reservation():
     attendu = {
         "le nombre de personnes": "Pour combien de personnes ?", "le jour": "Pour quel jour ?", "l'heure": "À quelle heure ?", "le nom": "À quel nom ?",
         "le numéro de téléphone": "Quel est votre numéro de téléphone ?",
         "le nom et le jour de sa réservation d'avant": "À quel nom et pour quel jour était votre réservation ?",
     }
-    assert PM.PHRASES_DU_MANQUE == attendu
+    assert PM.VALEURS_DU_MANQUE == frozenset(attendu)  # C7 B9 : la valeur fermée seule ; la phrase d'avant (``attendu``) reste comme mémoire, le modèle la pose
     from api.services.reservation import etat_pour_le_modele as E
 
     # lot 7b-C5 (décision d'Evan 25/11 8 h 45) : le code ne dit plus la phrase du manque ; la relance du modèle reçoit la VALEUR fermée (``valeur_du_manque``)

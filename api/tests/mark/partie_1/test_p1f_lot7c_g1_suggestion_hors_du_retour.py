@@ -1,7 +1,7 @@
 """[.mark] Lot 7b-C0, G1 (garde dynamique) : sur les scénarios rapides, aucune suggestion du tour (12 lettres et plus) ne figure dans le retour donné au modèle, un cas par canal.
 
 Les quatre canaux par lesquels le texte d'un module arrive au modèle (fiche de la 7b-C, § 0) : ``faits.refus_de_la_fiche[].explication``, ``faits.heure_a_dire[].explication``,
-``question.texte`` et ``texte_a_dire``. Avec R = A, la suggestion reste écrite dans le module comme texte de secours, lu par le repli seul ; le modèle reçoit des faits, jamais la phrase.
+``question.texte`` et ``texte_a_dire``. Depuis C7 B9, aucun module n'écrit plus de suggestion (catalogues supprimés) ; le modèle reçoit des faits, jamais une phrase.
 
 Chaque canal a deux tests : le scénario atteint bien le canal (vert, sinon l'échec attendu ne prouverait rien) ; G1 elle-même, en échec attendu strict tant que le canal n'est pas fermé
 (la sous-tranche C4 ferme un canal par commit et retire l'échec attendu du sien : un échec attendu qui passe est rouge).
@@ -148,12 +148,12 @@ async def test_scenario_heure_a_dire_atteint_le_canal(essai_de, suggestions, mon
 
 async def test_scenario_question_atteint_le_canal(essai_de, suggestions):
     r, valeurs, du_tour, _ = await _question(essai_de, suggestions)
-    assert r["question"]["type"] == "variante" and du_tour and not valeurs, (r["question"], du_tour)  # la question est posée, sans phrase
+    assert r["question"]["type"] == "variante" and not du_tour and not valeurs, (r["question"], du_tour)  # la question est posée ; C7 B9 : plus aucune phrase, ni au module ni au canal
 
 
 async def test_scenario_texte_a_dire_atteint_le_canal(salle, monkeypatch, suggestions):
     r, valeurs, du_tour, _ = await _texte_a_dire(salle, monkeypatch, suggestions)
-    assert r["manque"] and du_tour and not valeurs, (r, du_tour)  # le manque est un fait (« jour »), sa phrase est dans le constat caché
+    assert r["manque"] and not du_tour and not valeurs, (r, du_tour)  # le manque est un fait (« jour ») ; C7 B9 : le module n'écrit plus aucune phrase
 
 
 # ── G1 : aucune suggestion du tour dans le canal (échec attendu strict, un par canal) ───────────────────────────────────
