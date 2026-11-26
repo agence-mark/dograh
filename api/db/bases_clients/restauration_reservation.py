@@ -43,18 +43,14 @@ RAISONS = frozenset(
 )
 
 
-# F6 (lot 7b-C7) : la suite d'un groupe trop grand, la même partout où il est refusé (avant le jour, capacité du jour, enregistrement, changement).
-A_FAIRE_DU_GROUPE = "dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe"
-
-
 def _refus(detail: str, **plus: Any) -> Resultat:
     faits = {"raison": "autre", "detail": detail, **plus}
     return Resultat("REFUSEE", faits)
 
 
 def _groupe_trop_grand(maximum: int | None) -> Resultat:
-    """Le refus d'un groupe trop grand : son ``maximum`` et la suite (l'équipe, un message proposé : ``A_FAIRE_DU_GROUPE``)."""
-    return _refus(capacite.GROUPE_TROP_GRAND, maximum=maximum, a_faire=A_FAIRE_DU_GROUPE)
+    """Le refus d'un groupe trop grand : son ``maximum`` ; la suite (l'équipe, un message proposé) est une consigne de la porte (``reservation/lire.A_FAIRE_DU_GROUPE``, C7 B9)."""
+    return _refus(capacite.GROUPE_TROP_GRAND, maximum=maximum)
 
 
 def _refus_de_place(raison: str, regles: Regles) -> Resultat:

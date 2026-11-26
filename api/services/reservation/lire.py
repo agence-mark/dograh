@@ -11,6 +11,7 @@ from datetime import date
 from typing import Any
 
 from api.db.bases_clients import dates_futures
+from api.db.bases_clients.capacite import GROUPE_TROP_GRAND
 from api.services.actions_communes.arguments import lire_un_entier, lire_un_texte
 from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.commande.lire import lecture_sur_une_copie
@@ -18,6 +19,15 @@ from api.services.mots_dits import heure_en_lettres, liste_dite
 from api.services.reservation import moteur
 
 JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+
+# F6 (lot 7b-C7), puis C7 B9 : la suite d'un groupe trop grand, la même partout où il est refusé (avant le jour, capacité du jour, enregistrement, changement).
+# C'est une consigne au modèle : elle vit dans la porte de la réservation (ici, que la porte et la lecture lisent), jamais dans les faits de la base.
+A_FAIRE_DU_GROUPE = "dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe"
+
+
+def a_faire_du_refus(faits: dict[str, Any] | None) -> str | None:
+    """La consigne que la porte pose sur un refus de la base, lue de son ``detail`` (liste fermée) : seul le groupe trop grand en a une."""
+    return A_FAIRE_DU_GROUPE if (faits or {}).get("detail") == GROUPE_TROP_GRAND else None
 
 
 async def _places_libres(source: Any, copie: dict[str, Any], arguments: dict[str, Any]) -> Enveloppe:
@@ -29,7 +39,7 @@ async def _places_libres(source: Any, copie: dict[str, Any], arguments: dict[str
     r = await moteur.disponibilites(source, copie, jour, personnes)
     if r.statut == "REFUSEE":   # un groupe trop grand : la raison et la suite, jamais des horaires ni « À quelle heure »
         return Enveloppe("LU", resultats=[{"operation": "lire", "sujet": "places_libres", "statut_du_module": r.statut}], raison=str(r.faits.get("detail") or "rien_a_faire"),
-                         a_faire=str(r.faits.get("a_faire") or "") or None)
+                         a_faire=a_faire_du_refus(r.faits))
     if r.statut != "OK":
         manque = {"manque": r.manque or "jour"}   # F5 : un jour ambigu garde les jours possibles dits (« ce jeudi ou le suivant ? »), jamais ``candidats`` et leurs dates
         if r.faits.get("jours_possibles"):

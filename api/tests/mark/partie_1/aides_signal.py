@@ -4,7 +4,8 @@ Le signal est le statut du module, ce qui manque et les faits bruts, tels que le
 - ``F`` (la fiche) : les faits publics du refus, puis la copie allégée de ``enveloppe_legere.pour_le_modele`` (``outil.py``) ;
 - ``L`` (lire) : les faits bruts (``lire.py``), seuls le panier et le prix à dire sont retirés ;
 - ``S`` (le suivi d'une commande) : les faits sans le panier ni les candidats (``commande/porte.py``) ;
-- ``Rv`` (réservation) : ``resultat_public`` de la porte commune ; ``RvQ`` y ajoute ``candidats_dits``, la question de choix que pose la porte de la réservation.
+- ``Rv`` (réservation) : ``resultat_public`` de la porte commune ; ``RvQ`` y ajoute ``candidats_dits``, la question de choix que pose la porte de la réservation ;
+  ``RvP`` y ajoute ``a_faire``, la consigne que la porte de la réservation pose sur un refus (C7 B9 : la suite d'un groupe trop grand vit dans la porte, plus dans la base).
 Une valeur est comparée ENTIÈRE (``norm``), jamais comme sous-chaîne : « Oise » n'est pas trouvé dans « Val-d'Oise ». Un nombre se compare par ses formes
 (``valeurs_des_faits`` : « 1500 », « quinze euros »). Un drapeau vrai (``panier_vide: true``) compte pour son nom.
 """
@@ -23,9 +24,10 @@ from api.services.actions_communes.barriere_des_chiffres import valeurs_des_fait
 from api.services.actions_communes.enveloppe_legere import pour_le_modele
 from api.services.actions_communes.forme import norm
 from api.services.commande.porte import faits_vus_par_le_modele
+from api.services.reservation.lire import a_faire_du_refus
 from api.services.reservation.porte import FAITS_GARDES_PAR_LA_RESERVATION
 
-CHEMINS = ("F", "L", "S", "Rv", "RvQ")
+CHEMINS = ("F", "L", "S", "Rv", "RvQ", "RvP")
 Valeurs = list[tuple[str, str]]
 
 
@@ -68,6 +70,8 @@ def signal(r: Any, chemin: str, operation: str = "fiche") -> Any:
     if chemin == "RvQ":
         candidats = (r.faits or {}).get("candidats") or []
         return {**PC.resultat_public(operation, r, FAITS_GARDES_PAR_LA_RESERVATION), "candidats_dits": [c["dit"] for c in candidats if isinstance(c, dict) and c.get("dit")]}
+    if chemin == "RvP":
+        return {**PC.resultat_public(operation, r, FAITS_GARDES_PAR_LA_RESERVATION), "a_faire": a_faire_du_refus(r.faits)}
     raise ValueError(chemin)
 
 

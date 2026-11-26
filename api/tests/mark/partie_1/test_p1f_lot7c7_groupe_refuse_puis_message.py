@@ -5,9 +5,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from api.db.bases_clients.restauration_reservation import A_FAIRE_DU_GROUPE
 from api.services.apres_appel.rappels import CLE_RAPPEL
 from api.services.groupe import passations as PASSATIONS
+from api.services.reservation.lire import A_FAIRE_DU_GROUPE
 from api.services.service_client import action as service
 from api.tests.mark import test_base_client as _BASE
 from api.tests.mark import test_restauration_reservation as _RESA

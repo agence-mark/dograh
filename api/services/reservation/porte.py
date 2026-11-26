@@ -44,7 +44,7 @@ from api.services.actions_communes.resultat import (
 from api.services.phrases.catalogue import NUMERO_DICTE_RELU
 from api.services.reservation import etat_pour_le_modele, moteur
 from api.services.reservation import source as registre_des_sources
-from api.services.reservation.lire import lire
+from api.services.reservation.lire import a_faire_du_refus, lire
 from api.services.actions_communes import du as DU
 from api.services.reservation.phrases_du_manque import valeur_du_manque
 from api.services.restauration.mesures import mesures as mesures_du_module
@@ -462,7 +462,7 @@ def _refus_du_metier(ctx: Any, dernier: Resultat | None) -> tuple[list[dict], bo
         raison = _raison_du_refus(dernier)
         # B4 (M9) : « propose les horaires libres » seulement quand il y en a (avant : la consigne de tout refus, même d'un choix non compris)
         defaut = "dis-lui la raison et propose les horaires libres" if (dernier.faits or {}).get("propositions") else "dis-lui la raison"
-        metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or defaut)})
+        metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or a_faire_du_refus(dernier.faits) or defaut)})
     return metier, transmise
 
 

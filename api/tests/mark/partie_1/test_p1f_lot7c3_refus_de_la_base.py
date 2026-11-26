@@ -17,10 +17,11 @@ salle, creer, SAMEDI_20H = RESA.salle, RESA.creer, RESA.SAMEDI_20H  # les fixtur
 PARIS = ZoneInfo("Europe/Paris")
 
 
-def _verifie(r, detail: str, faits: dict):
+def _verifie(r, detail: str, faits: dict):  # C7 B9 : la suite d'un groupe trop grand (``a_faire``) n'est plus un fait de la base, la porte la pose
     """C7 (B7) : la base ne porte plus de texte ; B9 : ce que disait le texte d'avant est dans les faits que le modèle lit (ceux qu'il lisait, ou tous)."""
     assert (r.statut, r.faits["raison"], r.faits["detail"], r.suggestion) == ("REFUSEE", "autre", detail, ""), r
     assert ({k: faits_publics(r).get(k) for k in faits} if faits else faits_publics(r)) == faits, r  # {} : le refus ne porte aucun fait
+    assert "a_faire" not in r.faits, r  # C7 B9 : la base ne pose aucune consigne au modèle
 
 
 async def test_ce_moment_est_passe(salle):
@@ -54,19 +55,19 @@ async def test_type_ferme(salle):
 
 async def test_groupe_trop_grand_a_l_enregistrement_garde_son_maximum(salle):
     r = await creer(salle, couverts=7)
-    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6, 'a_faire': RR.A_FAIRE_DU_GROUPE})
+    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6})
     assert r.faits["maximum"] == 6
 
 
 async def test_groupe_trop_grand_dit_avant_le_jour_est_le_meme_texte_et_le_meme_fait(salle):
     r = await RR.groupe_trop_grand(salle.c, salle.a, 25)
-    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6, 'a_faire': RR.A_FAIRE_DU_GROUPE})
+    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6})
     assert r.faits["maximum"] == 6 and "personnes_max" not in r.faits
 
 
 async def test_groupe_trop_grand_de_la_capacite_du_jour(salle):
     r = await RR.capacite_du_jour(salle.c, salle.a, SAMEDI_20H.date(), 7)
-    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6, 'a_faire': RR.A_FAIRE_DU_GROUPE})
+    _verifie(r, "groupe_trop_grand", {'raison': 'autre', 'detail': 'groupe_trop_grand', 'maximum': 6})
     assert r.faits["maximum"] == 6
 
 

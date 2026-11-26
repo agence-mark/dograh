@@ -18,6 +18,7 @@ from api.services.actions_communes.resultat import Resultat
 from api.services.commande import porte
 from api.services.commande.moteur import enregistrement, lecture, reglement
 from api.services.commande.moteur.socle import STATUTS_PERDUS, Appelant
+from api.services.reservation import lire as LIRE
 from api.services.reservation import moteur as RESA_MOTEUR
 from api.services.restauration.carte_et_allergenes import voir_un_article as V_
 from api.tests.mark import test_base_client as _BASE
@@ -352,7 +353,7 @@ def _propositions(r) -> list[tuple[str, str]]:
     return pareilles(*[p["quand_dit"] for p in r.faits.get("propositions") or []])
 
 
-A_FAIRE_DU_GROUPE = RR.A_FAIRE_DU_GROUPE  # F6 : la consigne d'offre de message, une constante de la base (plus une copie ici)
+A_FAIRE_DU_GROUPE = LIRE.A_FAIRE_DU_GROUPE  # F6 : la consigne d'offre de message ; C7 B9 : une constante de la porte de la réservation (plus de la base), lue par ``RvP``
 GROUPE = [(A_FAIRE_DU_GROUPE, "c'est l'équipe qui s'en occupe")]
 
 
@@ -368,10 +369,10 @@ CAS_DE_LA_SALLE: list[Cas] = [
     Cas("type_ferme", _type_ferme, "Rv", [], "type_ferme"),
     Cas("ferme", lambda _s, _m: RR._refus("ferme"), "Rv", [], "ferme"),
     Cas("complet", _complet, "Rv", _propositions, "complet"),
-    Cas("groupe_trop_grand_avant_le_jour", lambda s, _m: RR.groupe_trop_grand(s.c, s.a, 25), "Rv", GROUPE, "groupe_trop_grand"),
-    Cas("groupe_trop_grand_de_la_capacite", lambda s, _m: RR.capacite_du_jour(s.c, s.a, _RESA.SAMEDI_20H.date(), 7), "Rv", GROUPE, "groupe_trop_grand"),
-    Cas("groupe_trop_grand_a_l_enregistrement", _creer(couverts=7), "Rv", GROUPE, "groupe_trop_grand"),
-    Cas("groupe_trop_grand_au_changement", _groupe_trop_grand_au_changement, "Rv", GROUPE, "groupe_trop_grand"),  # le voisin (refus 11)
+    Cas("groupe_trop_grand_avant_le_jour", lambda s, _m: RR.groupe_trop_grand(s.c, s.a, 25), "RvP", GROUPE, "groupe_trop_grand"),
+    Cas("groupe_trop_grand_de_la_capacite", lambda s, _m: RR.capacite_du_jour(s.c, s.a, _RESA.SAMEDI_20H.date(), 7), "RvP", GROUPE, "groupe_trop_grand"),
+    Cas("groupe_trop_grand_a_l_enregistrement", _creer(couverts=7), "RvP", GROUPE, "groupe_trop_grand"),
+    Cas("groupe_trop_grand_au_changement", _groupe_trop_grand_au_changement, "RvP", GROUPE, "groupe_trop_grand"),  # le voisin (refus 11)
     Cas("passee", _passee, "Rv", [], "passee"),
     Cas("plus_modifiable", _plus_modifiable, "Rv", [], "plus_modifiable"),
     Cas("combien_de_personnes_a_la_base", _creer("couverts"), "Rv", [], "couverts"),
