@@ -218,7 +218,12 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
             return _avec(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
         if not p.get("enregistree"):
             p.setdefault("client", {})["telephone"] = dicte
-    r = await _finaliser(source, p, regles, appelant, **gestes)
+    return _avec_les_numeros_retenus(await _finaliser(source, p, regles, appelant, **gestes), p, regles, appelant)
+
+
+def _avec_les_numeros_retenus(r: Resultat, p: dict[str, Any], regles: Reglages, appelant: Appelant) -> Resultat:
+    """Le résultat de la fin avec le numéro qui s'affiche en fait (M98), puis le numéro dicté et le second numéro RETENUS dans la commande (``client``) portés en faits pour que le code les dise,
+    chacun une fois : jamais celui qui s'affiche, ni un numéro déjà dit, ni celui que la question réglée de la relecture (DC10) dira."""
     client = p["client"]
     if appelant.telephone_affiche and client.get("telephone") == appelant.telephone_affiche:
         r = avec_numero_affiche(r, appelant.telephone_affiche)
