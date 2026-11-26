@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "386cb0c2b1501dc7699bd55c5bbc400196aa59f4",
+ "commit_teste": "a2ac290ccaee7856614f35150b843597b670014f",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa10",
  "vert": true,
@@ -9,7 +9,7 @@
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 67
+   "fichiers_de_la_zone": 65
   },
   "noqa": {
    "vert": true,
@@ -20,7 +20,7 @@
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1120 files, 3377 dependencies.",
+    "Analyzed 1117 files, 3360 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -30,7 +30,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 10.86s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.89s ========================"
   },
   "donnes": {
    "vert": true,
@@ -148,16 +148,27 @@
     "tests/mark/test_restauration_voir_produit_options.py",
     "tests/mark/test_restauration_voir_produit_sans_m104.py",
     "tests/mark/test_restauration_zones.py",
-    "tests/mark/partie_1/test_p1f_lot7c6_remise_et_poids_avec_la_relecture.py",
-    "tests/mark/partie_1/test_p1f_lot7c6_lecture_n_admet_que_le_prix.py",
-    "tests/mark/partie_1/test_p1f_lot7c6_voix_apres_relance_ratee.py",
-    "tests/mark/partie_1/test_p1f_lot7c6_question_due_au_modele.py",
-    "tests/mark/partie_1/test_p1f_lot7c6_phrase_reglee_tenue.py",
-    "tests/mark/partie_1/test_p1f_lot7c6_numero_de_la_reservation.py",
-    "tests/mark/partie_1/test_p1f_lot7c6_aides_publiques.py",
-    "tests/mark/partie_1/test_inventaire_rustines.py"
+    "tests/mark/partie_1/test_inventaire_rustines.py",
+    "tests/mark/test_restauration_livraison_dit_l_arrivee_m121.py",
+    "tests/mark/test_restauration_planifiee.py",
+    "tests/mark/test_restauration_temps_annonce.py",
+    "tests/mark/test_commande_kebab_sa52.py",
+    "tests/mark/test_commande_lusitalia_sa55.py",
+    "tests/mark/test_heure_seule_et_numero_affiche_m109_m110.py",
+    "tests/mark/partie_1/test_p1f_lot7c7_groupe_refuse_puis_message.py",
+    "tests/mark/partie_1/test_p1f_lot7c3_refus_de_la_base.py",
+    "tests/mark/partie_1/test_p1f_lot7_suite_du_tour.py",
+    "tests/mark/partie_1/test_p1f_lot7c7_ancre_de_la_phrase_reglee.py",
+    "tests/mark/partie_1/test_p1f_lot7c7_suivi_de_commande.py",
+    "tests/mark/partie_1/test_p1f_lot7c7_fermeture_annoncee.py",
+    "tests/mark/partie_1/test_p1f_lot7c7_reste_des_suggestions.py",
+    "tests/mark/test_restauration_retrouver_commande.py",
+    "tests/mark/partie_1/test_l20_file_des_questions.py",
+    "tests/mark/partie_1/test_p1f_lot7c7_jour_a_demander.py",
+    "tests/mark/partie_1/test_p1f_lot7c7_fait_accompli_en_faits.py",
+    "tests/mark/test_restauration_envois.py"
    ],
-   "sortie": "\n== paquet 1/4 : poste coord, 30 fichiers, 370 s, code 0\n== paquet 2/4 : poste sa4, 30 fichiers, 336 s, code 0\n== paquet 3/4 : poste sa5, 30 fichiers, 360 s, code 0\n== paquet 4/4 : poste sa11, 31 fichiers, 353 s, code 0\n========== 1985 passed, 22 xfailed, 2 skipped en 4 paquets in 371s =========="
+   "sortie": "\n== paquet 1/4 : poste coord, 32 fichiers, 444 s, code 0\n== paquet 2/4 : poste sa4, 33 fichiers, 394 s, code 0\n== paquet 3/4 : poste sa5, 35 fichiers, 411 s, code 0\n== paquet 4/4 : poste sa11, 32 fichiers, 428 s, code 0\n========== 2050 passed, 2 skipped, 16 xfailed en 4 paquets in 444s =========="
   }
  }
 }
