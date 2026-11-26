@@ -102,20 +102,19 @@ def test_une_mesure_perdue_part_au_journal_d_erreur(monkeypatch):
     assert len(journal) == 2
 
 
-def test_le_resolveur_de_prise_d_un_essai_est_rendu_a_la_sortie_meme_sur_une_erreur():
+async def test_le_resolveur_de_prise_d_un_essai_est_un_parametre_du_geste_jamais_un_global():
+    """Lot 8a (157, fiche mâchée § 3) : le résolveur d'un essai ne reste pas en place d'un test à l'autre, il n'existe que le temps du geste qui le reçoit."""
     from api.services.restauration.caisse import statut
 
-    async def un_resolveur(_o, _e):
-        return None
+    assert not hasattr(statut, "_resolveur") and not hasattr(statut, "remplacer_le_resolveur")
+    appels = []
 
-    assert statut._resolveur is None
-    try:
-        with statut.remplacer_le_resolveur(un_resolveur):
-            assert statut._resolveur is un_resolveur
-            raise RuntimeError("l'essai échoue")
-    except RuntimeError:
-        pass
-    assert statut._resolveur is None
+    async def un_resolveur(organisation, etablissement):
+        appels.append((organisation, etablissement))
+        return "la prise de l'essai"
+
+    assert await statut._prise_de(1, None, 2, "base", un_resolveur) == "la prise de l'essai"
+    assert appels == [(1, 2)]
 
 
 async def test_le_lieu_et_l_instantane_d_un_appel_sont_poses_une_fois_et_donnes_aux_deux_connexions(monkeypatch):

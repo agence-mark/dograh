@@ -282,9 +282,9 @@ def appel_suivi(faire_monde, monkeypatch):
         async def base_et_cle(ctx):
             return monde.base, slug
 
-        monkeypatch.setattr(M, "CONNECTER", connecter)
         monkeypatch.setattr(M, "base_et_cle_de_l_appel", base_et_cle)
         ctx = SimpleNamespace(run_id=f"essai-{id(monde)}", organization_id=None, appel={}, configurations={}, reglages={})
+        M._APPELS[str(ctx.run_id)] = M.AppelOuvert(monde.base, connecter=connecter)  # lot 8a (157) : l'ouverture des connexions est un paramètre de l'appel suivi
         return monde, ctx, ouvertes
 
     return faire

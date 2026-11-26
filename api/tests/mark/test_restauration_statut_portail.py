@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
@@ -155,18 +156,35 @@ async def test_les_entrees_sont_validees(db_session, seconde_base, sans_preparat
     assert await _statut_de(cas.base_a, numero) == "nouvelle"
 
 
+async def _lier_a_la_prise_de_test(base: str, etablissement: int) -> None:
+    """Lot 8a (157) : l'essai pose une LIAISON de test (la fiche de liaison de l'établissement nomme la prise ``test``), plus un résolveur global."""
+    c = await schema.connecter(base)
+    try:
+        await c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test')", etablissement)
+    finally:
+        await c.close()
+
+
+@contextmanager
+def _prise_liee(prise):
+    from api.services.restauration.caisse.prises.prise import poser_prise_de_test
+
+    poser_prise_de_test(prise)
+    try:
+        yield
+    finally:
+        poser_prise_de_test(None)
+
+
 async def test_la_caisse_est_informee_d_une_annulation_seulement_quand_sa_fiche_sait_annuler(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
     cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
     etab = cas.sites_a[0]
     prise = PriseTest()
 
-    async def resolveur(organisation: int, etablissement: int):
-        assert (organisation, etablissement) == (cas.a, etab)
-        return prise
-
+    await _lier_a_la_prise_de_test(cas.base_a, etab)
     avance = await _commande(cas.base_a, etab, "acceptee")
     a_annuler = await _commande(cas.base_a, etab, "acceptee")
-    with statut.remplacer_le_resolveur(resolveur):
+    with _prise_liee(prise):
         async with client_http() as c:
             r1 = await c.post(_url(etab, avance), json={"de": "acceptee", "vers": "prete"}, headers=_cle(cas.cle_a))
             r2 = await c.post(_url(etab, a_annuler), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
@@ -176,7 +194,7 @@ async def test_la_caisse_est_informee_d_une_annulation_seulement_quand_sa_fiche_
     # Une fiche qui ne sait pas annuler : rien, sans erreur.
     prise_muette = PriseTest(capacites=replace(TEST, annulation=False))
     sans_geste = await _commande(cas.base_a, etab, "acceptee")
-    with statut.remplacer_le_resolveur(lambda o, e: _rendre(prise_muette)):
+    with _prise_liee(prise_muette):
         async with client_http() as c:
             r3 = await c.post(_url(etab, sans_geste), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
     assert r3.status_code == 200 and r3.json()["caisse_informee"] is False and prise_muette.annulees == []
@@ -219,8 +237,9 @@ async def test_une_caisse_en_panne_ou_un_resolveur_qui_leve_ne_defait_pas_le_ges
         async def faire_annuler(self, numero):
             raise ConnectionError("caisse injoignable")
 
+    await _lier_a_la_prise_de_test(cas.base_a, etab)
     numero = await _commande(cas.base_a, etab, "acceptee")
-    with statut.remplacer_le_resolveur(lambda o, e: _rendre(PrisePanne())):
+    with _prise_liee(PrisePanne()):
         async with client_http() as c:
             r = await c.post(_url(etab, numero), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
     assert r.status_code == 200 and r.json() == {"statut": "annulee", "caisse_informee": False}

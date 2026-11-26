@@ -50,6 +50,6 @@ async def test_la_panne_est_celle_de_la_reouverture_elle_meme(appel_suivi, monke
     async def injoignable(nom_base):
         raise BaseClientIndisponible("la base ne répond pas")
 
-    monkeypatch.setattr(M, "CONNECTER", injoignable)
+    M.appel_ouvert(ctx.run_id).connecter = injoignable  # lot 8a (157) : l'ouverture est un paramètre de l'appel suivi
     with pytest.raises(BaseClientIndisponible):
         await _geste(ctx)
