@@ -169,7 +169,9 @@ def ligne_qui_decide(e: Entrees) -> str:
 
 def decider(e: Entrees) -> Decision:
     """La décision de la parole pour ce retour : la première ligne dont la condition est vraie. Reprise R3 de C6 : la phrase réglée que le code doit dire (posée par cette fiche ou par
-    une fiche d'avant du tour) tient jusqu'à ce qu'elle soit dite ; une ligne qui fait repasser le modèle sans la garder la remet (``_garder_la_phrase_reglee``)."""
+    une fiche d'avant du tour) tient jusqu'à ce qu'elle soit dite ; une ligne qui fait repasser le modèle sans la garder la remet (``_garder_la_phrase_reglee``). Reprise S1 : celle
+    d'une fiche d'avant n'est plus vraie quand cette fiche a changé quelque chose et que la question qui la portait n'attend plus ; elle est jetée (``_jeter_la_phrase_perimee``)."""
+    _jeter_la_phrase_perimee(e)
     nom = ligne_qui_decide(e)
     return _garder_la_phrase_reglee(e, next(decider_ for n, _, decider_ in LIGNES if n == nom)(e))
 
@@ -180,6 +182,32 @@ def _garder_la_phrase_reglee(e: Entrees, decision: Decision) -> Decision:
     if decision.mode == SECOND_PASSAGE and not e.etat.suffixe:
         e.etat.suffixe = e.suffixe_du_code or e.suffixe_avant
     return decision
+
+
+def _la_question_qui_la_portait_attend(e: Entrees) -> bool:
+    """La question qui attend (même ``question_id``) est celle qui portait la phrase réglée d'avant : la question née donnée au modèle (``etat.question_donnee``), ou celle dont la phrase
+    réglée est encore celle-là (la relecture du numéro dicté : son texte ; la relecture : le jeton à entendre, ``etat.total_a_dire``). Lu sur le dossier et l'état, jamais sur les mots."""
+    q = CONV.question_de(e.p) or {}
+    if not e.question_id or not e.suffixe_avant:
+        return False
+    attendu = e.etat.total_a_dire if isinstance(e.etat.total_a_dire, dict) else {}
+    texte = sans_balisage(str(q.get("texte") or ""))
+    return (e.question_id == e.etat.question_donnee or bool(texte and texte in e.suffixe_avant)
+            or bool(q.get("jeton") and q.get("jeton") == attendu.get("jeton")))
+
+
+def _jeter_la_phrase_perimee(e: Entrees) -> None:
+    """Reprise S1 de C6 : la phrase réglée d'un passage précédent (``suffixe_avant`` : le total d'une relecture, la question DC10) ne tient que si cette fiche n'a rien changé, ou si la
+    question qui la portait attend toujours (``_la_question_qui_la_portait_attend``). Sinon elle est jetée, avec ce qui prouvait qu'elle était entendue (``etat.total_a_dire``, sauf s'il
+    est celui de la question qui attend) et les valeurs exigées d'un passage précédent (``etat.exiges``, sauf si cette fiche en pose)."""
+    if not e.suffixe_avant or e.du.rien_change or _la_question_qui_la_portait_attend(e):
+        return
+    e.suffixe_avant = None
+    if e.exiges is None:
+        e.etat.exiges = None
+    attendu = e.etat.total_a_dire
+    if isinstance(attendu, dict) and attendu.get("jeton") != (CONV.question_de(e.p) or {}).get("jeton"):
+        e.etat.total_a_dire = None
 
 
 def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list[str], p: dict | None, textes: dict, objet_en_cours: bool | None,

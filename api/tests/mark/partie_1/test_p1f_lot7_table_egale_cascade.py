@@ -25,12 +25,25 @@ def _compose(retour):
 
 
 def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
-    """L'ancienne cascade, puis la reprise R3 de C6 (ordre de « C6 révisée ») : quand le modèle repasse, la phrase réglée qui n'est pas dite tient (celle de cette fiche, sinon celle d'avant)."""
+    """L'ancienne cascade, puis la reprise R3 de C6 (ordre de « C6 révisée ») : quand le modèle repasse, la phrase réglée qui n'est pas dite tient (celle de cette fiche, sinon celle d'avant).
+    Reprise S1 : celle d'avant ne tient que si la fiche n'a rien changé ou si la question qui la portait attend toujours ; sinon elle est jetée avant la cascade."""
+    if etat.suffixe and not _phrase_d_avant_encore_vraie(retour, etat, p):
+        etat.suffixe = None
     suffixe_avant = etat.suffixe
     decision = _cascade(retour, a_dire, etat, paroles, p, textes, objet_en_cours)
     if decision.mode == SECOND_PASSAGE and not etat.suffixe:
         etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or suffixe_avant
     return decision
+
+
+def _phrase_d_avant_encore_vraie(retour, etat, p):
+    """S1 : la fiche n'a rien changé, ou la question qui attend est celle de la phrase réglée d'avant (la question donnée, son texte dans la phrase, son jeton à entendre)."""
+    if retour.get(RIEN_CHANGE):
+        return True
+    q = (CONV.question_de(p) if isinstance(p, dict) else None) or {}
+    attendu = etat.total_a_dire or {}
+    return bool(q.get("id")) and (q["id"] == etat.question_donnee or bool(q.get("texte") and sans_balisage(q["texte"]) in etat.suffixe)
+                                  or bool(q.get("jeton") and q.get("jeton") == attendu.get("jeton")))
 
 
 def _cascade(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
