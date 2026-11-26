@@ -216,7 +216,7 @@ async def test_un_numero_dicte_invalide_est_refuse(commerce):
     assert (r.statut, r.manque) == ("ARGUMENT_INVALIDE", "telephone")
 
 
-# test_le_second_numero_est_garde_avec_qui_et_pourquoi_et_joint_a_la_commande : supprimé au lot 4 (D49), la fiche du contrat (lot 2) n'a pas de case pour un second numéro ; consigné dans a-trancher.md.
+# test_le_second_numero_est_garde_avec_qui_et_pourquoi_et_joint_a_la_commande : supprimé au lot 4 (D49), rendu au lot 8 (PE-1, Q7-3 : la case est revenue) sur la porte : ``partie_1/test_p1f_lot8_pe_second_numero.py``
 
 
 # --------------------------------------------------------------------------- #

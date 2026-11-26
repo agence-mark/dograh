@@ -32,6 +32,7 @@ from api.db.bases_clients.restauration_commande import commande_complete
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import repli as R
+from api.services.commande import contrat as CONTRAT
 from api.services.commande import panier as P
 from api.services.groupe import passations as PASSATIONS
 from api.services.workflow import parole_de_la_fiche as PF
@@ -239,6 +240,12 @@ def _rep(p, sens: str, **plus) -> dict | None:
     return {"reponse": {"question_id": q["id"], "sens": sens, **plus}} if q.get("id") else None
 
 
+def _reponse_vivante(fiche: dict[str, Any], avant: dict[str, Any]) -> bool:
+    """La réponse de la fiche vise la question posée dans cet état (sinon le code l'écarte seule, B1)."""
+    reponse, q = fiche.get("reponse"), question(avant)
+    return isinstance(reponse, dict) and bool(q.get("id")) and reponse.get("question_id") == q.get("id")
+
+
 def _avec_ligne(f):
     return lambda p: f(p) if _ligne_1(p) else None
 
@@ -355,6 +362,7 @@ class Partie:
         self.journal: list[str] = []  # ce que le code a dit, tour après tour (RC3)
         self.derniere_fiche: dict[str, Any] | None = None
         self.dernier_effet: Callable | None = None  # l'effet de la dernière fiche jouée (G32 la rejoue au tour suivant : même effet)
+        self.derniere_ajoutee: tuple[int, dict[str, Any], bool] | None = None  # (tour, fiche, sa réponse visait la question posée) de la dernière fiche qui ajoute et que le juge a attendue APPLIQUÉE (PE-1)
         self.fiche_du_tour: dict[str, Any] | None = None  # la fiche déjà jouée dans le tour en cours (G31 la rejoue dans CE tour ; un nouveau tour la rend au suivant, G32)
         self.attendu: Counter | None = Counter()
         for x in [*monde.carte.get("produits", []), *(monde.carte.get("formules") or [])]:
@@ -364,6 +372,19 @@ class Partie:
     @property
     def p(self) -> dict[str, Any]:
         return self.e.p
+
+    def fiche_de_l_appel_tour(self) -> int:
+        return int(self.e.fiche_de_l_appel.get(CONTRAT.CLE_DU_TOUR) or 0)
+
+    def _identique_au_tour_d_avant(self, fiche: dict[str, Any] | None, avant: dict[str, Any]) -> bool:
+        """PE-1 (Q1/Q2 c, Pierre 26/11 ; ``bilan-point-d-etape-7b-c.md:274``) : la fiche qui ajoute, mot pour mot celle que le juge a attendue appliquée au tour d'avant (tour d'avant exactement),
+        n'est pas appliquée : le modèle demande « un de plus ou le même ? » (rien ne change, ni l'ajout ni les retraits de la même fiche). Un refus jugé n'est jamais « appliquée » : à la fiche
+        suivante la même s'applique (« un autre »), le juge ne regarde que ce qu'il a lui-même attendu. « Mot pour mot » compte la réponse : une réponse qui visait la question posée au tour
+        d'avant et ne vise plus rien au rejeu est écartée SEULE (B1), la fiche qui reste n'est plus celle d'avant : elle s'applique."""
+        if not fiche or not fiche.get("ajouter") or self.derniere_ajoutee is None:
+            return False
+        tour, dite, vivante = self.derniere_ajoutee
+        return tour == self.fiche_de_l_appel_tour() - 1 and dite == fiche and vivante == _reponse_vivante(fiche, avant)
 
     def _compter_la_fin(self) -> list[int]:
         """L'espion de l'invariant « un seul finaliser par fiche » : chaque passage de la commande à sa fin, dans la fiche jouée, y est compté."""
@@ -387,7 +408,10 @@ class Partie:
             e.dit(dit)
             self.fiche_du_tour = None
         retour, textes, decision, consigne, duree, nombre_de_fins = None, {}, None, None, 0.0, 0
-        attendu = effet(lignes_de(avant), avant) if effet is not None else None
+        effet_juge = _inchange if self._identique_au_tour_d_avant(fiche, avant) else effet
+        attendu = effet_juge(lignes_de(avant), avant) if effet_juge is not None else None
+        if fiche is not None and fiche.get("ajouter") and attendu is not None and attendu != lignes_de(avant):
+            self.derniere_ajoutee = (self.fiche_de_l_appel_tour(), copy.deepcopy(fiche), _reponse_vivante(fiche, avant))
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
             debut = time.perf_counter()
@@ -427,7 +451,7 @@ class Partie:
         fiche = self.derniere_fiche or {}
         reponse = fiche.get("reponse")
         q = question(self.p)
-        vivante = isinstance(reponse, dict) and bool(q.get("id")) and reponse.get("question_id") == q.get("id")
+        vivante = _reponse_vivante(fiche, self.p)
         if isinstance(reponse, dict) and not vivante:
             return (lambda avant, p: _effet_par_numero(fiche, avant, p)) if fiche.get("retirer_article") or fiche.get("changer_quantite") or fiche.get("ajouter") else _inchange
         if vivante and reponse.get("sens") == "accepte" and q.get("type") == "proposition":

@@ -30,6 +30,7 @@ MOYENS_DITS = {"titre", "titres", "espece", "especes", "carte", "cb", "cheque", 
 ARGENT = {"euro", "euros", "€", "centime", "centimes"}
 CASES_DE_TEXTE = ("prenom", "adresse", "commune", "consigne_livreur", "heure")
 CASE_DU_TELEPHONE = "telephone"
+CASES_DU_TELEPHONE = (CASE_DU_TELEPHONE, "second_numero")  # PE-1 R1 : le second numéro de la commande se retrouve dans ses mots comme le téléphone
 CASE_DE_L_ARGENT = "rendu_sur"
 CASES_DE_L_ARGENT = (CASE_DE_L_ARGENT, "part")  # C2 bis : la part d'un règlement partagé se dit en argent comme le billet
 FIN_DE_PHRASE = "||"  # T17 : un point, « ! » ou « ? » sépare deux nombres comme ``SEPARATEUR`` mais n'est jamais la virgule des centimes (``lecture_a_virgule_decimale``)
@@ -249,7 +250,7 @@ def valeur_dite_par_elle(valeur: object, case: str, paroles: Iterable[str], dit_
     paroles = [str(p) for p in paroles or () if p]
     if valeur is None or (isinstance(valeur, str) and not valeur.strip()):
         return True
-    if case == CASE_DU_TELEPHONE:
+    if case in CASES_DU_TELEPHONE:
         chiffres = re.sub(r"\D", "", str(valeur))
         if len(chiffres) < 4:
             return False

@@ -326,6 +326,7 @@ GLOSSAIRE: dict[str, tuple[frozenset[str], str]] = {
     'choix_non_compris': (frozenset(['raison']), 'Raison (métier) : son choix ne se retrouve pas dans les choix possibles.'),
     'choix_non_compris_deux_fois': (frozenset(['raison']), "Raison (métier) : son choix n'est pas compris pour la seconde fois."),
     'numero_de_commande_exige': (frozenset(['raison']), "Raison (métier, D60) : un numéro dicté ne retrouve une commande qu'avec son numéro de commande."),
+    'fiche_identique_au_tour_d_avant': (frozenset(['raison']), "Raison (fiche, lot 8 PE-1) : la fiche qui ajoute, identique à celle du tour d'avant, n'est pas appliquée ; le modèle demande si c'est un de plus ou le même."),
     'deja_fait': (frozenset(['raison']), 'Raison (métier, E30) : déjà fait dans cet appel (un enregistrement, un message).'),
     'numero_masque': (frozenset(['raison']), 'Raison (métier) : le numéro qui appelle est masqué.'),
     'message_deja_laisse_dans_cet_appel': (frozenset(['raison']), 'Raison (métier) : un message est déjà laissé dans cet appel.'),

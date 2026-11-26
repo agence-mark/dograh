@@ -7,7 +7,7 @@ les RÈGLES, chacune une fonction nommée et testée (reprises de ``banc-b13/com
 
 - ``annuler_la_commande`` visible seulement quand une commande est commencée et pas enregistrée, ``annuler_une_commande_enregistree`` seulement
   après l'enregistrement (jamais les deux : ``cases_d_annulation``) ;
-- moyen de paiement, billet, téléphone, prénom seulement quand le récapitulatif est en attente ou accepté (``cases_de_fin_ouvertes``) ; le billet
+- moyen de paiement, billet, téléphone, second numéro, prénom seulement quand le récapitulatif est en attente ou accepté (``cases_de_fin_ouvertes``) ; le billet
   seulement en espèces, ou le récapitulatif en attente (``billet_visible``) ;
 - changer, retirer, vider seulement quand il y a des lignes (``cases_des_lignes``) ;
 - ``reponse`` seulement quand une question attend, OBLIGATOIRE quand elle était déjà posée à la personne, cachée quand le code l'a créée dans ce
@@ -38,7 +38,7 @@ AUTRE = "autre"
 LISTES = {"mode_de_retrait": LISTE_DES_MODES, "moyen_de_paiement": LISTE_DES_MOYENS, "moyen_reste": LISTE_DES_MOYENS, "ajouter[].variante": LISTE_DES_VARIANTES,
           "changer_quantite[].variante": LISTE_DES_VARIANTES}
 
-CASES_DE_FIN = ("moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "prenom")  # C2 bis : le règlement partagé (part, moyen_reste) s'ouvre avec le moyen
+CASES_DE_FIN = ("moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "second_numero", "prenom")  # C2 bis : le règlement partagé (part, moyen_reste) s'ouvre avec le moyen
 CASES_DES_LIGNES = ("changer_quantite", "retirer_article", "vider_le_panier")
 CASES_QUI_CHANGENT_LA_COMMANDE = ("ajouter", *CASES_DES_LIGNES, "mode_de_retrait", "adresse", "commune", "heure")  # DC5 : rien de cela n'entre dans une commande annulée
 CASES_DES_BRIQUES = {  # chemin -> l'objet de la carte qui l'ouvre (B9 § 1 bis)

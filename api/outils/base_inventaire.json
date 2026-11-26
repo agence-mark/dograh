@@ -548,6 +548,13 @@
    "lecture_de_mots": 1,
    "fonctions_longues": {}
   },
+  "services/actions_communes/registre_des_questions.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {}
+  },
   "services/actions_communes/resultat.py": {
    "drapeaux": {},
    "erreurs_avalees": 1,

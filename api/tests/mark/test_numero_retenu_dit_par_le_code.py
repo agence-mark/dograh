@@ -4,6 +4,7 @@ alors que le code avait « cinquante-six »). Mécanisme commun à la commande e
 from __future__ import annotations
 
 import pytest
+from api.services.actions_communes import parole as PAROLE
 from api.services.commande.resultat import Resultat, avec_numeros_retenus, numero_est_dit, phrase_du_numero_retenu
 from api.services.mots_dits import numero_en_lettres
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
@@ -13,6 +14,12 @@ from api.tests.mark.test_restauration_reservation import salle  # noqa: F401
 
 DIT_55 = "zéro six, vingt-deux, trente-trois, quarante-quatre, cinquante-cinq"
 DIT_56 = "zéro six, vingt-deux, trente-trois, quarante-quatre, cinquante-six"
+
+
+def _la_phrase_du_total_part_a_la_voix(a: Appel) -> None:
+    """Ce que fait la porte quand la phrase réglée du total est dite : la relecture posée est notée entendue, à son jeton."""
+    jeton = a.p["relecture"]["jeton"]
+    PAROLE.noter_le_total_dit(a.p, PAROLE.EtatDuTour(tour=1, total_a_dire={"jeton": jeton, "texte": "Cela fait un total."}), "Cela fait un total.")
 
 
 def test_un_numero_se_dit_par_paires_avec_son_zero():
@@ -34,11 +41,20 @@ async def test_un_numero_dicte_puis_corrige_est_dit_tel_que_retenu(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False, question_numero_dicte=None).pret("une regina normale")  # DC10 éteint : le numéro retenu est dit par ``numero_retenu`` (C6 n° 10)
     r = await a.finaliser(prenom="Alice", telephone="0622334455")
     assert r.faits["numero_retenu_dit"] == DIT_55
+    _la_phrase_du_total_part_a_la_voix(a)  # la relecture est ENTENDUE (journal du dit) : sans cela le code la repose avec son total (PE-1 R7, voir le test suivant)
     r = await a.finaliser(telephone="0622334456")
     # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le numéro est un fait, dit par le motif réglé avec une suite du code ; la relecture déjà dite n'en a pas : il attend la suivante
     assert "numero_retenu_dit" not in r.faits and a.p["client"]["telephone"] == "+33622334456", r
     r = await a.finaliser(confirmer=True, moyen="carte", prenom="Alice")
     assert r.statut == "ENREGISTREE" and r.faits["numero_retenu_dit"] == DIT_56, r  # dit avec la confirmation, tel que retenu, jamais de mémoire
+
+
+async def test_un_numero_corrige_apres_une_relecture_jamais_entendue_est_dit_avec_la_relecture_reposee(commerce):
+    """PE-1 R7 (décisions du 27/11 ~1 h 35 et ~2 h 15 : une relecture jamais entendue se repose et son total se redit) : la phrase du total n'est pas partie à la voix, le numéro corrigé se dit avec la relecture reposée."""
+    a = await Appel(commerce, affiche=None, vente_en_plus=False, question_numero_dicte=None).pret("une regina normale")
+    await a.finaliser(prenom="Alice", telephone="0622334455")
+    r = await a.finaliser(telephone="0622334456")
+    assert r.manque == "relecture" and r.faits["numero_retenu_dit"] == DIT_56 and a.p["client"]["telephone"] == "+33622334456", r
 
 
 async def test_dc10_allume_le_numero_n_est_dit_que_par_sa_question(commerce):
@@ -72,7 +88,7 @@ async def test_un_numero_invalide_garde_son_refus(commerce):
     assert r.suggestion == "" and r.manque == "telephone" and r.faits["numero_illisible"] is True  # C7 B5 (Evan 25/11 8 h 45) : le modèle le redemande d'après le fait
 
 
-# test_le_second_numero_retenu_est_dit_aussi : supprimé au lot 4 (D49), la fiche du contrat n'a plus de case pour un second numéro (a-trancher.md, SA-2 « second numéro sans case dans la fiche »)
+# test_le_second_numero_retenu_est_dit_aussi : supprimé au lot 4 (D49), rendu au lot 8 (PE-1, Q7-3 : la case est revenue) : ``partie_1/test_p1f_lot8_pe_second_numero.py``
 
 
 # --- la réservation : même geste, même mécanisme -----------------------------------------------------------------

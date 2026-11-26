@@ -35,7 +35,7 @@ from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE,
 from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
-from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
+from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, cle_de_la_case, deja_executee, noter_les_cases
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
 from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche, phrase_du_code
@@ -780,6 +780,7 @@ class LaFiche:
     resultats: list[dict] = field(default_factory=list)
     bruts: list[Resultat] = field(default_factory=list)  # les résultats des opérations de la fiche, dans l'ordre : ``refusants_de_la_fiche`` et ``heures_a_dire`` les lisent
     dernier: Resultat | None = None
+    cle: str = ""  # la clé de la fiche DITE (``_cle_de_la_fiche``) : ``_case_ajouter`` la range quand un article est pris, ``_fiche_identique_au_tour_d_avant`` la relit au tour d'après
 
     @property
     def source(self):
@@ -843,6 +844,8 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
         # Pierre F (DC3 avec DC6) : un « non merci » juste après la fermeture d'une proposition (« hein ? ») répond à la proposition que le modèle redit, pas à « autre chose ? »
         non_a_autre_chose = fiche["reponse"].get("sens") == "refuse" and seul and seul_autre_chose_manque(p) and not apres_une_proposition_fermee
         reponse_ecartee = None if non_a_autre_chose else RC.question_inconnue(fiche, None)
+        if reponse_ecartee is not None:
+            RC.bruler_le_numero(p, fiche["reponse"].get("question_id"))  # Q1 (b) : le numéro d'une réponse refusée n'est jamais redonné
         fiche = {k: v for k, v in fiche.items() if k != "reponse"}
     fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9 ; RC2 : l'article dit avec elle n'est plus perdu)
     if non_a_autre_chose and entier is None:
@@ -851,7 +854,10 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
     if entier is None:
         # B1 : une réponse à une autre question (ou sans question) n'écarte que sa case, jamais le reste de la fiche (RC2) ; la question posée
         # reçoit alors « autre », comme une fiche sans réponse (une seule règle pour tous les types)
-        reponse_ecartee = reponse_ecartee or RC.question_inconnue(fiche, question)
+        refusee_ici = RC.question_inconnue(fiche, question) if reponse_ecartee is None else None
+        if refusee_ici is not None:
+            RC.bruler_le_numero(p, fiche["reponse"].get("question_id"))  # Q1 (b)
+        reponse_ecartee = reponse_ecartee or refusee_ici
         if reponse_ecartee is not None:
             fiche = {k: v for k, v in fiche.items() if k != "reponse"}
         fiche = RQ.reponse_implicite(fiche, question, posee)
@@ -954,6 +960,29 @@ async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
         f.refus.append(B.refus("question_inconnue", ["reponse"], pour=True, reste="reponse : la question en attente a disparu avec le panier"))
 
 
+def _cle_de_la_fiche(tour: Any, fiche: dict[str, Any]) -> str:
+    """La clé d'idempotence de la fiche DITE : la réponse implicite (posée par le registre quand la fiche n'a pas répondu à la question en attente) n'est pas dite par le modèle,
+    elle est hors de la clé ; sans cela la même fiche, redite quand une question est née entre-temps, ne serait pas reconnue."""
+    dite = {k: v for k, v in fiche.items() if not (k == "reponse" and isinstance(v, dict) and v.get("implicite"))}
+    return cle_d_idempotence(tour, "fiche", dite)
+
+
+CLE_DES_FICHES_AJOUTEES = "fiches_ajoutees"  # les clés des fiches, et des cases ``ajouter`` du tour, dont un article a été pris (le tour d'avant en fait partie) ; un article refusé n'y entre pas
+
+
+def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[str, Any]) -> dict[str, Any] | None:
+    """Q1/Q2 (c, Pierre 26/11) : une fiche qui AJOUTE et que le tour d'avant a déjà lue, mot pour mot (réponse comprise : un ``reponse`` différent est une autre fiche), n'est ni
+    ignorée (« un Coca... et un autre Coca » perdrait le second) ni ajoutée tout de suite : rien n'est appliqué, elle n'est PAS notée (le tour suivant, « un autre » la même, passe), et
+    le fait (les articles lus dans la fiche) revient au modèle, qui demande au client si c'est un de plus ou le même. Seule une fiche dont un article a été PRIS compte (``_case_ajouter`` la
+    range) : le même article inconnu redit n'est pas « un de plus », il reste refusé comme avant (journal des refus, sortie). Rend l'enveloppe du refus, ou ``None``."""
+    if not fiche.get("ajouter") or not isinstance(tour, int) or _cle_de_la_fiche(tour - 1, fiche) not in (CONV.de(p).get(CLE_DES_FICHES_AJOUTEES) or []):
+        return None
+    articles = [{"article": a.get("article"), "quantite": a.get("quantite", 1)} for a in fiche["ajouter"] if isinstance(a, dict)]
+    refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire="rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)")
+    return Enveloppe("REJETEE", faits={"articles": articles}, raison=refus["raison"], a_faire=refus["a_faire"],
+                     plus={"refus": [refus], "cases_refusees": refus["cases"], "fiche_appliquee": False}).vers_json()
+
+
 async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaFiche | dict[str, Any]:
     """Lire la fiche : ce qu'elle dit, ce que le code en refuse, ce qui est déjà fait. Rien n'est exécuté. Rend le plan, ou l'enveloppe d'un refus entier."""
     p = ctx.panier
@@ -962,9 +991,13 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
     tour = (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0)
-    if deja_executee(p, cle_d_idempotence(tour, "fiche", fiche)):  # rejouée à l'identique dans ce tour : rien ne change (E11)
+    identique = _fiche_identique_au_tour_d_avant(p, tour, fiche)
+    if identique is not None:
+        return identique
+    cle = _cle_de_la_fiche(tour, fiche)
+    if deja_executee(p, cle):  # rejouée à l'identique dans ce tour : rien ne change (E11)
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
-    f = LaFiche(ctx=ctx, ex=ex, fiche=fiche, tour=tour, reponse_ecartee=reponse_ecartee, case_ecartee=case_ecartee,
+    f = LaFiche(ctx=ctx, ex=ex, fiche=fiche, tour=tour, cle=cle, reponse_ecartee=reponse_ecartee, case_ecartee=case_ecartee,
                 reponse=fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None)
     f.refus = [x for x in (reponse_ecartee, case_ecartee) if x is not None]
     await _refus_des_cases(f, f.refus)
@@ -1032,6 +1065,24 @@ def _le_doute_est_leve_par_un_candidat(f: LaFiche, r: Resultat) -> bool:
     return any(str(ligne.get("ref")) in candidats for ligne in f.p.get("lignes") or [] if ligne.get("nom") == (r.faits or {}).get("ajoute"))
 
 
+def _ranger_la_fiche_ajoutee(f: LaFiche, articles: int) -> None:
+    """Un article de cette fiche est PRIS (une ligne posée, sa taille encore à demander comprise) : la fiche compte pour « la même au tour d'après » (``_fiche_identique_au_tour_d_avant``).
+    ``articles`` : les derniers résultats de ``f.bruts`` sont ceux des articles de la case. La case elle-même (sa clé dans le tour) est rangée aussi : la fiche refaite dans ce tour,
+    sa case déjà faite, est la même au tour d'après (``_ranger_la_fiche_refaite``)."""
+    if any(r.statut in ("OK", "CHOIX_OBLIGATOIRE") for r in f.bruts[-articles:]):
+        ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
+        ajoutees.extend((f.cle, cle_de_la_case(f.tour, "ajouter", f.fiche["ajouter"])))
+        del ajoutees[:-8]
+
+
+def _ranger_la_fiche_refaite(f: LaFiche) -> None:
+    """Une fiche refaite dans le même tour après un refus partiel : sa case ``ajouter`` est déjà faite (``deja_faites``), ``_case_ajouter`` ne tourne pas ; si cette case a pris un article
+    dans ce tour, la fiche refaite est rangée comme la première (le modèle la redit au tour d'après : un de plus ou le même ?)."""
+    ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
+    if cle_de_la_case(f.tour, "ajouter", f.fiche["ajouter"]) in ajoutees and f.cle not in ajoutees:
+        ajoutees.append(f.cle)
+
+
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     """Les articles dits, un à un ; chaque article qui demande quelque chose ouvre sa question au registre (D25) ; l'état du panier après les ajouts (chiffrage, minimum de la
     zone) est le résultat du dernier ajout, comme ``moteur.ajouter`` le rend après sa phrase."""
@@ -1064,6 +1115,7 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     # Le résultat de la fiche ne dépend pas de l'ordre des articles : le premier article qui demande est le fait de la fiche ; sinon, dès qu'un article est pris, c'est l'état du
     # panier après le dernier article PRIS (total, proposition), qu'un refus placé avant ou après ne recouvre pas ; les refus se lisent sur tous les résultats (``refusants_de_la_fiche``)
     r = premiere_demande or derniere_prise or r
+    _ranger_la_fiche_ajoutee(f, len(f.fiche["ajouter"]))
     if r.statut == "OK" and "garde" not in (r.faits or {}):
         etat = await moteur.etat_apres_ajout(f.source, f.p, f.regles, dict(r.faits or {}))
         r = Resultat(etat.statut, etat.faits, etat.suggestion, etat.manque)
@@ -1131,6 +1183,8 @@ def heures_a_dire(f: LaFiche) -> list[Resultat]:
 
 async def _appliquer(f: LaFiche) -> None:
     """Les cases dans l'ordre du code, chacune par son opération nommée."""
+    if "ajouter" in f.deja_faites:
+        _ranger_la_fiche_refaite(f)
     for case in ordre_des_cases(f.fiche):
         if case in f.ecartees or "*" in f.ecartees or case in f.deja_faites:
             continue
@@ -1216,6 +1270,14 @@ async def _conclure(f: LaFiche) -> None:
     await _mener_a_la_fin_de_la_fiche(f)
 
 
+def _relecture_a_reposer(f: LaFiche) -> bool:
+    """Une fiche qui ne change rien (rien d'appliqué, rien de refusé : seule la réponse implicite du code) alors que la relecture née à un tour d'avant attend sans que sa phrase du total soit partie à la voix (``relecture_entendue`` :
+    refus de la fiche à ce tour-là, relance ratée, coupure) : le code la redonne dans ce tour, comme ``_dire_c_est_tout`` redonne l'heure proposée. Jamais dans le tour où elle est née : sa phrase réglée suit alors la table de la parole."""
+    q = f.question_avant
+    rien_applique = bool(f.reponse and f.reponse.get("implicite")) and all(r.get("operation") == "reponse" for r in f.resultats)  # seule la réponse implicite du code : la fiche n'a rien dit d'autre
+    return bool(q and q.get("type") == "relecture" and q.get("nee_au_tour") != f.tour and rien_applique and not f.refus and not moteur.relecture_entendue(f.p))
+
+
 def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     """B1 : la question née de ce tour entre au registre ; UNE seule est posée, la première dont la condition est vraie (``registre.choisir``). Rend celle qui est née dans ce tour."""
     p, tour, dernier = f.p, f.tour, f.dernier
@@ -1231,6 +1293,8 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
         manque = _question_de(refus, 0, tour, p)  # ligne 12 : l'heure refusée est posée avant la relecture, le modèle dit le refus puis la demande
         if manque is not None and not RQ.est_deja_ouverte(p, manque):
             RQ.ouvrir(p, manque)
+    if _relecture_a_reposer(f):
+        RQ.redonner(p, f.question_avant, tour)  # la relecture jamais entendue est redonnée dans ce tour : son total réglé suit la phrase du modèle (``_phrase_du_total``)
     attente = moteur.question_de_la_ligne_en_attente(p)
     posee = RQ.choisir(p, tour, [_question_de(attente, 0, tour, p)] if attente is not None else [])
     avant = f.question_avant
@@ -1422,7 +1486,7 @@ async def _poser_les_informations(f: LaFiche) -> Resultat:
     fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
     if fin:
         P.vouloir_le_reglement(p, fin)
-        r = moteur.noter_le_client(p, telephone=fin.get("telephone"), prenom=fin.get("prenom")) or r
+        r = moteur.noter_le_client(p, telephone=fin.get("telephone"), prenom=fin.get("prenom"), second_numero=fin.get("second_numero")) or r
     return r or Resultat("OK", {}, "")
 
 

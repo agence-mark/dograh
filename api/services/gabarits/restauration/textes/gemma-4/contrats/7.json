@@ -411,6 +411,10 @@
          "type": "string",
          "description": "Le prénom qu'elle donne."
         },
+        "second_numero": {
+         "type": "string",
+         "description": "Un second numéro de téléphone qu'elle donne pour qu'on la joigne si elle ne répond pas au premier, en chiffres."
+        },
         "annuler_une_commande_enregistree": {
          "type": "boolean",
          "description": "Vrai si elle veut annuler la commande de cet appel déjà enregistrée."

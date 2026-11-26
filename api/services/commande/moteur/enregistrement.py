@@ -20,7 +20,7 @@ from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CL
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, noter_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
-from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, poser_la_relecture, regler, rendu_de_monnaie
+from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, poser_la_relecture, regler, relecture_entendue, rendu_de_monnaie
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
 
@@ -44,18 +44,23 @@ def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None, appelant: "A
     return Resultat("OK", {"rien_ajoute": True}, "")
 
 
-def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | None) -> Resultat | None:
+def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | None, second_numero: str | None = None) -> Resultat | None:
     """n° 30 : le prénom et le numéro dits s'écrivent dans la commande (``client``) UNE fois, au tour où ils sont dits ; la fin ne les rejoue plus d'une seconde copie.
+    PE-1 (Q7-3, Pierre 26/11) : le second numéro s'écrit de même (``client["second_numero"]``, joint au ticket et à la commande en base) ; illisible, il est refusé seul,
+    rien n'est écrit pour lui, et le fait est le même que pour le numéro (``numero_illisible``, le modèle le redemande d'après le fait).
     ``None`` : écrit (ou rien de dit) ; sinon le refus d'un numéro illisible, rien n'est écrit pour lui."""
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]
     numero = _numero_dit(telephone) if telephone else None
-    if telephone and numero is None:
-        faits = {"numero_illisible": True}
-        return _avec(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
+    second = _numero_dit(second_numero) if second_numero else None
     if numero:
         client["telephone"] = numero
+    if second and second != client.get("telephone"):  # le même numéro dit deux fois n'est gardé, dit et envoyé qu'une fois
+        client["second_numero"] = {"numero": second, "qui": None, "pourquoi": None}
+    for dit, retenu, case in ((telephone, numero, "telephone"), (second_numero, second, "second_numero")):
+        if dit and retenu is None:
+            return _avec(_r("ARGUMENT_INVALIDE", {"numero_illisible": True}, "", case), p)
     return None
 
 
@@ -213,23 +218,35 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
             return _avec(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
         if not p.get("enregistree"):
             p.setdefault("client", {})["telephone"] = dicte
-    r = await _finaliser(source, p, regles, appelant, **gestes)
+    return _avec_les_numeros_retenus(await _finaliser(source, p, regles, appelant, **gestes), p, regles, appelant)
+
+
+def _avec_les_numeros_retenus(r: Resultat, p: dict[str, Any], regles: Reglages, appelant: Appelant) -> Resultat:
+    """Le résultat de la fin avec le numéro qui s'affiche en fait (M98), puis le numéro dicté et le second numéro RETENUS dans la commande (``client``) portés en faits pour que le code les dise,
+    chacun une fois : jamais celui qui s'affiche, ni un numéro déjà dit, ni celui que la question réglée de la relecture (DC10) dira."""
     client = p["client"]
     if appelant.telephone_affiche and client.get("telephone") == appelant.telephone_affiche:
         r = avec_numero_affiche(r, appelant.telephone_affiche)
     tel = client.get("telephone")
     dit = tel if tel and tel != appelant.telephone_affiche and client.get("numero_dit") != tel else None
-    if dit is None or r.statut in ("DEJA_FAIT", "TRANSMISE"):
+    second = (client.get("second_numero") or {}).get("numero")
+    second_dit = second if second and client.get("second_numero_dit") != second else None  # PE-1 (Q7-3) : le second numéro retenu se dit une fois, comme le premier
+    if r.statut in ("DEJA_FAIT", "TRANSMISE"):
         return r
-    if r.manque == "confirmer_numero_dicte":
+    if dit and r.manque == "confirmer_numero_dicte":
         client["numero_dit"] = dit  # DC10 : la question de relecture dit le numéro ; il n'est pas redit après
+        dit = None
+    elif dit and (regles.question_numero_dicte or "").strip():
+        dit = None  # DC10 allumé : la question de relecture du numéro le dira, une seule fois
+    if dit is None and second_dit is None:
         return r
-    if (regles.question_numero_dicte or "").strip():
-        return r  # DC10 allumé : la question de relecture du numéro le dira, une seule fois
     if r.statut != "ENREGISTREE" and r.manque != "relecture":
         return r  # C6 n° 10 : le numéro retenu se dit avec une suite du code (le total de la relecture, la confirmation) ; sinon il attend (gardé dans la commande, ``client``)
-    client["numero_dit"] = dit
-    return avec_numeros_retenus(r, dit, None)
+    if dit:
+        client["numero_dit"] = dit
+    if second_dit:
+        client["second_numero_dit"] = second_dit
+    return avec_numeros_retenus(r, dit, second_dit)
 
 
 async def _finaliser(
@@ -298,8 +315,8 @@ async def _finaliser(
         if dit and confirmer:
             ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite
-        elif dit:
-            return _relecture_deja_dite(p, total)
+        elif dit and relecture_entendue(p):
+            return _relecture_deja_dite(p, total)  # ``dit`` sans entendue : la phrase du total n'est jamais partie à la voix (fiche refusée, PE-1) : la relecture se repose, son total se dit
         else:
             return demander_la_consigne_livreur(source, p, poser_la_relecture(source, p, chiffre))
     # 2. Le règlement, 3. le numéro et le prénom, 4. l'enregistrement (la consigne pour le livreur est demandée avec le récapitulatif)

@@ -210,7 +210,7 @@ async def test_d_numero_affiche_puis_un_autre_dit_relu_par_paires_sans_reposer_l
     assert r.manque == "confirmer_numero_dicte" and r.suggestion == f"Je note le {dit}, c'est bon ?" and QUESTION not in r.suggestion, r.suggestion
 
 
-# test_e_second_numero_avec_le_numero_affiche_une_seule_question : supprimé au lot 4 (D49) : la fiche du contrat n'a plus de case pour un second numéro (a-trancher.md, SA-2 « second numéro sans case dans la fiche ») ; le numéro qui s'affiche garde sa seule question, tenue par test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit
+# test_e_second_numero_avec_le_numero_affiche_une_seule_question : supprimé au lot 4 (D49), rendu au lot 8 (PE-1, Q7-3 : la case est revenue) sur la porte : ``partie_1/test_p1f_lot8_pe_second_numero.py``
 
 
 async def test_f_la_phrase_reglee_remplace_le_texte_par_defaut(commerce):

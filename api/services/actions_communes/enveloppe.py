@@ -28,7 +28,14 @@ REFUS_DE_LA_FICHE = frozenset({
     "arguments_illisibles", "article_aussi_choix_d_une_etape", "article_deja_choix_de_la_formule", "case_sans_objet", "cases_pas_ouvertes", "fiche_vide",
     "formule_sans_variante", "article_deja_en_question", "format", "format_illisible", "operation_inconnue", "outil_inconnu", "question_inconnue", "recapitulatif_pas_accepte", "reponse_hors_liste",
     "reponse_manquante", "valeur_hors_liste", "valeur_pas_dans_ses_mots", "choix_hors_liste",
+    "fiche_identique_au_tour_d_avant",  # lot 8 PE-1 (Q1/Q2 c) : la fiche qui ajoute, déjà lue au tour d'avant : le modèle demande si c'est un de plus
 })
+
+# Le genre « le client doit répondre d'abord » : un refus de la fiche dont la suite est la question du modèle au client (un de plus ou le même ?). Ce que le code en fait : la phrase réglée
+# d'un passage d'avant n'est pas remise derrière cette question (``table_de_parole._garder_la_phrase_reglee``) ; la relecture qui la portait reste posée, sans que son total soit noté dit.
+# Au tour suivant, une fiche qui ne change rien la redonne (``porte._relecture_a_reposer``) : son total réglé est redit tout de suite. Toujours rangé aussi dans ``REFUS_DE_LA_FICHE``.
+REFUS_QUI_ATTEND_LE_CLIENT = frozenset({"fiche_identique_au_tour_d_avant"})
+assert REFUS_QUI_ATTEND_LE_CLIENT <= REFUS_DE_LA_FICHE
 
 # Les refus du métier : la phrase du modèle qui dit la raison reste dite (B12, décision 1). Une raison nouvelle d'un module entre ici ou dans
 # ``REFUS_DE_LA_FICHE`` dans le même commit (``test_chaque_raison_rangee_fiche_ou_metier``).
