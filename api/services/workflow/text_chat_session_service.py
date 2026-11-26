@@ -305,7 +305,10 @@ async def complete_text_chat_session(
     # [.mark] agent-facon-tala, C4: the business outcome at EVERY ending (hangup, inactivity, end of the
     # keyboard), from the conversation and the record, like a voice call's teardown. ``None``: the list has no
     # outcome to take, the mechanical status stays.
-    issue = await extract_text_chat_final_disposition(
+    # [.mark] Lot 8a (113 bis) : un dossier commencé (commande, réservation), ni enregistré ni annulé, à la fin de la partie : « abandonné », comme à la voix (``_end_call``), par la même priorité
+    # écrite et AVANT le classement par le modèle (qui n'est plus appelé pour rien) ; une issue déjà posée dans la fiche n'est jamais écrasée. Avant, rien ne la posait au clavier.
+    fiche = normalize_text_chat_checkpoint(text_session.checkpoint).get("gathered_context")
+    issue = crochets.issue_de_fin(fiche) or await extract_text_chat_final_disposition(
         workflow_run_id=run_id,
         workflow_id=workflow_run.workflow_id,
         organization_id=workflow_run.workflow.organization_id,

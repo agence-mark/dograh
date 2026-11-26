@@ -10,18 +10,17 @@ lesquels sont déclarés, si le module est allumé pour l'agent (même règle qu
 - ``fin_du_tour(FinDeTour)`` (clavier) et ``fin_de_l_appel(FinDeLAppel)`` (voix, ``finally`` ; clavier, fin de la partie) : sans effet double si rejoués ;
 - ``issue_de_fin(fiche)`` : l'issue « abandonnée » que les connecteurs déclarent (``Connecteur.issue_de_fin``), une seule par appel, selon ``ORDRE_DES_ISSUES``.
 
-⛔ Un crochet qui lève ne coupe jamais l'appel : l'échec est écrit au journal (le nom du module et du crochet, jamais la valeur de l'erreur : elle peut porter un numéro).
+⛔ Un crochet qui lève ne coupe jamais l'appel : l'échec est écrit au journal standard (le module, le crochet, la pile ; notre message ne porte jamais de valeur d'appel).
 """
 
 from __future__ import annotations
 
 import importlib
 import inspect
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
-
-from loguru import logger
 
 from api.services.modules.etat import interrupteur_allume
 from api.services.modules.registre import MODULES, PAR_CODE, Module
@@ -87,16 +86,16 @@ def crochets_resolus(nom: str, run_configs: Mapping | None = None) -> list[tuple
 async def _jouer(nom: str, argument: Any, run_configs: Mapping | None) -> None:
     try:
         crochets = crochets_resolus(nom, run_configs)
-    except Exception as erreur:  # noqa: BLE001 -- un crochet qui ne se résout pas ne coupe pas l'appel
-        logger.error(f"[.mark] Hook {nom}: a module hook could not be loaded ({type(erreur).__name__})")
+    except Exception:
+        logging.exception(f"[.mark] Hook {nom}: a module hook could not be loaded")  # le journal standard : l'erreur y est écrite avec sa pile ; un crochet qui ne se résout pas ne coupe pas l'appel
         return
     for module, fonction in crochets:
         try:
             resultat = fonction(argument)
             if inspect.isawaitable(resultat):
                 await resultat
-        except Exception as erreur:  # noqa: BLE001 -- ⛔ un crochet ne coupe jamais l'appel
-            logger.error(f"[.mark] Hook {nom} of module {module.code} failed ({type(erreur).__name__}), the call goes on")
+        except Exception:  # ⛔ un crochet ne coupe jamais l'appel
+            logging.exception(f"[.mark] Hook {nom} of module {module.code} failed, the call goes on")
 
 
 def au_demarrage() -> None:

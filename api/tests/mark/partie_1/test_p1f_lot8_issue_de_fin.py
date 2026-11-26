@@ -5,6 +5,9 @@ Comportement égal à la voix : la commande passe devant la réservation, une is
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
 
 from api.services.commande import panier as P
@@ -70,27 +73,46 @@ def test_une_fiche_mal_formee_ne_leve_pas(fiche):
 # ---- 113 bis : au clavier, la même issue (avant, « commande abandonnée » n'était jamais posée au clavier)
 
 
-async def _issue_au_clavier(fiche: dict) -> str | None:
-    from api.services.workflow.text_chat_runner import extract_text_chat_final_disposition
+async def _issue_au_clavier(fiche: dict, monkeypatch, classement: str | None = None) -> str | None:
+    """L'issue écrite à la fin d'une partie au clavier (fin demandée ou par inactivité : ``complete_text_chat_session``) ; le classement par le modèle rend ``classement``."""
+    from api.services.workflow import text_chat_session_service as service
 
-    checkpoint = {"current_node_id": "n1", "messages": [], "gathered_context": fiche}
-    return await extract_text_chat_final_disposition(workflow_run_id=1, workflow_id=1, organization_id=7, checkpoint=checkpoint)
+    ecrit: dict = {}
+    classe = AsyncMock(return_value=classement)
+    monkeypatch.setattr(service, "extract_text_chat_final_variables", AsyncMock(return_value={}))
+    monkeypatch.setattr(service, "extract_text_chat_final_disposition", classe)
+    monkeypatch.setattr(service, "map_disposition", AsyncMock(return_value=None))
+    monkeypatch.setattr(service, "_build_text_chat_completion_write", lambda **kwargs: ecrit.update(kwargs) or {})
+    monkeypatch.setattr(service.db_client, "complete_workflow_run_text_session", AsyncMock())
+    monkeypatch.setattr(service, "_upload_text_chat_transcript", AsyncMock())
+    monkeypatch.setattr(service, "_enqueue_text_chat_completion", AsyncMock())
+    monkeypatch.setattr(service, "_reload_text_chat_session", AsyncMock())
+    workflow_run = SimpleNamespace(is_completed=False, workflow_id=5, workflow=SimpleNamespace(organization_id=7), definition=None)
+    session = SimpleNamespace(workflow_run=workflow_run, revision=2, session_data={}, checkpoint={"current_node_id": "n1", "gathered_context": fiche})
+    await service.complete_text_chat_session(run_id=1, text_session=session, expected_revision=2)
+    ecrit["classe"] = classe.await_count
+    return ecrit["issue"]
 
 
-async def test_au_clavier_une_partie_finie_avec_un_panier_commence_finit_abandonnee():
-    assert await _issue_au_clavier(_commande_commencee()) == "commande_abandonnee"
+async def test_au_clavier_une_partie_finie_avec_un_panier_commence_finit_abandonnee(monkeypatch):
+    assert await _issue_au_clavier(_commande_commencee(), monkeypatch) == "commande_abandonnee"
 
 
-async def test_au_clavier_la_reservation_seule_garde_son_issue_et_la_commande_passe_devant():
-    assert await _issue_au_clavier(_reservation_commencee()) == "reservation_abandonnee"
-    assert await _issue_au_clavier({**_commande_commencee(), **_reservation_commencee()}) == "commande_abandonnee"
+async def test_au_clavier_la_reservation_seule_garde_son_issue_et_la_commande_passe_devant(monkeypatch):
+    assert await _issue_au_clavier(_reservation_commencee(), monkeypatch) == "reservation_abandonnee"
+    assert await _issue_au_clavier({**_commande_commencee(), **_reservation_commencee()}, monkeypatch) == "commande_abandonnee"
 
 
-async def test_au_clavier_rien_de_commence_rien_a_dire():
-    assert await _issue_au_clavier({}) is None
+async def test_au_clavier_rien_de_commence_c_est_le_classement_du_modele_qui_decide(monkeypatch):
+    assert await _issue_au_clavier({}, monkeypatch, classement="appel_sans_suite") == "appel_sans_suite"
 
 
-async def test_au_clavier_une_commande_enregistree_n_est_pas_abandonnee():
+async def test_au_clavier_une_commande_enregistree_n_est_pas_abandonnee(monkeypatch):
     fiche = _commande_commencee()
     fiche[P.CLE]["enregistree"] = {"numero": "C1"}
-    assert await _issue_au_clavier(fiche) is None
+    assert await _issue_au_clavier(fiche, monkeypatch) is None
+
+
+async def test_au_clavier_une_issue_deja_posee_n_est_jamais_ecrasee(monkeypatch):
+    fiche = {**_commande_commencee(), "call_disposition": "message_a_transmettre"}
+    assert await _issue_au_clavier(fiche, monkeypatch, classement="message_a_transmettre") == "message_a_transmettre"

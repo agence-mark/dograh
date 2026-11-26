@@ -123,18 +123,12 @@ async def test_sans_configuration_connue_aucun_module_n_est_ecarte(faux_modules)
     assert faux_modules == ["b"]
 
 
-async def test_un_echec_est_journalise_sans_la_valeur_de_l_erreur(faux_modules):
-    from loguru import logger
-
-    lignes: list[str] = []
-    ident = logger.add(lambda m: lignes.append(str(m)), level="ERROR")
-    try:
+async def test_un_echec_est_journalise_avec_le_module_et_le_crochet(faux_modules, caplog):
+    with caplog.at_level("ERROR"):
         await crochets.au_decroche(_decroche(ALLUMEE))
-    finally:
-        logger.remove(ident)
-    journal = "".join(lignes)
-    assert "failed" in journal and "RuntimeError" in journal
-    assert "06 12 34 56 78" not in journal  # jamais un numéro en clair
+    messages = [r.getMessage() for r in caplog.records]
+    assert messages == ["[.mark] Hook au_decroche of module un failed, the call goes on"]  # notre message ne porte aucune valeur d'appel
+    assert caplog.records[0].exc_info is not None  # la pile est au journal
 
 
 def test_la_restauration_se_joue_avec_l_interrupteur_de_la_commande():

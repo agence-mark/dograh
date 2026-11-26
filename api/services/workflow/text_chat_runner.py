@@ -1634,10 +1634,6 @@ async def extract_text_chat_final_disposition(
                 and posee.casefold() in await reservees_du_groupe(run_de_l_issue)
             ):
                 return posee
-        # [.mark] Lot 8a (113 bis) : un dossier commencé (commande, réservation), ni enregistré ni annulé, à la fin de la partie : « abandonné », comme à la voix (``_end_call``) ; même priorité
-        # écrite, une issue déjà posée dans la fiche n'est jamais écrasée. Avant, rien ne la posait au clavier.
-        if abandonnee := crochets.issue_de_fin(base_checkpoint.get("gathered_context")):
-            return abandonnee
         messages = _deserialize_text_chat_checkpoint_messages(base_checkpoint["messages"])
         pending_user_message = pending_text_chat_user_message(session_data)
         if pending_user_message:
