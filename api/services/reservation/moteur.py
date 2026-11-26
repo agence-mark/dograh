@@ -135,6 +135,19 @@ def doute_leve_sur(brouillon: dict[str, Any], resolu: Resultat) -> None:
         brouillon.pop(champ, None)
 
 
+def jours_possibles(resolu: Resultat) -> list[str]:
+    """F5 (lot 7b-C7) : les jours qu'un jour ambigu (« jeudi ») peut vouloir dire, dits (``jour_dit`` des candidats de la source) ; vide sans doute sur le jour."""
+    candidats = resolu.faits.get("candidats") if resolu.statut == "AMBIGU" and resolu.manque == "jour" else None
+    return [str(c["jour_dit"]) for c in candidats or [] if isinstance(c, dict) and c.get("jour_dit")]
+
+
+def _le_doute(resolu: Resultat) -> Resultat:
+    """Le doute de la source rendu par un geste : ses faits, plus les jours possibles dits (F5 : le modèle les dit, « ce jeudi ou le suivant ? ») ; ``candidats``, avec leurs
+    dates, reste caché par la porte (``FAITS_GARDES_PAR_LA_RESERVATION``). Jamais le texte de la source."""
+    dits = jours_possibles(resolu)
+    return _r(resolu.statut, {**resolu.faits, "jours_possibles": dits} if dits else resolu.faits, resolu.manque)
+
+
 def _jour_de(resolu: Resultat) -> date | None:
     jour = resolu.faits.get("jour") or (resolu.faits.get("heure_voulue") or "")[:10]
     try:
@@ -160,7 +173,7 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
     dates_futures.retenir_le_moment(etat, jour)
     resolu = await source.resoudre_une_date(jour, dates_futures.heure_avec_le_moment(etat, heure))
     if resolu.statut not in ("RETENU", "INCOMPLETE") or (resolu.statut == "INCOMPLETE" and resolu.manque != "heure"):
-        return resolu
+        return _le_doute(resolu)
     le_jour = _jour_de(resolu)
     if le_jour is None:
         return _r("INTROUVABLE", manque="jour")
@@ -257,7 +270,7 @@ async def _reserver(
         b.pop("jour_dit", None)
     if resolu.statut != "RETENU":
         doute_leve_sur(b, resolu)
-        return resolu
+        return _le_doute(resolu)
     debut = datetime.fromisoformat(resolu.faits["heure_voulue"])
     quand_dit = f"{resolu.faits['jour_dit']} à {resolu.faits['heure_dite']}"
     if not b.get("prenom"):
@@ -342,7 +355,7 @@ async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appela
     ses mots désignent (``choisir_le_candidat``). Le nom dit ici sert à retrouver, jamais à changer le nom de la réservation."""
     etat["recherche"] = True
     le_jour = None
-    jours_possibles: list[date] = []
+    jours_a_chercher: list[date] = []
     if jour:
         resolu = await source.resoudre_une_date(jour, None)
         le_jour = _jour_de(resolu) if resolu.statut in ("RETENU", "INCOMPLETE") else None
@@ -350,16 +363,17 @@ async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appela
             candidats = resolu.faits.get("candidats") if resolu.statut == "AMBIGU" else None
             if isinstance(candidats, list) and candidats and (nom or appelant.telephone_affiche):
                 # Un jour ambigu (« jeudi » dit un jeudi) ne se redemande pas : on cherche une réservation à venir CHAQUE jour possible, et les données décident.
-                jours_possibles = [date.fromisoformat(c["jour"]) for c in candidats if isinstance(c, dict) and c.get("jour")]
-            if not jours_possibles:
+                jours_a_chercher = [date.fromisoformat(c["jour"]) for c in candidats if isinstance(c, dict) and c.get("jour")]
+            if not jours_a_chercher:
                 if resolu.statut == "AMBIGU":   # un doute sur le JOUR n'est pas un choix entre des réservations : on redemande le jour
-                    return _r("INCOMPLETE", {k: v for k, v in resolu.faits.items() if k != "candidats"}, "jour")
-                return resolu
-    par_le_nom = bool(nom and (le_jour or jours_possibles))
+                    faits = {k: v for k, v in _le_doute(resolu).faits.items() if k != "candidats"}  # F5 : les jours possibles, dits ; les candidats datés, retirés
+                    return _r("INCOMPLETE", faits, "jour")
+                return _le_doute(resolu)
+    par_le_nom = bool(nom and (le_jour or jours_a_chercher))
     if not par_le_nom and not appelant.telephone_affiche:
         return _r("INCOMPLETE", {"raison": "numero_masque"}, manque="nom_et_jour_de_la_reservation")
     liste: list[dict[str, Any]] = []
-    for un_jour in (jours_possibles or [le_jour]):
+    for un_jour in (jours_a_chercher or [le_jour]):
         if par_le_nom:
             trouve = await source.retrouver(prenom=nom, jour=un_jour)
         else:
@@ -454,7 +468,7 @@ async def modifier(
         voulu = await source.resoudre_une_date(m["jour"], None)
         if voulu.statut not in ("RETENU", "INCOMPLETE"):
             doute_leve_sur(m, voulu)
-            return voulu
+            return _le_doute(voulu)
         if _jour_de(voulu) == _jour_de(await source.resoudre_une_date(r["jour_dit"], None)):
             m.pop("jour")  # le jour redit tel qu'il est n'est pas un changement
     if m.get("jour") and not m.get("heure"):
@@ -464,7 +478,7 @@ async def modifier(
         resolu = await source.resoudre_une_date(m.get("jour") or r["jour_dit"], dates_futures.heure_avec_le_moment(etat, m["heure"]))
         if resolu.statut != "RETENU":
             doute_leve_sur(m, resolu)
-            return resolu
+            return _le_doute(resolu)
         changements["debut"] = datetime.fromisoformat(resolu.faits["heure_voulue"])
         ce_qui_change.update({"quand": f"{resolu.faits['jour_dit']} à {resolu.faits['heure_dite']}", "heure": resolu.faits["heure_dite"]})
     # M103 : seul ce qui CHANGE est pris et relu ; ce que le modèle renvoie tel quel (« au nom de Martin », déjà Martin) ne se redit pas.

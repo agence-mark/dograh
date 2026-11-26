@@ -28,7 +28,7 @@ from api.tests.mark import test_base_client as _BASE
 from api.tests.mark import test_restauration_classeur_commande as _CLASSEUR
 from api.tests.mark import test_restauration_commande_panier as _PANIER
 from api.tests.mark import test_restauration_reservation as _RESA
-from api.tests.mark.partie_1.aides_signal import Carte, Cas, article_de_carte, controler, fidele, jouer, pareilles, parametres
+from api.tests.mark.partie_1.aides_signal import Carte, Cas, article_de_carte, controler, fidele, jouer, pareilles, parametres, signal
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 
@@ -490,9 +490,11 @@ CAS_DU_MOTEUR_DE_LA_RESERVATION: list[Cas] = [
 
 CAS_DU_MOTEUR_SANS_SALLE: list[Cas] = [
     Cas("jour_ambigu_a_la_recherche", _texte_des_jeudis, _sans_salle(_SourceDuSamedi([], ambigu=True), "retrouver_une_reservation", appelant=None, jour="jeudi"), "Rv",
-        JEUDIS, "jour", manque="F5 : la recherche redemande le jour sans les jours possibles (candidats retirés)"),
+        JEUDIS, "jour"),
     Cas("jour_ambigu_a_la_reservation", _texte_des_jeudis, _sans_salle(_SourceDuSamedi([], ambigu=True), "reserver", personnes=2, jour="jeudi"), "Rv",
-        JEUDIS, "jour", manque="F5 : les jours possibles sont dans candidats, que la réservation cache"),
+        JEUDIS, "jour"),
+    Cas("jour_ambigu_aux_disponibilites", _texte_des_jeudis, _sans_salle(_SourceDuSamedi([], ambigu=True), "disponibilites", jour="jeudi", personnes=2), "Rv",
+        JEUDIS, "jour"),  # le voisin (refus 11)
     Cas("quel_jour_introuvable", TSR.quel_jour, lambda: RESA_MOTEUR.disponibilites(_SourceSansJour(), {}, "samedi", 2), "Rv", [], "jour"),
     Cas("complets_ce_jour", TSR.complets_ce_jour, _sans_salle(_SourceDuSamedi([]), "disponibilites", jour="samedi", personnes=2), "Rv", [], "complet"),
     Cas("complets_ce_jour_pour_le_soir", TSR.complets_ce_jour, _sans_salle(_SourceDuSamedi([_a(12)], heure_dite=False), "disponibilites", jour="samedi soir", personnes=2),
@@ -504,6 +506,23 @@ CAS_DU_MOTEUR_SANS_SALLE: list[Cas] = [
     Cas("refus_complet_avec_les_plus_proches", TSR.refus_complet_du_moteur,
         _sans_salle(_SourceDuSamedi([_a(19), _a(21)]), "reserver", personnes=2, jour="samedi", heure="vingt heures", prenom="Alice"), "Rv", _heures, "complet"),
 ]
+
+
+async def test_f5_les_jours_possibles_sont_dits_et_les_candidats_restent_caches():
+    """F5 : Client « Jeudi. » / avant, le modèle n'a que « jour » à redemander (« Lequel ? ») / après, il lit les jours possibles (« Ce jeudi ou le suivant ? ») ; les candidats de la
+    source (avec leurs dates) restent cachés, au changement aussi (le voisin)."""
+    r = await _sans_salle(_SourceDuSamedi([], ambigu=True), "reserver", personnes=2, jour="jeudi")()
+    vus = signal(r, "Rv")["faits"]
+    assert vus["jours_possibles"] == ["jeudi dix-neuf novembre", "jeudi vingt-six novembre"] and "candidats" not in vus, vus
+    etat = {"cible": "r1"}
+    source = _SourceDuSamedi([], ambigu=True)
+    source.retrouver = _une_reservation_visee
+    m = await RESA_MOTEUR.modifier(source, etat, RESA_MOTEUR.Appelant(TEL, None), jour="jeudi")
+    assert (m.statut, m.faits.get("jours_possibles")) == ("AMBIGU", ["jeudi dix-neuf novembre", "jeudi vingt-six novembre"]), m
+
+
+async def _une_reservation_visee(**_criteres):
+    return Resultat("OK", {"reservations": [{"numero": "r1", "quand_dit": "samedi quatorze novembre à vingt heures", "jour_dit": "samedi", "personnes": 2, "prenom": "Alice"}]})
 
 
 class _SourceSansJour:
