@@ -60,6 +60,7 @@ class EtatDuTour:
     retenues: list[str] = field(default_factory=list)
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     faits_du_refus: list[Any] = field(default_factory=list)  # les faits que les retours de ce tour donnent au modèle pour dire un refus, ou une lecture (C6 n° 11) : leurs valeurs passent la barrière des chiffres
+    confirmation_reglee: str | None = None  # PE-2 (Q4) : « C'est enregistré. », posée avec la confirmation du modèle ; dite avant la suite réglée seulement si la relance échoue (``la_suite_reglee``), jamais quand le modèle parle
     suffixe: str | None = None  # la phrase réglée que le code dit juste après la prochaine phrase du modèle (le total, le rendu, M108 ; C6)
     ancre: str | None = None  # C7 (a) : l'identité de la question qui portait la phrase réglée (``suffixe``), posée par la table avec elle ; la seule ancre de « elle attend toujours »
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
@@ -217,7 +218,13 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     etat.suite.append(REFUS_DE_LA_FICHE if de_la_fiche else REFUS if refusee else FAIT)  # ligne 23
     phrase = sans_balisage(str(a_dire or ""))
     jeter(etat, phrase)  # ce qui est jeté dans le tour (ligne 20) ; oubliée si la phrase est dite en un passage
-    return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant, ancre_avant))
+    return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant, ancre_avant, fiche_vide(fiche)))
+
+
+def fiche_vide(arguments: Any) -> bool:
+    """PE-2 (Q3) : la fiche jouée ne porte aucune case : ses arguments n'ont rien d'autre que la phrase du modèle (``a_dire``). Une forme (une case remplie ou non), jamais un mot ;
+    sans arguments lisibles : faux."""
+    return isinstance(arguments, dict) and not any(v for k, v in arguments.items() if k != "a_dire")
 
 
 def pose_une_question(phrase: str) -> bool:
@@ -230,7 +237,8 @@ MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du mod�
 
 def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
     """La phrase du modèle suivie de la phrase réglée que le code dit après elle (le total, le rendu, M108 ; C6) ; ``None`` sans rien en attente. Elle n'est dite qu'une fois.
-    ``p`` : le dossier, pour noter la phrase du total dite."""
+    ``p`` : le dossier, pour noter la phrase du total dite. Le modèle parle : la confirmation réglée de secours n'est jamais dite (PE-2, Q4)."""
+    etat.confirmation_reglee = None
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
@@ -243,8 +251,8 @@ def la_suite_reglee(etat: EtatDuTour) -> str | None:
     """Reprise R1 de l'audit de C6 (décisions d'Evan 25/11 8 h 45 et 9 h 30, P3) : la phrase du modèle manque (relance ratée) ; le code ne dit que la suite réglée déjà posée après elle
     (motifs de ``PHRASES_DU_CODE`` : le numéro, le total, le rendu, M108), jamais le fait accompli (gardé au journal seulement). Elle n'est dite qu'une fois. ``None`` : rien de réglé, la
     phrase réglée « pas compris » de l'agent (P3) la remplace."""
-    dit = etat.suffixe or None
-    etat.suffixe = etat.ancre = None
+    dit = " ".join(x for x in (etat.confirmation_reglee, etat.suffixe) if x) or None  # PE-2 (Q4) : la confirmation réglée précède la suite ; le modèle n'a pas parlé
+    etat.suffixe = etat.ancre = etat.confirmation_reglee = None
     etat.exiges = None
     return dit
 
@@ -255,9 +263,15 @@ def question_due_sans_suite(phrase: str, suite: str | None, en_attente: bool) ->
     return not suite and en_attente and not pose_une_question(phrase)
 
 
+def suite_sans_question(suite: str | None) -> bool:
+    """PE-2 (Q5, choix A du point d'étape) : le code dit une suite après la phrase du modèle (le rendu de monnaie, le numéro retenu) qui ne pose pas de question. Forme seulement."""
+    return bool(suite) and not pose_une_question(str(suite))
+
+
 def dit_ce_que_le_code_dit(texte: str, etat: EtatDuTour) -> bool:
-    """C6 : le code dit une QUESTION après la phrase du modèle (``etat.suffixe`` se termine par « ? ») et la phrase du modèle en pose déjà une : deux questions dans un tour. Forme seulement."""
-    return bool(etat.suffixe) and pose_une_question(etat.suffixe) and pose_une_question(texte)
+    """C6 : le code dit une suite après la phrase du modèle (``etat.suffixe``) et la phrase du modèle pose déjà une question : deux questions, ou (PE-2 Q5) la question avant la suite sans
+    question d'un fait accompli du modèle (le rendu de monnaie ; ``etat.exiges`` posé). Elle est relancée sans question ; la question du modèle attend le tour suivant (elle reste au registre). Forme seulement."""
+    return bool(etat.suffixe) and pose_une_question(texte) and (pose_une_question(etat.suffixe) or etat.exiges is not None)
 
 
 REPRISE = "reprise_de_la_question"  # motif : la phrase dite n'a pas posé la question en attente ; le modèle est relancé avec elle (lot 20, C5)

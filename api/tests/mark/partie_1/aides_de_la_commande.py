@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes import parole as PAROLE
+from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS
+from api.services.workflow import parole_de_la_fiche as PF
 
 
 def question_posee(e) -> dict:
@@ -110,3 +115,35 @@ async def trois_margherita_jusqu_a_la_relecture(essai_de):
         r = await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     assert (CONV.question_de(e.p) or {}).get("type") == "relecture", (CONV.question_de(e.p), r["resultats"])
     return e, r
+
+
+# La confirmation de l'enregistrement dite par le modèle (lots 7b-C6 et 8 PE-2) : reprise par les tests de la parole
+QUESTION_M108 = MOTIFS[APRES_ENREGISTREMENT].variantes_defaut[0]
+
+
+async def jusqu_a_la_confirmation(essai_de, **reglement):
+    e = await essai_de("casa-italia")
+    await a_emporter(e)
+    await premier_article(e)
+    await refuser_la_proposition(e)
+    r = await jusqu_a_l_enregistrement(e, **reglement)
+    return e, r
+
+
+def quand_dit(e) -> str:
+    return str(e.p["enregistree"]["quand_dit"])
+
+
+def dire_du_modele(e, r, phrase: str, relance: str | None = None) -> str | None:
+    """Ce qui part à la voix quand le modèle écrit ``phrase`` avec la fiche, puis ``relance`` au second passage (``None`` : la même phrase)."""
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": phrase})
+    if d.mode == PAROLE.A_DIRE_SEUL:
+        return d.a_dire
+    verif = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
+    retenue = verif.controler(relance if relance is not None else phrase)
+    if retenue is None:
+        return relance if relance is not None else phrase
+    if retenue.a_dire is not None or not retenue.consigne:
+        return retenue.a_dire
+    suite = verif.controler_la_relance(relance if relance is not None else phrase)
+    return suite.a_dire if suite is not None else (relance if relance is not None else phrase)

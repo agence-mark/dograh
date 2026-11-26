@@ -21,7 +21,7 @@ from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.actions_communes.repli import refus_qui_attend_le_client
 from api.services.actions_communes.parole import (
     A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, SUFFIXE, Decision, EtatDuTour,
-    apres_un_refus, la_suite_reglee, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
+    apres_un_refus, la_suite_reglee, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour, suite_sans_question,
 )
 
 FAIT_ACCOMPLI = "fait_accompli_du_modele"  # motif : le modèle dit le fait accompli (C6 n° 5), le code dit la suite après sa phrase
@@ -46,6 +46,8 @@ class Entrees:
     etat: EtatDuTour
     retour: dict
     p: dict | None
+    confirmation: str | None = None  # PE-2 (Q4) : la phrase réglée « C'est enregistré. » de la commande qui vient d'être enregistrée (``textes["confirmation_reglee"]``)
+    fiche_vide: bool = False  # PE-2 (Q3) : la fiche jouée ne porte aucune case (seulement la phrase du modèle) : lue sur ses arguments (``parole.fiche_vide``)
 
     @property
     def question_deja_donnee(self) -> bool:
@@ -74,9 +76,26 @@ def _rendre_la_fiche(e: Entrees) -> None:
     e.etat.fiches -= 1  # une fiche vide n'est pas une fiche
 
 
+def _suite_du_code_sans_question(e: Entrees) -> str | None:
+    """PE-2 (Q5) : la suite que le code dit après la confirmation ou le changement du modèle (un fait accompli : ses valeurs exigées sont posées, par cette fiche ou par un passage d'avant du tour)
+    quand elle ne pose pas de question (le rendu de monnaie). Les autres suites ne sont pas touchées."""
+    suite = e.suffixe_du_code or e.suffixe_avant
+    fait_accompli = e.exiges is not None or e.etat.exiges is not None
+    return suite if fait_accompli and suite_sans_question(suite) else None
+
+
 def _du_a_reposer(e: Entrees) -> bool:
-    """Une question attend, ou un manque est dû, et la phrase du modèle n'en pose aucune (une question à la fois) : ce que le modèle a oublié. Lu sur la forme (le « ? », le dossier), jamais sur les mots."""
-    return not pose_une_question(e.phrase) and (e.en_attente or bool(e.du.manque))
+    """Une question attend, ou un manque est dû, et la phrase du modèle n'en pose aucune (une question à la fois) : ce que le modèle a oublié. Lu sur la forme (le « ? », le dossier), jamais sur les mots.
+    PE-2 (Q5, choix A) : quand le code dit une suite sans question après la phrase (le rendu), la question qui attend n'est pas due avant elle : elle reste au registre pour le tour suivant ;
+    un manque reste dû."""
+    question_qui_attend = e.en_attente and _suite_du_code_sans_question(e) is None
+    return not pose_une_question(e.phrase) and (question_qui_attend or bool(e.du.manque))
+
+
+def _dite_seule(e: Entrees, motif: str) -> Decision:
+    """La phrase du modèle est dite seule ; PE-2 (Q5) : suivie de la suite du code sans question (le rendu) quand une question attend, la suite n'est pas perdue."""
+    suite = _suite_du_code_sans_question(e) if e.en_attente else None
+    return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (e.phrase, suite) if x), motif=motif)
 
 
 def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
@@ -92,9 +111,13 @@ def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
 def _la_relance_ratee(e: Entrees) -> Decision:
     """T12 (coordinateur 26/11 10 h 45 ; reprise R1 de C6) : la relance du tour est faite et la fiche ne change toujours rien : relance ratée. Le code dit la suite réglée
     (la phrase réglée de cette fiche ou d'une fiche d'avant du tour, ``la_suite_reglee``), sinon la phrase réglée « pas compris » de l'agent (P3 : ``a_dire`` vide, motif
-    ``REPONSE_PERDUE``, dite par la voix) ; jamais la phrase du modèle écrite avant l'exécution, jamais une seconde relance."""
+    ``REPONSE_PERDUE``, dite par la voix) ; jamais une seconde relance. PE-2 (Q3, point d'étape du 26/11) : sans suite réglée, la fiche rejouée est VIDE (aucune case) et rien n'est dû
+    (``_du_a_reposer``) : la phrase du modèle, sans chiffre, est dite seule (« Ah merci. » / « Avec plaisir. »). Lu sur la forme, jamais sur les mots : une fiche vide qui n'a rien
+    changé laisse passer aussi un « C'est noté. » sans rien de dû ; c'est le prix de la décision."""
     _poser_la_phrase_reglee(e, e.suffixe_du_code or e.suffixe_avant)
     suite = la_suite_reglee(e.etat)
+    if not suite and e.fiche_vide and e.phrase and not e.chiffre and not _du_a_reposer(e):
+        return Decision(A_DIRE_SEUL, a_dire=e.phrase, motif="fait")
     return Decision(A_DIRE_SEUL, a_dire=suite, motif=SUFFIXE if suite else REPONSE_PERDUE)
 
 
@@ -114,7 +137,7 @@ def _rien_change(e: Entrees) -> Decision:
     e.etat.jetee = None
     if (relance := _relancer_le_fait(e, MANQUE)) is not None:
         return relance
-    return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
+    return _dite_seule(e, "fait")
 
 
 def _question(e: Entrees) -> Decision:
@@ -139,13 +162,14 @@ def _fait_accompli(e: Entrees) -> Decision:
     la proposition, la relecture de la réservation), si elle pose cette question (reprise R2) ; sinon le modèle repasse avec le retour, la suite gardée pour sa phrase."""
     etat, phrase, suite = e.etat, e.phrase, e.suffixe_du_code
     exiges = e.exiges or {}
-    en_double = bool(suite) and pose_une_question(suite) and pose_une_question(phrase)
+    en_double = bool(suite) and pose_une_question(phrase)  # PE-2 (Q5) : une question du modèle viendrait avant la suite du code (le rendu) ou en ferait deux : elle attend le tour suivant
     due = question_due_sans_suite(phrase, suite, e.en_attente)
     if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and not due and porte_les_chiffres(phrase, exiges):
         etat.jetee = None
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite) if x), motif=FAIT_ACCOMPLI)
     _poser_la_phrase_reglee(e, suite)
     etat.exiges = exiges
+    etat.confirmation_reglee = e.confirmation or etat.confirmation_reglee
     return Decision(SECOND_PASSAGE, motif=FAIT_ACCOMPLI)
 
 
@@ -162,7 +186,7 @@ def _dite_ou_due(e: Entrees) -> Decision:
     e.etat.jetee = None
     if (relance := _relancer_le_fait(e, MANQUE)) is not None:
         return relance
-    return Decision(A_DIRE_SEUL, a_dire=e.phrase, motif="fait")
+    return _dite_seule(e, "fait")
 
 
 # Les lignes, dans l'ordre : la première dont la condition est vraie décide.
@@ -194,7 +218,10 @@ def decider(e: Entrees) -> Decision:
     d'une fiche d'avant n'est plus vraie quand cette fiche a changé quelque chose et que la question qui la portait n'attend plus ; elle est jetée (``_jeter_la_phrase_perimee``)."""
     _jeter_la_phrase_perimee(e)
     nom = ligne_qui_decide(e)
-    return _garder_la_phrase_reglee(e, next(decider_ for n, _, decider_ in LIGNES if n == nom)(e))
+    decision = _garder_la_phrase_reglee(e, next(decider_ for n, _, decider_ in LIGNES if n == nom)(e))
+    if decision.mode == A_DIRE_SEUL:
+        e.etat.confirmation_reglee = None  # une phrase dite seule la porte déjà (le modèle, ou la suite réglée avec elle) : la confirmation de secours n'est jamais redite
+    return decision
 
 
 def _garder_la_phrase_reglee(e: Entrees, decision: Decision) -> Decision:
@@ -239,7 +266,7 @@ def _jeter_la_phrase_perimee(e: Entrees) -> None:
 
 
 def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list[str], p: dict | None, textes: dict, objet_en_cours: bool | None,
-                      suffixe_avant: str | None, ancre_avant: str | None = None) -> Entrees:
+                      suffixe_avant: str | None, ancre_avant: str | None = None, fiche_vide: bool = False) -> Entrees:
     """Ce que la table lit, rassemblé depuis le retour de la fiche et l'état du tour."""
     from api.services.actions_communes.du import du_du_retour
 
@@ -251,8 +278,8 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
     if objet_en_cours is None:
         objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
     return Entrees(
-        du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None, exiges=exiges,
+        du=du, phrase=phrase, confirmation=sans_balisage(str(textes.get("confirmation_reglee") or "")) or None, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None, exiges=exiges,
         question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant, ancre_avant=ancre_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),
-        etat=etat, retour=retour, p=p)
+        etat=etat, retour=retour, p=p, fiche_vide=fiche_vide)

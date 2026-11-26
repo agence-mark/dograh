@@ -20,7 +20,7 @@ from api.services.commande import registre as RQ
 from api.services.commande.porte import CLE_TEXTES_DU_CODE, RIEN_CHANGE
 from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.workflow import parole_de_la_fiche as PF
-from api.tests.mark.partie_1.test_cloture_a2_regles_inversees import _jusqu_a_l_enregistrement
+from api.tests.mark.partie_1.aides_de_la_commande import jusqu_a_l_enregistrement_de_la_proposition
 
 ANNONCE = "C'est noté."
 
@@ -111,7 +111,7 @@ async def test_une_fiche_qui_change_quelque_chose_n_est_pas_rien(essai_de):
 
 async def test_tf2_un_changement_d_une_commande_enregistree_se_dit_par_le_code(essai_de):
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     r = await e.tour("en fait deux", changer_quantite=[{"ligne": 1, "quantite": 2}])
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, "changer_quantite": [{"ligne": 1, "quantite": 2}]})
     # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le modèle dit le changement, le code dit le nouveau total juste après sa phrase
@@ -120,7 +120,7 @@ async def test_tf2_un_changement_d_une_commande_enregistree_se_dit_par_le_code(e
 
 async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     await e.tour("annulez ma commande", annuler_une_commande_enregistree=True)
     q = CONV.question_de(e.p)
     assert q["type"] == RQ.TYPE_ANNULATION and e.p.get("enregistree") and not e.p.get("annulee"), e.p  # rien n'est annulé avant le « oui »
@@ -134,7 +134,7 @@ async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
 
 async def test_dc4_non_laisse_la_commande_enregistree(essai_de):
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     await e.tour("annulez ma commande", annuler_une_commande_enregistree=True)
     q = CONV.question_de(e.p)
     await e.tour("non finalement", reponse={"question_id": q["id"], "sens": "refuse"})
@@ -177,7 +177,7 @@ async def test_regle_3_le_repli_ne_redit_plus_le_fait_accompli(essai_de):
     """C5, DF5, puis reprise R1 de C6 : après l'enregistrement, « pardon ? » : ni question ni manque, ni suite réglée en attente ; le fait accompli reste au journal, le code ne le redit
     plus : une retenue vide (``RepliqueVerifiee`` dit la phrase réglée « pas compris », P3)."""
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     from api.services.actions_communes import journal_du_dit as J
 
     assert (J.fait_accompli(e.p) or {}).get("fait") == "enregistree", e.p  # le fait gardé au journal en faits (B9)

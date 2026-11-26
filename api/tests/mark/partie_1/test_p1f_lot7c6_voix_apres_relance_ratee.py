@@ -63,7 +63,7 @@ async def test_confirmation_relance_ratee_seule_la_suite_reglee_part(essai_de):
     e, r = await _enregistree(essai_de)
     dit, suite = await _voix_apres_la_fiche(e, r, "C'est enregistré.")
     assert (J.fait_accompli(e.p) or {}).get("fait") == "enregistree" and "est enregistrée" not in dit, dit  # le fait gardé au journal en faits (B9), jamais redit par le code (reprise R1 de C6)
-    assert dit == (suite or REGLEE), (dit, suite)
+    assert dit == f"C'est enregistré. {suite}", (dit, suite)  # PE-2 Q4 (BILAN:270) : la confirmation réglée précède la suite ; avant : la suite seule
 
 
 async def test_changement_relance_ratee_le_total_n_est_dit_qu_une_fois(essai_de):
@@ -87,14 +87,14 @@ async def test_annulation_relance_ratee_la_phrase_reglee_pas_compris(essai_de):
 
 
 async def test_fiche_vide_apres_l_enregistrement_la_relance_ratee_dit_p3(essai_de):
-    """Client « Ah merci. » / fiche vide deux fois / avant (R1 de C6) : modèle « Avec plaisir. » seul ; après (T12, coordinateur 26/11 10 h 45) : la première fiche vide est
-    la relance du tour, la seconde une relance ratée : rien de réglé à dire, P3 (dite par la voix) ; jamais la phrase du modèle écrite avant l'exécution."""
+    """Client « Ah merci. » / fiche vide deux fois / avant (R1 de C6) : modèle « Avec plaisir. » seul ; T12 (coordinateur 26/11 10 h 45) : la seconde fiche vide était une relance ratée,
+    P3 ; PE-2 Q3 (point d'étape du 26/11, BILAN:271) : rien n'est dû, la fiche est vide : la phrase du modèle est dite seule (« Avec plaisir. »)."""
     e, _ = await _enregistree(essai_de)
     r = await e.tour("ah merci")
     PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Avec plaisir."})
     r2 = await e.fiche()
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r2, {"a_dire": "Avec plaisir."})
-    assert (d.mode, d.a_dire, d.motif) == (PAROLE.A_DIRE_SEUL, None, REPONSE_PERDUE), d
+    assert (d.mode, d.a_dire, d.motif) == (PAROLE.A_DIRE_SEUL, "Avec plaisir.", "fait"), d
 
 
 def _etat_avec_la_phrase_reglee() -> PAROLE.EtatDuTour:

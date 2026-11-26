@@ -31,7 +31,7 @@ CAS = {
     "rc4_fiche_rejouee_deux_fois_e16": ("E16", ("G31", "G31")),
     "rc4_fiche_rejouee_deux_fois_e10": ("E10", ("G31", "G31")),
     "rc4_mode_puis_fiche_rejouee_e18": ("E18", ("G15", "G31")),
-    "rc4_fiche_vide_puis_rejouee_e18": ("E18", ("G30", "G31")),
+    "rc4_fiche_vide_puis_rejouee_e18": ("E18", ("G30", "G31")),  # PE-2 Q3 : le juge laisse la phrase du modèle sur une fiche vide sans rien de dû (``test_p1f_lot8_pe_juge_rc4``)
     "rc1_vider_puis_ajouter_e18": ("E18", ("G12", "G1")),
     # RC9 : la même question reposée garde son numéro
     "rc9_hesitation_redite_avec_non": ("E6", ("G4+G24",)),
@@ -76,7 +76,6 @@ M108 = MOTIFS[APRES_ENREGISTREMENT].variantes_defaut[0]
 CAS_APRES_LA_RELANCE = {
     "rc4_fiche_rejouee_deux_fois_e16": ("E16", ("G31", "G31"), M108),
     "rc4_mode_puis_fiche_rejouee_e18": ("E18", ("G15", "G31"), None),
-    "rc4_fiche_vide_puis_rejouee_e18": ("E18", ("G30", "G31"), None),
 }
 
 
@@ -103,6 +102,18 @@ async def test_la_fiche_rejouee_apres_la_relance_est_une_relance_ratee(faire_mon
     else:
         assert (seconde.decision.a_dire or "").endswith(attendu), seconde.decision  # la question en dernier
     assert not (seconde.textes or {}).get("fait_accompli"), seconde.textes  # le code ne redit pas le fait accompli
+
+
+async def test_une_fiche_vide_rejouee_sans_rien_de_du_dit_la_phrase_du_modele(faire_monde, monkeypatch):
+    """PE-2 Q3 (BILAN:271) : E18 (rien n'attend), « D'accord. » : la fiche est vide, rejouée dans le tour. Avant (T12) : P3 « Pardon, je n'ai pas bien saisi ». Après : la phrase du modèle,
+    dite seule (« Ah merci. » / « Avec plaisir. »). Le prix : « C'est noté. » aussi, sur une fiche vide sans rien de dû (le code ne lit pas les mots). La fiche du mode changé (``G15``)
+    reste sur P3 (``CAS_APRES_LA_RELANCE``), la question qui attend aussi (``test_cloture_b2_du``)."""
+    partie = C.Partie(await faire_monde("casa-italia"), monkeypatch)
+    assert await partie.recette("E18")
+    premiere = await partie.geste("G30")
+    seconde = await partie.geste("G31")
+    assert (premiere.decision.mode, premiere.decision.motif) == (PAROLE.SECOND_PASSAGE, RIEN_CHANGE), premiere.decision  # la relance du tour
+    assert (seconde.decision.mode, seconde.decision.a_dire, seconde.decision.motif) == (PAROLE.A_DIRE_SEUL, C.ANNONCE, "fait"), seconde.decision
 
 
 async def test_la_relance_ratee_sans_suite_dit_p3_a_la_voix(monkeypatch):
