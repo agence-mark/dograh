@@ -392,6 +392,16 @@ async def marquer_l_alerte_d_annulation(connexion: asyncpg.Connection, etablisse
     )
 
 
+async def commandes_retenues_a_reprendre(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int, limite: int = 50) -> list[tuple[str, str | None]]:
+    """Lot 8b-1a (E11) : les commandes ``retenue`` de CET établissement qui n'ont plus bougé depuis ``depuis_minutes`` : ``(numero, appel_id)``. Le rattrapage n'envoie que
+    celles dont l'appel est terminé en base (la fin de l'appel n'a pas été jouée)."""
+    lignes = await connexion.fetch(
+        "SELECT numero, appel_id FROM mark.resto_commande WHERE site_id = $1 AND statut = 'retenue' AND maj_le <= $2 ORDER BY maj_le LIMIT $3",
+        etablissement_id, await maintenant(connexion) - timedelta(minutes=depuis_minutes), limite,
+    )
+    return [(str(r["numero"]), r["appel_id"]) for r in lignes]
+
+
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:
     """Les commandes que la caisse a REÇUES (elle leur a donné un identifiant) mais qu'elle n'a pas encore prises en charge, à la plus courte de deux échéances : ``depuis_minutes``
     après l'envoi, ou (commande PRÉVUE pour plus tard, ``heure_voulue``) l'heure promise à la personne moins ``MARGE_AVANT_L_HEURE`` : une alerte, jamais un renvoi aveugle. (Un envoi qui n'a pas abouti n'a pas d'identifiant : il est à reprendre,

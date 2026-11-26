@@ -273,7 +273,7 @@ INACTIVITE_A_LA_VOIX_S = 600.0  # un appel à la voix peut se taire (ou parler s
 INTERVALLE_DU_BALAYAGE_S = 30.0
 
 
-async def _appel_termine_en_base(cle: str) -> bool:
+async def appel_termine_en_base(cle: str) -> bool:
     """La partie est-elle finie ? Lu sur l'appel enregistré (``is_completed``) : un appel vivant, même muet pour les outils, n'est jamais fermé. Illisible : non (il reste ouvert)."""
     from api.db import db_client
 
@@ -285,7 +285,7 @@ async def _appel_termine_en_base(cle: str) -> bool:
         return False
 
 
-async def fermer_les_appels_inactifs(sauf: str | None = None, *, appel_termine: Callable[[str], Awaitable[bool]] = _appel_termine_en_base) -> int:
+async def fermer_les_appels_inactifs(sauf: str | None = None, *, appel_termine: Callable[[str], Awaitable[bool]] = appel_termine_en_base) -> int:
     """Ferme les appels ouverts de CE processus : au clavier ceux restés sans geste depuis ``INACTIVITE_AU_CLAVIER_S`` ; à la voix ceux restés sans geste depuis
     ``INACTIVITE_A_LA_VOIX_S`` ET déjà terminés en base (un appel qui parle sans outil n'a pas de geste, il n'est pas inactif). Jamais celui qu'on nomme ni ceux dont
     un geste tient le verrou. Rend le nombre fermé. La liste ``_APPELS`` est propre au processus : ce balayage l'est aussi."""
@@ -313,7 +313,7 @@ def _journaliser_la_fin_du_balayage(tache: asyncio.Task) -> None:
         logger.error(f"[.mark] Call memory: the idle sweep stopped ({type(tache.exception()).__name__}): idle calls are no longer closed by this process")
 
 
-def demarrer_le_balayage(intervalle_s: float = INTERVALLE_DU_BALAYAGE_S, *, appel_termine: Callable[[str], Awaitable[bool]] = _appel_termine_en_base) -> asyncio.Task:
+def demarrer_le_balayage(intervalle_s: float = INTERVALLE_DU_BALAYAGE_S, *, appel_termine: Callable[[str], Awaitable[bool]] = appel_termine_en_base) -> asyncio.Task:
     """Lancé au démarrage de chaque processus de l'API (cycle de vie de ``app.py``) : ferme périodiquement les appels inactifs de ce processus. À arrêter avec ``cancel()``."""
     tache = asyncio.create_task(_balayer_sans_fin(intervalle_s, appel_termine), name="balayage-des-appels-inactifs")
     tache.add_done_callback(_journaliser_la_fin_du_balayage)

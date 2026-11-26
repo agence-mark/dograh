@@ -72,7 +72,7 @@ async def envoyer_les_commandes_retenues(c: Any, organization_id: int | None, no
     accorde = numero_accorde(fiche)
     for ligne in lignes:
         if ligne["numero"] == accorde:
-            await _envoyer(c, organization_id, nom_base, ligne["site_id"], ligne["numero"])
+            await envoyer_la_commande_retenue(c, organization_id, nom_base, ligne["site_id"], ligne["numero"])
         else:
             await _annuler(c, ligne["site_id"], ligne["numero"])
 
@@ -82,7 +82,8 @@ async def _annuler(c: Any, etablissement_id: int, numero: str) -> None:
     await restauration.changer_statut(c, etablissement_id, numero, "retenue", "annulee", "agent")
 
 
-async def _envoyer(c: Any, organization_id: int | None, nom_base: str, etablissement_id: int, numero: str) -> None:
+async def envoyer_la_commande_retenue(c: Any, organization_id: int | None, nom_base: str, etablissement_id: int, numero: str) -> None:
+    """Accordée : ``retenue → nouvelle``, puis ``commande.creee``, le SMS et l'envoi. Le geste de la fin de l'appel, et du filet du rattrapage (E11)."""
     if (await restauration.changer_statut(c, etablissement_id, numero, "retenue", "nouvelle", "agent")).statut != "OK":
         return  # une autre fin l'a déjà fait passer : un seul geste
     commande = await commande_complete(c, etablissement_id, numero)
