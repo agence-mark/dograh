@@ -527,3 +527,25 @@ def test_c10_une_relecture_reposee_avec_un_autre_jeton_reste_une_autre_question(
     relecture = {"id": "Q-2", "type": "relecture", "texte": "", "jeton": "a"}
     assert CONV.identite_de_la_question(relecture) != CONV.identite_de_la_question({**relecture, "jeton": "b"})
     assert CONV.identite_de_la_question(relecture) == CONV.identite_de_la_question({**relecture, "texte": "Un autre texte"})
+
+
+# --------------------------------------------------------------------------- C7 B1 (T1) : une erreur interne au silence ne laisse jamais le tour muet
+
+
+def _lecture_qui_leve(*_a, **_k):
+    raise KeyError("lignes")
+
+
+async def test_t1_une_lecture_qui_leve_au_silence_dit_la_phrase_reglee_sans_requete_de_plus(monkeypatch):
+    """T1 : Client « Une pizza au homard. » / le modèle se tait / la lecture de la fiche lève (erreur interne) / avant : rien n'est dit (``None``, flux vide) /
+    après : « Pardon, je n'ai pas bien saisi. Vous pouvez répéter ? » (P3), sans requête de plus."""
+    monkeypatch.setattr(PF, "dossier_de_la_parole", _lecture_qui_leve)
+    dit, consignes = await _tour_muet(_fiche_du_homard(), ["Un texte qui ne doit jamais partir."])
+    assert dit == REGLEE and consignes == [], (dit, consignes)
+
+
+def test_t1_voisin_hors_fiche_une_erreur_au_silence_rend_toujours_none():
+    """Voisin : une étape qui ne porte pas la fiche garde son comportement (le contrôle d'avant qui lève : ``None``, le flux rendu tel quel)."""
+    autre = SimpleNamespace(controler_le_silence=lambda *_a: _lecture_qui_leve())
+    fiche = {CLE_DU_TOUR: 1}
+    assert PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=fiche), autre).controler_le_silence() is None
