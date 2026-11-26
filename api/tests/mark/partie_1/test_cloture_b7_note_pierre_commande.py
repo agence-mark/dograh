@@ -484,12 +484,14 @@ async def test_c_la_caisse_refuse_la_nouvelle_version_la_commande_d_avant_n_est_
     monkeypatch.setattr(CH, "enregistrer", refuse)
     r = await e.tour("et un coca", ajouter=[{"article": "coca", "quantite": 1}])
     assert annulations == [] and getattr(e.source.prise, "annulees", []) == [], (annulations, getattr(e.source.prise, "annulees", None))  # rien n'est parti vers la caisse
-    assert any(str(c["numero"]) == str(avant["numero"]) for c in getattr(e.source.prise, "recues", [])), "l'ancienne existe toujours dans la caisse de test"
+    assert getattr(e.source.prise, "recues", []) == []  # § 17 : rien en caisse pendant l'appel ; l'ancienne y part à la fin (dernière ligne)
     assert await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", avant["numero"]) != "annulee"
     assert ETAPE.courante(e.p) == ETAPE.ENREGISTREE and ETAPE.accord(e.p), ETAPE.courante(e.p)
     assert {k: e.p.get(k) for k in etat_d_avant} == etat_d_avant, (etat_d_avant, {k: e.p.get(k) for k in etat_d_avant})
     assert e.p["lignes"] == lignes_d_avant and moteur.commande_de_l_appel(e.p)["numero"] == avant["numero"], e.p["lignes"]
     assert "changement_refuse_par_la_caisse" in _faits(r), r  # le fait donné au modèle, qui le dit avec ses mots
+    await e.finir_l_appel()
+    assert [str(c["numero"]) for c in e.source.prise.recues] == [str(avant["numero"])], "l'ancienne est celle qui part en caisse"
 
 
 async def test_c_la_nouvelle_est_acceptee_puis_l_annulation_de_l_ancienne_echoue_le_restaurant_est_alerte(essai_de, monkeypatch):

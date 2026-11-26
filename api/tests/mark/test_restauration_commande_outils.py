@@ -104,8 +104,6 @@ def appel_de_test(commerce, monkeypatch):
     # lot 5 (D49) : la base de l'appel est lue par la mémoire de l'appel (``memoire_de_l_appel``), qui a son propre nom importé
     monkeypatch.setattr("api.services.restauration.appel_et_memoire.appel.base_et_cle_de_l_appel", base_et_cle)
     monkeypatch.setattr("api.services.restauration.appel_et_memoire.memoire_de_l_appel.base_et_cle_de_l_appel", base_et_cle)
-    lances: list[tuple] = []  # l'envoi à la prise part en tâche de fond : ici on le ramasse, aucune tâche ne survit au test
-    monkeypatch.setattr("api.services.restauration.source_commande.LANCEUR", lambda *a: lances.append(a))
     fiche: dict[str, Any] = {}
     moteur_double = SimpleNamespace(
         _gathered_context=fiche, _call_context_vars={"caller_number": "06 12 34 56 78"}, _workflow_run_id=4242, configurations_des_modules={},
@@ -139,7 +137,7 @@ def appel_de_test(commerce, monkeypatch):
         assert len(rendus) == 1
         return rendus[0]
 
-    return SimpleNamespace(jouer=jouer, fiche=fiche, moteur=moteur_double, commerce=commerce, lances=lances)
+    return SimpleNamespace(jouer=jouer, fiche=fiche, moteur=moteur_double, commerce=commerce)
 
 
 # test_le_vrai_gestionnaire_garde_le_panier_dans_la_fiche_de_l_appel : supprimé au lot 4 (D49), la fiche passe par l'action du connecteur et le panier vit dans la fiche de l'appel : sens repris par partie_1/test_l03_porte.py::test_banc_a_passe_par_la_fiche et le montage partie_1/porte_essai.py (``porte.executer``, panier lu dans la fiche de l'appel).

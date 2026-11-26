@@ -133,7 +133,9 @@ async def test_l19bis_v2_du_modele_a_la_phrase_dite(essai_de):
     # 1. la base de test : la commande y est, à son total
     ligne = await e.monde.c.fetchrow("SELECT statut, total FROM mark.resto_commande WHERE numero = $1::uuid", numero)
     assert ligne is not None and ligne["total"] == 1090, ligne
-    # 2. la prise d'essai (la caisse simulée) a reçu CETTE commande, une seule fois, avec la bonne ligne
+    # 2. la prise d'essai (la caisse simulée) a reçu CETTE commande, une seule fois, avec la bonne ligne, à la fin de l'appel (§ 17 : rien pendant)
+    assert e.source.prise.recues == [] and ligne["statut"] == "retenue"
+    await e.finir_l_appel()
     recues = e.source.prise.recues
     assert [c["numero"] for c in recues] == [numero], recues
     assert [(l["code_caisse"], l["quantite"]) for l in recues[0]["lignes"]] == [("PIZ-MARGHERITA-NORMALE", 1)] and recues[0]["total"] == 1090

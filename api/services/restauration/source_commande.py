@@ -1,19 +1,16 @@
 """[.mark] Module Restauration, lot 5 : la SOURCE du moteur de commande sur le classeur du restaurant (T-18 : la première configuration).
 
 Le moteur commun (``services/commande/``) ne connaît ni la carte, ni la caisse, ni la base : il parle à une source. Celle-ci lit et écrit
-le classeur de CET établissement par la couche d'accès (``api/db/bases_clients/restauration.py``, jamais une requête ici) et lance
-l'envoi à la prise par ``declencheur_vers_la_prise`` APRÈS l'enregistrement validé. Le moteur n'envoie jamais rien lui-même (§ 6 du contrat).
+le classeur de CET établissement par la couche d'accès (``api/db/bases_clients/restauration.py``, jamais une requête ici). Le moteur n'envoie jamais
+rien lui-même (§ 6 du contrat).
 
-L'envoi part en tâche de fond de l'appel (``lancer_l_envoi``), sur sa propre connexion : l'outil rend la main tout de suite, l'agent dit
-« c'est enregistré » (E-36). Une commande dont l'envoi n'a pas abouti reste ``nouvelle`` ou ``envoyee`` : le rattrapage (lot 10) la reprend,
-et un envoi n'est jamais fait deux fois (anti-doublon de la prise).
+§ 17 (Evan, 24/11) : au « oui », la commande est écrite ``retenue`` (son numéro court se dit pendant l'appel) ; elle part en caisse une seule fois, à la
+fin de l'appel, avec le SMS de confirmation et ``commande.creee`` (``caisse/envoi_a_la_fin``, joué par le crochet ``fin_de_l_appel``).
 """
 
 from __future__ import annotations
 
-import asyncio
-import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
@@ -61,7 +58,6 @@ from api.services.restauration.appel_et_memoire.appel import (
     Lieu,
 )
 from api.services.restauration.caisse.prises.capacites import Capacites
-from api.services.restauration.caisse.prises.envoi import declencheur_vers_la_prise
 from api.services.restauration.caisse.prises.prise import Prise, capacites_de
 from api.services.restauration.carte_et_allergenes.signalements import (
     LES_QUATORZE,
@@ -73,9 +69,6 @@ from api.services.restauration.carte_et_allergenes.signalements import (
     signalements_de,
 )
 
-_TACHES: set[asyncio.Task] = set()
-
-
 def _signalements_des_options(groupes: list[dict]) -> None:
     """M88 : chaque option dit ce qu'on sait de ses signalements. ``signalements`` : la donnée de l'option (``None`` = inconnue, tant que la
     carte n'en porte pas) ; ``signalements_du_nom`` : ce que son nom affirme (« Pistache »), qui ne prouve qu'une présence."""
@@ -84,29 +77,6 @@ def _signalements_des_options(groupes: list[dict]) -> None:
             o["signalements"] = signalements_de(o.get("allergenes"))
             o["signalements_du_nom"] = codes_nommes(o.get("nom") or "")
             _signalements_des_options(o.get("enfants") or [])
-
-
-async def _envoyer_en_fond(nom_base: str, etablissement_id: int, nom_prise: str, numero: uuid.UUID) -> None:
-    """Sur sa propre connexion : l'appel et son outil peuvent être finis. Ne lève jamais (R1 : l'échec se voit au journal, au flux et par le secours).
-    La prise est celle de l'ÉTABLISSEMENT (son accès propre) : ``nom_prise`` n'est gardé que pour la signature du lanceur."""
-    from api.services.restauration.caisse.envoi_caisse import (
-        envoyer_la_commande,
-        organisation_de_la_base,
-    )
-
-    # Une base sans organisation rattachée (essai, installation en cours) : l'envoi se fait, sans flux ni accès de caisse propre à une organisation.
-    await envoyer_la_commande(await organisation_de_la_base(nom_base), nom_base, etablissement_id, numero)
-
-
-def lancer_l_envoi(nom_base: str, etablissement_id: int, nom_prise: str, numero: uuid.UUID) -> None:
-    """Lance l'envoi en tâche de fond (référence gardée : une tâche sans référence peut disparaître). Un test le remplace pour l'attendre."""
-    tache = asyncio.get_running_loop().create_task(_envoyer_en_fond(nom_base, etablissement_id, nom_prise, numero))
-    _TACHES.add(tache)
-    tache.add_done_callback(_TACHES.discard)
-
-
-# Le lanceur en vigueur : ``lancer_l_envoi``, remplaçable (tests ; les lots 9 et 10 y branchent leur file de tâches).
-LANCEUR: Callable[[str, int, str, uuid.UUID], None] = lancer_l_envoi
 
 
 def _vers_le_classeur(lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -471,14 +441,9 @@ class SourceClasseur:
 
     # ---- l'enregistrement
     async def enregistrer(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
-        async def envoyer(numero: uuid.UUID) -> None:
-            if self.prise is not None:  # une prise donnée (essai) : envoyée ici, sur la même connexion
-                await declencheur_vers_la_prise(self.c, self.lieu.etablissement_id, self.prise)(numero)
-            else:
-                LANCEUR(self.lieu.nom_base, self.lieu.etablissement_id, self.nom_prise, numero)
-
+        """Écrit la commande ``retenue`` : rien ne part pendant l'appel (§ 17), la fin de l'appel l'envoie."""
         brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
-        return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton, declencher_envoi=envoyer)
+        return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton)
 
     async def verifier_l_enregistrement(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
         """Clôture (Pierre A2) : ce que ``enregistrer`` refuserait, constaté sans rien écrire ; ``OK`` ou le même refus. Sert à changer une commande enregistrée
@@ -510,27 +475,15 @@ class SourceClasseur:
         return {**p, "lignes": lignes, "total": chiffre.faits.get("total") if not paniers.a_completer(p) else None}
 
     async def apres_le_geste(self, geste: str, avant: int, p: dict[str, Any], r: Resultat, ctx: Any) -> None:
-        """Le portail l'apprend en direct (contrat portail ↔ fork § 3) : ``commande.panier`` quand le panier de l'appel a changé (le portail relit),
-        ``commande.creee`` quand la commande est enregistrée. Un seul émetteur : ``flux.emettre``. Hors appel suivi (pas de run) : rien."""
+        """Le portail l'apprend en direct (contrat portail ↔ fork § 3) : ``commande.panier`` quand le panier de l'appel a changé (le portail relit). Un seul
+        émetteur : ``flux.emettre``. Hors appel suivi (pas de run) : rien. ``commande.creee`` et le SMS de confirmation partent à la fin de l'appel, avec la commande
+        (§ 17 : une commande annulée avant la fin n'a jamais de SMS)."""
         organisation, etablissement = ctx.organization_id, self.lieu.etablissement_id
         if not organisation:
             return
         if ctx.run_id and p["version"] != avant:
             await flux.poser_le_panier(organisation, etablissement, ctx.run_id, await self._panier_chiffre(p, ctx))
             await flux.emettre(organisation, etablissement, "commande.panier", {"appel_id": str(ctx.run_id), "version": p["version"]})
-        if geste == "finaliser" and r.statut in ("ENREGISTREE", "TRANSMISE"):
-            faits = r.faits
-            await flux.emettre(
-                organisation, etablissement, "commande.creee",
-                {"numero": faits["numero"], "numero_court": faits["numero_court"], "mode": p["mode"], "heure_annoncee": faits["heure_annoncee"], "total": faits["total"]},
-            )
-            # Lot 7 (E-18) : le SMS de confirmation, seulement si l'établissement l'a allumé (éteint par défaut) ; ne défait jamais la commande.
-            fuseau = ZoneInfo(await fuseau_de(self.c, etablissement))
-            heure = faits["heure_annoncee"].astimezone(fuseau).strftime("%H:%M") if isinstance(faits.get("heure_annoncee"), datetime) else ""
-            await envois.envoyer_apres(
-                self.c, organisation, etablissement, envois.COMMANDE_ENREGISTREE, (p.get("client") or {}).get("telephone"),
-                {"prenom": (p.get("client") or {}).get("prenom") or "", "numero_court": faits["numero_court"], "heure": heure, "quand": heure}, str(faits["numero"]),
-            )
 
     def permet_l_annulation(self) -> bool:
         """Lot 4 (E10) : la caisse de l'établissement sait-elle annuler une commande reçue ? Lu sur la fiche de capacités de la prise, jamais sur son nom."""
@@ -558,7 +511,7 @@ class SourceClasseur:
                 await _informer_la_caisse(self.lieu.organisation_id, self.c, self.lieu.etablissement_id, self.lieu.nom_base, numero, "annulee")
         except Exception as erreur:  # noqa: BLE001 -- R1 : la caisse en panne ne défait pas l'annulation ; on le voit ici
             logger.error(f"[.mark] Order {numero}: telling the till about the cancellation failed: {erreur!r}")
-        if self.lieu.organisation_id:
+        if self.lieu.organisation_id and commande["statut"] != "retenue":  # § 17 : une commande retenue n'a jamais été dite au portail (``commande.creee`` part à la fin de l'appel)
             await flux.emettre(self.lieu.organisation_id, self.lieu.etablissement_id, "commande.statut",
                                {"numero": numero, "de": commande["statut"], "vers": "annulee", "source": "agent"})
         return r

@@ -5,8 +5,8 @@
 
 Montants en centimes, entiers. Le total du modèle n'est jamais pris : un prix donné qui diffère de la carte est refusé
 (``prix_different``). L'heure vient de la source d'heure de l'organisation (D6). L'envoi à la caisse n'est PAS fait ici :
-``declencher_envoi`` (un appelant, lot 9 et 10) est appelé APRÈS l'enregistrement validé, avec le numéro pour clé de
-tâche (``_job_id`` = numéro : rejouable sans effet double).
+l'agent écrit la commande au statut ``retenue`` (§ 17 : elle part à la fin de l'appel, ``caisse/envoi_a_la_fin``) ; un appelant qui donne
+``declencher_envoi`` (le portail, l'essai de la prise) l'écrit ``nouvelle`` et l'envoi est appelé APRÈS l'enregistrement validé, avec le numéro.
 """
 
 from __future__ import annotations
@@ -861,6 +861,7 @@ class _ACommande:
     maintenant: datetime
     fuseau: ZoneInfo
     reglages: dict
+    statut: str  # ``retenue`` (l'agent, envoi à la fin de l'appel) ou ``nouvelle`` (envoyée tout de suite par l'appelant)
 
 
 async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> tuple[Resultat | None, uuid.UUID, str]:
@@ -897,7 +898,7 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
             "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_voulue, heure_annoncee, telephone, prenom, "
             "second_numero, adresse, zone_id, remises, sous_total, frais, total, paiement, note, statut, cree_par, appel_id, "
             "cle_doublon, cree_le, maj_le, taux_tva_frais, consigne_livreur) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12::jsonb, $13, $14, $15, "
-            "$16::jsonb, $17, 'nouvelle', $18, $19, $20, $21, $21, $22, $23)",
+            "$16::jsonb, $17, $24, $18, $19, $20, $21, $21, $22, $23)",
             numero, numero_court, etablissement_id, mode, heure_voulue, heure_annoncee, client["telephone"], client.get("prenom"),
             json.dumps(client["second_numero"]) if client.get("second_numero") else None,
             json.dumps(brouillon["adresse"]) if brouillon.get("adresse") else None,
@@ -907,6 +908,7 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
             json.dumps({"moyens": moyens, "rendu_sur": paiement.get("rendu_sur"), "reste_par_moyen": reste}),
             brouillon.get("note"), cree_par, brouillon.get("appel_id"), cle, maintenant_, taux_du_panier if frais else None,
             (brouillon.get("consigne_livreur") or None),  # lot 16 : la consigne pour le livreur, envoyée à la caisse dans ``customer.delivery_notes``
+            a.statut,
         )
         for rang, l in enumerate(calculees, start=1):
             await connexion.execute(
@@ -953,6 +955,8 @@ async def enregistrer_commande(
     choix?, retires?}]``, ``heure_voulue?`` (aware ; vide = dès que possible), ``adresse?``, ``zone_id?`` (livraison),
     ``remises? [{ref|nom}]``, ``paiement {moyens, reste_par_moyen, rendu_sur?}``, ``note?``, ``appel_id?``, ``cree_par?``.
     ``jeton_relecture`` : exigé (la relecture en deux temps, lot 24, en définit la preuve ; ici : non vide).
+    ``declencher_envoi`` : l'envoi tout de suite (le portail, l'essai de la prise) ; sans lui, une commande de l'agent est écrite ``retenue`` et ne part
+    qu'à la fin de l'appel (§ 17, Evan 24/11 : « tant qu'on n'est pas à la fin de l'appel, la commande n'est pas envoyée »).
     ``a_blanc`` (clôture, Pierre A2) : fait tous les contrôles qui peuvent refuser (ouverture, ruptures relues, zone, remises, règlement, heure) et
     s'arrête avant l'anti-doublon et toute écriture : ``OK`` ou le refus que l'enregistrement rendrait. Sert à changer une commande enregistrée en
     tout ou rien : l'ancienne n'est annulée qu'une fois la nouvelle sûre d'entrer."""
@@ -1000,7 +1004,7 @@ async def enregistrer_commande(
         return Resultat("OK", {"total": total})
     a = _ACommande(
         etablissement_id, brouillon, mode, client, cree_par, heure_voulue, heure_annoncee, zone, retenues, calculees, sous_total, frais, total, paiement, moyens, reste,
-        _cle_doublon(brouillon, calculees), maintenant_, fuseau, reglages,
+        _cle_doublon(brouillon, calculees), maintenant_, fuseau, reglages, "retenue" if cree_par == "agent" and declencher_envoi is None else "nouvelle",
     )
     deja_fait, numero, numero_court = await _ecrire_la_commande(connexion, a)
     if deja_fait is not None:

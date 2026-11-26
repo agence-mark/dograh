@@ -9,7 +9,6 @@ Un test = un essai à la fois.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 from datetime import datetime, timedelta
@@ -389,24 +388,12 @@ async def test_jamais_transmise_avant_le_retour(essai_de):
     assert "transmis" not in dite.replace("transmise_a_l_equipe", "") and "en cuisine" not in dite
 
 
-async def test_envoi_hors_du_tour(db_session, seconde_base, sans_preparation_des_organisations, application_configuree, monkeypatch):  # noqa: F811
-    """L'existant, réutilisé tel quel (D61, point 5) : ``lancer_l_envoi`` rend la main AVANT l'envoi (tâche de fond) ; une commande que la caisse a déjà (la réponse s'est perdue) est reconnue
-    par NOTRE numéro (``private_ref``) : jamais deux commandes."""
+async def test_envoi_hors_du_tour(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """L'existant, réutilisé tel quel (D61, point 5) : l'envoi se fait hors du tour (§ 17 : à la fin de l'appel, ``caisse/envoi_a_la_fin``) ; une commande que la caisse a déjà
+    (la réponse s'est perdue) est reconnue par NOTRE numéro (``private_ref``) : jamais deux commandes."""
     from api.services.restauration.caisse import envoi_caisse as ec
-    from api.services.restauration import source_commande as sc
 
     cas, etab = await _etablissement_branche(db_session, seconde_base)
-    libere, fini = asyncio.Event(), asyncio.Event()
-
-    async def envoi_lent(*_a):
-        await libere.wait()
-        fini.set()
-
-    monkeypatch.setattr(sc, "_envoyer_en_fond", envoi_lent)
-    sc.lancer_l_envoi(cas.base_a, etab, "hubrise", uuid.uuid4())
-    assert not fini.is_set()  # l'enregistrement a rendu la main, l'envoi n'a pas eu lieu
-    libere.set()
-    await asyncio.wait_for(fini.wait(), 5)
     numero = await _commande(cas.base_a, etab)
     caisse, secours = CaisseQuiRegistre(mode="perd_la_reponse"), Secours()
     await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=caisse.transport, secours=secours)  # la caisse l'a, la réponse est perdue

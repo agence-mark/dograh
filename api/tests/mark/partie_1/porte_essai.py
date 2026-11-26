@@ -101,7 +101,7 @@ class Essai:
     async def finir_l_appel(self, *, au_clavier: bool = False, fiche: Any = ...) -> None:
         """La fin de l'appel comme le moteur la joue (voix : ``finally`` ; clavier : fin de la partie) : le crochet ``fin_de_l_appel`` des modules, avec la fiche telle
         qu'elle finit (``fiche`` : une autre, ``None`` pour un montage tombé). La caisse est la prise d'essai de la source, nommée par la fiche de liaison de l'établissement ;
-        la base est celle du monde, rattachée à l'organisation d'essai."""
+        la base est celle du monde, rattachée à l'organisation de l'appel (celle d'essai quand l'appel n'en a pas)."""
         from api.services.base_client import rattachement
         from api.services.restauration.caisse.prises import prise as prises
 
@@ -109,11 +109,13 @@ class Essai:
         await self.monde.c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test') ON CONFLICT (site_id) DO NOTHING", self.monde.a)
         self.monkeypatch.setattr(prises, "prise_de", lambda nom: prise_d_essai if nom == "test" else vraie_prise_de(nom))
 
+        organisation_de_l_appel = self.ctx.organization_id or ORGANISATION_D_ESSAI
+
         async def base_de(organisation):
-            return self.monde.base if organisation == ORGANISATION_D_ESSAI else None
+            return self.monde.base if organisation == organisation_de_l_appel else None
 
         self.monkeypatch.setattr(rattachement, "nom_de_la_base", base_de)
-        fin = crochets.FinDeLAppel(self.ctx.run_id, self.fiche_de_l_appel if fiche is ... else fiche, ORGANISATION_D_ESSAI, None, au_clavier=au_clavier)
+        fin = crochets.FinDeLAppel(self.ctx.run_id, self.fiche_de_l_appel if fiche is ... else fiche, organisation_de_l_appel, None, au_clavier=au_clavier)
         await crochets.fin_de_l_appel(fin)
 
     async def lecture(self, **arguments: Any) -> dict[str, Any]:

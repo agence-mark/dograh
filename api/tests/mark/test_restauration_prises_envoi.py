@@ -31,6 +31,13 @@ async def _statut(commerce, numero) -> str:
     return (await restauration.statut_commande(commerce.c, commerce.a, numero=numero)).faits["commandes"][0]["statut"]
 
 
+async def _ecrite_par_l_agent_appel_fini(commerce, b) -> str:
+    """Une commande de l'agent (sans envoi donné) est écrite ``retenue`` ; la fin de l'appel la fait passer ``nouvelle`` avant l'envoi (§ 17)."""
+    numero = (await restauration.enregistrer_commande(commerce.c, commerce.a, b, f"relu-{b['appel_id']}")).faits["numero"]
+    assert (await restauration.changer_statut(commerce.c, commerce.a, numero, "retenue", "nouvelle", "agent")).statut == "OK"
+    return numero
+
+
 async def _enregistrer(commerce, prise, **plus):
     r = await restauration.enregistrer_commande(
         commerce.c, commerce.a, brouillon(**plus), "relu", declencher_envoi=declencheur_vers_la_prise(commerce.c, commerce.a, prise)
@@ -56,12 +63,10 @@ async def test_une_prise_sans_etape_acceptee_laisse_recue_et_l_outil_rend_transm
     numero = await _enregistrer(commerce, prise)
     assert await _statut(commerce, numero) == "recue"
     # un second geste identique ne change rien, et l'issue dit TRANSMISE, jamais « acceptée »
-    suivante = await restauration.enregistrer_commande(commerce.c, commerce.a, brouillon(appel_id="appel-2"), "relu-2")
-    envoi = await envoyer_une_commande(commerce.c, commerce.a, prise, suivante.faits["numero"])
+    suivante = await _ecrite_par_l_agent_appel_fini(commerce, brouillon(appel_id="appel-2"))
+    envoi = await envoyer_une_commande(commerce.c, commerce.a, prise, suivante)
     assert envoi.issue == "envoyee" and envoi.statut == "recue" and envoi.pour_l_outil == "TRANSMISE"
-    avec = await envoyer_une_commande(
-        commerce.c, commerce.a, PriseTest(), (await restauration.enregistrer_commande(commerce.c, commerce.a, brouillon(appel_id="appel-3"), "relu-3")).faits["numero"]
-    )
+    avec = await envoyer_une_commande(commerce.c, commerce.a, PriseTest(), await _ecrite_par_l_agent_appel_fini(commerce, brouillon(appel_id="appel-3")))
     assert avec.pour_l_outil == "OK" and avec.statut == "acceptee"
 
 
@@ -174,8 +179,7 @@ async def test_un_passage_deja_fait_par_un_autre_travail_n_envoie_jamais_une_sec
     from types import SimpleNamespace
 
     prise = PriseTest()
-    r = await restauration.enregistrer_commande(commerce.c, commerce.a, brouillon(), "relu")
-    numero = r.faits["numero"]
+    numero = await _ecrite_par_l_agent_appel_fini(commerce, brouillon())
     assert await _statut(commerce, numero) == "nouvelle"
 
     async def deja_fait(*a, **k):

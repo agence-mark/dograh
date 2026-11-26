@@ -353,6 +353,7 @@ class TextChatTurnExecutionResult:
     initial_context: dict[str, Any]
     state: str
     is_completed: bool
+    organization_id: int | None = None  # [.mark] lot 8b-1a : l'organisation que le tour a lue, donnée à la fin de l'appel quand le tour finit la partie
 
 
 @dataclass
@@ -676,7 +677,8 @@ async def execute_text_chat_pending_turn(
     """[.mark] Un tour au clavier. Lot 20 : la connexion de l'appel à la base du client ne doit pas fuir (97 sur 100 parties). Clôture A5 (IC1) :
     elle est GARDÉE entre deux tours comme à la voix, fermée à la fin de la partie (appel terminé, ou tour en échec) et après une limite
     d'inactivité (crochet ``fin_du_tour`` des modules) : un tour ne relit plus la carte entière. Lot 8a : un tour qui TERMINE l'appel (l'agent le finit) joue aussi le crochet ``fin_de_l_appel``, comme
-    ``complete_text_chat_session`` pour une fin demandée ou par inactivité ; un tour en échec ne finit pas la partie (seule sa connexion est fermée, comme avant)."""
+    ``complete_text_chat_session`` pour une fin demandée ou par inactivité ; un tour en échec ne finit pas la partie (seule sa connexion est fermée, comme avant). Lot 8b-1a : la fin reçoit
+    l'organisation lue par le tour (la commande retenue part de la base de cette organisation)."""
     try:
         resultat = await _executer_le_tour(
             workflow_run_id=workflow_run_id, workflow_id=workflow_id, session_data=session_data, checkpoint=checkpoint
@@ -686,7 +688,8 @@ async def execute_text_chat_pending_turn(
         raise
     termine = bool(getattr(resultat, "is_completed", True))
     if termine:
-        await crochets.fin_de_l_appel(crochets.FinDeLAppel(workflow_run_id, getattr(resultat, "gathered_context", None), au_clavier=True))
+        fin = crochets.FinDeLAppel(workflow_run_id, getattr(resultat, "gathered_context", None), getattr(resultat, "organization_id", None), au_clavier=True)
+        await crochets.fin_de_l_appel(fin)  # avant que l'appelant écrive le résultat du tour : la fin lit la fiche du résultat, jamais le point de reprise en base
     await crochets.fin_du_tour(crochets.FinDeTour(workflow_run_id, termine=termine))
     return resultat
 
@@ -1551,6 +1554,7 @@ async def _executer_le_tour(
             else WorkflowRunState.RUNNING.value
         ),
         is_completed=engine.is_call_disposed(),
+        organization_id=workflow.organization_id,
     )
 
 

@@ -37,11 +37,9 @@ from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa:
 
 
 @pytest.fixture
-def appel_de_test(commerce, monkeypatch):  # noqa: F811
+def appel_de_test(commerce):  # noqa: F811
     """La cuisine d'un appel sur la vraie base : la source du classeur, le panier gardé dans la fiche de l'appel, les gestes nommés du moteur.
-    L'envoi à la prise part en tâche de fond : ramassé ici (``lances``), sauf quand le test branche la vraie prise de test (``prise``)."""
-    lances: list[tuple] = []
-    monkeypatch.setattr("api.services.restauration.source_commande.LANCEUR", lambda *a: lances.append(a))
+    Lot 8b-1a (§ 17) : rien ne part pendant l'appel ; ``finir_l_appel`` joue l'envoi de la fin de l'appel (vers la prise que la fiche de liaison nomme)."""
     source = SourceClasseur(commerce.c, Lieu(commerce.base, commerce.a, 1), nom_prise="test")
     p, regles, appelant = panier.nouveau(), Reglages(), Appelant("+33612345678", "lot6")
     fiche = {panier.CLE: p}
@@ -87,7 +85,12 @@ def appel_de_test(commerce, monkeypatch):  # noqa: F811
             raise AssertionError(action)
         return {"statut": r.statut, "faits": en_json(r.faits or {}), "suggestion": r.suggestion, "manque": r.manque}
 
-    return SimpleNamespace(jouer=jouer, fiche=fiche, commerce=commerce, source=source, lances=lances)
+    async def finir_l_appel():
+        from api.services.restauration.caisse.envoi_a_la_fin import envoyer_les_commandes_retenues
+
+        await envoyer_les_commandes_retenues(commerce.c, None, commerce.base, appelant.appel_id, fiche)
+
+    return SimpleNamespace(jouer=jouer, fiche=fiche, commerce=commerce, source=source, finir_l_appel=finir_l_appel)
 
 SENLIS, CHANTILLY = "60612", "60141"
 

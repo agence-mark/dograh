@@ -5,7 +5,7 @@ Par la vraie porte de la fiche (lot 4, D49 : une fiche par tour, plus un geste p
 | Test | Ce qu'il prouve |
 |---|---|
 | ``commande.panier`` | chaque geste qui change le panier émet l'événement du contrat (appel, version qui avance) ; une simple lecture n'émet rien |
-| ``commande.creee`` | l'enregistrement émet numéro, numéro court, mode, heure annoncée, total ; tous les événements passent le contrôle du contrat |
+| ``commande.creee`` | la fin de l'appel (§ 17) émet numéro, numéro court, mode, heure annoncée, total ; tous les événements passent le contrôle du contrat |
 | vrai flux | l'événement est dans la liste Redis de CET établissement et d'aucun autre |
 | flux en panne | un flux qui ne part pas ne casse ni l'outil ni la commande (R1 : au journal) |
 | panne | une panne du catalogue ou de la base rend ``INDISPONIBLE`` avec la phrase de l'équipe, jamais un panier perdu |
@@ -49,8 +49,7 @@ def evenements(monkeypatch):
 @pytest.fixture
 def appel_de_test(commerce, monkeypatch):  # noqa: F811
     """Lot 4 (D49) : l'appel sur la fiche. Le montage de la porte (vraie source, vraie porte), avec l'organisation 7 et l'appel 4242 comme avant ;
-    l'envoi à la prise part en tâche de fond : ramassé ici, aucune tâche ne survit au test."""
-    monkeypatch.setattr("api.services.restauration.source_commande.LANCEUR", lambda *a: None)
+    rien ne part pendant l'appel (§ 17) : ``finir_l_appel`` joue la fin."""
     e = Essai(commerce, monkeypatch, appelant="+33612345678")
     e.ctx.organization_id, e.ctx.run_id = 7, 4242
     e.commerce = commerce
@@ -89,6 +88,8 @@ async def test_l_enregistrement_emet_commande_creee_avec_le_contrat(appel_de_tes
     e = appel_de_test
     await _tout_jusqu_a_l_enregistrement(e)
     enregistree = e.p["enregistree"]
+    assert [t for _, _, t, _ in evenements].count("commande.creee") == 0  # § 17 : le portail l'apprend à la fin de l'appel, avec l'envoi
+    await e.finir_l_appel()
     (creee,) = [d for _, _, t, d in evenements if t == "commande.creee"]
     assert creee["numero"] == enregistree["numero"] and creee["numero_court"] == "C1"
     assert (creee["mode"], creee["total"]) == ("emporter", 1490)
@@ -100,6 +101,7 @@ async def test_un_second_oui_n_emet_pas_une_seconde_commande_creee(appel_de_test
     e = appel_de_test
     await _tout_jusqu_a_l_enregistrement(e)
     seconde = await e.tour("oui", c_est_tout=True, reponse={"question_id": "?", "sens": "accepte"})
+    await e.finir_l_appel()
     assert [t for _, _, t, _ in evenements].count("commande.creee") == 1, seconde  # le second enregistrement est refusé par la porte (``deja_fait``)
 
 
