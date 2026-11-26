@@ -142,7 +142,7 @@ async def test_un_oui_au_changement_sans_relecture_dite_ne_change_rien(salle, mo
 
 async def test_l_annulation_est_demandee_par_le_modele_avec_le_moment_et_les_personnes(salle, monkeypatch):
     """Client « Je voudrais annuler. » / avant, code « Je peux aussi la déplacer. Vous voulez annuler la réservation samedi … pour quatre personnes ? » / après, modèle
-    « Vous voulez annuler samedi vingt heures pour quatre ? Je peux aussi la déplacer. »."""
+    « Je peux aussi la déplacer. Vous voulez annuler samedi vingt heures pour quatre ? » (la question à la fin, reprise R2)."""
     essai = await _reservee(salle, monkeypatch)
     r = await essai.tour("je voudrais annuler", annuler_une_reservation_enregistree=True)
     assert (r.get("question") or {}).get("type") == "annulation", r
@@ -151,7 +151,8 @@ async def test_l_annulation_est_demandee_par_le_modele_avec_le_moment_et_les_per
     assert textes.get("chiffres_exiges") == {"personnes": "4", "heure": "vingt heures"}, textes
     assert "déplacer" in str(r.get("a_faire")), r.get("a_faire")  # B5 : le déplacement est proposé (consigne), plus par une phrase du code
     sans_heure = "Vous voulez vraiment annuler ?"
-    bonne = "Vous voulez annuler samedi vingt heures pour quatre ? Je peux aussi la déplacer."
+    # reprise R2 de C6 (ordre de « C6 révisée » : la question est toujours la dernière) : la phrase qui finit sur une affirmation est relancée
+    bonne = "Je peux aussi la déplacer. Vous voulez annuler samedi vingt heures pour quatre ?"
     assert _dire(essai, r, sans_heure, relance=bonne) == bonne
     r = await essai.tour("oui", reponse={"question_id": r["question"]["id"], "sens": "accepte"})
     assert r["statut"] == "ANNULEE", r

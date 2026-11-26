@@ -129,17 +129,22 @@ CONSIGNE_DE_CE_QUE_LE_CODE_DIT = (
 CONSIGNE_DES_CHIFFRES_EXIGES = "- Ta réponse précédente n'a pas été dite : elle ne disait pas ces valeurs. Redis-la avec ces valeurs, telles que les faits les donnent"
 # Seulement quand le code dit une suite après la phrase (le rendu, M108) : une question posée par le modèle (DC4, la proposition) garde sa question
 SANS_LA_SUITE_DU_CODE = ", sans autre prix et sans question (le code dit la suite juste après ta phrase)"
+# Reprise R2 de C6 : le code ne dit rien après la phrase et une question attend (DC4, la proposition, la relecture de la réservation) : la phrase doit la poser, à la fin
+CONSIGNE_DE_LA_QUESTION_DUE = ("- Ta réponse précédente n'a pas été dite : elle ne posait pas la question en attente. Redis-la en posant cette question à la fin (ta phrase finit par « ? »), "
+                               "avec ces valeurs, telles que les faits les donnent")
 
 
-def consigne_des_chiffres_exiges(etat: Any) -> str | None:
+def consigne_des_chiffres_exiges(etat: Any, question_due: bool = False) -> str | None:
     """C6 n° 5 : la consigne qui relance le modèle quand sa phrase ne dit pas les valeurs que le code exige (``etat.exiges`` : l'heure de la commande enregistrée, le montant de DC4,
-    le prix d'une proposition, C6 n° 11) ; « sans question » seulement quand le code dit une suite après elle (``etat.suffixe``). ``None`` quand la relance du tour est déjà faite
+    le prix d'une proposition, C6 n° 11) ; « sans question » seulement quand le code dit une suite après elle (``etat.suffixe``). ``question_due`` (reprise R2) : la phrase ne posait pas
+    la question qui attend, et le code ne dit rien après elle : la consigne demande de la poser, à la fin. ``None`` quand la relance du tour est déjà faite
     (même compteur que les autres relances, C5). Les valeurs sont du JSON, jamais de la prose. L'appelant garde l'état."""
     if etat.relance_du_fait:
         return None
     etat.relance_du_fait = True
     etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True
-    return CONSIGNE_DES_CHIFFRES_EXIGES + (SANS_LA_SUITE_DU_CODE if etat.suffixe else "") + " : " + json.dumps(etat.exiges or {}, ensure_ascii=False, default=str)
+    tete = CONSIGNE_DE_LA_QUESTION_DUE if question_due else CONSIGNE_DES_CHIFFRES_EXIGES + (SANS_LA_SUITE_DU_CODE if etat.suffixe else "")
+    return tete + " : " + json.dumps(etat.exiges or {}, ensure_ascii=False, default=str)
 
 
 def consigne_de_ce_que_le_code_dit(etat: Any) -> str | None:

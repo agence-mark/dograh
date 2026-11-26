@@ -246,6 +246,12 @@ def la_suite_reglee(etat: EtatDuTour) -> str | None:
     return dit
 
 
+def question_due_sans_suite(phrase: str, suite: str | None, en_attente: bool) -> bool:
+    """Reprise R2 de C6 (ordre de « C6 révisée » : la question est la dernière) : le code ne dit rien après la phrase du modèle (``suite`` vide) et une question attend (DC4, la proposition,
+    la relecture de la réservation sans numéro à relire) : la phrase doit la poser. Vrai quand elle ne la pose pas. Forme seulement (le « ? »), jamais les mots."""
+    return not suite and en_attente and not pose_une_question(phrase)
+
+
 def dit_ce_que_le_code_dit(texte: str, etat: EtatDuTour) -> bool:
     """C6 : le code dit une QUESTION après la phrase du modèle (``etat.suffixe`` se termine par « ? ») et la phrase du modèle en pose déjà une : deux questions dans un tour. Forme seulement."""
     return bool(etat.suffixe) and pose_une_question(etat.suffixe) and pose_une_question(texte)

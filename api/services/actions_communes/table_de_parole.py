@@ -18,7 +18,7 @@ from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
 from api.services.actions_communes.parole import (
     A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
-    apres_un_refus, pose_une_question, question_nee_dans_ce_tour,
+    apres_un_refus, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
 )
 
 FAIT_ACCOMPLI = "fait_accompli_du_modele"  # motif : le modèle dit le fait accompli (C6 n° 5), le code dit la suite après sa phrase
@@ -118,11 +118,13 @@ def _question(e: Entrees) -> Decision:
 
 def _fait_accompli(e: Entrees) -> Decision:
     """C6 n° 5 (décision d'Evan 25/11 9 h 30) : un fait accompli que le MODÈLE dit (la commande enregistrée), suivi de ce que le code dit après lui (le rendu, la question M108). Sa phrase
-    part avec la suite si elle dit les valeurs exigées (l'heure), sans chiffre de plus, sans question en double ; sinon le modèle repasse avec le retour, la suite gardée pour sa phrase."""
+    part avec la suite si elle dit les valeurs exigées (l'heure), sans chiffre de plus, sans question en double, et, quand le code ne dit rien après elle et qu'une question attend (DC4,
+    la proposition, la relecture de la réservation), si elle pose cette question (reprise R2) ; sinon le modèle repasse avec le retour, la suite gardée pour sa phrase."""
     etat, phrase, suite = e.etat, e.phrase, e.suffixe_du_code
     exiges = e.exiges or {}
     en_double = bool(suite) and pose_une_question(suite) and pose_une_question(phrase)
-    if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and porte_les_chiffres(phrase, exiges):
+    due = question_due_sans_suite(phrase, suite, e.en_attente)
+    if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and not due and porte_les_chiffres(phrase, exiges):
         etat.jetee = None
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite) if x), motif=FAIT_ACCOMPLI)
     etat.suffixe, etat.exiges = suite, exiges

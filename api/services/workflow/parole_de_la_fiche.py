@@ -105,9 +105,11 @@ class VerificateurDeLaFiche:
                 PAROLE.noter_le_total_dit(p, etat, a_dire)  # la phrase du total est dite, seule : la relecture est entendue
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "", a_dire=a_dire)
-        if raison is None and etat.exiges is not None and not porte_les_chiffres(texte, etat.exiges):
-            # C6 n° 5 : la confirmation du modèle ne dit pas l'heure (valeur exigée) : relancée une fois ; ensuite la suite réglée seule, sinon P3 (R1 : jamais le fait accompli)
-            consigne = consigne_des_chiffres_exiges(etat)
+        due = etat.exiges is not None and PAROLE.question_due_sans_suite(texte, etat.suffixe, CONV.question_de(p) is not None)
+        if raison is None and etat.exiges is not None and (due or not porte_les_chiffres(texte, etat.exiges)):
+            # C6 n° 5 : la confirmation du modèle ne dit pas l'heure (valeur exigée), ou (R2) la phrase ne pose pas la question qui attend alors que le code ne dit rien après elle :
+            # relancée une fois ; ensuite la suite réglée seule, sinon P3 (R1 : jamais le fait accompli)
+            consigne = consigne_des_chiffres_exiges(etat, question_due=due)
             a_dire = None if consigne else PAROLE.la_suite_reglee(etat)
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.CHIFFRES_EXIGES, texte[:80], consigne or "", a_dire=a_dire)

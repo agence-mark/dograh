@@ -72,7 +72,7 @@ A_FAIRE_DU_FAIT_ACCOMPLI = {  # C6 n° 9 : le modèle dit le fait accompli d'apr
     "annuler": "dis-lui avec tes mots que sa réservation est annulée",
 }
 A_FAIRE_DE_L_ANNULATION = ("demande-lui avec tes mots si elle veut vraiment annuler sa réservation, en disant le jour, l'heure et le nombre de personnes des faits, et propose-lui "
-                           "de la déplacer plutôt, en une question ; rien n'est annulé avant son « oui »")
+                           "de la déplacer plutôt, en une seule question, à la fin de ta phrase ; rien n'est annulé avant son « oui »")
 
 
 
