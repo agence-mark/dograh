@@ -25,12 +25,15 @@ def _joue(retour: dict, phrase: str = "Très bien.", textes: dict | None = None,
 
 CAS = [
     ("texte du code (exception § 2)", {}, "Oui.", {"avant": "Je vous relis la commande."}, None, {}, A_DIRE_SEUL),
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : le modèle dit le fait accompli avec l'heure exigée, le code dit la suite après sa phrase
+    ("fait accompli dit par le modèle", {}, "C'est enregistré, prête pour dix-neuf heures.", {"suffixe": "Puis-je faire autre chose pour vous ?",
+     "chiffres_exiges": {"quand": "pour dix-neuf heures"}}, None, {}, A_DIRE_SEUL),
     ("refus", {}, "Oui.", {}, None, {"apres_refus": True}, SECOND_PASSAGE),
     ("faits à dire sur une fiche vide", {RIEN_CHANGE: True, CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("rien n'a changé", {RIEN_CHANGE: True}, "Oui.", {}, {"lignes": [{}]}, {}, SECOND_PASSAGE),
     ("fait bloquant", {"statut": "PARTIEL"}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("faits à dire", {CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
-    ("question née ou prix à dire", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
+    ("question née", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
     ("ligne retirée", {CLE_DU: {"faits_qui_engagent": [RETRAIT_D_UNE_LIGNE]}}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("formule ajoutée", {"resultats": [{"operation": "ajouter", "faits": {"composition": ["x"]}}]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("phrase vide", {}, "", {}, None, {}, SECOND_PASSAGE),

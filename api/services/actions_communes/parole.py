@@ -8,10 +8,9 @@ Recopie de la boucle du tour du banc (``banc-b12/appel_b12.py`` ``tour``), répa
   A (aucun outil dans ce tour alors qu'un objet est en cours ou qu'une question attend, une fois par tour) ; le rattrapage après un refus (une
   fois par tour, tenu par le drapeau ``rattrapage_refus_joue``, jamais par le texte retenu) ; le repli A (après un refus de LA FICHE, jamais
   dite) ; la barrière des chiffres (toujours) ;
-- **au bout** (C5, décision d'Evan 25/11 8 h 45) : le code ne compose aucune phrase ; une phrase retenue, ou un silence, relance le modèle UNE fois par tour avec le fait (``repli.consigne_de_relance``) ; si la relance échoue : le fait accompli que le code a déjà dit, sinon la phrase réglée de l'agent ;
-- **ce que le code dit lui-même** (``textes`` : ``avant``, ``prefixe``, ``suffixe``, posés par la porte, élément 1 (b)) : le récapitulatif ou la
-  confirmation est dit seul et le tour s'arrête (la phrase du modèle est jetée) ; la règle chiffrée qui bloque est dite, puis le modèle repasse ;
-  le prix d'une proposition est dit juste après la phrase du modèle (gardé dans l'état du tour jusqu'à elle).
+- **au bout** (C5, décision d'Evan 25/11 8 h 45) : le code ne compose aucune phrase ; une phrase retenue, ou un silence, relance le modèle UNE fois par tour avec le fait (``repli.consigne_de_relance``) ; si la relance échoue : la suite réglée déjà posée (``la_suite_reglee``, motifs de ``PHRASES_DU_CODE``), sinon la phrase réglée « pas compris » de l'agent (P3) ; le fait accompli n'est gardé qu'au journal ;
+- **ce que le code dit lui-même** (``textes``, posés par la porte, élément 1 (b)) : C6, une phrase réglée (le numéro, le total, le rendu, la question M108 ou DC10) dite juste
+  après la phrase du modèle (``suffixe``, gardé dans l'état du tour jusqu'à elle) ; plus aucune porte ne pose ``avant`` (C6 n° 12), la ligne de la table qui le lit reste sans producteur.
 
 Critères structurels seulement (D1) : l'état de l'action et du tour, jamais le sens des mots. L'état du tour vit dans la fiche de l'appel
 (``CLE_ETAT_DU_TOUR``), remis à zéro quand la personne reparle (``tour_de_la_personne``).
@@ -20,10 +19,11 @@ Critères structurels seulement (D1) : l'état de l'action et du tour, jamais le
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
-from dataclasses import asdict, dataclass, field, replace
+from api.services.actions_communes import journal_du_dit as J
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, sans_balisage
+from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, porte_les_chiffres, sans_balisage
 from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_fiche, refuse
 
 CLE_ETAT_DU_TOUR = "parole_du_tour"
@@ -36,8 +36,11 @@ SECOND_PASSAGE = "second_passage"
 RAPPEL_SANS_OUTIL = "- Ta réponse précédente n'avait pas d'appel d'outil : elle n'a pas été dite, et rien n'est changé."
 # Raisons de retenue d'une phrase libre (liste fermée, au glossaire)
 SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refus", "repli_a", "chiffre"
+# C6 : la phrase du modèle (la relecture) dit déjà ce que le CODE dit juste après elle (la question, le total) : retenue, le modèle est relancé une fois (``repli.consigne_de_ce_que_le_code_dit``).
+CE_QUE_LE_CODE_DIT = "dit_ce_que_le_code_dit"
+CHIFFRES_EXIGES = "chiffres_exiges"  # C6 n° 5 : la phrase du modèle ne dit pas les valeurs exigées du fait accompli (l'heure) : relancée une fois, puis la suite réglée seule, sinon P3 (reprise R1)
 SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le modèle est relancé avec le fait (C5)
-SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
+SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie de la phrase réglée du code (le total, le rendu, M108)
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
 QUESTION_DEJA_DONNEE = "question_deja_donnee"  # motif : la question née dans le tour, déjà donnée au modèle, posée par la phrase de sa fiche (lot 19)
 FORMULE_AJOUTEE = "formule_ajoutee"  # motif : une ligne de formule ajoutée, dont le retour porte la composition (lot 11)
@@ -56,15 +59,45 @@ class EtatDuTour:
     rattrapage_refus_joue: bool = False
     retenues: list[str] = field(default_factory=list)
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
-    faits_du_refus: list[Any] = field(default_factory=list)  # les faits que les retours de ce tour donnent au modèle pour dire un refus : leurs valeurs passent la barrière des chiffres
-    suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
-    suffixe_lu: str | None = None  # le prix d'une LECTURE de ce tour (PRX5) : dit après la phrase qui suit, que ce soit un texte, ou la phrase d'une fiche (même tour)
+    faits_du_refus: list[Any] = field(default_factory=list)  # les faits que les retours de ce tour donnent au modèle pour dire un refus, ou une lecture (C6 n° 11) : leurs valeurs passent la barrière des chiffres
+    suffixe: str | None = None  # la phrase réglée que le code dit juste après la prochaine phrase du modèle (le total, le rendu, M108 ; C6)
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
     jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
+    exiges: dict | None = None  # C6 n° 5 : les valeurs que la phrase du modèle doit dire avant la suite du code (l'heure de la commande enregistrée, ``porte_les_chiffres``) ; ``None`` : rien n'est exigé
+    # C6 : ce qui prouve que la relecture est entendue (``{"jeton", "texte", "exiges"}``) : la phrase réglée que le code dit après la relecture du modèle (le total de la commande, la question
+    # du numéro de la réservation) et les valeurs que la phrase doit dire (les personnes et l'heure de la réservation, P2) ; notée au journal quand elle part à la voix (``noter_le_total_dit``)
+    total_a_dire: dict | None = None
     relance_du_fait: bool = False  # C5 : le modèle a été relancé avec le fait dans ce tour (une fois par tour de la personne, remis à zéro avec l'état)
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
+
+
+CLE_TOTAL_DIT = "total_de_la_relecture_dit"  # entrée du journal du dit : ``jeton`` = la relecture dont la phrase du total a été dite (l'accord ne vaut que pour elle)
+
+
+def _relecture_entendue_dans(attendu: dict, dit: str) -> bool:
+    """La phrase partie à la voix porte la phrase réglée attendue (si elle est donnée) ET les valeurs exigées (si elles le sont) ; rien d'attendu : rien n'est entendu."""
+    texte = sans_balisage(str(attendu.get("texte") or ""))
+    exiges = attendu.get("exiges") if isinstance(attendu.get("exiges"), dict) else None
+    if not texte and exiges is None:
+        return False
+    return (not texte or texte in sans_balisage(dit)) and (exiges is None or porte_les_chiffres(dit, exiges))
+
+
+def noter_le_total_dit(p: Any, etat: EtatDuTour, dit: str | None) -> None:
+    """C6 : ``dit`` part à la voix ; s'il porte ce qui prouve la relecture (``etat.total_a_dire`` : la phrase réglée du total, ou les valeurs exigées de la réservation), la relecture est notée
+    au journal du dit, à son jeton. Un « oui » ne vaut accord que pour une relecture ainsi entendue (``total_dit``) : relance échouée sans elle, phrase réglée « pas compris », rien n'est
+    noté, aucun accord."""
+    attendu = etat.total_a_dire if isinstance(etat.total_a_dire, dict) else None
+    if attendu and isinstance(p, dict) and dit and _relecture_entendue_dans(attendu, dit):
+        J.poser(p, CLE_TOTAL_DIT, etat.tour, jeton=attendu.get("jeton"))
+        etat.total_a_dire = None
+
+
+def total_dit(p: Any, jeton: Any) -> bool:
+    """C6 : la phrase du total de la relecture de ce ``jeton`` a-t-elle été dite ? Lu au journal du dit."""
+    return bool(jeton) and (J.entree(p, CLE_TOTAL_DIT) or {}).get("jeton") == jeton
 
 
 REFUS, REFUS_DE_LA_FICHE, LECTURE, FAIT = "refus", "refus_de_la_fiche", "lecture", "fait"  # les genres de la suite du tour
@@ -102,12 +135,14 @@ def etat_du_tour(fiche_de_l_appel: Any) -> EtatDuTour:
     return EtatDuTour(tour=tour)
 
 
-def poser_le_suffixe_lu(fiche_de_l_appel: Any, suffixe: str) -> None:
-    """Lot 12 (PRX5, conversation du lot 12) : le prix qu'une lecture vient de rendre est dit par le code après la phrase du modèle ; il tient jusqu'à être dit, même si le modèle
-    répond ensuite par une fiche (sa phrase ``a_dire``, dont le chiffre est retenu) : sans cela le prix lu n'était jamais dit."""
-    if isinstance(fiche_de_l_appel, dict) and suffixe:
+def admettre_les_valeurs(fiche_de_l_appel: Any, faits: Any) -> None:
+    """C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis : les prix D33 passent au modèle, vérifiés par la barrière) : les valeurs que le code donne au modèle hors d'une fiche (le prix
+    d'une lecture, PRX5) passent la barrière des chiffres jusqu'à la fin du tour, dans sa réponse à la lecture comme dans la phrase de sa fiche ; une autre valeur est retenue.
+    Seul le prix (``faits["prix"]``) est admis : jamais le total ni le sous-total d'une lecture du panier, que la phrase réglée du code dit (brief C6 § 7, reprise R2)."""
+    prix = faits.get("prix") if isinstance(faits, dict) else None
+    if isinstance(fiche_de_l_appel, dict) and prix:
         etat = etat_du_tour(fiche_de_l_appel)
-        etat.suffixe = etat.suffixe_lu = sans_balisage(suffixe) or None
+        etat.faits_du_refus.append({"prix": prix})
         garder(fiche_de_l_appel, etat)
 
 
@@ -156,17 +191,9 @@ def question_nee_dans_ce_tour(p: dict | None, tour: Any) -> bool:
 def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[str], p: dict | None = None, fiche: dict | None = None,
                    textes: dict | None = None, objet_en_cours: bool | None = None) -> Decision:
     """Le retour de LA fiche de ce tour, et sa phrase : dite seule (un passage), ou jetée (second passage, avec le retour). Met l'état à jour.
-    ``textes`` : ce que le code dit lui-même pour cette fiche (``porte.CLE_TEXTES_DU_CODE``). Le prix d'une lecture du même tour (``suffixe_lu``) est dit après la phrase :
-    ajouté à la phrase dite seule, ou gardé pour le second passage."""
-    decision = _decision_du_tour(retour, a_dire, etat, paroles, p, fiche, textes, objet_en_cours)
-    lu = etat.suffixe_lu
-    if lu:
-        if decision.mode == A_DIRE_SEUL and decision.motif == "fait":
-            etat.suffixe_lu = None
-            decision = replace(decision, a_dire=" ".join(x for x in (decision.a_dire, lu) if x))
-        elif decision.mode == SECOND_PASSAGE and not etat.suffixe:
-            etat.suffixe = lu
-    return decision
+    ``textes`` : ce que le code dit lui-même pour cette fiche (``porte.CLE_TEXTES_DU_CODE``). C6 n° 11 : le prix d'une lecture du même tour n'est plus dit par le code (le modèle le
+    dit, ``admettre_les_valeurs``)."""
+    return _decision_du_tour(retour, a_dire, etat, paroles, p, fiche, textes, objet_en_cours)
 
 
 def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[str], p: dict | None = None, fiche: dict | None = None,
@@ -176,7 +203,7 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
 
     textes = textes if isinstance(textes, dict) else {}
     etat.fiches += 1
-    suffixe_avant = etat.suffixe  # le prix que le code dit après la phrase du modèle, posé au passage précédent (D33)
+    suffixe_avant = etat.suffixe  # la phrase réglée que le code dit après la phrase du modèle, posée au passage précédent (C6)
     etat.suffixe = None
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
@@ -200,13 +227,36 @@ def pose_une_question(phrase: str) -> bool:
 MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du modèle ne le demande pas ; il repasse avec lui (B2, M3)
 
 
-def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
-    """La phrase du modèle suivie du prix que le code dit après elle (D33) ; ``None`` sans prix en attente. Le prix n'est dit qu'une fois."""
+def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
+    """La phrase du modèle suivie de la phrase réglée que le code dit après elle (le total, le rendu, M108 ; C6) ; ``None`` sans rien en attente. Elle n'est dite qu'une fois.
+    ``p`` : le dossier, pour noter la phrase du total dite."""
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
-    etat.suffixe = etat.suffixe_lu = None
+    etat.suffixe = None
+    noter_le_total_dit(p, etat, dit)
     return dit
+
+
+def la_suite_reglee(etat: EtatDuTour) -> str | None:
+    """Reprise R1 de l'audit de C6 (décisions d'Evan 25/11 8 h 45 et 9 h 30, P3) : la phrase du modèle manque (relance ratée) ; le code ne dit que la suite réglée déjà posée après elle
+    (motifs de ``PHRASES_DU_CODE`` : le numéro, le total, le rendu, M108), jamais le fait accompli (gardé au journal seulement). Elle n'est dite qu'une fois. ``None`` : rien de réglé, la
+    phrase réglée « pas compris » de l'agent (P3) la remplace."""
+    dit = etat.suffixe or None
+    etat.suffixe = None
+    etat.exiges = None
+    return dit
+
+
+def question_due_sans_suite(phrase: str, suite: str | None, en_attente: bool) -> bool:
+    """Reprise R2 de C6 (ordre de « C6 révisée » : la question est la dernière) : le code ne dit rien après la phrase du modèle (``suite`` vide) et une question attend (DC4, la proposition,
+    la relecture de la réservation sans numéro à relire) : la phrase doit la poser. Vrai quand elle ne la pose pas. Forme seulement (le « ? »), jamais les mots."""
+    return not suite and en_attente and not pose_une_question(phrase)
+
+
+def dit_ce_que_le_code_dit(texte: str, etat: EtatDuTour) -> bool:
+    """C6 : le code dit une QUESTION après la phrase du modèle (``etat.suffixe`` se termine par « ? ») et la phrase du modèle en pose déjà une : deux questions dans un tour. Forme seulement."""
+    return bool(etat.suffixe) and pose_une_question(etat.suffixe) and pose_une_question(texte)
 
 
 REPRISE = "reprise_de_la_question"  # motif : la phrase dite n'a pas posé la question en attente ; le modèle est relancé avec elle (lot 20, C5)

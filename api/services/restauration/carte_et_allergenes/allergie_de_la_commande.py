@@ -20,10 +20,10 @@ from api.services.actions_communes.consignes import ALLERGIE as ALLERGIE_RANG
 from api.services.actions_communes.du import FAITS_A_DIRE_PAR_LE_MODELE, Du
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
-from api.services.mots_dits import liste_dite, montant_en_lettres
+from api.services.mots_dits import liste_dite
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, METIER, Reglages, _avec, _le, _r, _racines
+from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, METIER, Reglages, _avec, _r, _racines
 from api.services.commande.moteur.articles import _groupes_a_remplir
 
 RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
@@ -297,27 +297,19 @@ async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -
 
 
 def _lecture_de_la_formule(fiche: dict[str, Any]) -> Resultat:
-    """Lot 11 (conversations FOR7, FOR9, FOR10) : la lecture d'une formule rend ses étapes et ses choix, ses règles, et son prix, que le code dit lui-même
-    (``prix_a_dire``, comme PRX5) ; jamais « je ne peux pas le confirmer » pour une formule de la carte."""
+    """Lot 11 (conversations FOR7, FOR9, FOR10) : la lecture d'une formule rend ses étapes et ses choix, ses règles, et son prix (le fait ``prix``, que le modèle dit, vérifié par la
+    barrière des chiffres : C6 n° 11, décision d'Evan 25/11 9 h 30) ; jamais « je ne peux pas le confirmer » pour une formule de la carte."""
     lu = FO.lecture_de_la_formule(fiche)
     faits: dict[str, Any] = {"article": fiche["nom"], "renseigne": True, **lu}
-    if lu.get("prix"):
-        debut = "à partir de " if lu["prix"]["a_partir_de"] else "à "
-        faits["prix_a_dire"] = f"{_le(fiche['nom'], fiche.get('genre'))} est {debut}{montant_en_lettres(lu['prix']['montant'])}."
     au_choix = "; ".join(f"{e['etape']} : {liste_dite(e['choix'])}" for e in lu["etapes"] if e["choix"])
     return _r("OK", faits, f"{fiche['nom']}. {au_choix}." if au_choix else fiche["nom"] + ".")
 
 
 def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:
-    """Lot 12 (PRX5, D33) : le prix de l'article à la lecture (``prix`` : ``montant`` et ``a_partir_de``) et la phrase que le code dit lui-même (``prix_a_dire``, jamais montrée au
-    modèle : ``lire`` la range dans les textes du code). Un article sans prix lisible n'en rend aucun."""
+    """Lot 12 (PRX5, D33) : le prix de l'article à la lecture (``prix`` : ``montant`` et ``a_partir_de``). C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : un fait, que le modèle
+    dit avec ses mots, vérifié par la barrière des chiffres ; le code ne compose plus de phrase. Un article sans prix lisible n'en rend aucun."""
     prix = prix_a_partir_de.brique_prx5_jamais_le_prix_de_depart_comme_final(fiche)
-    if prix is None:
-        return {}
-    debut = "à partir de " if prix["a_partir_de"] else "à "
-    # Le nombre du nom (« les frites ») n'est connu nulle part, le genre par défaut est masculin : jamais d'article deviné (conversation PRX5-A : « Le Frites est »), le nom seul
-    sujet = f"Pour {fiche['nom']}, c'est"
-    return {"prix": prix, "prix_a_dire": f"{sujet} {debut}{montant_en_lettres(prix['montant'])}."}
+    return {"prix": prix} if prix is not None else {}
 
 
 

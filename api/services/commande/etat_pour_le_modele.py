@@ -324,7 +324,7 @@ def _objet_de_la_question(q: dict[str, Any]) -> str | None:
 
 def _question(q: dict[str, Any]) -> str:
     if q.get("type") == "proposition" and q.get("article_propose"):
-        quoi = q["article_propose"] + (f", offert ({q.get('offre') or 'offre'})" if q.get("offerte") else ", son prix dit par le code")
+        quoi = q["article_propose"] + (f", offert ({q.get('offre') or 'offre'})" if q.get("offerte") else (f", son prix : {q['prix']} centimes, que tu dis" if q.get("prix") else ""))
         return f"- Question en attente : {q['id']} (proposition) : {quoi} ; réponses : accepte, refuse, autre."
     nom = NOMS_DES_QUESTIONS.get(q.get("type"), q.get("type"))
     if q.get("type") in QUESTIONS_DITES_PAR_LE_CODE:
@@ -397,6 +397,31 @@ def _moyen_pose(p: dict[str, Any]) -> str | None:
     return LIBELLES_POUR_LE_MODELE.get(moyen, moyen) if moyen else None
 
 
+# C6 (décision d'Evan 25/11 9 h 30) : le total est toujours un fait donné au modèle ; c'est le code qui le dit (motif réglable), jamais le modèle.
+LIGNE_DU_TOTAL = "- Total de la commande : {total}. C'est un fait pour toi : le code le dit lui-même après ta phrase, avec la question ; tu ne le dis pas et tu ne poses pas cette question."
+
+
+def _total_de_la_commande(p: dict[str, Any]) -> int | None:
+    """Le total connu de la commande, en centimes : celui de la relecture posée, sinon celui de la commande enregistrée ; ``None`` sans l'un ni l'autre ou quand elle est annulée."""
+    if p.get("annulee"):
+        return None
+    for source in (p.get("enregistree"), p.get("relecture")):
+        total = source.get("total") if isinstance(source, dict) else None
+        if isinstance(total, int) and not isinstance(total, bool):
+            return total
+    return None
+
+
+def _lignes_et_total(p: dict[str, Any]) -> list[str]:
+    """Les lignes de la commande, puis son total quand il est connu (C6 : toujours un fait donné au modèle)."""
+    if p.get("lignes"):
+        sortie = ["- Lignes : " + " ; ".join(f"ligne {l['n']} : {P.pieces(l)} × {_libelle_de_la_ligne(l)}" for l in p["lignes"]) + "."]
+    else:
+        sortie = ["- Lignes : aucune."]
+    total = _total_de_la_commande(p)
+    return sortie + ([LIGNE_DU_TOTAL.format(total=montant_en_lettres(total))] if total is not None else [])
+
+
 def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
     """L'état de la commande, au format de la version finale. ⛔ Ne lève jamais."""
     try:
@@ -422,10 +447,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
                 f"- Adresse : {_voie(p.get('adresse')) or '(rue pas encore dite)'} ; commune : {_commune(p) or '(pas encore dite)'} ; consigne pour le livreur : "
                 f"{p.get('consigne_livreur') or 'pas encore dite'}."
             )
-        if p.get("lignes"):
-            lignes_de_l_etat.append("- Lignes : " + " ; ".join(f"ligne {l['n']} : {P.pieces(l)} × {_libelle_de_la_ligne(l)}" for l in p["lignes"]) + ".")
-        else:
-            lignes_de_l_etat.append("- Lignes : aucune.")
+        lignes_de_l_etat.extend(_lignes_et_total(p))
         client = p.get("client") or {}
         moyen = _moyen_pose(p)
         infos = [f"moyen de paiement {moyen}" if moyen else None, f"numéro de téléphone {client['telephone']}" if client.get("telephone") else None,

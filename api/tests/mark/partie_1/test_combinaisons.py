@@ -205,9 +205,15 @@ def test_rc4_la_phrase_dite_doit_etre_celle_du_fait_accompli_vu_rouge():
 
 
 def test_rc10_la_relecture_doit_etre_dite_dans_le_tour_ou_elle_est_marquee_vu_rouge():
-    relue = dict(avant={"relecture": None}, apres={"relecture": {"jeton": "j1"}, "question": {"type": "relecture", "texte": "Je vous relis : une margherita. Cela fait douze euros. C'est bon ?"}})
-    assert C.rc10(None, _observation(**relue, textes={"avant": "Voulez-vous autre chose ?"})), "relecture marquée, pas dite dans ce tour"
-    assert not C.rc10(None, _observation(**relue, textes={"avant": relue["apres"]["question"]["texte"]}))
+    """C6 (décision d'Evan 25/11 9 h 30) : le modèle relit, le code dit la phrase réglée du total ; « dite » = notée partie à la voix au jeton de la relecture (journal du dit)."""
+    from api.services.actions_communes import parole as PAROLE
+
+    total = "Cela fait douze euros, c'est bon pour vous ?"
+    pas_dite = {"relecture": {"jeton": "j1", "total": 1200}}
+    dite = {"relecture": {"jeton": "j1", "total": 1200}}
+    PAROLE.noter_le_total_dit(dite, PAROLE.EtatDuTour(tour=1, total_a_dire={"jeton": "j1", "texte": total}), f"Alors une margherita. {total}")
+    assert C.rc10(None, _observation(avant={"relecture": None}, apres=pas_dite, textes={"suffixe": total})), "relecture marquée, sa phrase du total pas partie"
+    assert not C.rc10(None, _observation(avant={"relecture": None}, apres=dite, textes={"suffixe": total}))
 
 
 async def test_la_base_falsifiee_est_vue_rouge(faire_monde, monkeypatch):
@@ -302,11 +308,12 @@ async def test_defauts_connus_df12_reservation(salle, monkeypatch):  # noqa: F81
         fautes.append(f"relecture non atteinte : {r}")
     else:
         r = await e.tour("oui c'est bon, à vingt heures", reponse={"question_id": q["id"], "sens": "accepte"}, heure="vingt heures")
-        dit = " ".join((e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {}).values())
+        # C6 n° 9 (décision d'Evan 25/11 9 h 30) : la réservation faite est dite par le modèle (personnes et heure exigées) ; le code en garde le fait au journal, jamais redit (reprise R1)
+        textes = e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {}
         if r.get("statut") != "ENREGISTREE":
             fautes.append(f"RC4 : l'accord avec l'heure redite n'enregistre pas (statut {r.get('statut')}, {r.get('raison')})")
-        elif not dit:
-            fautes.append("RC4 : réservation enregistrée, le code ne le dit pas")
+        elif not (textes.get("chiffres_exiges") and textes.get("fait_accompli")):
+            fautes.append("RC4 : réservation enregistrée, ni le modèle ni le repli ne peuvent le dire")
     await creer_reservation(salle.c, salle.a, {"debut": SAMEDI_20H, "couverts": 6, "prenom": "Zoe", "telephone": "+33600000001", "appel_id": "z"})
     e2 = EssaiReservation(salle, monkeypatch, appelant="+33600000077")
     r2 = await e2.tour("six personnes samedi à vingt heures au nom de Bob", personnes=6, jour="samedi", heure="vingt heures", nom="Bob")

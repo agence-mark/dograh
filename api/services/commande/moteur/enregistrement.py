@@ -11,7 +11,7 @@ from typing import Any
 
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES, textes_de_secours as TS
+from api.services.commande import textes_de_secours as TS
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
@@ -21,8 +21,7 @@ from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CL
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
-CLE_CONFIRMATION = "confirmation_sans_question"  # le fait accompli que le code dit, sans la question qui le suit ; gardé avec le résultat, jamais montré au modèle
-from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, poser_la_relecture, regler
+from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, poser_la_relecture, regler, rendu_de_monnaie
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
 
@@ -76,11 +75,11 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
     if manque is Manque.TELEPHONE:
         if J.fois(p, CLE_NUMERO_REFUSE) > J.fois(p, CLE_NUMERO_DEMANDE):
             J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, la demande d'un nouveau numéro, une seule fois ; si elle ne dicte rien, le numéro affiché lui est reproposé
-            return _avec(_r("INCOMPLETE", {}, PHRASES_DITES.quel_numero_je_note(), "telephone"), p)
+            return _avec(_r("INCOMPLETE", {}, "", "telephone"), p)  # C6 n° 10 : le modèle demande le numéro (le manque), le code ne dit rien
         if appelant.telephone_affiche:
             if J.fois(p, CLE_NUMERO_PROPOSE) <= J.fois(p, CLE_NUMERO_REFUSE):
                 J.noter(p, CLE_NUMERO_PROPOSE)  # une proposition « en cours » de plus que de refus : la question du registre est ouverte
-            return _avec(_r("INCOMPLETE", {}, PHRASES_DITES.numero_affiche_propose(regles.question_numero_affiche), "confirmer_numero"), p)
+            return _avec(_r("INCOMPLETE", {}, "", "confirmer_numero"), p)  # C6 n° 10 : le modèle propose le numéro qui s'affiche (la question née, par son type)
     if manque is Manque.TELEPHONE:
         return _avec(_r("INCOMPLETE", {}, phrase_du_manque(Manque.TELEPHONE), "telephone"), p)
     if manque is Manque.PRENOM:
@@ -166,8 +165,8 @@ def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: di
 
 
 async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, chiffre: Resultat, paiement: dict[str, Any]) -> Resultat:
-    """Lot 4 (M39, M40) : l'enregistrement, une fois par appel (E30) ; le récapitulatif approuvé en est la preuve (son jeton). La confirmation est dite
-    par le code mot pour mot, avec le rendu de monnaie (C11) et la question qui rend la parole (M108)."""
+    """Lot 4 (M39, M40) : l'enregistrement, une fois par appel (E30) ; le récapitulatif approuvé en est la preuve (son jeton). C6 n° 5 (décision d'Evan 25/11 9 h 30) : le résultat
+    porte des faits (l'heure dite ``quand_dit``, le mode, le rendu de monnaie ``rendu``) ; le modèle dit la confirmation, la porte dit ensuite le rendu (motif réglé) et la question M108."""
     client = p["client"]
     if p.get("habitude"):
         if not await retenir_une_habitude(source, client["telephone"], p["habitude"]):
@@ -177,16 +176,12 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
     r = await source.enregistrer(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
         faits = {**r.faits, "monnaie": paiement["monnaie"]}
+        rendu = rendu_de_monnaie(paiement)
+        if rendu:
+            faits["rendu"] = rendu
         ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits=P.serialisable(faits), empreinte=P.empreinte(p))
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
-        suggestion = " ".join(t for t in (r.suggestion.strip(), dire_le_rendu_de_monnaie(paiement)) if t)
-        question = (regles.question_apres_enregistrement or "").strip()
-        confirmation = suggestion
-        if statut != "DEJA_FAIT" and question and suggestion:
-            # M108 (appels 2592, 2593) : la confirmation finit par une question : la parole revient à la personne.
-            suggestion = f"{suggestion} {question}"
-        # Le fait accompli sans la question finale, à part : la porte lui donne la question qui est due (celle en attente, sinon la réglée), jamais en coupant le texte.
-        return _avec(Resultat(statut, {**faits, CLE_CONFIRMATION: confirmation} if statut != "DEJA_FAIT" and confirmation else faits, suggestion), p)
+        return _avec(Resultat(statut, faits, r.suggestion.strip()), p)  # la suggestion : le texte de secours de la source, jamais dit (le fait accompli gardé au journal)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)  # la relecture repart : l'accord d'avant ne vaut plus
         return poser_la_relecture(source, p, chiffre)
@@ -204,8 +199,9 @@ def question_de_la_ligne_en_attente(p: dict[str, Any]) -> Resultat | None:
 
 
 async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, **gestes: Any) -> Resultat:
-    """La fin, puis le numéro dicté et RETENU dans cet appel dit par le code (``avec_numeros_retenus``) : un numéro corrigé se relit tel que retenu,
-    jamais de mémoire. Le numéro qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
+    """La fin, puis le numéro dicté et RETENU dans cet appel, porté en fait (``avec_numeros_retenus``) et dit par le code (motif ``numero_retenu``, C6 n° 10) : un numéro corrigé se
+    relit tel que retenu, jamais de mémoire. Le numéro est celui que la commande garde (``client``, écrit au tour où il est dit, n° 30), quel que soit le geste qui l'a apporté. Le numéro
+    qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
 
     M98 : quand le numéro gardé est celui qui s'affiche, il est porté dans les faits (``numero_affiche_dit``) pour que l'agent puisse le dire si on
     le lui demande, sans être ajouté à la phrase."""
@@ -222,10 +218,17 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
     client = p["client"]
     if appelant.telephone_affiche and client.get("telephone") == appelant.telephone_affiche:
         r = avec_numero_affiche(r, appelant.telephone_affiche)
-    numero = _numero_dit(gestes.get("telephone")) if gestes.get("telephone") else None
-    dit = numero if numero and client.get("telephone") == numero and numero != appelant.telephone_affiche and client.get("numero_dit") != numero else None
-    if r.statut in ("ENREGISTREE", "DEJA_FAIT", "TRANSMISE") or not dit or r.manque == "confirmer_numero_dicte":
-        return r  # DC10 : la question de relecture dit déjà le numéro
+    tel = client.get("telephone")
+    dit = tel if tel and tel != appelant.telephone_affiche and client.get("numero_dit") != tel else None
+    if dit is None or r.statut in ("DEJA_FAIT", "TRANSMISE"):
+        return r
+    if r.manque == "confirmer_numero_dicte":
+        client["numero_dit"] = dit  # DC10 : la question de relecture dit le numéro ; il n'est pas redit après
+        return r
+    if (regles.question_numero_dicte or "").strip():
+        return r  # DC10 allumé : la question de relecture du numéro le dira, une seule fois
+    if r.statut != "ENREGISTREE" and r.manque != "relecture":
+        return r  # C6 n° 10 : le numéro retenu se dit avec une suite du code (le total de la relecture, la confirmation) ; sinon il attend (gardé dans la commande, ``client``)
     client["numero_dit"] = dit
     return avec_numeros_retenus(r, dit, None)
 
@@ -240,7 +243,7 @@ async def _finaliser(
     qui a changé). Le total est celui de la source."""
     deja = p.get("enregistree")
     if deja and p["lignes"]:
-        return _avec(Resultat("DEJA_FAIT", dict(deja), PHRASES_DITES.deja_enregistree(None)), p)
+        return _avec(Resultat("DEJA_FAIT", dict(deja), TS.deja_enregistree({})), p)
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque

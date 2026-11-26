@@ -1892,7 +1892,6 @@
   "services/commande/note.py",
   "services/commande/panier.py",
   "services/commande/parole.py",
-  "services/commande/phrases_dites_par_le_code.py",
   "services/commande/phrases_du_manque.py",
   "services/commande/porte.py",
   "services/commande/registre.py",

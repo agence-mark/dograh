@@ -6,6 +6,8 @@ bancs B10 à B12 (cas cités par leur nom). Aucun test n'appelle un fournisseur 
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from api.services.actions_communes import conversation as CONV
 from api.services.gabarits.restauration.textes import banc as B
 
@@ -29,7 +31,7 @@ def test_chiffre_retenu_dans_une_phrase_libre():
     assert BC.chiffre_dans_la_phrase("Votre commande sera prête dans 20 minutes.", [], ["à emporter"])
     assert not BC.chiffre_dans_la_phrase("C'est noté. Vous voulez autre chose ?", [], ["une reine"])
     assert not BC.chiffre_dans_la_phrase("J'ai bien noté le code VINGT.", [{"code_de_remise": "vingt"}], ["j'ai le code vingt"])
-    assert "Les chiffres sont dits par le code" in BC.RAPPEL_DU_CHIFFRE
+    assert "Ne dis que les chiffres des faits" in BC.RAPPEL_DU_CHIFFRE  # C6 n° 12 (décision d'Evan 25/11 9 h 30) : le modèle dit les prix des faits, plus « dits par le code »
 
 
 def test_valeur_dite_exemptee():
@@ -86,12 +88,11 @@ def _puis(p, fiche=None):
 
 
 def test_relance_question_en_attente():
-    """L06-28, décision d'Evan 25/11 8 h 45 (lot 7b-C5) : au bout des passes, le code relance le modèle avec la question en attente en faits (conv3 t2) ; la relecture, phrase du § 2, garde son texte
-    jusqu'à C6 ; une proposition n'est jamais redite par sa phrase."""
-    relecture = ("Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. Cela fait vingt-sept euros quatre-vingts. "
-                 "C'est bon ?")
+    """L06-28, décision d'Evan 25/11 8 h 45 (lot 7b-C5) : au bout des passes, le code relance le modèle avec la question en attente en faits (conv3 t2) ; C6 (décision d'Evan 25/11 9 h 30) :
+    la relecture est dite par le modèle, elle est relancée par son type, sans texte ; une proposition n'est jamais redite par sa phrase."""
+    relecture = "Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. C'est bon ?"  # un texte d'avant C6 resté au registre : jamais rendu
     puis, _ = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []})
-    assert puis == {"question": {"id": "Q-2", "type": "relecture", "texte": relecture}}
+    assert puis == {"question": {"id": "Q-2", "type": "relecture"}}
     proposition = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
     puis, consigne = _puis({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition, "article_propose": "Coca-Cola"}}})
     assert puis == {"question": {"id": "Q-1", "type": "proposition", "article_propose": "Coca-Cola"}} and proposition not in consigne
@@ -208,7 +209,7 @@ async def test_minimum_donne_au_modele_puis_issue(essai_de):
 
 
 async def test_recapitulatif_dit_par_le_code(essai_de):
-    """L06-01 (b) (K4 du banc) : le récapitulatif est dit par le code, mot pour mot ; la phrase du modèle est jetée et le tour s'arrête."""
+    """L06-01 (b) (K4 du banc), réécrit par C6 (décision d'Evan 25/11 9 h 30) : le récapitulatif est dit par le modèle ; le code ne dit que la phrase réglée du total, après la sienne."""
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
@@ -216,20 +217,22 @@ async def test_recapitulatif_dit_par_le_code(essai_de):
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     r = await e.tour("c'est tout", c_est_tout=True)
-    recap = (CONV.question_de(e.p) or {}).get("texte")
-    assert (CONV.question_de(e.p) or {}).get("type") == "relecture" and recap, r
+    total = (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("suffixe")
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture" and total, r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, je vous relis la commande."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == PAROLE.sans_balisage(recap), d
+    assert d.mode == PAROLE.SECOND_PASSAGE, d  # la relecture née : le modèle repasse avec ses faits
+    dit = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler("Alors une Margherita à emporter.")
+    assert dit is not None and dit.a_dire == f"Alors une Margherita à emporter. {total}", dit
 
 
 def test_prix_dit_apres_la_question_du_modele():
-    """L06-29 (D33, T3) : une proposition née dans ce tour : le modèle la pose sans chiffre, le code dit le prix juste après sa phrase, une fois."""
+    """L06-29 (T3) : une question née dans ce tour : la phrase réglée que le code dit après elle suit la phrase du modèle, une fois. C6 n° 11 (décision d'Evan 25/11 9 h 30) :
+    plus aucun prix (celui d'une proposition est un fait que le modèle dit) ; il reste le total de la relecture."""
     etat = PAROLE.EtatDuTour(tour=3)
-    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "nee_au_tour": 3}}}
-    d = PAROLE.parole_du_tour({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True}, "Je vous ajoute un Coca ?", etat, [], p, {},
-                              {"suffixe": "Il est à deux euros."})
-    assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Il est à deux euros."
-    assert PAROLE.avec_le_suffixe("Avec ça, un Coca-Cola bien frais ?", etat) == "Avec ça, un Coca-Cola bien frais ? Il est à deux euros."
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "relecture", "nee_au_tour": 3}}}
+    d = PAROLE.parole_du_tour({"statut": "FAIT"}, "Alors une Regina.", etat, [], p, {}, {"suffixe": "Cela fait douze euros, c'est bon ?"})
+    assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Cela fait douze euros, c'est bon ?"
+    assert PAROLE.avec_le_suffixe("Alors une Regina, sans oignons.", etat) == "Alors une Regina, sans oignons. Cela fait douze euros, c'est bon ?"
     assert PAROLE.avec_le_suffixe("Autre chose ?", etat) is None  # dit une fois
     # passe vide après la naissance de la proposition : lot 7b-C5, le modèle est relancé avec la proposition en faits, le code ne dit plus la phrase de B8
     b8 = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"

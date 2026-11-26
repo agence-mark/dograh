@@ -1,8 +1,8 @@
 """[.mark] Brique QTE1 : le produit au poids (inventaire, famille 7 ; 1 carte sur 44, A33 ; HubRise : quantité décimale).
 
 Un produit vendu au poids (``unite`` ``g`` ou ``kg``) se commande par la sous-case ``ajouter[].poids`` (« trois cents grammes », « 300 g », « un demi-kilo ») avec ``quantite`` à 1.
-Le CODE lit le poids (``lire_poids``, portée telle quelle du banc B12), l'arrondit au pas de la carte (``arrondi``, dit), chiffre au prix au kilo (``prix_par_unite``) et dit le
-prix lui-même (D33). Un poids illisible, ou dit sans unité (« deux cents »), est refusé avec la raison : le code ne devine jamais. La ligne porte le poids d'UNE portion dans
+Le CODE lit le poids (``lire_poids``, portée telle quelle du banc B12), l'arrondit au pas de la carte (``arrondi``, dit), chiffre au prix au kilo (``prix_par_unite``) ; le
+prix de la ligne est un fait que le modèle dit, admis par la barrière des chiffres (C6 n° 11). Un poids illisible, ou dit sans unité (« deux cents »), est refusé avec la raison : le code ne devine jamais. La ligne porte le poids d'UNE portion dans
 ``poids_g`` (D55) ; ``quantite`` reste un entier.
 """
 

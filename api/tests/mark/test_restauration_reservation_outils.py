@@ -81,7 +81,9 @@ async def test_un_manque_a_la_fois_rien_de_dit_n_est_perdu_puis_relecture_puis_o
     assert r.manque == "prenom"                                  # personnes, jour et heure sont gardés
     r = await a.reserver(prenom="Alice")
     assert (r.statut, r.manque) == ("INCOMPLETE", "relecture")   # le numéro s'affiche : jamais demandé
-    assert r.suggestion == "Je vous réserve pour trois personnes, samedi quatorze novembre à vingt heures, au nom de Alice. Je note ce numéro de téléphone pour vous joindre en cas de problème, c'est bon ?"  # M98
+    # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture est rendue en faits, le modèle la dit ; la question du numéro gardé (M98) est dite par la porte après sa phrase
+    assert not r.suggestion and r.faits["personnes"] == 3 and r.faits["quand"] == "samedi quatorze novembre à vingt heures" and r.faits["prenom"] == "Alice", r
+    assert r.faits["heure"] == "vingt heures" and r.faits["numero_affiche_dit"]
     assert await salle.c.fetchval("SELECT count(*) FROM mark.resto_reservation") == 0   # rien d'écrit avant le « oui »
     fait = await a.reserver(confirmer=True)
     assert fait.statut == "ENREGISTREE" and fait.faits["tables"] == ["T3"]

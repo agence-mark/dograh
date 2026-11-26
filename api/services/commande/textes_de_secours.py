@@ -380,6 +380,31 @@ def commande_annulee(faits: Faits) -> str:
     return "Cette commande est annulée."
 
 
+def commande_retrouvee(faits: Faits) -> str:
+    """C6 n° 5 : une commande retrouvée, enregistrée : avec son heure quand elle est connue (``quand_dit``)."""
+    return f"Votre commande est enregistrée pour {faits['quand_dit']}." if faits.get("quand_dit") else "Votre commande est enregistrée."
+
+
+def annulation_confirmee(faits: Faits) -> str:
+    """C6 n° 7 : DC4, second temps : la commande enregistrée est annulée. Gardé au journal du dit seulement : jamais dit à la voix, même quand la relance du modèle échoue (reprise R1 de C6 : la suite réglée ou P3)."""
+    return "Je vous confirme l'annulation de votre commande."
+
+
+def annulee_en_cours(faits: Faits) -> str:
+    """C6 n° 7 : la commande en cours est annulée avant son enregistrement. Gardé au journal du dit seulement : jamais dit à la voix, même quand la relance du modèle échoue (reprise R1 de C6 : la suite réglée ou P3)."""
+    return "Je ne l'enregistre pas."
+
+
+def commande_changee(faits: Faits) -> str:
+    """C6 n° 6 : la commande enregistrée vient d'être changée : avec son nouveau total quand il est connu (``total``, en centimes). Gardé au journal du dit seulement : jamais dit à la voix, même quand la relance du modèle échoue (reprise R1 de C6 : la suite réglée ou P3)."""
+    return f"C'est changé : votre commande fait maintenant {montant_en_lettres(int(faits['total']))}." if faits.get("total") is not None else "C'est changé dans votre commande."
+
+
+def deja_enregistree(faits: Faits) -> str:
+    """C6 n° 5 : le panier (ou l'anti-doublon de la source) retombe sur une commande déjà prise : avec son heure quand elle est connue (``quand_dit``)."""
+    return f"Votre commande est déjà enregistrée pour {faits['quand_dit']}." if faits.get("quand_dit") else "Votre commande est déjà enregistrée."
+
+
 # --------------------------------------------------------------------------- #
 # changement.py, porte.py : changer une commande enregistrée, l'heure proposée refusée
 # --------------------------------------------------------------------------- #

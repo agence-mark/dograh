@@ -213,8 +213,7 @@ async def test_la_relecture_apres_une_correction_ne_dit_que_ce_qui_change_meme_a
     await moteur.modifier(a.source, a.p, a.regles, ligne="coca", quantite=2)
     r = await a.finaliser()
     assert r.manque == "relecture", r
-    assert "on retire" not in r.suggestion and "on ajoute" not in r.suggestion, r.suggestion
-    assert r.suggestion.startswith("Coca-Cola passe à deux"), r.suggestion
+    assert r.faits["ce_qui_a_change"] == [{"geste": "quantite", "nom": "Coca-Cola", "quantite": 2}], r.faits  # C6 n° 4 (décision d'Evan 25/11 9 h 30) : un fait, ni retiré ni ajouté
 
 
 async def test_la_relecture_ne_parle_pas_d_ecran(commerce):
@@ -222,7 +221,7 @@ async def test_la_relecture_ne_parle_pas_d_ecran(commerce):
     r = await a.jusqu_a_la_relecture()
     assert "affiche" not in r.suggestion
     numero = await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")  # après son accord : le numéro qui s'affiche, proposé
-    assert numero.manque == "confirmer_numero" and "affiche" not in numero.suggestion and "pour vous joindre en cas de problème" in numero.suggestion
+    assert numero.manque == "confirmer_numero" and numero.suggestion == ""  # C6 n° 10 (décision d'Evan 25/11 9 h 30) : le modèle propose le numéro qui s'affiche
 
 
 def test_un_appelant_presse_n_entend_ni_offert_ni_remise():
@@ -231,16 +230,16 @@ def test_un_appelant_presse_n_entend_ni_offert_ni_remise():
         "OK", {"total": 1490, "remises": [{"ref": "R1", "nom": "Une boisson offerte"}], "offerts": [{"quantite": 1, "nom": "Coca-Cola"}]}
     )
 
-    def relecture(presse: bool) -> str:
+    def relecture(presse: bool) -> dict:
         p = panier.nouveau()
         p.update(
             mode="emporter", presse=presse,
             lignes=[{"n": 1, "ref": "X", "nom": "Regina Normale", "code": "C", "quantite": 1, "choix": [], "retires": [], "note": None, "attente": None}],
         )
-        return moteur.poser_la_relecture(source, p, chiffre).suggestion
+        return moteur.poser_la_relecture(source, p, chiffre).faits
 
-    assert "offert" in relecture(False)
-    assert "offert" not in relecture(True)
+    assert relecture(False)["offerts"] == [{"nom": "Coca-Cola", "quantite": 1}]  # C6 (décision d'Evan 25/11 9 h 30) : un fait que le modèle dit
+    assert "offerts" not in relecture(True)
 
 
 # test_ce_qui_est_dit_pendant_l_offre_en_plus_n_est_pas_redemande : supprimé au lot 4 (D49), la porte garde les cases de fin dites (``fin_dite``) et les repasse à chaque fin ; sens repris par banc_a/test_c11_c12_c13_reglement_hors_zone_recherche.py::test_c11_1_2639_le_reglement_dit_d_emblee_n_est_pas_redemande.

@@ -82,6 +82,16 @@ def envoye(faits: Faits) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# La commande enregistrée (C6 n° 5, décision d'Evan 25/11 9 h 30 : le modèle dit la confirmation d'après ces faits ; le code ne la dit plus)
+# --------------------------------------------------------------------------- #
+
+
+def commande_enregistree(faits: Faits) -> str:
+    """L'heure (``quand_dit``) est un fait de l'enregistrement ; le mot « livrée » ou « prête » se lit sur le mode (M121 : une livraison dit son arrivée)."""
+    return f"Votre commande est enregistrée, elle sera {'livrée' if faits.get('mode') == 'livraison' else 'prête'} {faits['quand_dit']}."
+
+
+# --------------------------------------------------------------------------- #
 # La carte : les choix d'un produit, d'une formule, les lignes de la commande (``restauration_commande``)
 # --------------------------------------------------------------------------- #
 

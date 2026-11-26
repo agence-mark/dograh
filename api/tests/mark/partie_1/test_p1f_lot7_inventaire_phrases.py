@@ -2,8 +2,8 @@
 personne (deux mots ou plus, ou une phrase courte qui finit par ``?``, ``!`` ou ``.``), en majuscule, ou en minuscule quand il continue une phrase (il commence par une espace ou
 une ponctuation). Sont lus les morceaux d'une f-string un par un, les chaînes courtes et celles qui commencent par une minuscule ; ne comptent pas : les docstrings, les messages
 des journaux et des exceptions, les consignes au modèle (elles commencent par un verbe, jamais par une espace), les catalogues de secours (``textes_de_secours*.py`` et
-``phrases_du_manque.py``, lus par le repli seul) les requêtes SQL et les textes pour l'équipe (``ENVOIS_POUR_L_EQUIPE``, liste blanche). Exceptions du § 2 : ``commande/phrases_dites_par_le_code.py``
-(chacune nommée) ; le module d'information commun dont les phrases sont des propositions faites au modèle, jamais dites telles quelles.
+``phrases_du_manque.py``, lus par le repli seul) les requêtes SQL et les textes pour l'équipe (``ENVOIS_POUR_L_EQUIPE``, liste blanche). Exceptions : les motifs réglés de ``PHRASES_DU_CODE``
+(``phrases/catalogue.py``, C6 n° 12) ; le module d'information commun dont les phrases sont des propositions faites au modèle, jamais dites telles quelles.
 
 Chaque fichier est joué à part. Tant qu'il porte des phrases à rendre, son test est un xfail strict : le commit qui rend ses phrases au modèle le retire de ``A_RENDRE``
 (un xfail strict qui passe est rouge, donc l'oubli se voit)."""

@@ -1,5 +1,6 @@
 """[.mark] Lot 7a, ligne 61 : le fait accompli que le code a dit (enregistrée, changée, annulée) est UNE entrée du journal de ce qui est dit, plus une seconde mémoire
-(``dernier_fait_dit``) à côté. Le repli le redit au lieu de « je n'ai pas compris » ; comme tout le journal, il compte dans ce que la fiche a changé (R1)."""
+(``dernier_fait_dit``) à côté. Reprise R1 de C6 : le code ne le redit plus (le modèle muet : la phrase réglée « pas compris », P3) ; comme tout le journal, il compte dans ce que la
+fiche a changé (R1)."""
 
 from __future__ import annotations
 
@@ -10,7 +11,7 @@ from api.services.actions_communes import journal_du_dit as J
 from .aides_de_la_commande import a_emporter, jusqu_a_l_enregistrement, premier_article, refuser_la_proposition
 
 
-async def test_apres_l_enregistrement_pardon_redit_la_confirmation_depuis_le_journal(essai_de):
+async def test_apres_l_enregistrement_pardon_ne_redit_plus_la_confirmation_du_journal(essai_de):
     e = await essai_de()
     await a_emporter(e)
     await premier_article(e)
@@ -24,7 +25,7 @@ async def test_apres_l_enregistrement_pardon_redit_la_confirmation_depuis_le_jou
 
     e.montrer()
     silence = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler_le_silence()
-    assert silence is not None and silence.a_dire == confirmation  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le modèle muet, rien n'est dû : le fait accompli
+    assert silence is not None and silence.a_dire is None and not silence.consigne, silence  # décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6 : la phrase réglée « pas compris »
     assert "dernier_fait_dit" not in e.p and "dernier_fait_dit" not in e.p.get(CONV.CLE, {})  # plus de seconde mémoire
 
 

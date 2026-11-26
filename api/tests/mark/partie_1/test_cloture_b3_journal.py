@@ -52,7 +52,10 @@ async def test_la_relecture_changee_apres_le_oui_repart_et_se_dit(essai_de):
     await e.tour("pour dix-neuf heures", heure="dix-neuf heures")
     q = CONV.question_de(e.p)
     assert q["type"] == "relecture" and e.p["etape"] != "accordee", e.p  # l'accord valait pour l'ancienne relecture
-    dit = (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("avant") or ""
-    assert "dix-neuf heures" in dit and dit.endswith("C'est bon ?"), dit
+    # C6 n° 4 (décision d'Evan 25/11 9 h 30) : l'heure changée est un fait de ce qui a changé, que le modèle dit ; le code dit la phrase réglée du nouveau total, qui pose la question
+    changes = [c for x in e.retours[-1]["resultats"] for c in (x.get("faits") or {}).get("ce_qui_a_change") or []]
+    assert any(c.get("geste") == "heure" and "dix-neuf" in str(c.get("heure")) for c in changes), e.retours[-1]
+    textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
+    assert not textes.get("avant") and str(textes.get("suffixe") or "").endswith("?"), textes
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p["etape"] == "accordee", e.p  # le « oui » à la relecture entendue la valide

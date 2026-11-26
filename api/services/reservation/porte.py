@@ -6,14 +6,16 @@
 
 Même forme que ``commande/porte.py`` : les barrières de la fiche entière (``actions_communes/barrieres.py``, aucune copie), l'idempotence, les valeurs
 libres qu'elle n'a pas dites, puis les cases ; la porte traduit le retour du moteur en enveloppe (``actions_communes/enveloppe.py``) et numérote la
-question (« Q-n ») que le modèle posera : ``recapitulatif``, ``recap_modif``, ``annulation``, ``choix``. Le code dit mot pour mot la relecture et la
-confirmation (``textes_du_code``) ; le reste est dit par le modèle. L'issue de l'appel est posée par l'opération qui la fait (C10).
+question (« Q-n ») que le modèle posera : ``recapitulatif``, ``recap_modif``, ``annulation``, ``choix``. C6 n° 8 et 9 (décision d'Evan 25/11 9 h 30) : les relectures
+et les faits accomplis (réservée, changée, annulée) sont dits par le modèle d'après les faits, les personnes et l'heure exigées de sa phrase (P2) ; le code ne dit que la
+question réglée du numéro après une relecture (``textes_du_code``). L'issue de l'appel est posée par l'opération qui la fait (C10).
 """
 
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
 import time
+import uuid
 from types import SimpleNamespace
 from typing import Any
 
@@ -31,11 +33,15 @@ from api.schemas.workflow_configurations import DEFAULT_RESERVATION_BOUCLE_FOIS_
 from api.services.actions_communes.seuil_de_sortie import CLE_RESERVATION, CLE_RESERVATION_BOUCLE, seuil_de_sortie
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
-from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, Enveloppe, Question
+from api.services.actions_communes.enveloppe import Enveloppe, Question
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
+from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
 from api.services.actions_communes.repli import poser_le_fait_bloquant
-from api.services.actions_communes.resultat import Resultat, avec_le_fait_du_numero_affiche, question_du_numero_affiche
+from api.services.actions_communes.resultat import (
+    CLE_NUMERO_AFFICHE, CLE_NUMERO_RETENU, Resultat, avec_le_fait_du_numero_affiche, phrase_du_code, phrase_du_numero_retenu, question_du_numero_affiche,
+)
+from api.services.phrases.catalogue import NUMERO_DICTE_RELU
 from api.services.reservation import etat_pour_le_modele, moteur
 from api.services.reservation import textes_de_secours as TS
 from api.services.reservation import source as registre_des_sources
@@ -54,6 +60,19 @@ CASES_LIBRES = ("nom", "jour", "heure")  # les valeurs libres qu'elle doit avoir
 CHOIX_NON_COMPRIS = "choix_non_compris"  # B6 : la clé du journal pour un choix de réservation non compris
 
 TYPES_DE_QUESTION = {"reserver": "recapitulatif", "modifier": "recap_modif", "annuler": "annulation"}
+# C6 n° 8 (décision d'Evan 25/11 9 h 30) : le modèle dit les relectures avec ses mots d'après les faits ; ces valeurs sont exigées de sa phrase (P2), sinon il est relancé une fois.
+VALEURS_EXIGEES = ("personnes", "heure")
+A_FAIRE_DE_LA_RELECTURE = "relis-lui la réservation avec tes mots d'après les faits du retour (le nombre de personnes, le jour et l'heure, le nom)"
+SANS_QUESTION = "sans question : le code pose la question juste après ta phrase"
+AVEC_QUESTION = "puis demande-lui si c'est bon, en une question"
+A_FAIRE_DU_CHANGEMENT = "dis-lui avec tes mots ce qui change dans sa réservation d'après les faits du retour (ce_qui_change), puis demande-lui si c'est bon, en une question"
+A_FAIRE_DU_FAIT_ACCOMPLI = {  # C6 n° 9 : le modèle dit le fait accompli d'après les faits du retour (le code n'en dit plus la phrase)
+    "reserver": "dis-lui avec tes mots que sa réservation est enregistrée, avec le jour, l'heure et le nombre de personnes des faits",
+    "modifier": "dis-lui avec tes mots que sa réservation est changée, avec le jour, l'heure et le nombre de personnes des faits",
+    "annuler": "dis-lui avec tes mots que sa réservation est annulée",
+}
+A_FAIRE_DE_L_ANNULATION = ("demande-lui avec tes mots si elle veut vraiment annuler sa réservation, en disant le jour, l'heure et le nombre de personnes des faits, et propose-lui "
+                           "de la déplacer plutôt, en une seule question, à la fin de ta phrase ; rien n'est annulé avant son « oui »")
 
 
 
@@ -114,21 +133,22 @@ def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> d
         candidats = en_json(r.faits["candidats"])
         # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
         return _numerotee({"type": "choix", "texte": (r.suggestion or TS.laquelle({})), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
-    if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation") and r.suggestion:
-        return _numerotee({"type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}, e)
+    if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation"):
+        # C6 n° 8 : la relecture est dite par le modèle, sans texte ; son JETON (neuf à chaque relecture posée) est son identité et lie le « oui » à la relecture entendue
+        return _numerotee({"type": TYPES_DE_QUESTION[operation], "texte": "", "nee_au_tour": tour, "jeton": uuid.uuid4().hex}, e)
     return None
 
 
 async def _reserver(ctx: Any, confirmer: bool = False, **valeurs: Any) -> Resultat:
-    return await moteur.reserver(
-        ctx.source, ctx.etat, ctx.appelant, confirmer=confirmer, question_numero_affiche=question_du_numero_affiche(ctx.ctx), **valeurs
-    )
+    return await moteur.reserver(ctx.source, ctx.etat, ctx.appelant, confirmer=confirmer, **valeurs)
 
 
 async def repondre_a_la_question(ctx: Any, question: dict[str, Any], sens: str | None, valeurs: list[str] | None) -> tuple[str, Resultat]:
     """La réponse rangée par son identifiant (E5) et sa case fermée (E6), selon le type de la question : l'opération qui la suit et son résultat."""
     e, source, appelant = ctx.etat, ctx.source, ctx.appelant
     t = question["type"]
+    if t in TYPES_DE_QUESTION.values() and sens == "accepte" and not PAROLE.total_dit(e, question.get("jeton")):
+        return await _reposer_la_relecture(ctx, t)
     if t == "recapitulatif":
         if sens == "accepte":
             return "reserver", await _reserver(ctx, confirmer=True)
@@ -156,6 +176,20 @@ async def repondre_a_la_question(ctx: Any, question: dict[str, Any], sens: str |
     return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris", "candidats_dits": question.get("candidats_dits") or []})
 
 
+async def _reposer_la_relecture(ctx: Any, t: str) -> tuple[str, Resultat]:
+    """C6 n° 8 : un « oui » à une relecture qui n'a pas été DITE (relance échouée, phrase réglée « pas compris », coupure) ne vaut pas accord : rien n'est enregistré, changé ni annulé ;
+    la relecture est reposée (un autre jeton) et le modèle la redit."""
+    e, source, appelant = ctx.etat, ctx.source, ctx.appelant
+    if t == "recapitulatif":
+        e.pop("lecture", None)
+        return "reserver", await _reserver(ctx)
+    if t == "recap_modif":
+        e.pop("lecture_modification", None)
+        return "modifier", await moteur.modifier(source, e, appelant)
+    e.pop("annulation", None)
+    return "annuler", await moteur.annuler(source, e, appelant)
+
+
 def _statut(e: dict[str, Any], dernier: Resultat | None, operation: str | None, refus: list[dict]) -> str:
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         return "ENREGISTREE"
@@ -170,17 +204,65 @@ def _statut(e: dict[str, Any], dernier: Resultat | None, operation: str | None, 
     return "FAIT"
 
 
-def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str | None, nee: dict[str, Any] | None, deja_enregistree: bool) -> dict[str, str]:
-    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : la relecture, la confirmation de l'enregistrement, du changement
-    ou de l'annulation (D5, banc : ``deja_dit_par_le_code``)."""
-    avant = PC.premier_cas((
-        # lot 20 : le choix porte jours et heures
-        (nee is not None and nee.get("type") in QUESTIONS_DITES_PAR_LE_CODE and bool(nee.get("texte")), lambda: str(nee["texte"])),  # 7b-C4 : le choix n'y est plus, le modèle dit les réservations
-        (dernier is not None and bool(dernier.suggestion) and (
-            dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)), lambda: dernier.suggestion),
-    ))
-    textes: dict[str, str] = {} if avant is None else {"avant": avant}
-    return textes
+def _textes_de_la_relecture(nee: dict[str, Any], dernier: Resultat, question_du_code: str | None) -> dict[str, Any]:
+    """C6 n° 8 (décision d'Evan 25/11 9 h 30 ; P2 ; Q2 = A) : la relecture (réserver, changer, annuler) est dite par le MODÈLE ; sa phrase doit dire les personnes et l'heure des faits
+    (``chiffres_exiges`` : pour un changement, celles qui changent). Le code ne dit après elle que la question réglée du numéro (``question_du_code``), seule question, à la fin ; sans
+    elle, le modèle pose la question."""
+    faits = dernier.faits or {}
+    t = nee.get("type")
+    source = (faits.get("ce_qui_change") or {}) if t == "recap_modif" else faits
+    exiges = {k: str(source[k]) for k in VALEURS_EXIGEES if source.get(k) not in (None, "")}
+    suffixe = (question_du_code or "").strip() if t == "recapitulatif" else ""
+    if t == "recap_modif":
+        a_faire = A_FAIRE_DU_CHANGEMENT
+    elif t == "annulation":
+        a_faire = A_FAIRE_DE_L_ANNULATION
+    else:
+        a_faire = f"{A_FAIRE_DE_LA_RELECTURE}, {SANS_QUESTION if suffixe else AVEC_QUESTION}"
+    return {"chiffres_exiges": exiges, **({"suffixe": suffixe} if suffixe else {}), "a_faire": a_faire}
+
+
+def question_du_code(ctx: Any, dernier: Resultat | None) -> str | None:
+    """C6 n° 8 (Q2 = A) : la question réglée que le code dit après la relecture du modèle : celle du numéro qui s'affiche quand il est gardé (M98, ``numero_affiche_garde``), sinon celle
+    du numéro dicté dans ce geste (DC10, ``numero_dicte_relu``, le numéro en lettres) ; ``None`` sans numéro à relire ou phrase éteinte (le modèle pose alors la question)."""
+    faits = (dernier.faits or {}) if dernier is not None else {}
+    if faits.get(CLE_NUMERO_AFFICHE):
+        return question_du_numero_affiche(ctx)
+    if faits.get(CLE_NUMERO_RETENU):
+        return phrase_du_code(ctx, NUMERO_DICTE_RELU, numero=str(faits[CLE_NUMERO_RETENU]))
+    return None
+
+
+def numero_apres_le_fait_accompli(ctx: Any, dernier: Resultat | None) -> str | None:
+    """Reprise R4 de C6 (§ 8 bis : le numéro reste au code ; aligné sur la commande du n° 10) : la phrase réglée du numéro dicté et retenu (motif ``numero_retenu``), dite après le fait
+    accompli du modèle, quand la question réglée du numéro dicté (DC10) est éteinte ; allumée, elle l'a déjà relu à la relecture. ``None`` : rien à dire."""
+    if dernier is None or dernier.statut not in STATUTS_ENREGISTRES or phrase_du_code(ctx, NUMERO_DICTE_RELU) is not None:
+        return None
+    return phrase_du_numero_retenu(ctx, dernier.faits)
+
+
+def _textes_du_fait_accompli(dernier: Resultat, operation: str | None, phrase_du_numero: str | None = None) -> dict[str, Any]:
+    """C6 n° 9 (décision d'Evan 25/11 9 h 30 ; P2) : la réservation enregistrée, changée ou annulée est dite par le MODÈLE ; sa phrase doit dire les personnes et l'heure (``chiffres_exiges`` ;
+    rien pour une annulation). Le code ne dit après elle que la phrase réglée du numéro retenu (``phrase_du_numero``, reprise R4 : DC10 éteint). ``fait_accompli`` : le texte de secours
+    de la base, une trace des textes du code seulement : ni au journal du dit (reprise R5), ni à la voix, même relance ratée (reprise R1 de C6)."""
+    faits = dernier.faits or {}
+    geste = "reserver" if dernier.statut in STATUTS_ENREGISTRES else operation
+    exiges = {} if geste == "annuler" else {k: str(v) for k, v in (("personnes", faits.get("personnes")), ("heure", faits.get("heure_dite"))) if v not in (None, "")}
+    return {"chiffres_exiges": exiges, **({"suffixe": phrase_du_numero} if phrase_du_numero else {}), "fait_accompli": dernier.suggestion,
+            "a_faire": A_FAIRE_DU_FAIT_ACCOMPLI.get(geste or "", A_FAIRE_DU_FAIT_ACCOMPLI["reserver"])}
+
+
+def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str | None, nee: dict[str, Any] | None, deja_enregistree: bool,
+                   question_du_code: str | None = None, phrase_du_numero: str | None = None) -> dict[str, Any]:
+    """Ce que le code dit lui-même au retour de cette fiche, et ce que le modèle doit dire (C6, décision d'Evan 25/11 9 h 30) : une relecture née dans ce tour (n° 8,
+    ``_textes_de_la_relecture``, ``question_du_code`` la suit) ou le fait accompli (n° 9, ``_textes_du_fait_accompli`` : enregistrée, changée, annulée) sont dits par le modèle ;
+    vide : rien."""
+    if nee is not None and nee.get("type") in TYPES_DE_QUESTION.values() and dernier is not None:
+        return _textes_de_la_relecture(nee, dernier, question_du_code)
+    if dernier is not None and bool(dernier.suggestion) and (
+            dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)):
+        return _textes_du_fait_accompli(dernier, operation, phrase_du_numero)
+    return {}
 
 
 def _refus_de_la_fiche(fiche: dict[str, Any], question_avant: dict | None, ctx: Any, montrees: Any) -> dict | None:
@@ -361,23 +443,9 @@ METIER_DU_FAIT_BLOQUANT = "reservation"  # la case du fait bloquant de la fiche 
 OPERATIONS_QUI_ECRIVENT = ("reserver", "modifier", "annuler")  # les gestes de la fiche qui créent, changent ou annulent une réservation (``noter``, ``executer_la_fiche_de_reservation``)
 
 
-def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: list[dict], ecartees: set[str], dernier: Resultat | None, operation: str | None,
-               question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
-    e = ctx.etat
-    # La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
-    q = _question_de(operation or "", dernier, e, tour) if dernier is not None else None
-    if q is not None:
-        CONV.poser_question(e, q)
-        if q["type"] == "choix":
-            J.oublier(e, CHOIX_NON_COMPRIS)  # un nouveau choix : ses essais repartent
-    nee = q
-    for op, r in ctx.operations:  # ce que les gestes ont dit de la réservation visée, pour l'état (aucune requête de plus)
-        faits = r.faits or {}
-        if (op in ("modifier", "reserver") and r.statut in ("ENREGISTREE", "OK")) or (op == "retrouver" and r.statut == "OK" and "reservation" in faits):
-            etat_pour_le_modele.retenir_la_reservation_visee(e, faits.get("reservation") if isinstance(faits.get("reservation"), dict) else faits)
-        elif op == "reponse" and "reservation_choisie" in faits:
-            etat_pour_le_modele.retenir_la_reservation_visee(e, faits["reservation_choisie"])
-    metier = []
+def _refus_du_metier(ctx: Any, dernier: Resultat | None) -> tuple[list[dict], bool]:
+    """Les refus du métier que le modèle dit (une réservation par appel, la capacité non réglée, un refus du module), et si la demande a été transmise à l'équipe."""
+    metier: list[dict] = []
     transmise = False
     if dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel":
         if (dernier.faits or {}).get("deja_annulee"):  # Pierre F : la réservation de l'appel est annulée ; une nouvelle ne se prend pas ici, l'équipe la prend
@@ -395,6 +463,26 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         # B4 (M9) : « propose les horaires libres » seulement quand il y en a (avant : la consigne de tout refus, même d'un choix non compris)
         defaut = "dis-lui la raison et propose les horaires libres" if (dernier.faits or {}).get("propositions") else "dis-lui la raison"
         metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or defaut)})
+    return metier, transmise
+
+
+def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: list[dict], ecartees: set[str], dernier: Resultat | None, operation: str | None,
+               question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
+    e = ctx.etat
+    # La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
+    q = _question_de(operation or "", dernier, e, tour) if dernier is not None else None
+    if q is not None:
+        CONV.poser_question(e, q)
+        if q["type"] == "choix":
+            J.oublier(e, CHOIX_NON_COMPRIS)  # un nouveau choix : ses essais repartent
+    nee = q
+    for op, r in ctx.operations:  # ce que les gestes ont dit de la réservation visée, pour l'état (aucune requête de plus)
+        faits = r.faits or {}
+        if (op in ("modifier", "reserver") and r.statut in ("ENREGISTREE", "OK")) or (op == "retrouver" and r.statut == "OK" and "reservation" in faits):
+            etat_pour_le_modele.retenir_la_reservation_visee(e, faits.get("reservation") if isinstance(faits.get("reservation"), dict) else faits)
+        elif op == "reponse" and "reservation_choisie" in faits:
+            etat_pour_le_modele.retenir_la_reservation_visee(e, faits["reservation_choisie"])
+    metier, transmise = _refus_du_metier(ctx, dernier)
     statut = _statut(e, dernier, operation, [*refus, *metier])
     faits: dict[str, Any] = {}
     if dernier is not None:
@@ -421,16 +509,24 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         jour_a_demander = etat_pour_le_modele.LE_JOUR if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" else None  # C5 : la valeur fermée de ce qui manque (jamais la phrase de ``suggestion``)
         if manque:
             plus["manque"] = manque
+    textes = textes_du_code(e, dernier, operation, nee, deja_enregistree, question_du_code(ctx.ctx, dernier) if nee is not None else None,
+                            numero_apres_le_fait_accompli(ctx.ctx, dernier))
     a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
+    if not a_faire and textes.get("a_faire"):
+        a_faire = str(textes["a_faire"])  # C6 n° 8 : la relecture, dite par le modèle
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
         # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
         if J.fois(e, moteur.RECHERCHE_SANS_RESULTAT) >= seuil_de_sortie(ctx.configurations, CLE_RESERVATION, DEFAULT_RESERVATION_FOIS_AVANT_LA_SORTIE):
             a_faire = "dis-lui que tu ne trouves pas de réservation et propose de laisser un message à l'équipe ; ne cherche plus"
         else:
             a_faire = "dis-lui qu'il n'y a pas de réservation à ce nom et ce jour ; propose une autre recherche (un autre nom ou un autre jour) ou l'équipe"
-    textes = textes_du_code(e, dernier, operation, nee, deja_enregistree)
     if isinstance(ctx.fiche, dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
+        if "chiffres_exiges" in textes and nee is not None:
+            # C6 n° 8 : ce qui prouve que la relecture est entendue (les valeurs exigées, la question du code) ; un « oui » ne vaut accord que pour elle
+            etat = PAROLE.etat_du_tour(ctx.fiche)
+            etat.total_a_dire = {"jeton": nee.get("jeton"), "texte": textes.get("suffixe"), "exiges": textes["chiffres_exiges"]}
+            PAROLE.garder(ctx.fiche, etat)
         if refuse_a_dire(dernier):  # C5 : le modèle se tait, le code le relance avec le refus (jamais une phrase de secours)
             poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [{"statut_du_module": dernier.statut, "raison": metier[0]["raison"] if metier else None, "manque": dernier.manque, "faits": faits}])  # la raison : le statut est générique (REFUSEE, DEJA_FAIT), elle dit de quoi il s'agit
         elif operation in OPERATIONS_QUI_ECRIVENT:  # une écriture sans refus remplace le refus posé plus tôt dans ce tour ; une lecture ou une question ne touche à rien (même fiche, même clé que la commande)

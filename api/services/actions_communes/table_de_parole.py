@@ -5,7 +5,7 @@ dont la condition est vraie décide. Une condition se lit sur le ``Du`` (ce qui 
 et sur l'état du tour : jamais sur les mots de la personne ni sur le nom d'une case (D1). Aucun mot du métier.
 
 Le mode dit QUI PARLE : ``A_DIRE_SEUL`` (la phrase est dite, le tour s'arrête) ou ``SECOND_PASSAGE`` (la phrase est jetée, le modèle repasse avec le retour). Le code ne dit
-mot pour mot que les exceptions du § 2 du plan (relecture, total, numéro, confirmation, fait accompli : leur texte arrive dans ``avant``).
+mot pour mot que ses phrases réglées, après la phrase du modèle (``suffixe`` : le numéro, le total, le rendu, la question M108 ou DC10 ; C6) ; plus aucune porte ne pose ``avant`` (C6 n° 12).
 """
 
 from __future__ import annotations
@@ -14,13 +14,14 @@ from api.services.actions_communes import conversation as CONV
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from api.services.actions_communes import journal_du_dit as J
-from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, sans_balisage
+from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, porte_les_chiffres, sans_balisage
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
 from api.services.actions_communes.parole import (
-    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, REPRISE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
-    apres_un_refus, pose_une_question, question_nee_dans_ce_tour,
+    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
+    apres_un_refus, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
 )
+
+FAIT_ACCOMPLI = "fait_accompli_du_modele"  # motif : le modèle dit le fait accompli (C6 n° 5), le code dit la suite après sa phrase
 
 
 @dataclass
@@ -31,9 +32,10 @@ class Entrees:
     phrase: str
     avant: str
     suffixe_du_code: str | None
+    exiges: dict | None  # C6 n° 5 : un fait accompli que le modèle dit, avec les valeurs exigées de sa phrase (``None`` : aucun)
     question_nee: bool  # elle est née dans CE tour
     question_id: Any
-    suffixe_avant: str | None  # le prix que le code dit après la phrase, posé au passage précédent
+    suffixe_avant: str | None  # la phrase réglée que le code dit après la phrase (le total de la relecture), posée au passage précédent
     chiffre: bool
     objet_en_cours: bool
     en_attente: bool  # une question attend dans le dossier
@@ -43,17 +45,12 @@ class Entrees:
 
     @property
     def question_deja_donnee(self) -> bool:
-        return bool(self.question_nee and self.question_id == self.etat.question_donnee and self.etat.question_donnee and self._prix_deja_dit
-                    and self.phrase and not self.chiffre)
-
-    @property
-    def _prix_deja_dit(self) -> bool:
-        return not self.du.prix_apres or bool(self.suffixe_avant)
+        return bool(self.question_nee and self.question_id == self.etat.question_donnee and self.etat.question_donnee and self.phrase and not self.chiffre)
 
     @property
     def question_donnee_dite(self) -> bool:
         """La question du dossier (née ou non dans ce tour) a déjà été donnée au modèle, et sa phrase peut être dite."""
-        return bool(self.question_id and self.question_id == self.etat.question_donnee and self._prix_deja_dit and self.phrase and not self.chiffre)
+        return bool(self.question_id and self.question_id == self.etat.question_donnee and self.phrase and not self.chiffre)
 
 
 def _texte(e: Entrees) -> Decision:
@@ -90,7 +87,7 @@ def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
 
 def _rien_change(e: Entrees) -> Decision:
     """Une fiche qui ne change rien est une phrase sans outil : retenue une fois par tour ; puis, si la phrase oublie la question en attente ou ce qui manque, le modèle repasse une fois ;
-    ensuite dite seule ; jamais « C'est noté » seul quand rien n'est noté."""
+    ensuite dite seule (reprise R1 de C6 : le fait accompli n'est jamais redit par le code, il reste au journal) ; jamais « C'est noté » seul quand rien n'est noté."""
     etat, phrase = e.etat, e.phrase
     etat.fiches -= 1
     if not etat.rattrapage_a_joue and (e.objet_en_cours or e.en_attente):
@@ -102,15 +99,12 @@ def _rien_change(e: Entrees) -> Decision:
     e.etat.jetee = None
     if (relance := _relancer_le_fait(e, MANQUE)) is not None:
         return relance
-    reprise = None if _du_a_reposer(e) or pose_une_question(phrase) or not isinstance(e.p, dict) else J.fait_accompli(e.p)  # RC4 : le fait accompli, que le code redit (§ 2 du plan, jusqu'à C6)
-    if reprise:
-        return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
 
 
 def _question(e: Entrees) -> Decision:
-    """Une question née dans ce tour, ou un prix à dire après la phrase. Déjà donnée au modèle : sa phrase est dite (puis le prix dû) ; si elle oublie la question, le modèle repasse une
-    fois (C5) ; sinon le modèle repasse avec elle."""
+    """Une question née dans ce tour. Déjà donnée au modèle : sa phrase est dite (puis la phrase réglée du code, le total de la relecture) ; si elle oublie la question, le modèle
+    repasse une fois (C5) ; sinon le modèle repasse avec elle."""
     etat, phrase = e.etat, e.phrase
     if e.question_donnee_dite:
         e.etat.jetee = None
@@ -120,6 +114,21 @@ def _question(e: Entrees) -> Decision:
     etat.question_donnee = e.question_id
     etat.suffixe = e.suffixe_du_code
     return Decision(SECOND_PASSAGE, motif="question_nouvelle")
+
+
+def _fait_accompli(e: Entrees) -> Decision:
+    """C6 n° 5 (décision d'Evan 25/11 9 h 30) : un fait accompli que le MODÈLE dit (la commande enregistrée), suivi de ce que le code dit après lui (le rendu, la question M108). Sa phrase
+    part avec la suite si elle dit les valeurs exigées (l'heure), sans chiffre de plus, sans question en double, et, quand le code ne dit rien après elle et qu'une question attend (DC4,
+    la proposition, la relecture de la réservation), si elle pose cette question (reprise R2) ; sinon le modèle repasse avec le retour, la suite gardée pour sa phrase."""
+    etat, phrase, suite = e.etat, e.phrase, e.suffixe_du_code
+    exiges = e.exiges or {}
+    en_double = bool(suite) and pose_une_question(suite) and pose_une_question(phrase)
+    due = question_due_sans_suite(phrase, suite, e.en_attente)
+    if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and not due and porte_les_chiffres(phrase, exiges):
+        etat.jetee = None
+        return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite) if x), motif=FAIT_ACCOMPLI)
+    etat.suffixe, etat.exiges = suite, exiges
+    return Decision(SECOND_PASSAGE, motif=FAIT_ACCOMPLI)
 
 
 def _formule(e: Entrees) -> Decision:
@@ -138,12 +147,13 @@ def _dite_ou_due(e: Entrees) -> Decision:
 # Les lignes, dans l'ordre : la première dont la condition est vraie décide.
 LIGNES: tuple[tuple[str, Callable[[Entrees], bool], Callable[[Entrees], Decision]], ...] = (
     ("texte du code (exception § 2)", lambda e: bool(e.avant), _texte),
+    ("fait accompli dit par le modèle", lambda e: e.exiges is not None, _fait_accompli),
     ("refus", lambda e: apres_un_refus(e.etat), _second("refus")),
     ("faits à dire sur une fiche vide", lambda e: e.du.rien_change and "faits_a_dire" in e.du.faits_au_modele, _second(FAITS_A_DIRE, avant=_rendre_la_fiche)),
     ("rien n'a changé", lambda e: e.du.rien_change and not e.question_deja_donnee, _rien_change),
     ("fait bloquant", lambda e: "fait_bloquant" in e.du.faits_au_modele, _second("fait_bloquant")),
     ("faits à dire", lambda e: "faits_a_dire" in e.du.faits_au_modele, _second(FAITS_A_DIRE)),
-    ("question née ou prix à dire", lambda e: e.question_nee or e.du.prix_apres, _question),
+    ("question née", lambda e: e.question_nee, _question),
     ("ligne retirée", lambda e: RETRAIT_D_UNE_LIGNE in e.du.faits_qui_engagent, _second("retrait")),
     ("formule ajoutée", lambda e: "formule_ajoutee" in e.du.faits_qui_engagent, _formule),
     ("phrase vide", lambda e: not e.phrase, _second("sans_phrase")),
@@ -158,9 +168,46 @@ def ligne_qui_decide(e: Entrees) -> str:
 
 
 def decider(e: Entrees) -> Decision:
-    """La décision de la parole pour ce retour : la première ligne dont la condition est vraie."""
+    """La décision de la parole pour ce retour : la première ligne dont la condition est vraie. Reprise R3 de C6 : la phrase réglée que le code doit dire (posée par cette fiche ou par
+    une fiche d'avant du tour) tient jusqu'à ce qu'elle soit dite ; une ligne qui fait repasser le modèle sans la garder la remet (``_garder_la_phrase_reglee``). Reprise S1 : celle
+    d'une fiche d'avant n'est plus vraie quand cette fiche a changé quelque chose et que la question qui la portait n'attend plus ; elle est jetée (``_jeter_la_phrase_perimee``)."""
+    _jeter_la_phrase_perimee(e)
     nom = ligne_qui_decide(e)
-    return next(decider_ for n, _, decider_ in LIGNES if n == nom)(e)
+    return _garder_la_phrase_reglee(e, next(decider_ for n, _, decider_ in LIGNES if n == nom)(e))
+
+
+def _garder_la_phrase_reglee(e: Entrees, decision: Decision) -> Decision:
+    """Le modèle repasse et aucune phrase réglée n'attend sa phrase : celle de cette fiche, sinon celle d'une fiche d'avant du tour (``suffixe_avant``), est remise, comme
+    ``_relancer_le_fait``. Une phrase dite seule (``A_DIRE_SEUL``) garde ce que sa ligne a décidé."""
+    if decision.mode == SECOND_PASSAGE and not e.etat.suffixe:
+        e.etat.suffixe = e.suffixe_du_code or e.suffixe_avant
+    return decision
+
+
+def _la_question_qui_la_portait_attend(e: Entrees) -> bool:
+    """La question qui attend (même ``question_id``) est celle qui portait la phrase réglée d'avant : la question née donnée au modèle (``etat.question_donnee``), ou celle dont la phrase
+    réglée est encore celle-là (la relecture du numéro dicté : son texte ; la relecture : le jeton à entendre, ``etat.total_a_dire``). Lu sur le dossier et l'état, jamais sur les mots."""
+    q = CONV.question_de(e.p) or {}
+    if not e.question_id or not e.suffixe_avant:
+        return False
+    attendu = e.etat.total_a_dire if isinstance(e.etat.total_a_dire, dict) else {}
+    texte = sans_balisage(str(q.get("texte") or ""))
+    return (e.question_id == e.etat.question_donnee or bool(texte and texte in e.suffixe_avant)
+            or bool(q.get("jeton") and q.get("jeton") == attendu.get("jeton")))
+
+
+def _jeter_la_phrase_perimee(e: Entrees) -> None:
+    """Reprise S1 de C6 : la phrase réglée d'un passage précédent (``suffixe_avant`` : le total d'une relecture, la question DC10) ne tient que si cette fiche n'a rien changé, ou si la
+    question qui la portait attend toujours (``_la_question_qui_la_portait_attend``). Sinon elle est jetée, avec ce qui prouvait qu'elle était entendue (``etat.total_a_dire``, sauf s'il
+    est celui de la question qui attend) et les valeurs exigées d'un passage précédent (``etat.exiges``, sauf si cette fiche en pose)."""
+    if not e.suffixe_avant or e.du.rien_change or _la_question_qui_la_portait_attend(e):
+        return
+    e.suffixe_avant = None
+    if e.exiges is None:
+        e.etat.exiges = None
+    attendu = e.etat.total_a_dire
+    if isinstance(attendu, dict) and attendu.get("jeton") != (CONV.question_de(e.p) or {}).get("jeton"):
+        e.etat.total_a_dire = None
 
 
 def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list[str], p: dict | None, textes: dict, objet_en_cours: bool | None,
@@ -170,10 +217,13 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
 
     du = du_du_retour(retour)
     dossier_q = CONV.question_de(p)
+    exiges = textes.get("chiffres_exiges") if isinstance(textes.get("chiffres_exiges"), dict) else None
+    if exiges:
+        etat.faits_du_refus.append(exiges)  # les valeurs exigées sont données au modèle : elles passent la barrière des chiffres, dans ce passage et le suivant
     if objet_en_cours is None:
         objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
     return Entrees(
-        du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None,
+        du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None, exiges=exiges,
         question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),

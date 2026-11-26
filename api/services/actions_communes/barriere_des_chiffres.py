@@ -1,8 +1,8 @@
 """[.mark] Chantier Partie 1, lot 6 : la barrière des chiffres sur toute phrase libre du modèle (B10 point 3, B11 point 4, B12 décision 1).
 
-Les chiffres sont dits par le code (D5, D33). Une phrase du modèle (``a_dire`` comprise) qui porte un chiffre n'est jamais dite : elle est retenue et
-le modèle repasse, avec dans l'état « Ta réponse précédente portait un chiffre : elle n'a pas été dite, et rien n'est changé. Les chiffres sont dits
-par le code. » Règle de VALEUR, jamais de sens. Trois exemptions, chacune une règle nommée :
+Le modèle ne dit que les chiffres des faits que le code lui donne (les prix D33, C6 n° 11) ; le code ne dit lui-même que ses phrases réglées (le total, le numéro, le rendu, C6).
+Une phrase du modèle (``a_dire`` comprise) qui porte un autre chiffre n'est jamais dite : elle est retenue et le modèle repasse, avec dans l'état ``RAPPEL_DU_CHIFFRE`` (C6 n° 12 :
+« ne dis que les chiffres des faits »). Règle de VALEUR, jamais de sens. Trois exemptions, chacune une règle nommée :
 
 - les mots du code de remise de la même fiche (B10 point 3) : « le code VINGT » n'est pas un prix ;
 - les valeurs que portent les faits du retour de CE tour (``valeurs_des_faits`` : montants, heures, quantités) : le code les donne au modèle, il peut les dire ;
@@ -16,21 +16,23 @@ par le code. » Règle de VALEUR, jamais de sens. Trois exemptions, chacune une 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from api.services.actions_communes.forme import (
     CASE_D_UN_NOMBRE,
     CASE_DE_L_ARGENT,
     DIZAINES,
+    SEPARATEUR,
     UNITES,
     norm,
     valeur_dite_par_elle,
+    valeurs,
     valeurs_et_places,
 )
 
 RAPPEL_DU_CHIFFRE = (
-    "- Ta réponse précédente portait un chiffre : elle n'a pas été dite, et rien n'est changé. Les chiffres sont dits par le code."
+    "- Ta réponse précédente portait un chiffre qui n'est dans aucun fait du retour : elle n'a pas été dite, et rien n'est changé. Ne dis que les chiffres des faits, tels quels."
 )
 CHIFFRE = re.compile(r"\d|€|\beuros?\b|centimes?", re.I)
 
@@ -56,15 +58,23 @@ def a_un_nombre_en_lettres_que_le_code_dit(texte: Any) -> bool:
     if _POURCENTAGE.search(norm(texte).replace("pour cent", " pour cent ")) and valeurs_et_places(texte)[0]:
         return True
     places, mots = valeurs_et_places(texte)
-    for debut, fin, _valeur, genre in places:
+    for n, (debut, fin, _valeur, genre) in enumerate(places):
         if genre == "argent":
             return True
         if fin + 1 < len(mots) and mots[fin + 1] in UNITES_QUE_LE_CODE_DIT:
             return True
         groupe = mots[debut:fin + 1]
-        if any(a in UNITES and UNITES[a] >= 2 and b in DIZAINES and not (a == "quatre" and b in ("vingt", "vingts")) for a, b in zip(groupe, groupe[1:])):
+        if any(_colles(a, b) for a, b in zip(groupe, groupe[1:])):
             return True  # « douze cinquante » : ce n'est pas un nombre, c'est un prix ou une heure dite à la française
+        suivante = places[n + 1] if n + 1 < len(places) else None
+        if suivante and suivante[0] == fin + 2 and mots[fin + 1] == SEPARATEUR and _colles(mots[fin], mots[suivante[0]]):
+            return True  # reprise R3 : « douze, cinquante » aussi ; seule la virgule les sépare, elle ne fait pas deux valeurs (« pour quatre, vingt heures » reste deux)
     return False
+
+
+def _colles(a: str, b: str) -> bool:
+    """Deux mots de nombre qui, dits l'un après l'autre, ne font pas un nombre : une unité d'au moins deux, puis une dizaine (« douze cinquante »), hors « quatre-vingts »."""
+    return a in UNITES and UNITES[a] >= 2 and b in DIZAINES and not (a == "quatre" and b in ("vingt", "vingts"))
 
 
 def code_lu(texte: Any) -> str:
@@ -128,13 +138,53 @@ def valeurs_des_faits(faits: Any) -> list[str]:
 
 def chiffre_dans_la_phrase(texte: Any, fiches: Iterable[dict] = (), paroles: Iterable[str] = (), faits: Any = ()) -> bool:
     """Vrai si la phrase du modèle porte un chiffre que le code doit dire : retenue (B11 point 4, B12 décision 1). ``faits`` : les faits du retour de ce tour, dont les valeurs
-    sont dites sans être retenues (constat 0.1 du lot 7b)."""
-    reste = sans_valeurs_dites(str(texte or ""), [*(paroles or ()), *valeurs_des_faits(faits)])
-    for fiche in fiches or ():
+    sont dites sans être retenues (constat 0.1 du lot 7b). Une valeur dite avec ou sans virgule est la même (``_sans_virgule``) : la phrase n'est retenue que si ses deux lectures
+    le sont (reprise R3 : « vingt-quatre, cinquante euros » face au total de vingt-quatre euros cinquante, le numéro dit sans ses virgules)."""
+    fiches = list(fiches or ())
+    sources = [*(paroles or ()), *valeurs_des_faits(faits)]
+    sources += [x for x in map(_sans_virgule, sources) if x not in sources]
+    texte = str(texte or "")
+    return all(_retenue(t, fiches, sources) for t in dict.fromkeys((texte, _sans_virgule(texte))))
+
+
+_VIRGULE_EN_ESPACE = str.maketrans({",": " ", ";": " "})
+
+
+def _sans_virgule(texte: Any) -> str:
+    """Le texte sans ses virgules : la lecture où deux nombres qu'elle sépare se suivent (« vingt-quatre, cinquante euros » se lit « vingt-quatre cinquante euros »). Les espaces
+    sont repliés (les lectures des valeurs coupent aux espaces)."""
+    return " ".join(str(texte or "").translate(_VIRGULE_EN_ESPACE).split())
+
+
+def _retenue(texte: str, fiches: list, sources: list[str]) -> bool:
+    reste = sans_valeurs_dites(texte, sources)
+    for fiche in fiches:
         code = fiche.get("code_de_remise") if isinstance(fiche, dict) else None
         if isinstance(code, str) and code_lu(code):
             reste = sans_le_code(reste, code_lu(code))
     return (a_un_chiffre(reste) or a_un_nombre_en_lettres_que_le_code_dit(reste))
+
+
+def porte_les_chiffres(phrase: Any, attendus: Mapping[str, Any]) -> bool:
+    """C6 (P2, décision d'Evan 25/11) : la phrase du modèle porte-t-elle chacune des valeurs que le code vérifie (la réservation : ``personnes`` et ``heure``) ? Une valeur
+    attendue est dite comme les faits la donnent (« quatre personnes », « vingt heures ») ; ses nombres se lisent avec le même lecteur que « elle l'a dit » (``forme.valeurs``),
+    une valeur sans nombre (« midi ») se cherche telle quelle. Une valeur attendue vide n'est pas exigée. Règle de VALEUR, jamais de sens. Avec ou sans virgule, une valeur est la
+    même (reprise R3 : le numéro dit sans les virgules du fait)."""
+    return _porte(phrase, attendus) or _porte(_sans_virgule(phrase), {k: _sans_virgule(v) if isinstance(v, str) else v for k, v in attendus.items()})
+
+
+def _porte(phrase: Any, attendus: Mapping[str, Any]) -> bool:
+    dites = valeurs(phrase)
+    net = norm(phrase)
+    for attendu in attendus.values():
+        if attendu is None or not str(attendu).strip():
+            continue
+        voulues = valeurs(attendu)
+        if voulues and not all(v in {valeur for valeur, _ in dites} for v, _ in voulues):
+            return False
+        if not voulues and norm(attendu) not in net:
+            return False
+    return True
 
 
 def sans_balisage(texte: str) -> str:

@@ -12,6 +12,9 @@ from __future__ import annotations
 
 from api.services.actions_communes.du import CLE_DU
 from api.services.actions_communes import parole as PAROLE
+from api.services.actions_communes import table_de_parole as T
+from api.services.actions_communes import journal_du_dit as J
+from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
@@ -23,7 +26,8 @@ ANNONCE = "C'est noté."
 
 
 def _dit_par_le_code(e) -> str:
-    return " ".join((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).values())
+    # C6 (décision d'Evan 25/11 9 h 30) : ce que le code dit à la voix : ``avant`` et ``suffixe`` (les autres textes, valeurs exigées et fait gardé au journal, ne sont pas dits)
+    return " ".join(str(v) for k, v in (e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).items() if k in ("avant", "suffixe") and v)
 
 
 async def _sans_question(e) -> None:
@@ -114,7 +118,8 @@ async def test_tf2_un_changement_d_une_commande_enregistree_se_dit_par_le_code(e
     await _jusqu_a_l_enregistrement(e)
     r = await e.tour("en fait deux", changer_quantite=[{"ligne": 1, "quantite": 2}])
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, "changer_quantite": [{"ligne": 1, "quantite": 2}]})
-    assert d.motif == "texte_du_code" and "vingt et un euros quatre-vingts" in d.a_dire, d
+    # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le modèle dit le changement, le code dit le nouveau total juste après sa phrase
+    assert d.motif == T.FAIT_ACCOMPLI and d.a_dire.startswith(ANNONCE) and "vingt et un euros quatre-vingts" in d.a_dire, d
 
 
 async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
@@ -124,10 +129,11 @@ async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
     q = CONV.question_de(e.p)
     assert q["type"] == RQ.TYPE_ANNULATION and e.p.get("enregistree") and not e.p.get("annulee"), e.p  # rien n'est annulé avant le « oui »
     # lot 7b, DC4 (fiche relue, Q2 = A) : l'ancienne attente (le code pose la question mot pour mot) contredit Q2 ; le modèle la pose, son texte reste celui du repli
-    assert _dit_par_le_code(e) == "" and q["texte"] == "Vous êtes sûr de vouloir annuler votre commande de dix euros quatre-vingt-dix ?", (_dit_par_le_code(e), q)
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : plus de texte de repli à la question : le modèle la pose, le montant exigé de sa phrase
+    assert _dit_par_le_code(e) == "" and q["texte"] == "", (_dit_par_le_code(e), q)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
-    assert _dit_par_le_code(e) == RQ.TEXTE_ANNULATION_CONFIRMEE
+    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == TS.annulation_confirmee({})  # C6 n° 7 : le modèle le dit, le journal en garde le fait
 
 
 async def test_dc4_non_laisse_la_commande_enregistree(essai_de):
@@ -171,8 +177,9 @@ async def test_ic5_la_phrase_du_code_entre_dans_l_historique(monkeypatch):
     assert texte == "Très bien." and options.get("append_to_context") is True, engine.queue_text_message.call_args
 
 
-async def test_regle_3_le_repli_redit_le_fait_accompli(essai_de):
-    """C5, DF5 : après l'enregistrement, « pardon ? » : ni question ni manque ; la confirmation est le fait accompli que le code a dit (§ 2 du plan, jusqu'à C6), jamais « je n'ai pas bien saisi »."""
+async def test_regle_3_le_repli_ne_redit_plus_le_fait_accompli(essai_de):
+    """C5, DF5, puis reprise R1 de C6 : après l'enregistrement, « pardon ? » : ni question ni manque, ni suite réglée en attente ; le fait accompli reste au journal, le code ne le redit
+    plus : une retenue vide (``RepliqueVerifiee`` dit la phrase réglée « pas compris », P3)."""
     e = await essai_de()
     await _jusqu_a_l_enregistrement(e)
     from api.services.actions_communes import journal_du_dit as J
@@ -183,4 +190,4 @@ async def test_regle_3_le_repli_redit_le_fait_accompli(essai_de):
 
     e.montrer()
     silence = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler_le_silence()
-    assert silence is not None and silence.a_dire == confirmation  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : rien n'est dû, le modèle muet : le fait accompli, jamais une phrase composée
+    assert silence is not None and silence.a_dire is None and not silence.consigne, silence  # décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6

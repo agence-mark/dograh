@@ -160,20 +160,19 @@ async def preparer_la_forme(moteur: Any, llm: Any, trame: LLMContextFrame) -> LL
 
 def phrase_si_les_cases_sont_illisibles(moteur: Any, llm: Any = None) -> str:
     """P8 (lot 19 bis) : ce que dit le code quand les cases du tour sont illisibles et que la requête ne part pas. C5 (décision d'Evan 25/11 8 h 45) : aucune requête n'est possible, donc
-    le code ne compose ni refus ni question : le fait accompli qu'il a déjà dit (§ 2 du plan, jusqu'à C6), sinon la phrase réglée de l'agent (« pas compris », lot 7b ligne 29).
+    le code ne compose ni refus ni question : la suite réglée déjà posée (reprise R1 de C6, le même chemin que la relance ratée : ``controler_le_silence(sans_relance=True)``), sinon la
+    phrase réglée de l'agent (« pas compris », P3, lot 7b ligne 29) ; jamais le fait accompli, gardé au journal seulement.
     Avant : une ligne au journal et plus aucune réponse, à chaque tour, jusqu'au raccrochage. ⛔ Ne lève jamais."""
     from api.services.pipecat.reponse_avalee import phrase_de_repli_reglee
 
     try:
-        from api.services.actions_communes import journal_du_dit as J
         from api.services.workflow import parole_de_la_fiche as PF
 
-        fiche = getattr(moteur, "_gathered_context", None)
-        accompli = J.fait_accompli(PF.dossier_de_la_parole(fiche, PF._connecteur_de_l_etape(moteur)))
-        if isinstance(accompli, str) and accompli.strip():
-            return accompli.strip()
+        suite = getattr(PF.VerificateurDeLaFiche(moteur).controler_le_silence(sans_relance=True), "a_dire", None)
+        if isinstance(suite, str) and suite.strip():
+            return suite.strip()
     except Exception as erreur:  # noqa: BLE001
-        logger.warning(f"[cases] fait accompli non lu : {erreur!r}")
+        logger.warning(f"[cases] suite réglée non lue : {erreur!r}")
     return phrase_de_repli_reglee(llm)
 
 

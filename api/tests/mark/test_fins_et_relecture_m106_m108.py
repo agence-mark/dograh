@@ -80,20 +80,28 @@ async def test_m108_la_confirmation_de_la_commande_finit_par_la_question(commerc
     a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
     r = await a.confirmer()
-    assert r.statut == "ENREGISTREE" and r.suggestion.startswith("Votre commande est enregistrée") and r.suggestion.endswith(". " + QUESTION)
-    assert r.suggestion.count("?") == 1
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30 ; P4) : le moteur rend le fait (texte de secours, jamais dit) ; la question M108 suit la phrase du modèle, posée par la porte
+    from api.services.commande.porte import textes_du_code
+
+    assert r.statut == "ENREGISTREE" and r.suggestion.startswith("Votre commande est enregistrée") and "?" not in r.suggestion
+    assert textes_du_code({}, r, None, [], False, None, QUESTION)["suffixe"] == QUESTION
     deja = await a.confirmer()
     assert deja.statut == "DEJA_FAIT" and "?" not in deja.suggestion
 
 
 async def test_m108_la_question_reglee_ou_eteinte(commerce):
+    # C6 n° 5 (décision d'Evan 25/11 9 h 30) : la question réglée est dite par la porte après la phrase du modèle (``suffixe``) ; éteinte, rien ne suit
+    from api.services.commande.porte import textes_du_code
+
     a = await Appel(commerce, vente_en_plus=False, question_apres_enregistrement="Autre chose pour vous ?").pret()
     await a.jusqu_a_la_relecture()
-    assert (await a.confirmer()).suggestion.endswith(". Autre chose pour vous ?")
+    r = await a.confirmer()
+    assert textes_du_code({}, r, None, [], False, None, a.regles.question_apres_enregistrement)["suffixe"] == "Autre chose pour vous ?"
     b = await Appel(commerce, vente_en_plus=False, affiche="+33699999999", question_apres_enregistrement=None).pret(A("coca", 2))
     await b.jusqu_a_la_relecture()
     r = await b.confirmer()
-    assert r.statut == "ENREGISTREE" and r.suggestion.endswith(".") and "?" not in r.suggestion
+    assert r.statut == "ENREGISTREE" and "?" not in r.suggestion
+    assert textes_du_code({}, r, None, [], False, None, b.regles.question_apres_enregistrement)["suffixe"] == ""
 
 
 async def test_m108_la_confirmation_dite_par_le_code_rend_la_parole_et_note_la_question():
@@ -174,7 +182,9 @@ async def test_m106_une_vraie_correction_relit_toujours_ce_qui_change(commerce):
     await F.ajouter(a.source, a.p, a.regles, "tiramisu")  # lot 4 (D49) : par la case ``ajouter`` de la fiche
     await F.repondre(a.source, a.p, a.regles, "classic")  # le parfum est une question du code : sa réponse
     r = await a.finaliser()
-    assert r.manque == "relecture" and "On ajoute un tiramisu" in r.suggestion and "Cela fait maintenant" in r.suggestion
+    # C6 n° 4 (décision d'Evan 25/11 9 h 30) : ce qui a changé est un fait que le modèle dit ; le code dira la phrase réglée du nouveau total
+    assert r.manque == "relecture" and any(c["geste"] == "ajoutee" and "iramisu" in c["nom"] for c in r.faits["ce_qui_a_change"]), r
+    assert a.p["relecture"]["motif_du_total"] == "total_apres_correction"
     # lot 4 (M38, M39, D49) : le règlement vient après la relecture, un autre moyen ne la refait plus ; sens repris par partie_1/test_l04_cuisine.py::test_une_seule_relecture
 
 
@@ -187,5 +197,5 @@ async def test_m106_m107_reservation_rappel_sans_rien_de_nouveau(salle):
     r = await a.reserver(**dit)
     assert r.statut == "INCOMPLETE" and r.suggestion == "" and r.faits["relecture_deja_dite"] is True and r.faits["numero_affiche_dit"]
     autre = await a.reserver(personnes=3)  # une vraie correction : relue
-    assert autre.manque == "relecture" and "trois personnes" in autre.suggestion
+    assert autre.manque == "relecture" and autre.faits["personnes"] == 3 and not autre.suggestion  # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la relecture en faits, dite par le modèle
     assert (await a.reserver(confirmer=True)).statut == "ENREGISTREE"

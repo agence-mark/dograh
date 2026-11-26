@@ -22,7 +22,6 @@ from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import etape as ETAPE
 from api.services.commande.briques import formule_a_etapes
 from api.services.commande import panier as P
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 
 # --------------------------------------------------------------------------- la phase (M7)
 
@@ -41,12 +40,11 @@ TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'exi
 TEXTE_NOUVELLE_COMMANDE = INFO.NOUVELLE_COMMANDE_PROPOSEE  # proposée au modèle, jamais dite mot pour mot par le code (DC5 : un refus suivi d'une question)
 TYPE_DE_L_ETAPE = "etape_formule"
 CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une question d'hésitation
-# DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question est celle-ci, dite par le code avec le montant
+# DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question, avec le montant, est posée par le modèle (C6 n° 7, montant exigé de sa phrase)
 TYPE_ANNULATION = "annulation_enregistree"
-TEXTE_ANNULATION_CONFIRMEE = PHRASES_DITES.TEXTE_ANNULATION_CONFIRMEE
 
 
-def _montant_enregistre(p: dict[str, Any]) -> str | None:
+def montant_enregistre_dit(p: dict[str, Any]) -> str | None:
     """Le total de la commande enregistrée (en centimes), en lettres ; ``None`` s'il n'est pas connu."""
     from api.services.mots_dits import montant_en_lettres
 
@@ -57,31 +55,9 @@ def _montant_enregistre(p: dict[str, Any]) -> str | None:
         return None
 
 
-def texte_de_l_annulation(p: dict[str, Any]) -> str:
-    """DC4, premier temps : la question d'annulation, avec le montant lu dans la commande enregistrée (le texte est dans ``phrases_dites_par_le_code``)."""
-    montant = _montant_enregistre(p)
-    return PHRASES_DITES.annulation_demandee(montant)
-
-
-def texte_du_changement(p: dict[str, Any], question: str | None = None, montant: bool = True) -> str:
-    """B2 (M3, TF2) : la commande enregistrée vient d'être changée en caisse : son nouveau total, dit par le code ; puis la question réglée après
-    l'enregistrement (M108), comme la confirmation : la parole revient à la personne."""
-    total = _montant_enregistre(p) if montant else None
-    fait = PHRASES_DITES.changement(total)
-    return " ".join(x for x in (fait, (question or "").strip()) if x)
-
-
-def texte_dit_de_la_question(q: dict[str, Any], p: dict[str, Any]) -> str | None:
-    """Ce que le code dit pour poser cette question : son texte ; la proposition, son repli (son texte n'est qu'une consigne). L'annulation n'a plus de forme à part (DC4, Q2 = A) :
-    son texte, mis à jour avec le total d'AUJOURD'HUI de la commande, est celui que le code dit (§ 2 du plan, jusqu'à C6)."""
-    if q.get("type") == "proposition":
-        return q.get("repli") or None
-    return str(q.get("texte") or "").strip() or None
-
-
 def demander_l_annulation(p: dict[str, Any]) -> None:
     """DC4 : « annulez ma commande » sur une commande enregistrée ouvre la question de confirmation ; rien n'est annulé avant le « oui »."""
-    ouvrir(p, {"type": TYPE_ANNULATION, "texte": texte_de_l_annulation(p)})
+    ouvrir(p, {"type": TYPE_ANNULATION, "texte": ""})  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle la pose avec ses mots, le montant exigé de sa phrase
 # L'ordre fixe : on finit ce qui est commencé (le doute sur un article, sa taille, l'étape de sa formule) avant de proposer, de relire, puis d'identifier.
 # L'heure proposée vient en tête : fermé, la commande pour plus tard est la première question (décision d'Evan, 21/11 : « dès le début de l'appel,
 # le magasin est fermé, voulez-vous planifier pour l'ouverture à 18 h »).
@@ -169,18 +145,13 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse ou par un de ses candidats nommé (``porte``, case ajouter : elle quitte alors le registre)
 
 
-def _texte_du_jour(p: dict[str, Any], q: dict[str, Any]) -> None:
-    if q.get("type") == TYPE_ANNULATION:
-        q["texte"] = texte_de_l_annulation(p)  # le total de la commande d'AUJOURD'HUI : elle a pu changer dans la même fiche
-
-
 def _ferme(q: dict[str, Any], sens: str | None, r: Any, valeurs: list[str] | None) -> bool:
     """Lot 7a (n° 7) : cette réponse ferme-t-elle la question ? Lu sur le type, le sens et le statut du résultat, jamais sur un drapeau posé par la réponse.
     La relecture ne se ferme que sur un « oui » ; la question qui demande un « oui » ou un « non » (annulation, nouvelle commande, numéro) ne se ferme que sur l'un
     des deux ; l'heure proposée, le doute et l'étape restent posés quand la réponse n'a rien posé."""
     t = q.get("type")
     if t == "relecture":
-        return sens == "accepte"
+        return sens == "accepte" and not (r.faits or {}).get("relecture_pas_entendue")  # C6 : un « oui » sans la phrase du total dite ne ferme rien
     if t in (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, TYPE_DU_NUMERO, TYPE_DU_NUMERO_DICTE):
         return sens in ("accepte", "refuse")
     if t == "heure_proposee":
@@ -194,9 +165,9 @@ def _ferme(q: dict[str, Any], sens: str | None, r: Any, valeurs: list[str] | Non
     return True
 
 
-# Ce que la commande dit de ses questions : l'ordre, la condition, l'objet de naissance, la signature du doute, le texte du jour, ce qui ferme.
-TABLE = RC.Table(ordre=ORDRE, condition=lambda p, q: condition(p, q), objet_de_naissance=_objet_de_naissance, signature=_dit_de_l_hesitation,
-                 rafraichir=_texte_du_jour, ferme=_ferme)
+# Ce que la commande dit de ses questions : l'ordre, la condition, l'objet de naissance, la signature du doute, ce qui ferme. C6 n° 7 : plus de texte du jour (l'annulation n'a plus
+# de texte : le modèle la pose, le montant d'aujourd'hui exigé de sa phrase par la porte).
+TABLE = RC.Table(ordre=ORDRE, condition=lambda p, q: condition(p, q), objet_de_naissance=_objet_de_naissance, signature=_dit_de_l_hesitation, ferme=_ferme)
 
 CLE_DERNIERE_FERMEE = RC.CLE_DERNIERE_FERMEE
 

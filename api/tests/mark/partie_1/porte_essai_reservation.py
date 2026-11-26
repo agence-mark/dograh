@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import Any
 
+from api.services.actions_communes import parole as PAROLE
 from api.services.integrations.connectors.actions.reservation import RESERVATION
 from api.services.integrations.connectors.outil import _propriete
 from api.services.reservation import contrat, moteur, porte
@@ -31,6 +32,9 @@ class EssaiReservation:
                                    reglages={}, configurations={})
         self.paroles: list[str] = []
         self.retours: list[dict] = []
+        # C6 n° 8 (décision d'Evan 25/11 9 h 30) : la voix. La relecture que le modèle dit (les personnes et l'heure exigées) et la question réglée du code après elle partent à la voix,
+        # comme en production : l'accord à la relecture vaut. ``False`` : rien ne part (relance échouée), le « oui » ne vaut pas accord.
+        self.voix = True
 
         @asynccontextmanager
         async def ouvrir(nom, ctx, **options):
@@ -65,6 +69,11 @@ class EssaiReservation:
         self.montrer()
         retour = await porte.executer(SimpleNamespace(nom="fiche"), {"a_dire": "x", **cases}, self.ctx, 5.0)
         self.retours.append(retour)
+        textes = self.fiche_de_l_appel.get(porte.CLE_TEXTES_DU_CODE) or {}
+        if self.voix and isinstance(textes.get("chiffres_exiges"), dict):
+            etat = PAROLE.etat_du_tour(self.fiche_de_l_appel)
+            PAROLE.noter_le_total_dit(self.etat, etat, " ".join(["Relue :", *(f"{k} {v} puis" for k, v in textes["chiffres_exiges"].items()), str(textes.get("suffixe") or "")]))
+            PAROLE.garder(self.fiche_de_l_appel, etat)
         return retour
 
     async def lecture(self, **arguments: Any) -> dict[str, Any]:

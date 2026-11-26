@@ -609,13 +609,13 @@ def _regles(r: dict) -> list[dict]:
 
 async def test_conv_la_lecture_d_une_formule_rend_ses_etapes_ses_regles_et_son_prix(essai_de):
     """FOR9-B, FOR7 : « c'est quoi le menu étudiant ? » ; la lecture d'une formule ne rendait rien (« je ne peux pas le confirmer »). Elle rend ses étapes et
-    leurs choix, son justificatif, sa condition, et son prix, dit par le code (PRX5, D33)."""
+    leurs choix, son justificatif, sa condition, et son prix (PRX5, D33). C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : le prix est un fait que le modèle dit, la barrière le vérifie."""
     e = await brique(essai_de, "FOR9")
     r = await e.lecture(sujet="article", article="menu étudiant")
     f = r["faits"]
     assert f["renseigne"] is True and [x["etape"] for x in f["etapes"]] == ["Sandwich", "Boisson"] and f["etapes"][0]["choix"] == ["Panini"], r
     assert f["justificatif"].startswith("présentation") and f["prix"] == {"montant": 850, "a_partir_de": False}, r
-    assert r.get("prix_dit_par_le_code_apres_ta_phrase") is True and "prix_a_dire" not in f, r
+    assert "prix_dit_par_le_code_apres_ta_phrase" not in r and "prix_a_dire" not in f, r
     e7 = await brique(essai_de, "FOR7")
     f7 = (await e7.lecture(sujet="article", article="menu enfant"))["faits"]
     assert f7["condition"] == {"age_max": 10} and f7["modes"] == ["sur_place"], f7

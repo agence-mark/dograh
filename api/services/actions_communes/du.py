@@ -41,19 +41,18 @@ class Du:
     le constat) ; ``constater`` en garde un exemplaire dans le retour (``CLE_DU``) dont seule ``boucle`` est relue. Chaque champ se lit sur la forme du retour, jamais sur des mots (D1).
 
     * ``faits_qui_engagent`` : ce que la fiche a fait et que la phrase écrite avant elle ne pouvait pas connaître (une ligne retirée, une formule ajoutée) ;
-    * ``question`` : le type de la question née dans ce retour, ``None`` sans ; ``prix_apres`` : un prix que le code dit après la phrase du modèle ;
+    * ``question`` : le type de la question née dans ce retour, ``None`` sans (C6 n° 11 : plus aucun prix n'est dit par le code après la phrase du modèle, ce sont des faits) ;
     * ``faits_au_modele`` : ce que le modèle doit dire (fait bloquant, faits à dire) ; ``manque`` : la valeur fermée de ce qui manque quand aucune question n'attend ;
     * ``rien_change`` : la fiche n'a rien changé ; ``boucle`` : la même chose redite sans issue (la sortie), calculée UNE fois par le constat de la sortie de fiche (``constater``) et relue
       telle quelle sur l'exemplaire rangé ; la table ne la lit pas ;
     * ``consignes`` : ce que le retour dit au modèle, chacune avec son rang (``consignes.py``) ; ``assembler`` les écrit toutes dans ``a_faire`` par ``une_consigne``.
 
     Les ``poser_*`` du métier rendent chacun UN élément de ``Du`` ; ``assembler`` les range dans le constat du retour (``CLE_DU``) et écrit les drapeaux que le modèle lit :
-    aucun ``poser_*`` n'écrit plus ``prix_dit_par_le_code_apres_ta_phrase`` ni ``faits_a_dire_apres_ta_phrase``. Le code ne dit plus rien AVANT la phrase du modèle : un refus au chiffre ou au lieu
+    aucun ``poser_*`` n'écrit plus ``faits_a_dire_apres_ta_phrase``. Le code ne dit plus rien AVANT la phrase du modèle : un refus au chiffre ou au lieu
     (hors zone, minimum, règle d'une ligne ou d'un article) est un fait du retour (``CLES_DES_FAITS_DU_REFUS``), que le modèle dit."""
 
     faits_qui_engagent: tuple[str, ...] = ()
     question: str | None = None
-    prix_apres: bool = False
     faits_au_modele: tuple[str, ...] = ()
     manque: str | None = None
     rien_change: bool = False
@@ -76,14 +75,14 @@ def fusionner(*elements: "Du | None") -> "Du":
             continue
         sortie = Du(
             faits_qui_engagent=_union(sortie.faits_qui_engagent, e.faits_qui_engagent),
-            question=sortie.question or e.question, prix_apres=sortie.prix_apres or e.prix_apres, faits_au_modele=_union(sortie.faits_au_modele, e.faits_au_modele),
+            question=sortie.question or e.question, faits_au_modele=_union(sortie.faits_au_modele, e.faits_au_modele),
             manque=sortie.manque or e.manque, rien_change=sortie.rien_change or e.rien_change, boucle=sortie.boucle or e.boucle,
             consignes=_union(sortie.consignes, e.consignes))
     return sortie
 
 
 FAITS_A_DIRE_PAR_LE_MODELE = "faits_a_dire"  # un élément de ``faits_au_modele`` : des faits que le modèle doit dire (l'allergie)
-DRAPEAUX_DU_RETOUR = (("prix_dit_par_le_code_apres_ta_phrase", lambda du: du.prix_apres), (CLE_FAITS_A_DIRE, lambda du: FAITS_A_DIRE_PAR_LE_MODELE in du.faits_au_modele))
+DRAPEAUX_DU_RETOUR = ((CLE_FAITS_A_DIRE, lambda du: FAITS_A_DIRE_PAR_LE_MODELE in du.faits_au_modele),)
 
 
 def assembler(retour: dict[str, Any], *elements: "Du | None") -> None:
@@ -124,7 +123,7 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
     q = retour.get("question") if isinstance(retour.get("question"), dict) else None
     return Du(
         faits_qui_engagent=engagent,
-        question=str(q.get("type")) if q and q.get("type") else None, prix_apres=bool(retour.get("prix_dit_par_le_code_apres_ta_phrase")),
+        question=str(q.get("type")) if q and q.get("type") else None,
         faits_au_modele=tuple(x for x in ("fait_bloquant" if bloquant else None, FAITS_A_DIRE_PAR_LE_MODELE if retour.get(CLE_FAITS_A_DIRE) else None) if x),
         manque=str(deja.get("manque") or "") or None if isinstance(deja, dict) else None, rien_change=bool(retour.get(RIEN_CHANGE)),
         consignes=consignes)
@@ -132,7 +131,8 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
 
 # Les faits que le retour donne au modèle pour dire un refus ou une règle avec ses chiffres et ses lieux (``enveloppe`` et les ``poser_*`` de la porte) : le refus du module, le minimum de la
 # livraison, la règle d'une ligne limitée par un prix, les règles d'un article ajouté.
-CLES_DES_FAITS_DU_REFUS = ("fait_bloquant", "refus_de_la_fiche", "minimum_de_la_commande", "regle_de_la_ligne", "regles_a_dire", "heure_a_dire", "horaires_libres", "annulation_a_confirmer")
+CLES_DES_FAITS_DU_REFUS = ("fait_bloquant", "refus_de_la_fiche", "minimum_de_la_commande", "regle_de_la_ligne", "regles_a_dire", "heure_a_dire", "horaires_libres", "annulation_a_confirmer",
+                           "remises_a_dire", "proposition_a_poser", "prix_au_poids")  # C6 n° 11 : la remise d'un code, le prix d'une proposition, le prix au poids, que le modèle dit
 
 
 def faits_du_refus(retour: Any) -> list[Any]:

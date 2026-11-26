@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
+from api.services.commande.moteur import articles as ARTICLES
 
 
-def test_la_note_de_moitie_est_une_phrase_du_code_relue_dans_la_relecture():
-    """R2 : la note « sans X sur la moitié Y » est relue à la personne (relecture) : elle vit au registre, avec son exception, pas dans une fonction identité."""
-    assert PHRASES_DITES.note_de_moitie(ingredient="oignons", moitie="Regina") == "sans oignons sur la moitié Regina"
-    assert PHRASES_DITES.PHRASES["note_de_moitie"].exception == PHRASES_DITES.EXCEPTION_RELECTURE
+def test_la_note_de_moitie_est_une_note_de_ticket_jamais_dite_par_le_code():
+    """R2, réécrit par C6 n° 4 (décision d'Evan 25/11 9 h 30) : la note « sans X sur la moitié Y » est écrite sur la ligne pour la cuisine ; la relecture la donne au modèle en fait,
+    le code ne la dit plus."""
+    assert ARTICLES.NOTE_DE_MOITIE.format(ingredient="oignons", moitie="Regina") == "sans oignons sur la moitié Regina"
 
 
 # ── R4 : la promesse de lecture.py devient une offre en question, tenue par le modèle avec laisser_un_message ──────────

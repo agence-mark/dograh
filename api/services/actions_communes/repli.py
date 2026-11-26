@@ -4,8 +4,8 @@
   lot 2 (``enveloppe.REFUS_DE_LA_FICHE``), jamais du sens. Après un refus de la fiche, une phrase du modèle sans outil n'est jamais dite. Après un
   refus du métier (hors zone, rupture, minimum…), la phrase du modèle qui dit la raison reste dite.
 - ``consigne_de_relance(p, fiche, etat, connecteur)`` (lot 7b-C5, décision d'Evan 25/11 8 h 45) : au bout des passes, sans phrase dicible, le code ne compose aucune phrase : il
-  RELANCE le modèle une fois par tour avec le fait (JSON : les refus du tour, puis la question en attente ou ce qui manque). Si la relance échoue : le fait accompli que le code a déjà
-  dit, sinon la phrase réglée de l'agent.
+  RELANCE le modèle une fois par tour avec le fait (JSON : les refus du tour, puis la question en attente ou ce qui manque). Si la relance échoue : la suite réglée déjà
+  posée (motifs de ``PHRASES_DU_CODE``), sinon la phrase réglée « pas compris » de l'agent (P3 ; reprise R1 de C6 : jamais le fait accompli).
 """
 
 from __future__ import annotations
@@ -118,6 +118,44 @@ CONSIGNE_DE_RELANCE = (
     "- Ta réponse précédente n'a pas dit ce qui est dû à la personne : elle n'a pas été dite. Réponds-lui avec tes mots d'après ces faits (JSON, ne les recopie pas) : "
     "``a_dire`` est ce que tu lui dis d'abord, ``puis`` ce que tu lui demandes ensuite, en une seule question : "
 )
+# C6 (décision d'Evan 25/11 9 h 30) : après certaines phrases du modèle (la relecture), le CODE dit la phrase du total et la question. Une phrase du modèle qui les dit déjà est relancée UNE fois, par la même relance du fait que
+# ci-dessus (``etat.relance_du_fait``) : un seul mécanisme.
+CONSIGNE_DE_CE_QUE_LE_CODE_DIT = (
+    "- Ta réponse précédente disait ce que le code dit lui-même juste après ta phrase (le total, ou la question) : elle n'a pas été dite. Redis-la sans prix et sans question : "
+    "ta phrase seule, le code ajoute le reste."
+)
+
+
+CONSIGNE_DES_CHIFFRES_EXIGES = "- Ta réponse précédente n'a pas été dite : elle ne disait pas ces valeurs. Redis-la avec ces valeurs, telles que les faits les donnent"
+# Seulement quand le code dit une suite après la phrase (le rendu, M108) : une question posée par le modèle (DC4, la proposition) garde sa question
+SANS_LA_SUITE_DU_CODE = ", sans autre prix et sans question (le code dit la suite juste après ta phrase)"
+# Reprise R2 de C6 : le code ne dit rien après la phrase et une question attend (DC4, la proposition, la relecture de la réservation) : la phrase doit la poser, à la fin
+CONSIGNE_DE_LA_QUESTION_DUE = ("- Ta réponse précédente n'a pas été dite : elle ne posait pas la question en attente. Redis-la en posant cette question à la fin (ta phrase finit par « ? »), "
+                               "avec ces valeurs, telles que les faits les donnent")
+
+
+def consigne_des_chiffres_exiges(etat: Any, question_due: bool = False) -> str | None:
+    """C6 n° 5 : la consigne qui relance le modèle quand sa phrase ne dit pas les valeurs que le code exige (``etat.exiges`` : l'heure de la commande enregistrée, le montant de DC4,
+    le prix d'une proposition, C6 n° 11) ; « sans question » seulement quand le code dit une suite après elle (``etat.suffixe``). ``question_due`` (reprise R2) : la phrase ne posait pas
+    la question qui attend, et le code ne dit rien après elle : la consigne demande de la poser, à la fin. ``None`` quand la relance du tour est déjà faite
+    (même compteur que les autres relances, C5). Les valeurs sont du JSON, jamais de la prose. L'appelant garde l'état."""
+    if etat.relance_du_fait:
+        return None
+    etat.relance_du_fait = True
+    etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True
+    tete = CONSIGNE_DE_LA_QUESTION_DUE if question_due else CONSIGNE_DES_CHIFFRES_EXIGES + (SANS_LA_SUITE_DU_CODE if etat.suffixe else "")
+    return tete + " : " + json.dumps(etat.exiges or {}, ensure_ascii=False, default=str)
+
+
+def consigne_de_ce_que_le_code_dit(etat: Any) -> str | None:
+    """La consigne qui relance le modèle quand sa phrase dit ce que le code dit après elle ; ``None`` quand la relance du tour est déjà faite. L'appelant garde l'état."""
+    if etat.relance_du_fait:
+        return None
+    etat.relance_du_fait = True
+    etat.rattrapage_a_joue = etat.rattrapage_refus_joue = True
+    return CONSIGNE_DE_CE_QUE_LE_CODE_DIT
+
+
 CLES_DE_L_OBJET_D_UNE_QUESTION = ("article_en_question", "article_propose", "heure_dite", "choix", "candidats_dits")
 
 
@@ -127,7 +165,7 @@ def _libelles(candidats: Any) -> list[str]:
 
 def question_pour_la_relance(q: dict[str, Any]) -> dict[str, Any]:
     """La question en attente donnée au modèle en faits : son numéro, son type, son objet (l'article, les candidats, les choix) ; jamais le texte de secours du module,
-    sauf pour les questions que le code dit lui-même (``QUESTIONS_DITES_PAR_LE_CODE``, jusqu'à C6)."""
+    sauf pour les questions que le code dit lui-même (``QUESTIONS_DITES_PAR_LE_CODE`` : le numéro dicté, DC10, dit après la phrase du modèle depuis C6 n° 12)."""
     sortie: dict[str, Any] = {"id": q.get("id"), "type": q.get("type")}
     for cle in CLES_DE_L_OBJET_D_UNE_QUESTION:
         if q.get(cle):

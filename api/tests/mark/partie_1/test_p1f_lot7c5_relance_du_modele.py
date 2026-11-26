@@ -377,8 +377,8 @@ def _avec_fait_accompli(fiche: dict) -> dict:
     return fiche
 
 
-async def test_s3_la_relance_en_echec_dit_le_fait_accompli_et_garde_la_relance_du_tour():
-    """Réplique retenue (chiffre), 429 sur la relance : le fait accompli que le code a dit (§ 2), pas la phrase réglée ; la relance du fait n'est pas consommée par ce repli."""
+async def test_s3_la_relance_en_echec_ne_dit_plus_le_fait_accompli_et_garde_la_relance_du_tour():
+    """Réplique retenue (chiffre), 429 sur la relance : décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6 : la phrase réglée (P3), jamais le fait accompli gardé au journal ; la relance du fait n'est pas consommée par ce repli."""
     fiche = _avec_fait_accompli(_fiche_du_homard())
 
     async def flux():
@@ -391,14 +391,25 @@ async def test_s3_la_relance_en_echec_dit_le_fait_accompli_et_garde_la_relance_d
     verifie = RepliqueVerifiee(flux(), verificateur.controler, relance_429, None, verificateur.controler_la_relance,
                                lambda *a, **k: verificateur.controler_le_silence(None, **k), lambda: REGLEE)
     dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in verifie])
-    assert dit == "Votre commande est enregistrée.", dit
+    assert dit == REGLEE, dit
     assert PAROLE.etat_du_tour(fiche).relance_du_fait is False
 
 
-def test_s4_des_cases_illisibles_disent_le_fait_accompli_s_il_y_en_a_un():
+def test_s4_des_cases_illisibles_ne_disent_plus_le_fait_accompli():
+    """décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6 : aucune requête possible, aucune suite réglée en attente : la phrase réglée, jamais le fait accompli gardé au journal."""
     moteur = SimpleNamespace(_gathered_context=_avec_fait_accompli(_fiche(fait_bloquant=HOMARD)))
     llm = SimpleNamespace(**{ATTRIBUT_PHRASE_DE_REPLI: lambda: REGLEE})
-    assert AR.phrase_si_les_cases_sont_illisibles(moteur, llm) == "Votre commande est enregistrée."
+    assert AR.phrase_si_les_cases_sont_illisibles(moteur, llm) == REGLEE
+
+
+def test_s4_des_cases_illisibles_disent_la_suite_reglee_deja_posee():
+    """Reprise R1 de C6 : la suite réglée déjà posée (ici M108) part seule, par le même chemin que la relance ratée (``controler_le_silence(sans_relance=True)``)."""
+    fiche = _avec_fait_accompli(_fiche())
+    etat = PAROLE.etat_du_tour(fiche)
+    etat.suffixe = "Puis-je faire autre chose pour vous ?"
+    PAROLE.garder(fiche, etat)
+    llm = SimpleNamespace(**{ATTRIBUT_PHRASE_DE_REPLI: lambda: REGLEE})
+    assert AR.phrase_si_les_cases_sont_illisibles(SimpleNamespace(_gathered_context=fiche), llm) == "Puis-je faire autre chose pour vous ?"
 
 
 # --------------------------------------------------------------------------- commit 7 : E2a et E2b, la table relance au lieu de compléter
@@ -511,7 +522,8 @@ def test_c10_ce_que_la_personne_vit_se_lit_sur_la_structure_de_la_question():
     assert vu(_variante("Regina")) == vu(_variante("Regina", "Autre texte ?")) and vu(_variante("Regina")) != vu(_variante("Margherita"))
 
 
-def test_c10_une_relecture_reposee_avec_un_autre_texte_reste_une_autre_question():
-    """Exception jusqu'à C6 : la relecture est dite par le code, son texte est son objet."""
-    relecture = {"id": "Q-2", "type": "relecture", "texte": "Je vous relis : une Regina. C'est bon ?"}
-    assert CONV.identite_de_la_question(relecture) != CONV.identite_de_la_question({**relecture, "texte": "Je vous relis : deux Regina. C'est bon ?"})
+def test_c10_une_relecture_reposee_avec_un_autre_jeton_reste_une_autre_question():
+    """C6 (décision d'Evan 25/11 9 h 30) : le modèle dit la relecture, son texte n'est plus au registre ; son identité est son jeton, neuf à chaque relecture posée."""
+    relecture = {"id": "Q-2", "type": "relecture", "texte": "", "jeton": "a"}
+    assert CONV.identite_de_la_question(relecture) != CONV.identite_de_la_question({**relecture, "jeton": "b"})
+    assert CONV.identite_de_la_question(relecture) == CONV.identite_de_la_question({**relecture, "texte": "Un autre texte"})

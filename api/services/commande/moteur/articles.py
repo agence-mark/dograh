@@ -13,10 +13,10 @@ from loguru import logger
 from api.db.bases_clients import recherche_liste
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
-from api.services.commande import lecture, panier as P, phrases_dites_par_le_code as PHRASES_DITES, tailles, textes_de_secours as TS
+from api.services.commande import lecture, panier as P, tailles, textes_de_secours as TS
 from api.services.commande.briques import conditions_de_vente, declinaison_nommee, taille_fixant_le_nombre, menu_a_composition_fixe, formule_a_etapes, menu_a_taille_liee, menu_pour_n_personnes, choix_entre_deux_contenus, a_volonte, inconnue, code_de_remise, choix_unique_obligatoire, option_conditionnelle, hors_jours_feries, produit_alcoolise, produit_au_poids, lot_de_vente, taille
 from api.services.commande.briques import formule as FO
-from api.services.mots_dits import chiffres_en_lettres, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres
+from api.services.mots_dits import liste_dite_et, nom_dit
 from api.services.commande.resultat import Resultat
 from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
@@ -318,6 +318,8 @@ def _moities_choisies(article: dict, ligne: dict) -> list[str]:
     return noms
 
 
+# C6 n° 4 : la note d'un retrait sur une moitié, écrite sur la ligne pour la cuisine (caisse, ticket) ; jamais dite par le code : la relecture la donne au modèle en fait (``note`` de la ligne).
+NOTE_DE_MOITIE = "sans {ingredient} sur la moitié {moitie}"
 # Ce qui relie « X » à la moitié dans « sans X sur la moitié A » : retiré pour ne garder que l'ingrédient.
 _LIAISON_AVANT_MOITIE = re.compile(
     r"(?:^|\s)(?:sur|de|pour|dans|cote|a)\s+(?:(?:la|le|l)\s*'?\s*)?(?:moitie\s+)?(?:(?:de|du|la|le|l)\s*'?\s*)?$"
@@ -354,7 +356,7 @@ def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) ->
         if moitie is None:
             faits = {"candidats": list(moities), "dit": ingredient}
             return _r("AMBIGU", faits, TS.sur_quelle_moitie(faits))
-        notes.append(PHRASES_DITES.note_de_moitie(ingredient=ingredient, moitie=moitie))
+        notes.append(NOTE_DE_MOITIE.format(ingredient=ingredient, moitie=moitie))
     for note in notes:
         if note not in (ligne.get("note") or ""):
             ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]
@@ -731,17 +733,14 @@ async def _un_article(
 
 
 def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any], lot: dict[str, Any], quantite: int = 1) -> dict[str, Any]:
-    """Lot 13 : ce que l'ajout rend d'un article au poids (QTE1 : ``grammes`` et ``arrondi_a``, et le prix dit par le code, jamais montré au modèle) ou d'un lot de vente (QTE2 : ``lots``, ``pieces``)."""
+    """Lot 13 : ce que l'ajout rend d'un article au poids (QTE1 : ``grammes``, ``arrondi_a`` et ``prix_de_la_ligne``, en centimes, que la porte donne au modèle : C6 n° 11) ou d'un lot de
+    vente (QTE2 : ``lots``, ``pieces``)."""
     faits: dict[str, Any] = {}
     if au_poids:
         faits["grammes"] = au_poids["grammes"]
         if "arrondi_a" in au_poids:
             faits["arrondi_a"] = au_poids["arrondi_a"]
-        # Pierre 12 : plusieurs portions : « deux fois trois cents grammes de houmous : dix euros quatre-vingts » (le total de la ligne, jamais le prix d'une portion)
-        faits["prix_a_dire"] = PHRASES_DITES.prix_au_poids(
-            arrondi="arrondi_a" in au_poids, fois=nombre_en_lettres(quantite) if quantite > 1 else None, grammes=chiffres_en_lettres(str(au_poids["grammes"])),
-            nom=article["nom"].lower(), prix=montant_en_lettres(au_poids["prix"] * quantite),
-        )
+        faits["prix_de_la_ligne"] = au_poids["prix"] * quantite  # Pierre 12 : plusieurs portions : le total de la ligne, jamais le prix d'une portion
     if lot:
         faits.update(lots=lot["lots"], pieces=lot["pieces"])
     return faits

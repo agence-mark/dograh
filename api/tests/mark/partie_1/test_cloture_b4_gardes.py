@@ -132,7 +132,8 @@ async def test_dc10_le_numero_dicte_est_relu_et_attend_le_oui(essai_de):
     e = await essai_de()
     await _jusqu_au_numero(e)
     q = CONV.question_de(e.p) or {}
-    dit = " ".join((e.fiche_de_l_appel.get("textes_du_code_de_la_fiche") or {}).values())
+    # C6 n° 12 (décision d'Evan 25/11 9 h 30, ordre de « C6 révisée ») : la question réglée suit la phrase du modèle (``suffixe``)
+    dit = str((e.fiche_de_l_appel.get("textes_du_code_de_la_fiche") or {}).get("suffixe") or "")
     assert q.get("type") == RQ.TYPE_DU_NUMERO_DICTE and not e.p.get("enregistree") and "quatre-vingt-dix-neuf" in dit and dit.count("Je note") == 1, (q, dit)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("enregistree"), e.retours[-1]

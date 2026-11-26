@@ -81,3 +81,32 @@ async def jusqu_a_l_enregistrement_de_la_proposition(e) -> None:
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     await e.tour("Léa", prenom="Léa")
     assert e.p.get("enregistree"), e.retours[-1]
+
+
+async def jusqu_au_numero(e, appelant: bool = True, configurations: dict | None = None):
+    """La relecture acceptée, payée par carte : la commande attend le numéro. ``appelant`` faux : aucun numéro ne s'affiche ; ``configurations`` : les réglages de l'agent (DC10 éteint…)."""
+    if not appelant:
+        e.ctx.appel = {}
+    if configurations:
+        e.ctx.configurations = configurations
+    await a_emporter(e)
+    await premier_article(e)
+    await refuser_la_proposition(e)
+    q = await jusqu_au_recapitulatif(e)
+    await e.tour("oui c'est bon, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    return e
+
+
+async def trois_margherita_jusqu_a_la_relecture(essai_de):
+    """Un appel neuf (« casa-italia ») : trois margherita à emporter, puis « c'est tout » jusqu'à la relecture posée ; ``voix`` éteinte (ce qui part à la voix est jugé par la parole).
+    Rend (l'essai, le dernier retour)."""
+    e = await essai_de("casa-italia")
+    e.voix = False
+    r = await e.dit("trois margherita à emporter").fiche(ajouter=[{"article": "margherita", "quantite": 3, "variante": "Normale"}], mode_de_retrait="emporter")
+    for _ in range(3):
+        q = CONV.question_de(e.p) or {}
+        if q.get("type") == "relecture":
+            break
+        r = await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture", (CONV.question_de(e.p), r["resultats"])
+    return e, r

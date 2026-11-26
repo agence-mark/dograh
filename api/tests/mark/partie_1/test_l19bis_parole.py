@@ -235,7 +235,8 @@ async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
     moteur = SimpleNamespace(_gathered_context=e.fiche_de_l_appel)
     phrase = AR.phrase_si_les_cases_sont_illisibles(moteur)
     # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : aucune requête n'est possible ; le code ne redit pas la question en attente, il dit la phrase réglée (le fait accompli, s'il y en a un)
-    assert phrase == phrase_de_repli_par_defaut() and q["texte"].strip() not in phrase, (phrase, q)
+    # C6 (décision d'Evan 25/11 9 h 30) : la relecture n'a plus de texte au registre (le modèle la dit) ; le code ne dit que la phrase réglée
+    assert phrase == phrase_de_repli_par_defaut() and q["type"] == "relecture" and not str(q.get("texte") or "").strip(), (phrase, q)
     monkeypatch.setattr(AR, "preparer_la_requete", None, raising=False)
 
     async def illisible(*_a, **_k):

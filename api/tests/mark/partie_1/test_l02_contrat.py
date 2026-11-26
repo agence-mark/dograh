@@ -259,8 +259,9 @@ def test_enveloppe_unique():
 
 
 def test_retour_sans_phrase_du_code():
-    EN.verifier({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True})
-    for faux in ({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": "Le Coca-Cola est à deux euros."},
+    # C6 n° 11 (décision d'Evan 25/11 9 h 30) : le drapeau du prix dit par le code n'existe plus, même à ``true`` (les prix sont des faits que le modèle dit)
+    for faux in ({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True},
+                 {"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": "Le Coca-Cola est à deux euros."},
                  {"statut": "FAIT", "faits": {"phrase_du_code": "Le minimum est de quinze euros."}}):
         with pytest.raises(EN.EnveloppeInvalide):
             EN.verifier(faux)
@@ -382,7 +383,8 @@ def test_etat_lignes_numerotees():
                         question={"id": "Q-3", "type": "relecture", "texte": "C'est bon ?", "nee_au_tour": 0})
     t = _etat(fiche)
     assert "- Lignes : ligne 1 : 2 × Margherita Normale." in t, t
-    assert "- Question en attente : Q-3 (récapitulatif) : « C'est bon ? » ; réponses : accepte, refuse, autre." in t, t
+    # C6 n° 3b (décision d'Evan 25/11 9 h 30) : la relecture est dite par le modèle ; l'état la donne par son type, sans texte
+    assert "- Question en attente : Q-3 (récapitulatif) ; réponses : accepte, refuse, autre." in t, t
 
 
 def test_etat_rien_n_est_change_sans_fiche():
