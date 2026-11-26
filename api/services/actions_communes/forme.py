@@ -108,8 +108,7 @@ def _mots_de_valeur(texte: object) -> list[str]:
     # Pierre 12 (C2) : le signe « € » est gardé AVANT la mise sous forme ASCII, qui le supprimait (« 25 € » se lisait « 25 » sans unité d'argent, refusé)
     s = unicodedata.normalize("NFD", str(texte or "").replace("€", " euros ")).encode("ascii", "ignore").decode().lower().replace("€", " € ")
     # T17 : « 24,5 € » est 24,50 € (un seul chiffre après la virgule, devant une unité d'argent : les dixièmes), pas 24,05 ; hors argent la lecture ne change pas (« 1,5 kg »)
-    s = re.sub(r"(\d)[,.](\d)(?!\d)(?=\s*(?:euros?|centimes?)\b)", r"\1 virgule \g<2>0", s)
-    s = re.sub(r"(\d)[,.](\d)", r"\1 virgule \2", s)
+    s = re.sub(r"(\d)[,.](\d)((?!\d)(?=\s*(?:euros?|centimes?)\b))?", lambda m: f"{m[1]} virgule {m[2]}" + ("" if m[3] is None else "0"), s)
     # C6 : une ponctuation entre deux nombres les sépare (« pour quatre, vingt heures » : 4 puis 20, jamais 80) ; elle reste un mot (``SEPARATEUR``), qui n'est pas un nombre
     return re.sub(r"[^a-z0-9€| ]", " ", s.translate(_PONCTUATION_EN_SEPARATEUR)).split()
 
