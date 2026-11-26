@@ -1,5 +1,5 @@
-"""[.mark] Lot 7b-C2, la zone, le mode et le créneau voulu (``restauration_commande``) : chaque refus fermé ne porte plus de texte (lot 7b-C7, A3) ; le texte d'avant se refait toujours de ses seuls faits
-(``textes_de_secours_commande``). Un fait qui distingue deux refus de même statut et même manque est une valeur simple (``plus_tard_refuse``, ``jusqu_a``, ``trop_tot``)."""
+"""[.mark] Lot 7b-C2, la zone, le mode et le créneau voulu (``restauration_commande``) : chaque refus fermé ne porte plus de texte (lot 7b-C7, A3) ; C7 B9 : le catalogue supprimé, ce que disait
+le texte d'avant est vérifié dans ses faits. Un fait qui distingue deux refus de même statut et même manque est une valeur simple (``plus_tard_refuse``, ``jusqu_a``, ``trop_tot``)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from zoneinfo import ZoneInfo
 
 from api.db.bases_clients import horloge
 from api.db.bases_clients import restauration_commande as RC
-from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark import test_base_client as BASE
 from api.tests.mark import test_restauration_classeur_commande as CLASSEUR
@@ -19,10 +18,10 @@ base_essai, base_prete, commerce = BASE.base_essai, BASE.base_prete, CLASSEUR.co
 PARIS = ZoneInfo("Europe/Paris")
 
 
-def _verifie(r, statut: str, texte: str, secours, manque: str | None = None):
-    """C7 (A3) : le refus ne porte plus de texte ; le texte d'avant se refait toujours de ses seuls faits (il sort avec le catalogue, lot B)."""
+def _verifie(r, statut: str, faits: dict, manque: str | None = None):
+    """C7 (A3) : le refus ne porte plus de texte ; B9 : ce que disait le texte d'avant est dans ses faits (ceux qu'il lisait, ou tous quand il était fixe)."""
     assert (r.statut, r.suggestion, r.manque) == (statut, "", manque), r
-    assert secours(r.faits) == texte, r
+    assert ({k: r.faits.get(k) for k in faits} if faits else r.faits) == faits, r  # {} : le refus ne porte aucun fait
 
 
 async def _creneau(commerce, voulue, moment=JEUDI_MIDI, mode="emporter"):
@@ -39,13 +38,13 @@ async def _regler(commerce, **colonnes):
 
 async def test_hors_zone(commerce):
     _, _, r = await RC._zone_de_livraison(commerce.c, commerce.a, 999999, 3000)
-    _verifie(r, "HORS_ZONE", "Nous ne livrons pas à cette adresse.", TSC.hors_zone)
+    _verifie(r, "HORS_ZONE", {'commune': None})
     assert r.faits == {}
 
 
 async def test_minimum_non_atteint(commerce):
     _, _, r = await RC._zone_de_livraison(commerce.c, commerce.a, commerce.zones["Proches"], 200)
-    _verifie(r, "MINIMUM_NON_ATTEINT", "Le minimum de commande est de quinze euros.", TSC.minimum_non_atteint)
+    _verifie(r, "MINIMUM_NON_ATTEINT", {'minimum': 1500})
     assert r.faits == {"minimum": 1500, "sous_total": 200, "minimum_dit": "quinze euros"}  # F3 (C7 B6) : le montant en lettres, la copie du modèle retire les centimes
 
 
@@ -54,12 +53,12 @@ async def test_minimum_non_atteint(commerce):
 
 async def test_mode_non_compris_au_chiffrage(commerce):
     r = await RC.chiffrer_panier(commerce.c, commerce.a, "pigeon", [])
-    _verifie(r, "ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", TSC.mode_non_compris, "mode")
+    _verifie(r, "ARGUMENT_INVALIDE", {}, "mode")
 
 
 def test_mode_non_compris_a_la_demande():
     r = RC._manques_de_la_demande({"mode": "pigeon", "lignes": [{}]}, None, JEUDI_MIDI)
-    _verifie(r, "ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", TSC.mode_non_compris, "mode")
+    _verifie(r, "ARGUMENT_INVALIDE", {}, "mode")
 
 
 # --- l'heure voulue ---------------------------------------------------------------------------------------------------------------------------------
@@ -67,21 +66,21 @@ def test_mode_non_compris_a_la_demande():
 
 async def test_pas_de_commande_pour_plus_tard(commerce):
     r = await _creneau(commerce, JEUDI_MIDI + timedelta(hours=1))
-    _verifie(r, "ARGUMENT_INVALIDE", "Je ne prends pas de commande pour plus tard.", TSC.pas_de_commande_pour_plus_tard, "heure_voulue")
+    _verifie(r, "ARGUMENT_INVALIDE", {'plus_tard_refuse': True}, "heure_voulue")
     assert r.faits == {"plus_tard_refuse": True}
 
 
 async def test_commandes_jusqu_a(commerce):
     await _regler(commerce, planifiee_permise=True, jours_a_l_avance=1)
     r = await _creneau(commerce, JEUDI_MIDI + timedelta(days=3))
-    _verifie(r, "ARGUMENT_INVALIDE", "Je prends les commandes jusqu'à vendredi treize novembre : pour quand la voulez-vous ?", TSC.commandes_jusqu_a, "heure_voulue")
+    _verifie(r, "ARGUMENT_INVALIDE", {'jusqu_a': 'vendredi treize novembre'}, "heure_voulue")
     assert r.faits == {"jusqu_a": "vendredi treize novembre"}
 
 
 async def test_trop_tot(commerce):
     await _regler(commerce, planifiee_permise=True, delai_minimal=60)
     r = await _creneau(commerce, JEUDI_MIDI + timedelta(minutes=30))
-    _verifie(r, "ARGUMENT_INVALIDE", "C'est trop tôt pour moi.", TSC.trop_tot, "heure_voulue")
+    _verifie(r, "ARGUMENT_INVALIDE", {'trop_tot': True, 'delai_minimal': 60, 'heure_demandee_dite': 'douze heures trente'}, "heure_voulue")
     assert r.faits == {"trop_tot": True, "delai_minimal": 60, "heure_demandee_dite": "douze heures trente"}
 
 
@@ -105,14 +104,14 @@ async def test_ferme_a_l_heure_voulue_dit_quand_on_rouvre(commerce):
     await _regler(commerce, planifiee_permise=True)
     r = await _creneau(commerce, JEUDI_MIDI + timedelta(hours=4))  # 16 h : entre le midi et le soir
     assert (r.statut, r.manque) == ("FERME", "heure_voulue")
-    assert r.suggestion == "" and TSC.ferme_a_cette_heure(r.faits) == "À cette heure nous sommes fermés. Nous rouvrons dix-huit heures : pour quelle heure à partir de là ?"
+    assert r.suggestion == ""
     assert r.faits["rouvre_dit"] == "dix-huit heures"
 
 
 async def test_ferme_maintenant_ne_dit_pas_quand(commerce):
     with horloge.remplacer(commerce.base, JEUDI_MIDI.replace(hour=16)):
         r = await _creneau(commerce, None, JEUDI_MIDI.replace(hour=16))
-    _verifie(r, "FERME", "Nous ne prenons pas de commande en ce moment.", TSC.ferme_a_cette_heure)
+    _verifie(r, "FERME", {'rouvre_dit': None})
     assert "rouvre_dit" not in r.faits
 
 
@@ -124,5 +123,5 @@ async def test_creneau_complet(commerce, monkeypatch):
 
     monkeypatch.setattr(RC, "creneau_complet", libre)
     r = await _creneau(commerce, JEUDI_MIDI + timedelta(minutes=15))
-    _verifie(r, "ARGUMENT_INVALIDE", "Ce créneau est complet, je peux vous proposer douze heures trente.", TSC.creneau_complet, "heure_voulue")
+    _verifie(r, "ARGUMENT_INVALIDE", {'proposition_dite': 'douze heures trente'}, "heure_voulue")
     assert r.faits["raison"] == "creneau_plein" and r.faits["proposition"] == JEUDI_MIDI + timedelta(minutes=30)

@@ -33,7 +33,7 @@ def _refus(carte: dict, ligne: dict, ruptures: set[str] | None = None):
 def _verifie(r, statut: str, faits: dict, manque: str | None = None):
     """C7 (A3) : le refus ne porte plus de texte ; B9 : ce que le texte d'avant disait est dans ses faits (les faits qu'il lisait, ou tous quand il était fixe)."""
     assert (r.statut, r.suggestion, r.manque) == (statut, "", manque), r
-    assert {k: r.faits.get(k) for k in faits} == faits, r
+    assert ({k: r.faits.get(k) for k in faits} if faits else r.faits) == faits, r  # {} : le refus ne porte aucun fait
 
 
 def _pizza(choix: list[dict], **plus) -> dict:
