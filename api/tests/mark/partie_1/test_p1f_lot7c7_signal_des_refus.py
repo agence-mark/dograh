@@ -606,9 +606,9 @@ async def test_aucun_retour_du_moteur_de_la_reservation_n_ecrit_de_texte(cas, sa
     assert r.suggestion == "", r
 
 
-@pytest.mark.parametrize("cas", [c for c in CAS_DU_MOTEUR_SANS_SALLE if c.texte is not _texte_des_jeudis], ids=lambda c: c.nom)
+@pytest.mark.parametrize("cas", CAS_DU_MOTEUR_SANS_SALLE, ids=lambda c: c.nom)
 async def test_aucun_retour_du_moteur_sans_salle_n_ecrit_de_texte(cas):
-    """Le jour ambigu à la réservation est rendu tel que la source le donne (le texte de la source, ``source_commande``, est vidé par la commande en C7)."""
+    """Aucun retour du moteur sans salle n'écrit de texte, le jour ambigu non plus : il rend ses faits (``jours_possibles``), jamais le texte de la source."""
     r = await jouer(cas.scenario)
     assert r.suggestion == "", r
 
