@@ -123,15 +123,15 @@ async def test_rc2_une_taille_a_donner_sur_une_commande_enregistree_attend_toujo
     assert C.question(o.apres).get("type") == "variante" and C.lignes_de(o.apres)[C.REGINA] == 1 and not C.rc2(o) and not C.rc8(o)
 
 
-SUITES_DU_REJEU = [("E1", ("G5+G28", "G32")), ("E7", ("G21", "G11+G27", "G32")), ("E6", ("G2", "G29+G11", "G32")), ("E8", ("G7+G3", "G32")), ("E1", ("G1", "G32", "G32"))]
+SUITES_DU_REJEU = [("E1", ("G5+G28", "G32")), ("E7", ("G21", "G11+G27", "G32")), ("E6", ("G2", "G29+G11", "G32")), ("E8", ("G7+G3", "G32")), ("E1", ("G1", "G32", "G32")), ("E7", ("G5+G23", "G32"))]
 
 
 async def test_rc2_le_juge_du_rejeu_suit_b1_b4_et_le_oui_a_la_proposition(faire_monde, monkeypatch):
-    """Les quatre suites tirées réduites (graine 20261122) : l'attente du juge pour « je répète » (G32) contredisait ses propres règles écrites. B1 : une réponse au mauvais numéro est
-    écartée SEULE, le reste passe (E7 : la regina du remplacement rejoué entre) ; B4 (M6) : deux cases sur la même ligne sont refusées, le reste passe (E6 : l'ajout entre, comme
-    ``fusion``) ; ``_oui`` : « oui » à la proposition posée ajoute l'article proposé (E1 : le « oui » rejoué vise maintenant la proposition du Coca, posée au tour d'avant) ; G3 :
-    un article inconnu ne change rien (E8, effet déclaré). Lot 8 PE-1 (Q1/Q2 c, Pierre 26/11, ``bilan-point-d-etape-7b-c.md:274`` ; ``decisions-du-coordinateur.md:112``) : la fiche qui ajoute, rejouée telle quelle au tour
-d'après, n'est plus appliquée (le modèle demande si c'est un de plus) : le juge du rejeu (``combinaisons._effet_du_rejeu``) attend alors « rien ne change » pour ces fiches ; ``test_p1f_lot8_pe_fiche_repetee.py`` tient le code."""
+    """Les suites tirées réduites (graine 20261122) : l'attente du juge pour « je répète » (G32) contredisait ses propres règles écrites. Lot 8 PE-1 (Q1/Q2 c, Pierre 26/11,
+    ``bilan-point-d-etape-7b-c.md:268-276``) : la fiche qui ajoute, rejouée mot pour mot au tour d'après, n'est pas appliquée (le modèle demande si c'est un de plus) : le juge attend « rien
+    ne change » pour ces fiches (``combinaisons._identique_au_tour_d_avant``) ; ``test_p1f_lot8_pe_fiche_repetee.py`` tient le code. Les deux dernières suites : ``("E1", ("G1", "G32", "G32"))`` : le rejeu refusé
+    n'est pas « appliqué », le suivant (« un autre ») s'applique ; ``("E7", ("G5+G23", "G32"))`` : un « oui » qui visait la proposition posée, rejoué quand elle n'est plus posée, est
+    écarté SEUL (B1), la fiche qui reste n'est plus celle d'avant et ses articles entrent."""
     from api.tests.mark.partie_1 import combinaisons as C
 
     monde = await faire_monde("casa-italia")
