@@ -41,3 +41,13 @@ def test_le_rappel_du_chiffre_ne_dit_plus_que_les_chiffres_sont_dits_par_le_code
 
     assert "dits par le code" not in BC.RAPPEL_DU_CHIFFRE
     assert "faits" in BC.RAPPEL_DU_CHIFFRE and "n'a pas été dite" in BC.RAPPEL_DU_CHIFFRE
+
+
+def test_le_motif_du_numero_affiche_garde_ne_parle_que_de_la_reservation():
+    """Risque 5 du compte rendu 7 (Q2 = A, § 9 du brief) : seule la réservation remplace sa question finale par celle du numéro qui s'affiche ; la commande pose cette question à
+    part (le modèle). Le texte montré au restaurant ne nomme plus la commande, et dit ce qui se passe quand la phrase est éteinte (le modèle pose la question)."""
+    from api.services.phrases import catalogue as CAT
+
+    m = CAT.MOTIFS[CAT.NUMERO_AFFICHE_GARDE]
+    assert "commande" not in m.quand_fr and "order" not in m.quand_en and "réservation" in m.quand_fr, m.quand_fr
+    assert "modèle" in m.eteinte_fr, m.eteinte_fr

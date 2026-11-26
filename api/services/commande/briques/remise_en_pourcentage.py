@@ -1,7 +1,7 @@
 """[.mark] Brique OFF2 : la remise en pourcentage (inventaire, famille 8 ; A21 : « -20 % sur les plats chauds », A18).
 
 Même principe qu'OFF1 : la famille ``pourcentage`` du moteur commun de remises calcule le montant au centime, sur le périmètre de la remise (catégories, produits, modes) ;
-la remise se déduit EN FIN DE CALCUL (le sous-total net que le code dit, D33). Cette entrée la nomme au registre et y délègue. Le montant que l'agent dit est celui du code.
+la remise se déduit EN FIN DE CALCUL (le sous-total net, D33). Cette entrée la nomme au registre et y délègue. Le montant que le modèle dit est celui que le code calcule (un fait, C6 n° 11).
 """
 
 from __future__ import annotations
@@ -22,5 +22,5 @@ def brique_off2_en_fin_de_calcul(pourcentage: float, unites: Sequence[moteur.Uni
 
 enregistrer(Brique(
     "OFF2", "offres", "C", (), brique_off2_en_fin_de_calcul, change_la_fiche_du_modele=False, vue_sur_carte=True, sans_la_brique=lambda carte: carte, carte_d_essai="briques/OFF2",
-    phrase="une remise en pourcentage se déduit en fin de calcul sur son périmètre ; le montant est dit par le code",
+    phrase="une remise en pourcentage se déduit en fin de calcul sur son périmètre ; le montant est un fait du code, que le modèle dit",
 ))

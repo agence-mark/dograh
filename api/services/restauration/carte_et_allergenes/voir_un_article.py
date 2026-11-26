@@ -211,13 +211,13 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         du_moment = produit_du_moment.brique_art3_texte_du_jour(fiche)
         if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
             return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)
-        if fiche.get("formule"):  # lot 11 : une formule se lit par ses étapes et ses règles, son prix dit par le code
+        if fiche.get("formule"):  # lot 11 : une formule se lit par ses étapes et ses règles ; son prix est un fait, dit par le modèle (C6 n° 11)
             return _avec(_lecture_de_la_formule(fiche), p)
         composition = list(fiche.get("ingredients") or [])
         avec = {"option": option["nom"]} if option else {}
         avec.update({"servi_avec": fiche["servi_avec"]} if fiche.get("servi_avec") else {})  # FOR13 : ce qui est servi avec, d'après la rubrique
         avec.update(_informations_de_la_fiche(fiche, info))  # lot 15 (INF3, INF4, INF5, INF7) : régimes, épice, nutrition, ce qui est écrit pour le halal
-        prix = _faits_du_prix(fiche)  # PRX5 : le prix « à partir de », dit par le code
+        prix = _faits_du_prix(fiche)  # PRX5 : le prix « à partir de », un fait que le modèle dit (C6 n° 11)
         if not composition:
             return _avec(_r("OK", {"article": nom, "renseigne": False, **avec, **prix}, NON_CONFIRMABLE), p)
         faits = {"article": nom, "renseigne": True, "ingredients": composition, **avec, **prix}

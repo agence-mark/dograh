@@ -57,7 +57,7 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
     en_attente = P.a_completer(p)
     total = None if en_attente or minimum is not None else chiffre.faits["total"]
     remises = chiffre.faits.get("remises") or []
-    offerte = bool(chiffre.faits.get("livraison_offerte")) and total is not None  # lot 14 (OFF4) : le code dit que la livraison est offerte
+    offerte = bool(chiffre.faits.get("livraison_offerte")) and total is not None  # lot 14 (OFF4) : un fait (la livraison est offerte), que le modèle dit (C6 n° 11)
     faits = {
         "lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total,
         "remises": [{"nom": r["nom"], "montant": r["montant"]} for r in remises], "total_remises": chiffre.faits.get("total_remises", 0),
