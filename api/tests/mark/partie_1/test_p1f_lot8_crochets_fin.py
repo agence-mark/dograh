@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from api.services.modules import crochets
 from api.services.pipecat import run_pipeline as RP
@@ -119,10 +120,22 @@ async def test_un_tour_en_echec_ferme_la_connexion_mais_ne_finit_pas_la_partie(m
 # ---- le clavier : la fin demandée ou par inactivité (un seul point d'entrée, ``complete_text_chat_session``)
 
 
+class _RunDetache:
+    """Le ``workflow_run`` tel que le chargent les trois appelants de la fin (``get_workflow_run_text_session``) : ``definition`` n'est pas chargée, la lire lève (objet détaché)."""
+
+    def __init__(self, terminee):
+        self.is_completed = terminee
+        self.workflow_id = 5
+        self.workflow = SimpleNamespace(organization_id=7)
+        self.mode = "textchat"
+
+    @property
+    def definition(self):
+        raise DetachedInstanceError("definition n'est pas chargée")
+
+
 def _session(run_id=777, terminee=False):
-    workflow_run = SimpleNamespace(
-        is_completed=terminee, workflow_id=5, workflow=SimpleNamespace(organization_id=7), definition=None, mode="textchat"
-    )
+    workflow_run = _RunDetache(terminee)
     return SimpleNamespace(
         workflow_run=workflow_run, workflow_run_id=run_id, revision=2, session_data={}, checkpoint={"gathered_context": {"panier": "en cours"}}, updated_at=None, created_at=None
     )
@@ -185,3 +198,11 @@ async def test_un_point_de_reprise_illisible_n_empeche_ni_la_fin_ni_le_crochet(f
     session.checkpoint = {"messages": 5, "gathered_context": 3}
     await service.complete_text_chat_session(run_id=777, text_session=session, expected_revision=2)
     assert [(f.run_id, f.fiche) for f in fins] == [(777, None)] and appel_ouvert.fermee and fin_de_session == [777]
+
+
+async def test_une_fin_ne_lit_pas_la_definition_d_un_run_detache_et_va_jusqu_au_bout(fin_de_session, fins, appel_ouvert):
+    """R1 : la définition n'est pas chargée par les appelants de la fin ; la lire ne doit pas couper la fin (transcription, mise en file) ni le crochet."""
+    await service.complete_text_chat_session(run_id=777, text_session=_session(), expected_revision=2)
+    assert service._upload_text_chat_transcript.await_count == 1 and service._enqueue_text_chat_completion.await_count == 1
+    assert [(f.run_id, f.run_configs) for f in fins] == [(777, None)] and appel_ouvert.fermee
+

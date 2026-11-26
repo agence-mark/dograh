@@ -87,7 +87,7 @@ async def _issue_au_clavier(fiche: dict, monkeypatch, classement: str | None = N
     monkeypatch.setattr(service, "_upload_text_chat_transcript", AsyncMock())
     monkeypatch.setattr(service, "_enqueue_text_chat_completion", AsyncMock())
     monkeypatch.setattr(service, "_reload_text_chat_session", AsyncMock())
-    workflow_run = SimpleNamespace(is_completed=False, workflow_id=5, workflow=SimpleNamespace(organization_id=7), definition=None)
+    workflow_run = SimpleNamespace(is_completed=False, workflow_id=5, workflow=SimpleNamespace(organization_id=7))
     session = SimpleNamespace(workflow_run=workflow_run, revision=2, session_data={}, checkpoint={"current_node_id": "n1", "gathered_context": fiche})
     await service.complete_text_chat_session(run_id=1, text_session=session, expected_revision=2)
     ecrit["classe"] = classe.await_count

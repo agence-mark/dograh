@@ -277,8 +277,8 @@ async def _jouer_la_fin_de_la_partie(run_id: int, text_session: WorkflowRunTextS
     """[.mark] Lot 8a (C4) : la fin d'une partie au clavier demandée ou par inactivité (seul point d'entrée : les trois appelants passent par ``complete_text_chat_session``). Jouée UNE fois, la fin
     écrite et seulement alors (un conflit de révision n'a pas fini la partie). ⛔ Ne lève jamais."""
     workflow_run = text_session.workflow_run
-    configurations = getattr(getattr(workflow_run, "definition", None), "workflow_configurations", None)
-    fin = crochets.FinDeLAppel(run_id, _fiche_de_la_partie(text_session), workflow_run.workflow.organization_id, configurations if isinstance(configurations, dict) else None, au_clavier=True)
+    # ``run_configs`` ``None`` (aucun module écarté), comme la fin d'un tour : les appelants chargent la session sans ``definition`` (objet détaché, la lire lève).
+    fin = crochets.FinDeLAppel(run_id, _fiche_de_la_partie(text_session), workflow_run.workflow.organization_id, None, au_clavier=True)
     await crochets.fin_de_l_appel(fin)
 
 
