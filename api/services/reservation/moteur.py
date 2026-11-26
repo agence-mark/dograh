@@ -203,8 +203,7 @@ async def reserver(source: Source, etat: dict[str, Any], appelant: Appelant, **g
         if deja in (etat.get("annulees") or []):
             return _une_seule_par_appel_annulee(deja, jour=gestes.get("jour"), heure=gestes.get("heure"), personnes=gestes.get("personnes"), prenom=gestes.get("prenom"))
         return _r("DEJA_FAIT", {"reservation": deja, "raison": "deja_une_reservation_dans_cet_appel"}, TS.deja_une_reservation_dans_cet_appel({}), "modification")
-    # le même brouillon que celui de ``_reserver``, gardé ici : l'enregistrement le retire de l'état, il porte encore le numéro dicté (risque 6 des reprises : relu dans l'état,
-    # il était vide et le numéro qui s'affiche passait pour gardé)
+    # le même brouillon que celui de ``_reserver``, gardé ici : l'enregistrement le retire de l'état, ce dernier ne dit donc plus quel numéro a été dicté ; seul celui-ci le dit
     brouillon = etat.setdefault("brouillon", {})
     r = await _reserver(source, etat, appelant, **gestes)
     if appelant.telephone_affiche and _vers_e164(brouillon.get("telephone_dit") or appelant.telephone_affiche) == appelant.telephone_affiche:
