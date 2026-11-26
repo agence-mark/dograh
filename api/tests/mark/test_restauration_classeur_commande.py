@@ -404,7 +404,7 @@ async def test_le_chemin_des_statuts_est_ferme_et_le_second_geste_ne_change_rien
     assert (await changer_statut(c, a, n2, "nouvelle", "envoyee", "inconnue")).statut == "ARGUMENT_INVALIDE"
     assert (await changer_statut(c, a, "pas-un-uuid", "nouvelle", "envoyee", "agent")).statut == "ARGUMENT_INVALIDE"
     # la table des transitions ne contient aucun retour en arrière
-    ordre = ["nouvelle", "envoyee", "recue", "acceptee", "en_preparation", "prete", "terminee"]
+    ordre = ["retenue", "nouvelle", "envoyee", "recue", "acceptee", "en_preparation", "prete", "terminee"]  # § 17 : « retenue » (écrite au oui) précède l'envoi
     for de, permis in TRANSITIONS.items():
         for vers in permis & set(ordre):
             assert de == "echec" or ordre.index(vers) > ordre.index(de), (de, vers)

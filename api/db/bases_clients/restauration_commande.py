@@ -76,6 +76,8 @@ TRANSITIONS["prete"] |= {"annulee"}
 TRANSITIONS["echec"] = frozenset({"envoyee"})  # le renvoi, par la tâche de rattrapage
 for _final in ("refusee", "annulee"):
     TRANSITIONS[_final] = frozenset()
+# § 17 (Evan, 24/11) : écrite au « oui » par l'agent, la commande attend la fin de l'appel : elle part (``nouvelle``) ou, jamais réaccordée, elle est annulée.
+TRANSITIONS["retenue"] = frozenset({"nouvelle", "annulee"})
 
 
 # T-06 : un groupe « moitiés » (deux choix exactement) ; la règle de prix est un réglage de l'ÉTABLISSEMENT (``resto_reglage.moities_prix``, lot 10), la plus chère par défaut.
