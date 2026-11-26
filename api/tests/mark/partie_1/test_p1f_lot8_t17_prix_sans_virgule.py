@@ -60,7 +60,7 @@ def test_lecteur_barriere_de_la_parole_elle_l_a_dit_en_argent():
 def test_lecteur_heure_et_nombre_de_personnes():
     assert forme.valeur_dite_par_elle(4, "nombre", ["pour quatre personnes"])
     assert forme.valeur_dite_par_elle(20, "nombre", ["vers vingt heures trente"])
-    assert forme.valeurs("vingt heures trente") == [("20", "nombre"), ("30", "nombre")] or forme.valeurs("vingt heures trente")
+    assert forme.valeurs("vingt heures trente") == [("20", "nombre"), ("30", "nombre")]
     assert porte_les_chiffres("Pour quatre personnes, vingt heures trente.", {"personnes": "4", "heure": "vingt heures trente"})
     assert not porte_les_chiffres("Pour quatre personnes, vingt heures.", {"personnes": "4", "heure": "vingt heures trente"})
 
@@ -92,6 +92,7 @@ def test_voisin_un_seul_chiffre_apres_la_virgule_devant_un_euro_est_les_dixiemes
     """« 24,5 € » est 24,50 € ; « 24,05 € » reste 24,05 ; hors argent rien ne change (« 1,5 kg »)."""
     assert forme.valeurs("24,5 €") == [("2450", "argent")]
     assert forme.valeurs("24,05 €") == [("2405", "argent")]
+    # INCHANGÉ, FAUX : « 1,5 kg » devrait se lire 1,5 ; cette lecture (105) est celle d'avant T17, au registre T22, pas une attente voulue
     assert forme.valeurs("1,5 kg") == [("105", "nombre")]
     assert porte_les_chiffres("Cela fait vingt-quatre euros cinquante.", {"total": "24,5 €"})
 
