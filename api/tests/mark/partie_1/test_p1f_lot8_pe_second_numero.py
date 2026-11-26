@@ -93,3 +93,22 @@ async def test_un_second_numero_que_la_personne_n_a_pas_dit_est_refuse_comme_le_
     r = await e.tour("Léa, au zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678", second_numero="0799999999")
     assert r.get("raison") == "valeur_pas_dans_ses_mots" and "second_numero" in (r.get("cases_refusees") or []), r
     assert not (e.p["client"].get("second_numero") or {}).get("numero"), e.p["client"]
+
+
+async def test_un_second_numero_egal_au_premier_n_est_pas_garde_deux_fois(essai_de):
+    """Non bloquant 3 de l'audit : le même numéro dit comme second n'est ni dit deux fois par le code ni envoyé en double au restaurant."""
+    e = await jusqu_au_numero(await essai_de("casa-italia"), appelant=False, configurations=DC10_ETEINT)
+    await e.tour("Léa, au zéro six douze trente-quatre cinquante-six soixante-dix-huit, et sinon le même", telephone="0612345678", prenom="Léa", second_numero="0612345678")
+    assert e.p["client"]["telephone"] == "+33612345678" and not e.p["client"].get("second_numero"), e.p["client"]
+    textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
+    assert (textes.get("suffixe") or "").count(DIT) <= 1, textes
+
+
+async def test_la_seule_case_du_second_numero_sur_une_commande_accordee_sans_question_declenche_l_enregistrement(essai_de):
+    """Non bloquant 7 de l'audit : accord donné, aucune question en attente, seule la case du second numéro est remplie : l'enregistrement part (il demande ce qui manque : le numéro) et le
+    second numéro est noté."""
+    e = await jusqu_au_numero(await essai_de("casa-italia"), appelant=False, configurations=DC10_ETEINT)
+    assert CONV.question_de(e.p) is None, CONV.question_de(e.p)
+    r = await e.tour("et sinon le zéro sept onze vingt-deux trente-trois quarante-quatre", second_numero="0711223344")
+    assert e.p["client"]["second_numero"]["numero"] == SECOND and not e.p.get("enregistree"), e.p["client"]
+    assert "telephone" in [x.get("manque") for x in r.get("resultats") or []], r
