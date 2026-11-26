@@ -47,7 +47,7 @@ def feuilles(x: Any) -> set[str]:
     return {norm(str(x))}
 
 
-FAITS_CACHES_DU_SUIVI = ("panier", "candidats")  # ce que la porte de la commande retire du suivi d'une commande (``commande/porte.py``, ``faits_du_suivi``)
+FAITS_CACHES_DU_SUIVI = ("panier",)  # ce que la porte de la commande retire du suivi d'une commande (``commande/porte.py``, ``faits_du_suivi`` ; C7 B4 : les candidats restent)
 
 
 def signal(r: Any, chemin: str, operation: str = "fiche") -> Any:

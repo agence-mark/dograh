@@ -291,8 +291,7 @@ CAS_DU_MOTEUR: list[Cas] = [
     Cas("quel_numero_de_commande", TS.quel_numero_de_commande, _retrouver(numero=None), "S", [], "reference"),
     Cas("commande_introuvable", TS.commande_introuvable, _retrouver(statut="INTROUVABLE"), "S", [], "numero"),
     Cas("commandes_plusieurs", TS.commandes_plusieurs, _retrouver(_commande(), _commande(numero_court="14", quand_dit="vingt heures")), "S",
-        [("12", "12"), ("dix-neuf heures", "dix-neuf heures"), ("14", "14"), ("vingt heures", "vingt heures")], "AMBIGU",
-        manque="F4 : le suivi retire les candidats (numéro court et heure de chaque commande)"),
+        [("12", "12"), ("dix-neuf heures", "dix-neuf heures"), ("14", "14"), ("vingt heures", "vingt heures")], "AMBIGU"),  # F4 porté (C7 B4)
     Cas("commande_pas_passee", TS.commande_pas_passee, _retrouver(_commande(PERDU)), "S", [], PERDU),
     Cas("commande_annulee", TS.commande_annulee, _retrouver(_commande("annulee")), "S", [], "annulee"),
     Cas("pour_quel_jour_alors", TS.pour_quel_jour_alors, _heure_proposee_refusee, "F", [], "heure_manquante"),
