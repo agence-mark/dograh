@@ -93,7 +93,7 @@ class VerificateurDeLaFiche:
             consigne = consigne_de_ce_que_le_code_dit(etat)
             a_dire = None
             if not consigne:
-                a_dire, etat.suffixe, etat.suffixe_lu = etat.suffixe, None, None
+                a_dire, etat.suffixe = etat.suffixe, None
                 PAROLE.noter_le_total_dit(p, etat, a_dire)  # la phrase du total est dite, seule : la relecture est entendue
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.CE_QUE_LE_CODE_DIT, texte[:80], consigne or "", a_dire=a_dire)
@@ -135,7 +135,7 @@ class VerificateurDeLaFiche:
         elif etat.suffixe:
             # Conversation du lot 12 (PRX5-A) : le prix lu que le code devait dire après la phrase n'est pas perdu quand la phrase (au chiffre) est retenue jusqu'au bout
             a_dire = " ".join(x for x in (etat.suffixe, a_dire) if x)
-            etat.suffixe = etat.suffixe_lu = None
+            etat.suffixe = None
             PAROLE.noter_le_total_dit(p, etat, a_dire)
         PAROLE.garder(fiche, etat)
         return Retenue(raison, texte[:80], "" if relance else PAROLE.RAPPELS[raison], a_dire=a_dire or None)

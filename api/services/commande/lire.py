@@ -16,7 +16,6 @@ from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.commande import moteur
 from api.services.commande.resultat import Resultat
 
-CLE_DU_PRIX_A_DIRE = "prix_a_dire"
 SUJETS_DU_PANIER = ("panier", "frais")
 SUJETS_DE_LA_CARTE = ("carte", "article", "allergenes")
 SUJETS_PRATIQUES = ("horaires", "paiement", "acces")
@@ -65,7 +64,7 @@ async def lire(source: Any, p: dict[str, Any], regles: Any, arguments: dict[str,
     J.reprendre(p, copie, avant)
     if r is None:
         return Enveloppe("INTROUVABLE", resultats=[{"operation": "lire", "sujet": sujet}], faits={"sujet": sujet}, raison="rien_a_faire").vers_json()
-    faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
+    faits = {k: v for k, v in (r.faits or {}).items() if k != "panier"}
     consigne = faits.pop("a_faire", None)  # ce que le module propose au modèle (une information que la fiche ne donne pas) : une consigne, pas un fait
     statut = "LU" if r.statut in ("OK", "RETENU", "TROUVE", "LU") else ("INTROUVABLE" if r.statut == "INTROUVABLE" else "LU")
     retour = Enveloppe(statut, resultats=[{"operation": "lire", "sujet": sujet, "statut_du_module": r.statut}], faits=faits, a_faire=consigne).vers_json()

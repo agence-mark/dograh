@@ -61,7 +61,6 @@ class EtatDuTour:
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     faits_du_refus: list[Any] = field(default_factory=list)  # les faits que les retours de ce tour donnent au modèle pour dire un refus, ou une lecture (C6 n° 11) : leurs valeurs passent la barrière des chiffres
     suffixe: str | None = None  # la phrase réglée que le code dit juste après la prochaine phrase du modèle (le total, le rendu, M108 ; C6)
-    suffixe_lu: str | None = None  # C6 n° 11 : plus posé (le prix lu est dit par le modèle) ; gardé vide pour les états du tour déjà écrits. Avant : le prix d'une LECTURE de ce tour (PRX5), dit après la phrase qui suit, que ce soit un texte, ou la phrase d'une fiche (même tour)
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
@@ -233,7 +232,7 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
-    etat.suffixe = etat.suffixe_lu = None
+    etat.suffixe = None
     noter_le_total_dit(p, etat, dit)
     return dit
 
@@ -242,7 +241,7 @@ def fait_puis_la_suite(fait: str | None, etat: EtatDuTour) -> str | None:
     """C6 n° 5 : quand la phrase du modèle manque, le fait accompli que le code a gardé au journal, puis la suite qu'il dit après la phrase (le rendu, la question M108) ; dans cet ordre,
     bout à bout, sans rien composer. La suite n'est dite qu'une fois. ``None`` : rien à dire."""
     dit = " ".join(x for x in (fait, etat.suffixe) if x) or None
-    etat.suffixe = etat.suffixe_lu = None
+    etat.suffixe = None
     etat.exiges = etat.fait_a_redire = None
     return dit
 

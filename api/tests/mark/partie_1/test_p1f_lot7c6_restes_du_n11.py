@@ -20,3 +20,15 @@ async def test_la_proposition_ne_compose_plus_de_phrase_de_prix(essai_de):
     q = CONV.question_de(e.p) or {}
     assert q.get("type") == "proposition" and q.get("prix"), q
     assert "repli" not in q and "repli" not in (e.p.get("proposition_en_plus") or {}), (q, e.p.get("proposition_en_plus"))
+
+
+def test_plus_aucune_cle_ni_etat_mort_du_prix_dit_par_le_code():
+    """Risque 6 et ``suffixe_lu`` : plus aucun résultat ne porte ``prix_a_dire`` (C6 n° 11 : le prix lu est un fait, ``prix``), le filtre qui l'écartait et l'état du tour qui gardait le
+    prix lu (jamais posé depuis le n° 11) sont retirés. Un état du tour déjà écrit avec ``suffixe_lu`` se relit sans erreur (clé ignorée)."""
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.commande import lire
+
+    assert not hasattr(lire, "CLE_DU_PRIX_A_DIRE")
+    assert "suffixe_lu" not in PAROLE.EtatDuTour.__dataclass_fields__
+    fiche = {PAROLE.CLE_DU_TOUR: 4, PAROLE.CLE_ETAT_DU_TOUR: {"tour": 4, "suffixe": "x", "suffixe_lu": None}}
+    assert PAROLE.etat_du_tour(fiche).suffixe == "x"

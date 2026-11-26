@@ -53,7 +53,7 @@ from api.services.commande import textes_de_secours as TS
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
-from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, lecture_sur_une_copie, lire
+from api.services.commande.lire import lecture_sur_une_copie, lire
 from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.phrases_du_manque import valeur_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
@@ -1629,7 +1629,7 @@ async def _outil_de_l_accueil(nom: str, source: Any, p: dict[str, Any], regles: 
     else:
         appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), appel_id)
         r = await moteur.envoyer_un_message(source, copie, regles, appelant, arguments.get("quoi"), getattr(ctx, "organization_id", None))
-    faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
+    faits = {k: v for k, v in (r.faits or {}).items() if k != "panier"}
     resultats = [{"operation": nom, "statut_du_module": r.statut}]
     if nom != "envoyer_un_sms":
         # Les trois lectures : le fait lu va au modèle tel quel (fermé, en pause, heure non calculée) ; seul un mode ou une zone qui manque se précise.
