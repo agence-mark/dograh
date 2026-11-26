@@ -177,3 +177,11 @@ async def test_la_fin_par_inactivite_passe_par_le_meme_point(fin_de_session, fin
     monkeypatch.setattr(text_chat_inactivity.db_client, "get_workflow_run_text_session", AsyncMock(return_value=_session()))
     await text_chat_inactivity.complete_inactive_text_chat_session({}, run_id=777, expected_revision=2, completed_at_iso=datetime.now(UTC).isoformat())
     assert [f.run_id for f in fins] == [777] and appel_ouvert.fermee
+
+
+async def test_un_point_de_reprise_illisible_n_empeche_ni_la_fin_ni_le_crochet(fin_de_session, fins, appel_ouvert):
+    """Une fin ne dépend jamais du point de reprise : illisible, la fiche est ``None`` et la partie finit quand même (lot 8a ne touche pas ce filet)."""
+    session = _session()
+    session.checkpoint = {"messages": 5, "gathered_context": 3}
+    await service.complete_text_chat_session(run_id=777, text_session=session, expected_revision=2)
+    assert [(f.run_id, f.fiche) for f in fins] == [(777, None)] and appel_ouvert.fermee and fin_de_session == [777]
