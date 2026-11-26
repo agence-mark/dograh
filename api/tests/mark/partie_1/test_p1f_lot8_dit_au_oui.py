@@ -12,7 +12,6 @@ import json
 
 import pytest
 
-from api.services.commande.porte import CLE_TEXTES_DU_CODE
 from api.services.restauration.caisse.prises.fiches import TEST, TEST_SANS_ACCEPTEE
 from api.tests.mark.partie_1 import combinaisons as C
 
@@ -26,4 +25,4 @@ async def test_au_oui_le_modele_recoit_enregistree_envoi_a_la_fin_de_l_appel(fai
     assert "TRANSMISE" not in retour.upper() and "envoy" not in retour.casefold(), retour
     assert '"envoi": "a_la_fin_de_l_appel"' in retour, retour
     assert partie.p["enregistree"]["envoi"] == "a_la_fin_de_l_appel"
-    assert (partie.e.fiche_de_l_appel[CLE_TEXTES_DU_CODE].get("fait_accompli") or {}).get("fait") == "enregistree"
+    assert partie.e.retours[-1]["statut"] == "ENREGISTREE"  # le fait accompli reste « enregistrée »

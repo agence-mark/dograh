@@ -339,14 +339,14 @@ async def test_un_article_qui_passe_en_rupture_avant_le_oui_refuse_sans_rien_enr
     assert r.statut == "RUPTURE" and await a.commandes() == []
 
 
-async def test_une_prise_sans_etape_acceptee_rend_transmise(commerce):
+async def test_une_prise_sans_etape_acceptee_rend_enregistree(commerce):
     from api.services.restauration.caisse.prises.fiches import TEST_SANS_ACCEPTEE
 
     a = await Appel(commerce, prise=PriseTest(capacites=TEST_SANS_ACCEPTEE), vente_en_plus=False).pret()
     a.source.capacites = TEST_SANS_ACCEPTEE
     await a.jusqu_a_la_relecture()
     r = await a.confirmer()
-    assert r.statut == "TRANSMISE"  # jamais « acceptée » inventé
+    assert r.statut == "ENREGISTREE" and r.faits["envoi"] == "a_la_fin_de_l_appel"  # § 17 l.405 : enregistrée, jamais « transmise » avant la fin de l'appel ni « acceptée » inventé
 
 
 async def test_les_manques_des_lignes_ne_passent_pas_derriere_l_adresse(commerce):

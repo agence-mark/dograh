@@ -69,6 +69,10 @@ from api.services.restauration.carte_et_allergenes.signalements import (
     signalements_de,
 )
 
+# § 17 : le fait donné au modèle au « oui » (la valeur, jamais une phrase) : la commande part en caisse à la fin de l'appel.
+ENVOI_A_LA_FIN_DE_L_APPEL = "a_la_fin_de_l_appel"
+
+
 def _signalements_des_options(groupes: list[dict]) -> None:
     """M88 : chaque option dit ce qu'on sait de ses signalements. ``signalements`` : la donnée de l'option (``None`` = inconnue, tant que la
     carte n'en porte pas) ; ``signalements_du_nom`` : ce que son nom affirme (« Pistache »), qui ne prouve qu'une présence."""
@@ -441,9 +445,13 @@ class SourceClasseur:
 
     # ---- l'enregistrement
     async def enregistrer(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
-        """Écrit la commande ``retenue`` : rien ne part pendant l'appel (§ 17), la fin de l'appel l'envoie."""
+        """Écrit la commande ``retenue`` : rien ne part pendant l'appel (§ 17), la fin de l'appel l'envoie. Le fait ``envoi`` le dit au modèle (§ 17 l.405 : jamais
+        « envoyée » avant que ce soit vrai)."""
         brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
-        return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton)
+        r = await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton)
+        if r.statut == "ENREGISTREE":
+            r.faits["envoi"] = ENVOI_A_LA_FIN_DE_L_APPEL
+        return r
 
     async def verifier_l_enregistrement(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
         """Clôture (Pierre A2) : ce que ``enregistrer`` refuserait, constaté sans rien écrire ; ``OK`` ou le même refus. Sert à changer une commande enregistrée
@@ -538,7 +546,8 @@ class SourceClasseur:
             logger.error(f"[.mark] Order {ancien}: the duplicate alert failed: {type(erreur).__name__}")
 
     def statut_de_l_enregistrement(self) -> str:
-        return "ENREGISTREE" if "acceptee" in self.capacites.etapes else "TRANSMISE"
+        """Toujours ``ENREGISTREE`` : au « oui », la commande est en base, la caisse ne l'a pas encore (§ 17) ; ce qu'elle sait dire ne change rien ici."""
+        return "ENREGISTREE"
 
     async def annonce(self, mode: str, zone_id: int | None) -> dict[str, Any] | None:
         try:
