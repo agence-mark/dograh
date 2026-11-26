@@ -11,10 +11,15 @@ ALTER TABLE resto_commande ADD CONSTRAINT resto_commande_statut_check CHECK (sta
     'retenue', 'nouvelle', 'envoyee', 'recue', 'acceptee', 'en_preparation', 'prete', 'terminee',
     'refusee', 'annulee', 'echec'));
 
--- E11 : le filet du rattrapage. Une ligne « retenue » dont l'appel est terminé en base sans que sa fin ait été jouée (serveur redémarré pendant l'appel) part
--- quand elle n'a plus bougé depuis ``filet_retenue_min`` minutes : un réglage du module de l'établissement, 2 par défaut (deux passages du rattrapage, qui tourne
--- chaque minute : la fin normale de l'appel, jouée dans la seconde, a toujours fini avant ; la cuisine l'a vite quand même).
+-- E11 : le filet du rattrapage (chaque minute). Une ligne « retenue » part quand son appel est terminé en base (sa fin n'a pas été jouée : serveur redémarré
+-- pendant l'appel) et qu'elle n'a plus bougé depuis ``filet_retenue_min`` minutes, comptées depuis sa dernière écriture (``maj_le`` : le dernier « oui »), pas
+-- depuis la fin de l'appel, que le filet ne connaît pas. Un réglage du module de l'établissement, 2 par défaut.
 ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS filet_retenue_min integer NOT NULL DEFAULT 2 CHECK (filet_retenue_min BETWEEN 1 AND 120);
+
+-- Les lectures des lignes « retenue » : le filet, par établissement et dans l'ordre (``maj_le``, ``numero``), seulement celles d'un appel ; la fin de l'appel, par
+-- ``appel_id`` (toute la table sinon, à chaque fin d'appel).
+CREATE INDEX IF NOT EXISTS resto_commande_retenue_idx ON resto_commande (site_id, maj_le, numero) WHERE statut = 'retenue' AND appel_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS resto_commande_appel_idx ON resto_commande (appel_id) WHERE appel_id IS NOT NULL;
 
 INSERT INTO schema_version (version, description) VALUES
     (54, 'Module Restauration : statut retenue (commande écrite au oui, envoyée à la fin de l''appel) et délai du filet du rattrapage')

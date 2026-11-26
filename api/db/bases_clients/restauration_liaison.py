@@ -392,14 +392,19 @@ async def marquer_l_alerte_d_annulation(connexion: asyncpg.Connection, etablisse
     )
 
 
-async def commandes_retenues_a_reprendre(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int, limite: int = 50) -> list[tuple[str, str | None]]:
-    """Lot 8b-1a (E11) : les commandes ``retenue`` de CET établissement qui n'ont plus bougé depuis ``depuis_minutes`` : ``(numero, appel_id)``. Le rattrapage n'envoie que
-    celles dont l'appel est terminé en base (la fin de l'appel n'a pas été jouée)."""
+async def commandes_retenues_a_reprendre(
+    connexion: asyncpg.Connection, etablissement_id: int, *, jusqu_a: datetime, apres: tuple[datetime, str] | None = None, limite: int = 50
+) -> list[tuple[str, str, datetime]]:
+    """Lot 8b-1a (E11) : une page des commandes ``retenue`` de CET établissement, avec un appel, qui n'ont plus bougé depuis ``jusqu_a`` : ``(numero, appel_id, maj_le)``,
+    dans l'ordre ``(maj_le, numero)``, après ``apres`` (la dernière ligne de la page d'avant). Le rattrapage lit toutes les pages et n'envoie que celles dont l'appel est
+    terminé en base : une page pleine d'appels encore en cours ne cache jamais la suivante (audit 8b-1a, R2). Sans appel : jamais relue (rien ne dit qu'il est fini)."""
+    de_maj, de_numero = apres if apres is not None else (None, None)
     lignes = await connexion.fetch(
-        "SELECT numero, appel_id FROM mark.resto_commande WHERE site_id = $1 AND statut = 'retenue' AND maj_le <= $2 ORDER BY maj_le LIMIT $3",
-        etablissement_id, await maintenant(connexion) - timedelta(minutes=depuis_minutes), limite,
+        "SELECT numero, appel_id, maj_le FROM mark.resto_commande WHERE site_id = $1 AND statut = 'retenue' AND appel_id IS NOT NULL AND maj_le <= $2 "
+        "AND ($4::timestamptz IS NULL OR (maj_le, numero) > ($4::timestamptz, $5::uuid)) ORDER BY maj_le, numero LIMIT $3",
+        etablissement_id, jusqu_a, limite, de_maj, de_numero,
     )
-    return [(str(r["numero"]), r["appel_id"]) for r in lignes]
+    return [(str(r["numero"]), r["appel_id"], r["maj_le"]) for r in lignes]
 
 
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:

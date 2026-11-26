@@ -18,6 +18,7 @@ La relève des messages gardés par la caisse (mode passif) est dans ``prises/hu
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from datetime import timedelta
 from typing import Any
 
 from loguru import logger
@@ -79,12 +80,15 @@ async def _partir_les_retenues_des_appels_termines(
     """E11 : le panier de l'appel n'est plus lisible : la ligne telle qu'écrite au dernier « oui » part (§ 17 : appel coupé après l'accord, elle part). Un appel encore
     en cours (ou illisible) n'est jamais touché ; rejouable sans effet double (``changer_statut`` ne laisse passer qu'un geste)."""
     delai = (await reglages_du_module(connexion, etablissement_id))["filet_retenue_min"]
-    parties = 0
-    for numero, appel_id in await liaison_db.commandes_retenues_a_reprendre(connexion, etablissement_id, depuis_minutes=delai):
-        if appel_id and await appel_termine(appel_id):
-            logger.warning(f"[.mark] Order {numero}: its call {appel_id} ended without its end hook, the catch-up sends it")
-            await envoyer_la_commande_retenue(connexion, organization_id, nom_base, etablissement_id, numero)
-            parties += 1
+    jusqu_a = await maintenant(connexion) - timedelta(minutes=delai)
+    parties, apres = 0, None
+    while page := await liaison_db.commandes_retenues_a_reprendre(connexion, etablissement_id, jusqu_a=jusqu_a, apres=apres):
+        for numero, appel_id, _ in page:
+            if await appel_termine(appel_id):
+                logger.warning(f"[.mark] Order {numero}: its call {appel_id} ended without its end hook, the catch-up sends it")
+                await envoyer_la_commande_retenue(connexion, organization_id, nom_base, etablissement_id, numero)
+                parties += 1
+        apres = (page[-1][2], page[-1][0])
     return parties
 
 
