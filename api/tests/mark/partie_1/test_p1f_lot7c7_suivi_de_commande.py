@@ -44,3 +44,21 @@ async def test_f4_voisin_une_seule_commande_est_lue_telle_quelle(essai_de, monke
     r = await _suivi(essai_de, monkeypatch, DEUX[:1])
     faits = r["resultats"][0]["faits"]
     assert r["statut"] == "FAIT" and faits["quand_dit"] == "midi" and "candidats" not in faits, r
+
+
+async def test_e36_le_modele_ne_recoit_jamais_une_etape_de_la_preparation(essai_de, monkeypatch):
+    """E-36 : Client « Ma commande, elle en est où ? » / avant : le modèle recevait ``statut: en_preparation`` (risque « Elle est en préparation. ») / après : il reçoit une
+    valeur fermée (``enregistree``) et l'heure : « Elle est bien enregistrée, pour douze heures vingt. »."""
+    for brut in ("nouvelle", "envoyee", "recue", "acceptee", "en_preparation", "prete", "terminee"):
+        r = await _suivi(essai_de, monkeypatch, [{**DEUX[0], "statut": brut}])
+        faits = r["resultats"][0]["faits"]
+        assert faits["etat"] == "enregistree" and brut not in str(faits) and faits["quand_dit"] == "midi", (brut, faits)
+
+
+async def test_e36_voisins_annulee_et_pas_passee_sont_dites_par_la_valeur_fermee(essai_de, monkeypatch):
+    """Voisins : une commande annulée se dit annulée ; refusée ou en échec se dit « pas passée » (l'offre du message reste), jamais le mot brut."""
+    for brut, voulu in (("annulee", "annulee"), ("refusee", "pas_passee"), ("echec", "pas_passee")):
+        r = await _suivi(essai_de, monkeypatch, [{**DEUX[0], "statut": brut}])
+        faits = r["resultats"][0]["faits"]
+        assert faits["etat"] == voulu and "statut" not in faits, (brut, faits)
+        assert bool(r.get("a_faire")) == (voulu == "pas_passee"), (brut, r)

@@ -13,7 +13,7 @@ Vraie base, carte de référence, jeudi 12 h.
 
 from __future__ import annotations
 
-from api.services.commande import moteur
+from api.services.commande import moteur, porte
 from api.services.commande.moteur import Appelant
 from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
@@ -42,7 +42,8 @@ async def test_retrouvee_par_le_numero_qui_s_affiche_ou_par_son_numero_dit_enreg
     # une étape de la préparation ne se dit jamais
     await commerce.c.execute("UPDATE mark.resto_commande SET statut = 'en_preparation' WHERE numero = $1::uuid", faits["numero"])
     dit = await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)
-    assert dit.faits["statut"] == "en_preparation" and dit.suggestion == ""  # C7 B4 : le statut lu est un fait, que le modèle recevait déjà (la phrase ne lui allait plus depuis 7b-C4)
+    # E-36 (C7) : le modèle reçoit une valeur fermée, jamais l'étape de la préparation (« Elle est bien enregistrée, pour douze heures vingt. »)
+    assert dit.faits["etat"] == "enregistree" and "en_preparation" not in str(porte.faits_vus_par_le_modele(dit)) and dit.suggestion == ""
 
 
 async def test_les_statuts_perdus_sont_dits_tels_quels(commerce):  # noqa: F811
@@ -51,7 +52,8 @@ async def test_les_statuts_perdus_sont_dits_tels_quels(commerce):  # noqa: F811
     for statut in ("annulee", "refusee", "echec"):
         await commerce.c.execute("UPDATE mark.resto_commande SET statut = $2 WHERE numero = $1::uuid", faits["numero"], statut)
         r = await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)
-        assert r.faits["statut"] == statut and r.suggestion == "", (statut, r.suggestion)  # C7 B4 (Evan 25/11 8 h 45) : le statut lu, tel quel, le modèle le dit
+        # C7 B4 (Evan 25/11 8 h 45) : le modèle le dit ; E-36 (C7) : d'après une valeur fermée (annulée, pas passée), jamais le statut brut
+        assert r.faits["etat"] == ("annulee" if statut == "annulee" else "pas_passee") and r.suggestion == "", (statut, r.faits)
 
 
 async def test_plusieurs_commandes_on_demande_laquelle(commerce):  # noqa: F811

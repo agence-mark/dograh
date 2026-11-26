@@ -17,7 +17,7 @@ from api.services.commande.moteur.socle import Reglages, _avec, _r, cle_de_la_re
 from api.services.mots_dits import montant_en_lettres
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _minimum_non_atteint
-from api.services.commande.moteur.socle import Appelant
+from api.services.commande.moteur.socle import CLE_STATUT_LU, Appelant, etat_dit
 
 
 async def voir_la_carte(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
@@ -151,7 +151,7 @@ async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages
     """Retrouve une commande du jour : par son numéro (``numero``, court ou long), sinon par le numéro qui s'affiche. Le statut est LU dans le classeur,
     jamais deviné. À l'appelant on ne dit que « enregistrée » et l'heure (E-36) : les étapes de la préparation servent le suivi, pas l'appel. Une commande
     annulée ou qui n'est pas passée est dite telle quelle ; plusieurs commandes : on demande laquelle. Aucune plainte ici : le passage de main est celui de l'équipe.
-    C7 B4 : le modèle dit tout cela d'après le statut et les faits (le statut de la commande, son heure, les candidats), aucun texte de secours."""
+    C7 B4 : le modèle dit tout cela d'après les faits (``etat`` fermé, son heure, les candidats), aucun texte de secours ; E-36 : le statut lu (``statut_lu``) reste au code."""
     if numero and numero.strip():
         trouve = await source.retrouver(numero=numero.strip())
     elif appelant.telephone_affiche:
@@ -166,5 +166,5 @@ async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages
         faits = {"candidats": [{"numero_court": c["numero_court"], "quand_dit": c.get("quand_dit")} for c in commandes]}
         return _avec(_r("AMBIGU", faits, "", "reference"), p)
     c = commandes[0]
-    faits = {"numero_court": c["numero_court"], "statut": c["statut"], "mode": c["mode"], "quand_dit": c.get("quand_dit")}
+    faits = {"numero_court": c["numero_court"], "etat": etat_dit(c["statut"]), CLE_STATUT_LU: c["statut"], "mode": c["mode"], "quand_dit": c.get("quand_dit")}
     return _avec(_r("OK", faits, ""), p)

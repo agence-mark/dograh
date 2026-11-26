@@ -50,7 +50,8 @@ async def test_une_commande_perdue_se_dit_par_une_offre_en_question(appel, monke
     # C7 B4 (Evan 25/11 8 h 45 : le modèle parle) : le retour n'a plus de texte ; ses faits refont l'offre d'avant, que la porte donne au modèle (A_FAIRE_DE_LA_COMMANDE_PERDUE)
     assert r.suggestion == ""
     # B9 : « pas passée à la préparation, je laisse un message ? » : le statut perdu dans les faits que voit le modèle (la consigne est A_FAIRE_DE_LA_COMMANDE_PERDUE)
-    assert porte.faits_vus_par_le_modele(r)["statut"] == statut, r
+    # E-36 (C7) : une valeur fermée (« pas passée »), jamais le statut brut
+    assert porte.faits_vus_par_le_modele(r)["etat"] == "pas_passee" and "statut" not in porte.faits_vus_par_le_modele(r), r
 
 
 def test_les_statuts_perdus_sont_ceux_de_la_lecture():

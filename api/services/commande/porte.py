@@ -42,7 +42,7 @@ from api.services.actions_communes.resultat import avec_le_fait_du_numero_affich
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
-from api.services.commande.moteur.socle import STATUTS_PERDUS
+from api.services.commande.moteur.socle import CLE_STATUT_LU, STATUTS_PERDUS
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
@@ -320,7 +320,7 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
 
 def _faits_gardes() -> tuple[str, ...]:
     """Ce que le modèle ne voit jamais d'un résultat."""
-    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS)
+    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS, CLE_STATUT_LU)
 
 
 def _faits_publics(r: Resultat) -> dict[str, Any]:
@@ -1476,11 +1476,11 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
                 r = await moteur.retrouver_commande(source, p, regles, appelant, numero_dit)
             # R-d : le suivi ne montre jamais le panier (un panier vide trompe) ; ce qui manque (le numéro de la commande) ou ce qui se choisit
             # (plusieurs commandes, F4 : leurs candidats, numéro court et heure dite) est rendu en faits, jamais un « FAIT » muet que le modèle comble de lui-même.
-            faits_du_suivi = {k: v for k, v in r.faits.items() if k != "panier"}
-            resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
-            if r.statut == "OK" and r.faits.get("statut"):
-                fiche[CLE_COMMANDE_RETROUVEE] = r.faits["statut"]
-                if r.faits["statut"] in STATUTS_PERDUS and not fiche.get(CLE_MESSAGE_LAISSE):  # 7b-C4 : un message déjà laissé dans l'appel n'est plus proposé (la porte le refuserait)
+            # E-36 : le statut lu reste au code (``_faits_gardes``) ; le modèle n'a que la valeur fermée ``etat``.
+            resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": _faits_publics(r)})
+            if r.statut == "OK" and r.faits.get(CLE_STATUT_LU):
+                fiche[CLE_COMMANDE_RETROUVEE] = r.faits[CLE_STATUT_LU]
+                if r.faits[CLE_STATUT_LU] in STATUTS_PERDUS and not fiche.get(CLE_MESSAGE_LAISSE):  # 7b-C4 : un message déjà laissé dans l'appel n'est plus proposé (la porte le refuserait)
                     perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
             if r.statut in ("INCOMPLETE", "AMBIGU") and r.manque:
                 a_preciser = {"manque": r.manque}  # 7b-C4 : la phrase du module n'est plus donnée au modèle ; C7 B4 : lu sur le manque, plus sur le texte

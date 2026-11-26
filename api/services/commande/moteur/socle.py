@@ -133,6 +133,16 @@ def _racines(texte: str) -> set[str]:
 # --------------------------------------------------------------------------- #
 
 STATUTS_PERDUS = frozenset({"refusee", "echec"})  # la commande n'est jamais passée à la préparation : lue par le suivi (``lecture``) et par la porte
+# E-36 : à l'appelant on ne dit que « enregistrée » et l'heure. Le modèle reçoit une valeur fermée (``etat``), jamais l'étape brute de la préparation ;
+# le statut lu reste au code seul (``statut_lu`` : message urgent, commande perdue), jamais vu par le modèle.
+CLE_STATUT_LU = "statut_lu"
+
+
+def etat_dit(statut: str) -> str:
+    """La valeur fermée d'une commande retrouvée, dite au modèle : ``annulee``, ``pas_passee`` (refusée ou en échec) ou ``enregistree`` (toute autre étape)."""
+    if statut == "annulee":
+        return "annulee"
+    return "pas_passee" if statut in STATUTS_PERDUS else "enregistree"
 
 
 # --------------------------------------------------------------------------- #
