@@ -154,10 +154,13 @@ def _formule(e: Entrees) -> Decision:
 
 
 def _dite_ou_due(e: Entrees) -> Decision:
-    """La phrase du modèle n'est dite seule que si rien n'est dû : ce qui manque, quand elle ne pose aucune question, est dû (elle est jetée, le modèle repasse)."""
+    """La phrase du modèle n'est dite seule que si rien n'est dû : ce qui manque, quand elle ne pose aucune question, est dû (elle est jetée, le modèle repasse). 7c (C5, décision
+    d'Evan 25/11 8 h 45) : la question qui attend est due comme le manque (``_du_a_reposer``) ; le modèle repasse une fois par tour, ensuite sa phrase est dite seule."""
     if e.du.manque and not pose_une_question(e.phrase):
         return Decision(SECOND_PASSAGE, motif=MANQUE)
     e.etat.jetee = None
+    if (relance := _relancer_le_fait(e, MANQUE)) is not None:
+        return relance
     return Decision(A_DIRE_SEUL, a_dire=e.phrase, motif="fait")
 
 

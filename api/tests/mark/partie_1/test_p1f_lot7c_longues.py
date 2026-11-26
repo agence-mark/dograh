@@ -78,3 +78,18 @@ async def test_rc10_la_relecture_ne_repart_pas_derriere_un_article_en_doute(fair
     assert C.question(o.apres).get("type") == "ambiguite", C.question(o.apres)
     assert not C.rc10(partie, o), C.rc10(partie, o)
 
+
+def test_rc4_la_question_qui_attend_est_due_comme_le_manque():
+    """C5 (décision d'Evan 25/11 8 h 45) : la phrase du modèle qui oublie la question en attente le fait repasser une fois par tour (``_du_a_reposer``), comme un manque.
+    Client (fermé, « je vous la prépare pour dix-huit heures ? » posée à un tour d'avant) « En fait la mega. » / avant : « C'est noté. » seul, l'heure n'est plus demandée /
+    après : le modèle repasse avec le retour et la question ; une fois la relance faite, sa phrase est dite seule."""
+    from api.services.actions_communes.parole import MANQUE, SECOND_PASSAGE
+
+    p = {"lignes": [{}], CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "heure_proposee", "nee_au_tour": 1, "texte": ""}}}
+    e = EtatDuTour(tour=3)
+    d = T.decider(T.entrees_du_retour({}, "C'est noté.", e, [], p, {}, None, None))
+    assert (d.mode, d.motif) == (SECOND_PASSAGE, MANQUE) and e.relance_du_fait
+    d = T.decider(T.entrees_du_retour({}, "C'est noté.", e, [], p, {}, None, None))
+    assert (d.mode, d.a_dire) == (A_DIRE_SEUL, "C'est noté.")
+    d = T.decider(T.entrees_du_retour({}, "C'est noté, on vous la prépare pour la réouverture ?", EtatDuTour(tour=3), [], p, {}, None, None))
+    assert d.mode == A_DIRE_SEUL
