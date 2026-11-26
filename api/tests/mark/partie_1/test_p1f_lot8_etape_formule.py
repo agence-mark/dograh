@@ -38,12 +38,26 @@ async def test_e8_puis_g7_enlever_le_menu_fait_tomber_la_question_d_etape(faire_
 
 async def test_ordre_la_taille_d_un_article_se_finit_avant_l_etape_et_l_etape_revient_ensuite(faire_monde, monkeypatch):
     """E8 puis « une regina » : la taille de la regina est posée d'abord ; la regina enlevée, la question du menu revient, sous son numéro."""
-    partie = await _partie(faire_monde, monkeypatch, "E8", "G2")
+    partie = await _partie(faire_monde, monkeypatch, "E8")
+    numero = C.question(partie.p)["id"]  # le numéro de la question du menu, avant la regina
+    await partie.geste("G2")
     assert C.question(partie.p).get("type") == "variante"
     ouvertes = [q for q in (CONV.de(partie.p).get(REG.CLE_DES_QUESTIONS) or {}).values() if isinstance(q, dict) and q.get("type") == ETAPE]
     assert ouvertes and all(REG.condition(partie.p, q) for q in ouvertes)  # l'étape attend, elle n'est pas perdue
     await partie.e.fiche(retirer_article=[2])
     assert C.question(partie.p).get("type") == ETAPE
+    assert C.question(partie.p)["id"] == numero  # sous son numéro
+
+
+async def test_ordre_l_etape_du_menu_passe_avant_une_proposition_qui_attend_aussi(faire_monde, monkeypatch):
+    """E7 : une margherita normale, la proposition attend. « Un menu entreprise » : l'étape du menu et la proposition attendent ensemble ; l'étape est posée d'abord
+    (``registre.ORDRE`` : l'étape avant la proposition), la proposition reste ouverte derrière."""
+    partie = await _partie(faire_monde, monkeypatch, "E7")
+    assert C.question(partie.p).get("type") == "proposition"
+    await partie.e.fiche(ajouter=[{"article": "menu entreprise", "quantite": 1}])
+    ouvertes = {q.get("type") for q in (CONV.de(partie.p).get(REG.CLE_DES_QUESTIONS) or {}).values() if isinstance(q, dict) and REG.condition(partie.p, q)}
+    assert {ETAPE, "proposition"} <= ouvertes, ouvertes  # les deux attendent en même temps
+    assert C.question(partie.p).get("type") == ETAPE, C.question(partie.p)
 
 
 async def test_objet_la_question_d_etape_est_attachee_a_la_ligne_du_menu(faire_monde, monkeypatch):
