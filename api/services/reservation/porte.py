@@ -281,7 +281,7 @@ async def _repondre(ctx: Any, e: dict[str, Any], question_avant: dict[str, Any] 
     return op, r
 
 
-def _refus_de_ce_qu_elle_n_a_pas_dit(e: dict[str, Any], fiche: dict[str, Any], fiche_de_l_appel: dict[str, Any], question_avant: Any) -> tuple[list[dict], dict[str, Any]]:
+def _refus_partiels(e: dict[str, Any], fiche: dict[str, Any], fiche_de_l_appel: dict[str, Any], question_avant: Any) -> tuple[list[dict], dict[str, Any]]:
     """Les refus d'une fiche lisible : les valeurs libres que la personne n'a pas dites, et la réponse à une question qui n'attend pas (son numéro n'est jamais redonné, Q1 b).
     Rend les refus et la fiche sans cette réponse ; les autres cases passent."""
     refus: list[dict] = []
@@ -326,7 +326,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
     # 3. Les valeurs libres qu'elle n'a pas dites : refusées, les autres cases passent (une case refusée n'écarte qu'elle-même).
     refus: list[dict] = [case_ecartee] if case_ecartee is not None else []
-    autres, fiche = _refus_de_ce_qu_elle_n_a_pas_dit(e, fiche, fiche_de_l_appel, question_avant)
+    autres, fiche = _refus_partiels(e, fiche, fiche_de_l_appel, question_avant)
     refus.extend(autres)
     ecartees = {c for r in refus for c in r["cases"]}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
