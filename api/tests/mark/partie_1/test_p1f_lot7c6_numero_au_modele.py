@@ -20,7 +20,7 @@ from api.services.phrases import catalogue as CAT
 from api.services.phrases.regles import CLE_REGLES
 from api.services.workflow import parole_de_la_fiche as PF
 
-from .aides_de_la_commande import a_emporter, jusqu_au_recapitulatif, premier_article, refuser_la_proposition
+from .aides_de_la_commande import jusqu_au_numero
 
 E164 = "+33612345678"
 DIT = numero_en_lettres(E164)
@@ -36,17 +36,7 @@ def _manques(r: dict) -> list:
 
 
 async def _jusqu_au_numero(essai_de, appelant: bool, configurations: dict | None = None):
-    e = await essai_de("casa-italia")
-    if not appelant:
-        e.ctx.appel = {}
-    if configurations:
-        e.ctx.configurations = configurations
-    await a_emporter(e)
-    await premier_article(e)
-    await refuser_la_proposition(e)
-    q = await jusqu_au_recapitulatif(e)
-    await e.tour("oui c'est bon, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
-    return e
+    return await jusqu_au_numero(await essai_de("casa-italia"), appelant, configurations)
 
 
 def test_le_motif_numero_retenu_est_une_phrase_du_code_reglable_jamais_eteinte():

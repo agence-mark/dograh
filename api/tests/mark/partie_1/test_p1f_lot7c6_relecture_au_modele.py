@@ -18,20 +18,9 @@ from api.services.mots_dits import montant_en_lettres
 from api.services.phrases.catalogue import MOTIFS, TOTAL_RELECTURE
 from api.services.workflow import parole_de_la_fiche as PF
 
+from .aides_de_la_commande import trois_margherita_jusqu_a_la_relecture
+
 RELUE_PAR_LE_MODELE = "Alors trois Margherita à emporter."
-
-
-async def _jusqu_a_la_relecture(essai_de):
-    e = await essai_de("casa-italia")
-    e.voix = False  # ce qui part à la voix est jugé ici, par la parole (``_dire``)
-    r = await e.dit("trois margherita à emporter").fiche(ajouter=[{"article": "margherita", "quantite": 3, "variante": "Normale"}], mode_de_retrait="emporter")
-    for _ in range(3):
-        q = CONV.question_de(e.p) or {}
-        if q.get("type") == "relecture":
-            break
-        r = await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
-    assert (CONV.question_de(e.p) or {}).get("type") == "relecture", (CONV.question_de(e.p), r["resultats"])
-    return e, r
 
 
 def _phrase_du_total(e) -> str:
@@ -51,7 +40,7 @@ def _dire(e, r, phrase: str) -> str | None:
 
 
 async def test_la_relecture_rend_des_faits_et_le_code_ne_dit_que_la_phrase_du_total(essai_de):
-    e, r = await _jusqu_a_la_relecture(essai_de)
+    e, r = await trois_margherita_jusqu_a_la_relecture(essai_de)
     textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
     assert not textes.get("avant"), textes  # le code ne relit plus la commande
     assert textes.get("suffixe") in _phrase_du_total(e), textes  # la phrase réglée du total, {total} remplacé, rien d'autre
@@ -63,7 +52,7 @@ async def test_la_relecture_rend_des_faits_et_le_code_ne_dit_que_la_phrase_du_to
 
 async def test_la_phrase_du_modele_part_suivie_de_la_phrase_du_total_puis_le_oui_vaut_accord(essai_de):
     """Client « C'est tout. » / modèle « Alors trois Margherita à emporter. » + code « Cela fait …, c'est bon pour vous ? » / « Oui. » → accord."""
-    e, r = await _jusqu_a_la_relecture(essai_de)
+    e, r = await trois_margherita_jusqu_a_la_relecture(essai_de)
     dit = _dire(e, r, RELUE_PAR_LE_MODELE) or ""
     assert dit.startswith(RELUE_PAR_LE_MODELE) and any(dit.endswith(t) for t in _phrase_du_total(e)), dit
     assert moteur.relecture_entendue(e.p)
@@ -75,7 +64,7 @@ async def test_la_phrase_du_modele_part_suivie_de_la_phrase_du_total_puis_le_oui
 
 async def test_un_oui_sans_la_phrase_du_total_dite_ne_vaut_pas_accord(essai_de):
     """Relance échouée, phrase réglée « pas compris » : la phrase du total n'est pas partie ; le « oui » ne ferme pas la relecture."""
-    e, _ = await _jusqu_a_la_relecture(essai_de)
+    e, _ = await trois_margherita_jusqu_a_la_relecture(essai_de)
     assert not moteur.relecture_entendue(e.p)
     q = CONV.question_de(e.p)
     r = await e.dit("oui").fiche(reponse={"question_id": q["id"], "sens": "accepte"})
@@ -85,7 +74,7 @@ async def test_un_oui_sans_la_phrase_du_total_dite_ne_vaut_pas_accord(essai_de):
 
 async def test_une_autre_relecture_posee_demande_que_sa_phrase_du_total_soit_dite(essai_de):
     """Le total dit d'une relecture n'entend pas la suivante (un autre jeton) : un article ajouté après, le « oui » attend la nouvelle phrase du total."""
-    e, r = await _jusqu_a_la_relecture(essai_de)
+    e, r = await trois_margherita_jusqu_a_la_relecture(essai_de)
     _dire(e, r, RELUE_PAR_LE_MODELE)
     assert moteur.relecture_entendue(e.p)
     e.p["relecture"] = {**e.p["relecture"], "jeton": "autre"}

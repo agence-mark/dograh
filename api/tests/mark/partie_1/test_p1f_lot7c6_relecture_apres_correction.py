@@ -12,7 +12,7 @@ from api.services.commande import porte as PORTE
 from api.services.commande.moteur import reglement as R
 from api.services.mots_dits import montant_en_lettres
 from api.services.phrases.catalogue import MOTIFS, TOTAL_APRES_CORRECTION
-from api.tests.mark.partie_1.test_p1f_lot7c6_relecture_au_modele import _jusqu_a_la_relecture
+from api.tests.mark.partie_1.aides_de_la_commande import trois_margherita_jusqu_a_la_relecture
 
 
 def _l(n, nom, quantite, cle="a"):
@@ -38,7 +38,7 @@ def test_sans_numero_de_ligne_la_comparaison_par_contenu_rend_les_memes_faits():
 
 
 async def test_la_relecture_apres_une_correction_donne_ce_qui_a_change_et_le_code_dit_le_nouveau_total(essai_de):
-    e, _ = await _jusqu_a_la_relecture(essai_de)
+    e, _ = await trois_margherita_jusqu_a_la_relecture(essai_de)
     q = CONV.question_de(e.p)
     await e.dit("non, mettez-en une de plus").fiche(ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}], reponse={"question_id": q["id"], "sens": "refuse"})
     r = None
