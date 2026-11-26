@@ -25,5 +25,22 @@
    "vers": "Obligatoire tant qu'une question attend : sa réponse à cette question. Quand elle répond à cette question (un choix, une taille, oui ou non), sa réponse va ici et nulle part ailleurs ; quand elle veut un article de plus, il va dans ajouter, jamais ici.",
    "ou": "case reponse de la fiche de la commande (l'intention vient du modèle, jamais des mots lus par le code)"
   }
+ ],
+ "cases_ajoutees": [
+  {
+   "n": "PE1-Q7-3",
+   "apres": "prenom",
+   "quand": [
+    "telephone",
+    "prenom",
+    "ajouter"
+   ],
+   "case": "second_numero",
+   "schema": {
+    "type": "string",
+    "description": "Un second numéro de téléphone qu'elle donne pour qu'on la joigne si elle ne répond pas au premier, en chiffres."
+   },
+   "ou": "case second_numero de la fiche de la commande (lot 8 PE-1, Q7-3 : le second numéro est gardé et transmis au restaurant)"
+  }
  ]
 }

@@ -1449,7 +1449,7 @@ async def _poser_les_informations(f: LaFiche) -> Resultat:
     fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
     if fin:
         P.vouloir_le_reglement(p, fin)
-        r = moteur.noter_le_client(p, telephone=fin.get("telephone"), prenom=fin.get("prenom")) or r
+        r = moteur.noter_le_client(p, telephone=fin.get("telephone"), prenom=fin.get("prenom"), second_numero=fin.get("second_numero")) or r
     return r or Resultat("OK", {}, "")
 
 

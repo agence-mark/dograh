@@ -36,6 +36,25 @@ def _ecarts_de_la_v7(valeur):
     return valeur
 
 
+def _avec_les_cases_ajoutees(valeur, ajouts: list[dict]):
+    """Les cases que la version 7 ajoute à une fiche (``cases_ajoutees`` d'``ecarts_v7.json``) : chacune se place après la case ``apres``, dans toute liste de cases qui porte aussi
+    les cases de ``quand`` (la fiche de la commande, jamais un autre outil qui a un « prenom »). Les rendus du banc ne sont jamais réécrits (R6)."""
+    if isinstance(valeur, list):
+        return [_avec_les_cases_ajoutees(v, ajouts) for v in valeur]
+    if not isinstance(valeur, dict):
+        return valeur
+    sortie = {k: (_avec_les_cases_ajoutees(v, ajouts) if k != "properties" else v) for k, v in valeur.items()}
+    proprietes = valeur.get("properties")
+    if not isinstance(proprietes, dict):
+        return sortie
+    proprietes = {k: _avec_les_cases_ajoutees(v, ajouts) for k, v in proprietes.items()}
+    for a in ajouts:
+        if a["case"] not in proprietes and a["apres"] in proprietes and all(c in proprietes for c in a["quand"]):
+            proprietes = {nom: s for cle, v in proprietes.items() for nom, s in ((cle, v), *(((a["case"], a["schema"]),) if cle == a["apres"] else ()))}
+    sortie["properties"] = proprietes
+    return sortie
+
+
 @lru_cache(maxsize=8)
 def rendus_du_banc(version: str = TEMOIN) -> dict:
     """``banc/rendus.json`` tel que le banc l'a produit : gelé (son empreinte est celle de la version 6, commit ``609437c5``)."""
@@ -45,7 +64,8 @@ def rendus_du_banc(version: str = TEMOIN) -> dict:
 @lru_cache(maxsize=8)
 def rendus(version: str = TEMOIN) -> dict:
     """Les rendus du banc de la version 7 : ceux du banc, plus les écarts déclarés (``ecarts_v7.json``)."""
-    return _ecarts_de_la_v7(rendus_du_banc(version))
+    ajouts = json.loads((DOSSIER / TEMOIN / "banc" / "ecarts_v7.json").read_text(encoding="utf-8")).get("cases_ajoutees") or []
+    return _avec_les_cases_ajoutees(_ecarts_de_la_v7(rendus_du_banc(version)), ajouts)
 
 
 def rendu(etape: str, etat: str, carte: str = CARTE_TEMOIN, version: str = TEMOIN) -> list[dict]:

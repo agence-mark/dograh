@@ -148,6 +148,7 @@ def test_la_periode_couvre_le_debut_et_exclut_la_fin():
 # --------------------------------------------------------------------------- L4 : l'ordre des cases lu dans le contrat
 
 def test_l_ordre_des_cases_de_fin_est_celui_du_contrat():
+    """Lot 8 PE-1 : ``second_numero`` (Q7-3 : « rendre la case », ``bilan-point-d-etape-7b-c.md:283``) suit ``telephone`` dans les listes écrites ici."""
     from api.services.commande import contrat, porte
 
     ordre = list(porte.ORDRE_DES_CASES)
@@ -155,10 +156,10 @@ def test_l_ordre_des_cases_de_fin_est_celui_du_contrat():
     assert ordre[debut:debut + len(contrat.CASES_DE_FIN)] == list(contrat.CASES_DE_FIN)
     assert ordre == [
         "vider_le_panier", "annuler_la_commande", "annuler_une_commande_enregistree", "reponse", "retirer_article", "changer_quantite", "ajouter",
-        "mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "prenom",
+        "mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "second_numero", "prenom",
         "note_generale", "code_de_remise", "reduction_annoncee", "c_est_tout"]
     assert porte.INFORMATIONS == ("mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "part",
-                                  "moyen_reste", "telephone", "prenom", "note_generale", "code_de_remise", "reduction_annoncee")
+                                  "moyen_reste", "telephone", "second_numero", "prenom", "note_generale", "code_de_remise", "reduction_annoncee")
 
 
 # --------------------------------------------------------------------------- M8 : ce qui manque est une valeur fermée

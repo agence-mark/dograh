@@ -149,4 +149,4 @@ def test_la_ligne_de_la_relecture_tire_ses_cases_du_contrat():
     from api.services.commande.etat_pour_le_modele import LIGNE_DE_LA_RELECTURE
 
     assert ", ".join(contrat.CASES_DE_FIN) in LIGNE_DE_LA_RELECTURE
-    assert LIGNE_DE_LA_RELECTURE.startswith("- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, prenom. Un oui qui donne")
+    assert LIGNE_DE_LA_RELECTURE.startswith("- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, second_numero, prenom. Un oui qui donne")  # lot 8 PE-1 (Q7-3, bilan-point-d-etape-7b-c.md:283) : la case du second numéro est rendue

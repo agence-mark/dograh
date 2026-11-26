@@ -72,7 +72,7 @@ async def test_un_numero_invalide_garde_son_refus(commerce):
     assert r.suggestion == "" and r.manque == "telephone" and r.faits["numero_illisible"] is True  # C7 B5 (Evan 25/11 8 h 45) : le modèle le redemande d'après le fait
 
 
-# test_le_second_numero_retenu_est_dit_aussi : supprimé au lot 4 (D49), la fiche du contrat n'a plus de case pour un second numéro (a-trancher.md, SA-2 « second numéro sans case dans la fiche »)
+# test_le_second_numero_retenu_est_dit_aussi : supprimé au lot 4 (D49), rendu au lot 8 (PE-1, Q7-3 : la case est revenue) : ``partie_1/test_p1f_lot8_pe_second_numero.py``
 
 
 # --- la réservation : même geste, même mécanisme -----------------------------------------------------------------
