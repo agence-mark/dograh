@@ -35,7 +35,7 @@ from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE,
 from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
-from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
+from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, cle_de_la_case, deja_executee, noter_les_cases
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
 from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche, phrase_du_code
@@ -967,7 +967,7 @@ def _cle_de_la_fiche(tour: Any, fiche: dict[str, Any]) -> str:
     return cle_d_idempotence(tour, "fiche", dite)
 
 
-CLE_DES_FICHES_AJOUTEES = "fiches_ajoutees"  # les clés des fiches dont un article a été pris (le tour d'avant en fait partie) ; un article refusé n'y entre pas
+CLE_DES_FICHES_AJOUTEES = "fiches_ajoutees"  # les clés des fiches, et des cases ``ajouter`` du tour, dont un article a été pris (le tour d'avant en fait partie) ; un article refusé n'y entre pas
 
 
 def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[str, Any]) -> dict[str, Any] | None:
@@ -1067,11 +1067,20 @@ def _le_doute_est_leve_par_un_candidat(f: LaFiche, r: Resultat) -> bool:
 
 def _ranger_la_fiche_ajoutee(f: LaFiche, articles: int) -> None:
     """Un article de cette fiche est PRIS (une ligne posée, sa taille encore à demander comprise) : la fiche compte pour « la même au tour d'après » (``_fiche_identique_au_tour_d_avant``).
-    ``articles`` : les derniers résultats de ``f.bruts`` sont ceux des articles de la case."""
+    ``articles`` : les derniers résultats de ``f.bruts`` sont ceux des articles de la case. La case elle-même (sa clé dans le tour) est rangée aussi : la fiche refaite dans ce tour,
+    sa case déjà faite, est la même au tour d'après (``_ranger_la_fiche_refaite``)."""
     if any(r.statut in ("OK", "CHOIX_OBLIGATOIRE") for r in f.bruts[-articles:]):
         ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
+        ajoutees.extend((f.cle, cle_de_la_case(f.tour, "ajouter", f.fiche["ajouter"])))
+        del ajoutees[:-8]
+
+
+def _ranger_la_fiche_refaite(f: LaFiche) -> None:
+    """Une fiche refaite dans le même tour après un refus partiel : sa case ``ajouter`` est déjà faite (``deja_faites``), ``_case_ajouter`` ne tourne pas ; si cette case a pris un article
+    dans ce tour, la fiche refaite est rangée comme la première (le modèle la redit au tour d'après : un de plus ou le même ?)."""
+    ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
+    if cle_de_la_case(f.tour, "ajouter", f.fiche["ajouter"]) in ajoutees and f.cle not in ajoutees:
         ajoutees.append(f.cle)
-        del ajoutees[:-4]
 
 
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
@@ -1174,6 +1183,8 @@ def heures_a_dire(f: LaFiche) -> list[Resultat]:
 
 async def _appliquer(f: LaFiche) -> None:
     """Les cases dans l'ordre du code, chacune par son opération nommée."""
+    if "ajouter" in f.deja_faites:
+        _ranger_la_fiche_refaite(f)
     for case in ordre_des_cases(f.fiche):
         if case in f.ecartees or "*" in f.ecartees or case in f.deja_faites:
             continue
