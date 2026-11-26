@@ -58,6 +58,9 @@ def test_une_question_qui_attend_ne_force_pas_la_question_avant_le_rendu_d_un_pa
     """Le rendu est posé par un passage d'avant du tour ; la fiche suivante change quelque chose, la question attend toujours : la phrase du modèle (sans question) part avec le rendu,
     le modèle n'est pas relancé pour poser la question avant lui."""
     fiche = _fiche_avec_la_question()
+    etat = PAROLE.etat_du_tour(fiche)
+    etat.exiges = {}  # posé par le passage de la confirmation (``_fait_accompli``)
+    PAROLE.garder(fiche, etat)
     decision = TABLE.decider(_entrees(fiche, "C'est noté.", textes={}, rien_change=False, suffixe_avant=RENDU))
     assert (decision.mode, decision.a_dire) == (PAROLE.A_DIRE_SEUL, f"C'est noté. {RENDU}"), decision
 
@@ -66,7 +69,7 @@ def test_le_modele_qui_pose_encore_sa_question_apres_la_relance_le_rendu_part_se
     """Au second passage le modèle pose encore une question : sa phrase n'est pas dite (la question avant le rendu), le rendu part seul, jamais un tour muet."""
     fiche = _fiche_avec_la_question()
     etat = PAROLE.etat_du_tour(fiche)
-    etat.suffixe = RENDU
+    etat.fiches, etat.suffixe, etat.exiges = 1, RENDU, {}  # la fiche de ce tour est jouée, le fait accompli attend sa suite : la phrase du modèle est celle de son second passage
     PAROLE.garder(fiche, etat)
     verificateur = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=fiche))
     premiere = verificateur.controler(f"C'est noté. {QUESTION_DU_MODELE}")
