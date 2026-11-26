@@ -85,7 +85,7 @@ class Source(Protocol):
         (donnée sensible), le moteur la note alors sur la commande seulement."""
 
     async def enregistrer(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
-        """L'enregistrement DÉFINITIF (recalcule tout, refuse l'incomplet, anti-doublon) ; lance l'envoi après coup."""
+        """L'enregistrement DÉFINITIF (recalcule tout, refuse l'incomplet, anti-doublon) ; rien ne part pendant l'appel : l'envoi part à sa fin (§ 17)."""
 
     async def verifier_l_enregistrement(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
         """Optionnel (Pierre A2) : ce que ``enregistrer`` refuserait, constaté sans rien écrire (``OK`` ou le refus). Sans, rien n'est vérifié d'avance."""

@@ -40,6 +40,13 @@ async def _partie(faire_monde, monkeypatch, etat: str) -> C.Partie:
     return partie
 
 
+def _codes_et_quantites(lignes: list[dict]) -> Counter:
+    codes: Counter = Counter()
+    for l in lignes:
+        codes[l["code_caisse"]] += int(l["quantite"])
+    return codes
+
+
 def _recues(partie: C.Partie) -> list[dict]:
     return list(partie.e.source.prise.recues)
 
@@ -96,7 +103,7 @@ async def test_changee_pendant_l_appel_un_seul_envoi_la_derniere_version(faire_m
     (recue,) = _recues(partie)
     base = await commande_complete(partie.e.monde.c, partie.e.monde.a, partie.p["enregistree"]["numero"])
     assert str(recue["numero"]) == str(partie.p["enregistree"]["numero"]) and recue["total"] == base["total"]
-    assert C._lignes_de_la_base({"lignes": recue["lignes"]}) == C._lignes_de_la_base(base)
+    assert _codes_et_quantites(recue["lignes"]) == _codes_et_quantites(base["lignes"])
     assert sum(l["quantite"] for l in recue["lignes"]) == sum(C.lignes_de(partie.p).values())  # la dernière version : deux margheritas
     assert Counter(l["statut"] for l in await _lignes_de_l_appel(partie))["retenue"] == 0
 

@@ -52,6 +52,7 @@ async def envoyer_la_commande_de_l_appel(organization_id: int | None, run_id: An
     try:
         nom_base = await rattachement.nom_de_la_base(organization_id)
         if not nom_base:
+            logger.error(f"[.mark] Call {run_id} ended: its organization has no attached database, its retained order is not sent")
             return
         c = await base_client.connecter(nom_base)
     except Exception:  # R1 : la fin de l'appel ne casse jamais ; la ligne reste « retenue »
