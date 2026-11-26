@@ -93,7 +93,6 @@ def commande_de_l_appel(p: dict[str, Any]) -> dict[str, Any] | None:
 # voir_produit : la composition et les signalements d'un article (lot 7, E-14, E-15)
 # --------------------------------------------------------------------------- #
 
-NON_CONFIRMABLE = INFO.NON_CONFIRMABLE
 # Des mots de la langue qui ne nomment rien du catalogue (aucun mot de métier) : ce qui reste nomme une catégorie, un article ou rien.
 _MOTS_DE_LA_QUESTION = ARTICLES | {
     "d", "vous", "avez", "auriez", "est", "ce", "que", "qu", "quoi", "qui", "il", "y", "a",

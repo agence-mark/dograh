@@ -13,14 +13,17 @@ import pytest
 
 from api.services.commande import moteur
 from api.services.commande import panier as P
+from api.services.commande.briques import formule as FO
 from api.services.commande.moteur import articles, lecture
 from api.services.commande.resultat import Resultat
 from api.services.mots_dits import chiffres_en_lettres, phrase_nette
 from api.services.commande.moteur import mode_et_adresse
 from api.services.commande.moteur.socle import Appelant
 from api.services.mots_dits import liste_dite
+from api.services.restauration.carte_et_allergenes import voir_un_article as V
 from api.services.restauration.source_commande import SourceClasseur, resolution_du_jour_et_de_l_heure
 from api.tests.mark import test_restauration_commande_panier as _PANIER
+from api.tests.mark.partie_1.aides_signal import Carte, article_de_carte
 from api.tests.mark import test_restauration_classeur_commande as _CLASSEUR
 from api.tests.mark import test_base_client as _BASE
 
@@ -194,3 +197,32 @@ async def test_la_carte_lue_n_a_plus_de_texte(vierge, monkeypatch):
     monkeypatch.setattr(vierge.source, "carte_a_lire", carte)
     r = await lecture.voir_la_carte(vierge.source, vierge.p, vierge.regles)
     assert r.suggestion == "" and r.faits["du_moment"][0]["renseigne"] is False, r
+
+
+# ── la lecture d'un article (voir_un_article.py, allergie_de_la_commande.py) : ``NON_CONFIRMABLE`` n'est plus composé, ``renseigne`` le porte ──────────
+
+
+async def test_la_recherche_par_ingredient_sans_catalogue_n_a_plus_de_texte():
+    r = await V.chercher_par_ingredient(object(), {"mode": "sur_place", "lignes": []}, moteur.Reglages(), "thon", contient=True)
+    assert r.suggestion == "" and r.faits["renseigne"] is False, r
+
+
+async def test_un_produit_du_moment_lu_n_a_plus_de_texte():
+    plat = {"nom": "Plat du jour", "du_moment": True, "texte_du_jour": "gratin de courgettes", "declinaisons": [], "groupes": [], "signalements": [], "regimes": []}
+    r = await V.voir_produit(Carte([article_de_carte("Plat du jour", [])], fiche=plat), {"mode": "sur_place", "lignes": []}, moteur.Reglages(), "Plat du jour")
+    assert r.suggestion == "" and r.faits["renseigne"] is True and r.faits["texte_du_jour"] == "gratin de courgettes", r
+
+
+async def test_un_article_sans_composition_lu_n_a_plus_de_texte():
+    reine = {"nom": "Reine", "ingredients": [], "signalements": [], "declinaisons": [], "groupes": [], "regimes": []}
+    r = await V.voir_produit(Carte([article_de_carte("Reine", [])], fiche=reine), {"mode": "sur_place", "lignes": []}, moteur.Reglages(), "Reine")
+    assert r.suggestion == "" and r.faits["renseigne"] is False, r
+
+
+async def test_une_formule_lue_n_a_plus_de_texte_et_ses_etapes_le_refont():
+    boisson = {"id": "e1", "nom": "Boisson", "role": FO.ROLE_ETAPE, "min": 1, "max": 1, "options": [{"nom": "Coca", "vendable": True}, {"nom": "Fanta", "vendable": True}]}
+    menu = {"nom": "Menu partage", "formule": True, "groupes": [boisson], "declinaisons": [], "signalements": [], "regimes": []}
+    r = await V.voir_produit(Carte([article_de_carte("Menu partage", [])], fiche=menu), {"mode": "sur_place", "lignes": []}, moteur.Reglages(), "Menu partage")
+    assert r.suggestion == "" and r.faits["renseigne"] is True, r
+    au_choix = "; ".join(f"{e['etape']} : {liste_dite(e['choix'])}" for e in r.faits["etapes"] if e["choix"])  # le texte d'avant, refait des faits
+    assert f"{r.faits['article']}. {au_choix}." == "Menu partage. Boisson : Coca ou Fanta.", r.faits["etapes"]

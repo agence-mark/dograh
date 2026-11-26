@@ -19,7 +19,7 @@ from api.services.commande.moteur.articles import _option_dite, _un_seul_candida
 from api.services.commande.resultat import Resultat
 from api.services.restauration.carte_et_allergenes import textes_de_secours as TS
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import METIER, NON_CONFIRMABLE, Reglages, _avec, _r, _racines
+from api.services.commande.moteur.socle import METIER, Reglages, _avec, _r, _racines
 from api.services.restauration.carte_et_allergenes.allergie_de_la_commande import _consigne_d_allergie, _faits_du_prix, _informations_de_la_fiche, _lecture_de_la_formule, _nomme_une_categorie, _option_signale, _regime_dit, _regime_du_catalogue, _regles_d_information, _signalement_dit, _signalements_dits
 
 # M104 (appel 2591) : « vous avez des X sans Y ? », « quelque chose sans Y ? », un régime : chercher dans le catalogue ce qui est SANS une chose.
@@ -135,7 +135,7 @@ async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reg
     INCONNU, jamais « il n'y en a pas » (E21) ; un article sans la chose n'est dit « sans » que d'après la fiche."""
     lire = getattr(source, "catalogue", None)
     if lire is None:
-        return _r("OK", {"recherche": "ingredient", "articles": [], "inconnus": 0, "renseigne": False}, NON_CONFIRMABLE)
+        return _r("OK", {"recherche": "ingredient", "articles": [], "inconnus": 0, "renseigne": False}, "")  # C7 B5 : ``renseigne`` faux, le modèle dit qu'il ne peut pas confirmer
     catalogue = await lire(p.get("mode") or source.modes[0])
     articles = catalogue.get("articles") or []
     voulu = _racines(categorie or "")
@@ -210,7 +210,7 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
                 J.noter(p, f"regle:{regle['id']}")
         du_moment = produit_du_moment.brique_art3_texte_du_jour(fiche)
         if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
-            return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)
+            return _avec(_r("OK", {"article": nom, **du_moment}, ""), p)  # C7 B5 : le texte du jour (ou ``renseigne`` faux) est un fait, le modèle le dit
         if fiche.get("formule"):  # lot 11 : une formule se lit par ses étapes et ses règles ; son prix est un fait, dit par le modèle (C6 n° 11)
             return _avec(_lecture_de_la_formule(fiche), p)
         composition = list(fiche.get("ingredients") or [])
@@ -219,9 +219,9 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         avec.update(_informations_de_la_fiche(fiche, info))  # lot 15 (INF3, INF4, INF5, INF7) : régimes, épice, nutrition, ce qui est écrit pour le halal
         prix = _faits_du_prix(fiche)  # PRX5 : le prix « à partir de », un fait que le modèle dit (C6 n° 11)
         if not composition:
-            return _avec(_r("OK", {"article": nom, "renseigne": False, **avec, **prix}, NON_CONFIRMABLE), p)
+            return _avec(_r("OK", {"article": nom, "renseigne": False, **avec, **prix}, ""), p)
         faits = {"article": nom, "renseigne": True, "ingredients": composition, **avec, **prix}
-        return _avec(_r("OK", faits, TS.composition_d_un_article(faits)), p)
+        return _avec(_r("OK", faits, ""), p)  # C7 B5 (Evan 25/11 8 h 45) : les ingrédients sont des faits, le modèle les dit
     regime = getattr(source, "regime_dit", lambda _t: None)(signale)
     if regime is not None:
         return _avec(_regime_dit(source, fiche, regime, info), p)

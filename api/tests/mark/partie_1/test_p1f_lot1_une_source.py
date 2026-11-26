@@ -255,7 +255,8 @@ def test_les_phrases_d_information_sont_celles_d_avant_et_rangees_une_fois():
     from api.services.commande.moteur import socle
     from api.services.service_client import action
 
-    assert INFO.NON_CONFIRMABLE == "Je ne peux pas vous le confirmer." == socle.NON_CONFIRMABLE == action.PHRASE_INCONNUE
+    assert INFO.NON_CONFIRMABLE == "Je ne peux pas vous le confirmer." == action.PHRASE_INCONNUE
+    assert not hasattr(socle, "NON_CONFIRMABLE")  # C7 B5 (Evan 25/11 8 h 45) : la commande ne la compose plus, ``renseigne`` faux la porte
     assert INFO.PAS_SUR == socle._PAS_SUR == "la fiche ne le précise pas, l'équipe peut vous répondre."
     assert INFO.NON_GARANTI == "je ne peux pas le garantir : l'équipe peut vous le confirmer."
     assert INFO.POUR_LES_AUTRES_NON_GARANTI == "Pour les autres, je ne peux pas le garantir."

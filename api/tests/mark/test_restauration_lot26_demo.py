@@ -256,9 +256,9 @@ async def test_les_pizzas_de_la_carte_d_essai_ont_leur_composition_et_l_inconnu_
     a = AppelFinal(commerce)
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
     r = await VOIR.voir_produit(a.source, a.p, a.regles, "calzone")
-    assert r.faits["renseigne"] is True and r.suggestion == "Dans Calzone, il y a jambon, champignons et œuf."
+    assert r.faits["renseigne"] is True and r.suggestion == "" and r.faits["ingredients"] == ["jambon", "champignons", "œuf"]  # C7 B5 (Evan 25/11 8 h 45) : le modèle les dit
     r = await VOIR.voir_produit(a.source, a.p, a.regles, "bolognese")
-    assert r.faits["renseigne"] is False and r.suggestion == moteur.NON_CONFIRMABLE
+    assert r.faits["renseigne"] is False and r.suggestion == ""  # C7 B5 : « je ne peux pas vous le confirmer » se dit d'après ``renseigne`` faux
 
 
 # M38 (SA-18) : le comptoir branche la colonne « Dite » (l'offre rendue à dire) et « Acceptée » (la commande enregistrée qui la porte).

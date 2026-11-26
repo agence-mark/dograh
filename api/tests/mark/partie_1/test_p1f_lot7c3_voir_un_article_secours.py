@@ -67,7 +67,8 @@ async def test_composition_article_inconnu_et_article_a_preciser():
     reine = {"nom": "Reine", "ingredients": ["jambon", "champignons"], "signalements": [], "declinaisons": [], "groupes": [], "regimes": []}
     carte = Carte([article("Reine", [], ["jambon", "champignons"])], fiche=reine)
     r = await V.voir_produit(carte, PANIER, REGLES, "Reine")
-    assert r.suggestion == "Dans Reine, il y a jambon et champignons." and r.suggestion == TS.composition_d_un_article(r.faits), r
+    # C7 B5 (Evan 25/11 8 h 45) : plus de texte au retour ; les faits (l'article, ses ingrédients) refont celui d'avant
+    assert r.suggestion == "" and TS.composition_d_un_article(r.faits) == "Dans Reine, il y a jambon et champignons.", r
     r = await V.voir_produit(carte, PANIER, REGLES, "")
     assert (r.statut, r.manque, r.suggestion) == ("ARGUMENT_INVALIDE", "produit", "") and TS.de_quel_article(r.faits) == "De quel article parlez-vous ?", r
     r = await V.voir_produit(Carte([article("Reine", [])], fiche=None), PANIER, REGLES, "Reine")

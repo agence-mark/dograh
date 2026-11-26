@@ -20,7 +20,6 @@ from api.services.actions_communes.consignes import ALLERGIE as ALLERGIE_RANG
 from api.services.actions_communes.du import FAITS_A_DIRE_PAR_LE_MODELE, Du
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
-from api.services.mots_dits import liste_dite
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, METIER, Reglages, _avec, _r, _racines
@@ -301,8 +300,7 @@ def _lecture_de_la_formule(fiche: dict[str, Any]) -> Resultat:
     barrière des chiffres : C6 n° 11, décision d'Evan 25/11 9 h 30) ; jamais « je ne peux pas le confirmer » pour une formule de la carte."""
     lu = FO.lecture_de_la_formule(fiche)
     faits: dict[str, Any] = {"article": fiche["nom"], "renseigne": True, **lu}
-    au_choix = "; ".join(f"{e['etape']} : {liste_dite(e['choix'])}" for e in lu["etapes"] if e["choix"])
-    return _r("OK", faits, f"{fiche['nom']}. {au_choix}." if au_choix else fiche["nom"] + ".")
+    return _r("OK", faits, "")  # C7 B5 (Evan 25/11 8 h 45) : les étapes et leurs choix sont des faits, le modèle les dit
 
 
 def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:
