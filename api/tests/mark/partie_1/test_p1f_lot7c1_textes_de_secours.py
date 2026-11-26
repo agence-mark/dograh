@@ -38,13 +38,14 @@ async def appel(commerce):
     return a
 
 
-# Lot 7b-C7a : les textes de secours vidés du retour du module (les faits suffisent, ``test_p1f_lot7c7_signal_du_secours``). Restent pleins les textes de QUESTION (voix Q),
-# que ``avec_la_question`` recolle jusqu'à C6 n° 5, et ceux des groupes que C7a n'a pas encore vidés.
+# Lot 7b-C7a : les textes de secours vidés du retour du module (les faits suffisent, ``test_p1f_lot7c7_signal_du_secours``). C7 B3 : les textes de QUESTION (voix Q) aussi,
+# le modèle pose la question (Evan 25/11 8 h 45) ; restent pleins ceux des groupes que C7 n'a pas encore vidés.
 VIDES = {TS.n_est_plus_disponible, TS.maximum_atteint, TS.ne_se_prend_pas_avec_des_choix, TS.option_hors_carte, TS.pour_quelle_etape, TS.pas_dans_la_formule, TS.melange_refuse,
          TS.valeur_parmi_les_choix, TS.quoi_retirer, TS.ne_se_retire_pas, TS.notes_non_acceptees, TS.code_inconnu, TS.code_de_remise_bon, TS.quel_rangement, TS.article_introuvable,
          TS.pas_servi_maintenant, TS.beaucoup_combien_exactement, TS.taille_en_rupture, TS.combien_exactement, TS.plus_au_catalogue, TS.commande_vide, TS.pas_de_ligne, TS.quelle_ligne,
          TS.pas_dans_la_commande, TS.que_change_t_on, TS.pas_de_commande_en_ce_moment, TS.ce_sera_pret, TS.commande_vide_a_lire, TS.pas_d_offre, TS.tout_retirer_c_est_annuler,
-         TS.offre_presque_atteinte, TS.seuil_presque_atteint}
+         TS.offre_presque_atteinte, TS.seuil_presque_atteint,
+         TS.question_d_un_choix, TS.vous_voulez_dire, TS.sur_lequel, TS.sur_quelle_moitie, TS.vous_voulez_retirer, TS.laquelle}  # C7 B3
 
 
 def le_texte_de_secours_suffit(r, texte_de_secours, attendu: str | None = None) -> None:
@@ -481,7 +482,7 @@ async def test_la_proposition_du_debut_dit_l_ouverture_en_fait(appel, monkeypatc
     assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_proposee")
     faits = porte.faits_vus_par_le_modele(r)
     assert faits["heure_proposee_dite"] == "dix-huit heures"
-    assert r.suggestion == TS.preparer_pour_l_ouverture(faits) == f"Voulez-vous que je prépare votre commande pour dix-huit heures ?"
+    assert r.suggestion == "" and TS.preparer_pour_l_ouverture(faits) == "Voulez-vous que je prépare votre commande pour dix-huit heures ?"  # C7 B3 : le modèle la pose
 
 
 async def test_sans_ouverture_connue_le_jour_et_l_heure_se_demandent(appel, monkeypatch):
@@ -538,11 +539,11 @@ async def test_la_fin_a_une_heure_fermee_propose_l_ouverture_puis_demande_le_jou
     assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_proposee")
     faits = porte.faits_vus_par_le_modele(r)
     assert faits["heure_proposee_dite"] == "dix-huit heures" and "reprenons" not in str(faits)
-    assert r.suggestion == "Je vous la prépare pour dix-huit heures ?"
+    assert r.suggestion == "" and TS.je_vous_la_prepare_pour(faits) == "Je vous la prépare pour dix-huit heures ?"  # C7 B3 : le modèle la pose (Evan 25/11 8 h 45)
     monkeypatch.setattr(appel.source, "etat", _etat_ferme_a_la_main(planifiee_permise=True))
     r = await enregistrement.finaliser(appel.source, appel.p, appel.regles, Appelant(telephone_affiche="+33612345678"))
     assert (r.statut, r.manque) == ("FERME_PLANIFIABLE", "heure_voulue")
-    assert r.suggestion.endswith("Pour quel jour et à quelle heure ?")  # la fermeture déjà dite au premier passage ne se redit pas
+    assert r.suggestion == "" and TS.quel_jour_et_quelle_heure(porte.faits_vus_par_le_modele(r)) == "Pour quel jour et à quelle heure ?"  # C7 B3 : le modèle la pose
 
 
 # ── commit 8 : le règlement (reglement.py) ──────────────────────────────────────────────────────────────────────────────

@@ -16,7 +16,6 @@ import asyncpg
 from api.db.bases_clients import zones_de_service as zs
 from api.db.bases_clients.instantane import stable
 from api.db.bases_clients.restauration_commun import Resultat
-from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.services.communes.analyse import SURE, analyser
 from api.services.communes.base import BaseCommunes, normaliser, obtenir_base
 
@@ -167,14 +166,14 @@ async def verifier_adresse(connexion: asyncpg.Connection, etablissement_id: int,
         voisine = _commune_nommee(base, texte)
         if isinstance(voisine, list):
             faits = {"candidats": [{**_commune_dite(base, c), "dans_une_zone": zs.zone_de_la_commune([_zone_pure(r) for r in lignes], c, centre) is not None} for c in voisine]}
-            return Resultat("AMBIGU", faits, TSC.commune_ambigue(faits), "commune")
+            return Resultat("AMBIGU", faits, "", "commune")
         if voisine is not None and zs.zone_de_la_commune([_zone_pure(r) for r in lignes], voisine, centre) is None:
             return _hors_zone(base, voisine, lignes, centre)
         return Resultat("INTROUVABLE", {}, "", "commune")
     if verdict.statut == zs.AMBIGU:
         candidats = [{**_commune_dite(base, c.commune), "dans_une_zone": c.zone is not None} for c in verdict.candidats]
         faits = {"candidats": candidats}
-        return Resultat("AMBIGU", faits, TSC.commune_ambigue(faits), "commune")
+        return Resultat("AMBIGU", faits, "", "commune")
     commune = _commune_dite(base, verdict.commune)
     if verdict.statut == zs.HORS_ZONE:
         return _hors_zone(base, verdict.commune, lignes, centre)

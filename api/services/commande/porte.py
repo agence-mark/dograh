@@ -278,7 +278,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         type_ = formule_a_etapes.TYPE_DE_LA_QUESTION  # FOR2 : une étape de formule à choisir ouvre une question d'étape (sa réponse dans valeurs)
     if type_ is None:
         return None
-    q = {"id": f"Q-{numero}", "type": type_, "texte": r.suggestion, "nee_au_tour": tour}
+    # C7 B3 : le modèle pose la question avec ses mots (Evan 25/11 8 h 45) ; seule une question que le code dit lui-même (M108) garde son texte
+    q = {"id": f"Q-{numero}", "type": type_, "texte": r.suggestion if type_ in QUESTIONS_DITES_PAR_LE_CODE else "", "nee_au_tour": tour}
     proposition = (r.faits or {}).get("proposition")
     if type_ == "proposition" and isinstance(proposition, dict):
         q.update({"article_propose": proposition.get("nom"), "offerte": bool(proposition.get("offre")), "offre": proposition.get("offre")})
@@ -289,6 +290,9 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q["jeton"] = (p_de_la_question.get("relecture") or {}).get("jeton")  # C6 : l'identité de la relecture, dont le texte n'est plus au registre (le modèle la dit)
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
+    groupe = (r.faits or {}).get("nom") if "groupe" in (r.faits or {}) else ((r.faits or {}).get("question") or {}).get("nom")
+    if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and groupe:
+        q["groupe"] = str(groupe)  # C7 B3 : le choix à faire (le groupe de la base, la question de la carte), son objet au registre et dans la relance, jamais son texte
     if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
         q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):

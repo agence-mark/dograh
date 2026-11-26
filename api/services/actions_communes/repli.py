@@ -156,7 +156,7 @@ def consigne_de_ce_que_le_code_dit(etat: Any) -> str | None:
     return CONSIGNE_DE_CE_QUE_LE_CODE_DIT
 
 
-CLES_DE_L_OBJET_D_UNE_QUESTION = ("article_en_question", "article_propose", "heure_dite", "choix", "candidats_dits")
+CLES_DE_L_OBJET_D_UNE_QUESTION = ("article_en_question", "article_propose", "heure_dite", "choix", "candidats_dits", "groupe")
 
 
 def _libelles(candidats: Any) -> list[str]:

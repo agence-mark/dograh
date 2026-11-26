@@ -221,14 +221,20 @@ async def test_d5_l_adresse_verifiee_sans_mode_pose_la_livraison(kebab):
 async def test_d7_la_question_de_la_taille_est_une_phrase_dite(kebab):
     a = await Appel(kebab).a_emporter()
     r = await a.ajouter("Oasis")
-    assert r.suggestion == "Quelle taille pour votre Oasis : 33 centilitres, 1,5 litre ou 2 litres ?", r
+    # C7 B3 (décision d'Evan 25/11 8 h 45) : le modèle pose la question ; ses faits refont la phrase d'avant (« pas juste une suppression »)
+    from api.services.commande import textes_de_secours as TS
+
+    assert r.suggestion == "" and TS.question_d_un_choix(r.faits) == "Quelle taille pour votre Oasis : 33 centilitres, 1,5 litre ou 2 litres ?", r
 
 
 async def test_d7_la_question_d_un_groupe_est_une_phrase_dite(kebab):
     a = await Appel(kebab).a_emporter()
     r = await a.ajouter("tacos deux viandes")
-    assert r.suggestion.startswith("Pour votre Tacos 2 viandes, qu'est-ce que vous prenez comme viandes, deux au choix : Kebab, Merguez"), r
-    assert "(" not in r.suggestion, r
+    from api.services.commande import textes_de_secours as TS
+
+    texte = TS.question_d_un_choix(r.faits)  # C7 B3 (Evan 25/11 8 h 45) : le modèle pose la question, ses faits refont la phrase d'avant
+    assert r.suggestion == "" and texte.startswith("Pour votre Tacos 2 viandes, qu'est-ce que vous prenez comme viandes, deux au choix : Kebab, Merguez"), r
+    assert "(" not in texte, r
 
 
 # --------------------------------------------------------------------------- #

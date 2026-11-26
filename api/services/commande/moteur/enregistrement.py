@@ -276,10 +276,10 @@ async def _finaliser(
                 # et de faire confirmer par le client » : l'heure de la réouverture est proposée, la personne la confirme (question ``heure_proposee``).
                 faits = {**faits_fermes, "a_planifier": True, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
                 noter_la_fermeture(p)
-                return _avec(_r("FERME_PLANIFIABLE", faits, TS.je_vous_la_prepare_pour(faits), "heure_proposee"), p)
+                return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
             faits = {**faits_fermes, "a_planifier": True}
             noter_la_fermeture(p)
-            return _avec(_r("FERME_PLANIFIABLE", faits, TS.quel_jour_et_quelle_heure(faits), "heure_voulue"), p)
+            return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_voulue"), p)
         noter_la_fermeture(p)
         return _avec(_r(etat["statut"], faits_fermes, ""), p)
     refus = await verifier_le_creneau(source, p)

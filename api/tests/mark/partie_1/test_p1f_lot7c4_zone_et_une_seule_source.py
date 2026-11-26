@@ -56,8 +56,8 @@ async def test_une_adresse_vide_ou_sans_commune_ou_ambigue(commerce):
     texte = _verifie(r, "INTROUVABLE", TSC.quelle_commune, "commune")
     assert texte == "Dans quelle commune se trouve l'adresse ?"
     r = await Z.verifier_adresse(commerce.c, commerce.a, "5 rue de la Mairie, Saint-Just")
-    _verifie(r, "AMBIGU", TSC.commune_ambigue, "commune", vide=False)
-    assert r.suggestion.startswith("Est-ce Saint-Just (") and " ou Saint-Just (" in r.suggestion and r.suggestion.endswith(") ?"), r.suggestion
+    texte = _verifie(r, "AMBIGU", TSC.commune_ambigue, "commune")  # C7 B3 : le modèle pose la question (Evan 25/11 8 h 45), les faits la refont
+    assert texte.startswith("Est-ce Saint-Just (") and " ou Saint-Just (" in texte and texte.endswith(") ?"), texte
 
 
 def _phrases(module) -> set[str]:

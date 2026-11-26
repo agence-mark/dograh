@@ -893,7 +893,8 @@ async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, 
     monkeypatch.setattr(e.source, "etat", ferme)
     await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     q = CONV.question_de(e.p) or {}
-    assert q.get("type") == "heure_proposee" and "Je vous la prépare pour" in q["texte"] and "Pour quel jour" not in q["texte"], q  # la question du registre porte l'heure de la réouverture
+    # C7 B3 (décision d'Evan 25/11 8 h 45) : le modèle pose la question avec ses mots ; la question du registre porte l'heure de la réouverture en fait, plus de texte
+    assert q.get("type") == "heure_proposee" and q["texte"] == "" and q.get("heure") and q.get("heure_dite"), q
     monkeypatch.setattr(e.source, "etat", vrai_etat)
     r = await e.dit("oui").fiche(reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("heure_voulue"), r["resultats"]

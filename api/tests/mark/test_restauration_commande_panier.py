@@ -164,7 +164,7 @@ async def test_aucun_article_perdu_la_taille_de_la_regina_reste_une_question_et_
     r = await appel.ajouter("regina", "coca")
     assert r.statut == "CHOIX_OBLIGATOIRE" and r.manque == "taille"
     assert r.faits["question"]["options"] == ["Normale", "Mega"]
-    assert "Regina" in r.suggestion
+    assert r.suggestion == "" and r.faits["article_de_la_carte"] == "Regina"  # C7 B3 (Evan 25/11 8 h 45) : le modèle pose la question d'après ses faits
     assert sorted(appel.lignes()) == [("Coca-Cola", 1), ("Regina", 1)]
     assert appel.p["lignes"][0]["attente"] is not None  # la regina attend, rien n'est perdu
 
@@ -199,7 +199,7 @@ async def test_le_choix_obligatoire_d_un_burger_est_demande_puis_pose_puis_rempl
     await appel.mode()
     r = await appel.ajouter("cheeseburger")
     assert r.statut == "CHOIX_OBLIGATOIRE" and r.faits["question"]["nom"] == "Sauce"
-    assert "Ketchup" in r.suggestion
+    assert r.suggestion == "" and "Ketchup" in r.faits["question"]["options"]  # C7 B3 (Evan 25/11 8 h 45) : le modèle pose la question d'après ses faits
     assert (await appel.repondre("ketchup")).statut == "OK"
     assert [c["nom"] for c in appel.p["lignes"][0]["choix"]] == ["Ketchup"]
     assert (await appel.modifier(ligne="1", choix="blanche")).statut == "OK"  # changement d'avis : remplacé, jamais deux sauces

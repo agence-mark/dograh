@@ -13,7 +13,7 @@ from loguru import logger
 from api.db.bases_clients import recherche_liste
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
-from api.services.commande import lecture, panier as P, tailles, textes_de_secours as TS
+from api.services.commande import lecture, panier as P, tailles
 from api.services.commande.briques import conditions_de_vente, declinaison_nommee, taille_fixant_le_nombre, menu_a_composition_fixe, formule_a_etapes, menu_a_taille_liee, menu_pour_n_personnes, choix_entre_deux_contenus, a_volonte, inconnue, code_de_remise, choix_unique_obligatoire, option_conditionnelle, hors_jours_feries, produit_alcoolise, produit_au_poids, lot_de_vente, taille
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import liste_dite_et, nom_dit
@@ -91,14 +91,10 @@ def _question(article: dict, ligne: dict) -> dict | None:
     return None
 
 
-def _phrase_de_la_question(q: dict, article_nom: str) -> str:
-    """Le texte de secours de la question d'un choix (``TS.question_d_un_choix``) pour une question et le nom de l'article de la carte."""
-    return TS.question_d_un_choix({"question": q, "article_de_la_carte": article_nom})
-
-
 def choix_obligatoire(faits: dict) -> Resultat:
-    """La question ouverte d'un choix (taille, groupe, étape) : ses faits portent ``question`` et ``article_de_la_carte`` (le nom de l'article, sans la taille de la ligne)."""
-    return _r("CHOIX_OBLIGATOIRE", faits, _phrase_de_la_question(faits["question"], faits["article_de_la_carte"]), faits["question"]["nom"])
+    """La question ouverte d'un choix (taille, groupe, étape) : ses faits portent ``question`` et ``article_de_la_carte`` (le nom de l'article, sans la taille de la ligne) ;
+    le modèle la pose avec ses mots (C7 B3), aucun texte de secours."""
+    return _r("CHOIX_OBLIGATOIRE", faits, "", faits["question"]["nom"])
 
 
 def _appliquer_les_defauts(article: dict, ligne: dict) -> None:
@@ -221,7 +217,7 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
         if trouve["statut"] == "AMBIGU":
             noms = [c["libelle"] for c in trouve["candidats"]]
             faits = {"candidats": noms, "dit": morceau, CLE_OPTION_DITE: morceau}
-            return _r("AMBIGU", faits, TS.vous_voulez_dire(faits))
+            return _r("AMBIGU", faits, "")
         if trouve["statut"] != "RETENU":
             proches = [index[c["id"]][2] for c in trouve["candidats"] if c["id"] in index]
             suppl = [o for c in trouve["candidats"] if c["id"] in index for o in [index[c["id"]][2]] if index[c["id"]][1]["role"] == "supplement"]
@@ -273,7 +269,7 @@ def retirer_sur_le_plat(article: dict, ligne: dict, texte: str) -> Resultat | No
         if len(porteurs) > 1:
             noms = [c["nom"] for c, _ in porteurs]
             faits = {"candidats": noms, "dit": morceau}
-            return _r("AMBIGU", faits, TS.sur_lequel(faits))
+            return _r("AMBIGU", faits, "")
         if porteurs:
             c, nom = porteurs[0]
             if nom not in c.setdefault("retires", []):
@@ -355,7 +351,7 @@ def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) ->
             return _r("INCOMPLETE", faits, "")
         if moitie is None:
             faits = {"candidats": list(moities), "dit": ingredient}
-            return _r("AMBIGU", faits, TS.sur_quelle_moitie(faits))
+            return _r("AMBIGU", faits, "")
         notes.append(NOTE_DE_MOITIE.format(ingredient=ingredient, moitie=moitie))
     for note in notes:
         if note not in (ligne.get("note") or ""):
@@ -390,7 +386,7 @@ def _appliquer_les_retraits(article: dict, ligne: dict, texte: str) -> Resultat 
         if trouve["statut"] == "AMBIGU":
             noms = [c["libelle"] for c in trouve["candidats"]]
             faits = {"candidats": noms, "dit": morceau}
-            return _r("AMBIGU", faits, TS.vous_voulez_retirer(faits))
+            return _r("AMBIGU", faits, "")
         if trouve["statut"] != "RETENU":
             faits = {"article": ligne["nom"], "dit": morceau, "retirables": list(retirables)}
             return _r("HORS_CARTE", faits, "")
@@ -574,12 +570,12 @@ async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: R
 
 
 def _ambigu_de_la_carte(texte: str, trouve: Any) -> Resultat:
-    """Plusieurs articles de la carte portent ce que la personne a dit : la question « Vous voulez dire… ? ». Les candidats sont gardés avec la question par libellé ET par
+    """Plusieurs articles de la carte portent ce que la personne a dit : le modèle pose la question (C7 B3). Les candidats sont gardés avec la question par libellé ET par
     identifiant (deux articles peuvent porter le même libellé) ; le modèle ne voit que les libellés."""
     noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
     retenus = [{"libelle": c["libelle"], "id": c["id"]} for c in trouve.faits.get("candidats", []) if c.get("id")]
     faits = {"candidats": noms, "dit": texte, CLE_CANDIDATS: retenus}
-    return _r("AMBIGU", faits, trouve.suggestion or TS.vous_voulez_dire(faits))
+    return _r("AMBIGU", faits, "")
 
 
 async def _un_article(
@@ -1032,7 +1028,7 @@ async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | 
     noms = [l["nom"] for l in (correspond or p["lignes"])]
     if len(correspond) > 1:
         faits = {"candidats": noms, "lignes": [l["n"] for l in correspond]}
-        return None, _r("AMBIGU", faits, TS.laquelle(faits))
+        return None, _r("AMBIGU", faits, "")
     trouve = _chercher_dans([Element(str(l["n"]), l["nom"]) for l in p["lignes"]], texte)  # une faute de transcription : le moteur, à zéro faux sûr
     if trouve["statut"] == "RETENU":
         return next(l for l in p["lignes"] if str(l["n"]) == trouve["retenu"]), None

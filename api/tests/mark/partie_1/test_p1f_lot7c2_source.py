@@ -34,14 +34,14 @@ def test_heure_sans_jour_deja_passee_dit_pour_quel_jour():
 @pytest.mark.parametrize("texte, heure", [("", "sept heures"), ("demain", "sept heures")])
 def test_heure_ambigue_propose_les_deux_heures(texte, heure):
     r = resolution_du_jour_et_de_l_heure(texte, heure, MATIN)
-    assert (r.statut, r.manque, r.suggestion) == ("AMBIGU", "heure", "Est-ce sept heures ou dix-neuf heures ?")
-    assert r.suggestion == TSC.heure_ambigue(r.faits)
+    assert (r.statut, r.manque, r.suggestion) == ("AMBIGU", "heure", "")  # C7 B3 : le modèle pose la question (Evan 25/11 8 h 45) ; les faits la refont
+    assert TSC.heure_ambigue(r.faits) == "Est-ce sept heures ou dix-neuf heures ?"
 
 
 def test_jour_ambigu_propose_les_deux_jours():
     r = resolution_du_jour_et_de_l_heure("le 17", None, MATIN)
-    assert (r.statut, r.manque, r.suggestion) == ("AMBIGU", "jour", "Est-ce mardi dix-sept novembre ou jeudi dix-sept décembre ?")
-    assert r.suggestion == TSC.jour_ambigu(r.faits)
+    assert (r.statut, r.manque, r.suggestion) == ("AMBIGU", "jour", "")  # C7 B3 : le modèle pose la question (Evan 25/11 8 h 45) ; les faits la refont
+    assert TSC.jour_ambigu(r.faits) == "Est-ce mardi dix-sept novembre ou jeudi dix-sept décembre ?"
 
 
 def test_jour_sans_heure_demande_l_heure_de_ce_jour():

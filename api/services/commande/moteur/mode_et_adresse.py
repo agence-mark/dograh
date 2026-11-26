@@ -7,7 +7,7 @@ import copy
 from datetime import datetime
 from typing import Any
 
-from api.services.commande import panier as P, textes_de_secours as TS
+from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.articles import _reprendre_les_dits
@@ -65,7 +65,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         # l'ouverture à 18 h ». La proposition est LA question du début (``heure_proposee``) ; ce qui manque ensuite (les articles, l'adresse) suit sa réponse.
         p["heure_proposee_faite"] = True
         faits = {**faits, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
-        return _avec(_r("FERME_PLANIFIABLE", faits, TS.preparer_pour_l_ouverture(faits), "heure_proposee"), p)
+        return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
     suite = r.suggestion if r.manque else ""
     return _avec(_r("FERME_PLANIFIABLE", faits, suite, r.manque), p)
 

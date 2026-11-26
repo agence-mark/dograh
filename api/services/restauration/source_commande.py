@@ -22,7 +22,6 @@ from zoneinfo import ZoneInfo
 from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration, restauration_en_plus
-from api.db.bases_clients import textes_de_secours_commande as TSC
 from api.db.bases_clients.restauration_carte import accord_du_produit
 from api.db.bases_clients.restauration_signalement_carte import signaler_une_regle_inconnue
 from api.db.bases_clients.annonce_heure import dite
@@ -137,7 +136,7 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
             return Resultat("INTROUVABLE", {}, "", "jour")
         if seule.statut == dates_futures.AMBIGU:
             faits = {"candidats_heure": [dates_futures.heure_dite(c) for c in seule.candidats]}
-            return Resultat("AMBIGU", faits, TSC.heure_ambigue(faits), "heure")
+            return Resultat("AMBIGU", faits, "", "heure")
         if datetime.combine(local.date(), seule.heure, tzinfo=fuseau) <= local:
             faits = {"heure_dite": dates_futures.heure_dite(seule.heure), "heure_passee_aujourd_hui": True}
             return Resultat("INTROUVABLE", faits, "", "jour")
@@ -146,7 +145,7 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
     if jour.statut == dates_futures.AMBIGU:
         candidats = [{"jour": j.isoformat(), "jour_dit": dates_futures.jour_dit(j)} for j in jour.candidats]
         faits = {"candidats": candidats}
-        return Resultat("AMBIGU", faits, TSC.jour_ambigu(faits), "jour")
+        return Resultat("AMBIGU", faits, "", "jour")
     faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
     if not heure:
         return Resultat("INCOMPLETE", faits, "", "heure")
@@ -155,7 +154,7 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
         return Resultat("INCOMPLETE", faits, "", "heure")
     if h.statut == dates_futures.AMBIGU:
         faits = {**faits, "candidats_heure": [dates_futures.heure_dite(c) for c in h.candidats]}
-        return Resultat("AMBIGU", faits, TSC.heure_ambigue(faits), "heure")
+        return Resultat("AMBIGU", faits, "", "heure")
     voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
     faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
     if voulue <= local:
