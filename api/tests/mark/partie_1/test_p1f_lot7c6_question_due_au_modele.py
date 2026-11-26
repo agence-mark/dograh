@@ -17,10 +17,12 @@ from api.services.mots_dits import montant_en_lettres
 from api.services.workflow import parole_de_la_fiche as PF
 from api.services.workflow.etat_des_connecteurs import ATTRIBUT
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
-from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
-from api.tests.mark.partie_1.aides_de_la_reservation import salle  # noqa: F401
+from api.tests.mark import test_base_client as _BASE
+from api.tests.mark.partie_1 import aides_de_la_reservation as _RESA
 
 from .aides_de_la_commande import a_emporter, jusqu_a_l_enregistrement, premier_article, refuser_la_proposition
+
+base_essai, base_prete, salle = _BASE.base_essai, _BASE.base_prete, _RESA.salle  # les fixtures de la base et de la salle, reprises sans import nu
 
 MOTS = "une table pour quatre samedi à vingt heures au nom de Paul"
 
