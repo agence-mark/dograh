@@ -55,3 +55,28 @@ async def test_voisin_numero_affiche_et_nom_deja_dit_aucun_manque_ensuite(salle,
     essai = _essai(salle, monkeypatch, appelant=TEL)
     r = await essai.tour("une table pour deux jeudi à vingt heures au nom de Paul", personnes=2, jour="jeudi", heure="vingt heures", nom="Paul")
     assert "a_demander_ensemble" not in r["faits"], r
+
+
+# ── R3 (reprise de l'audit du 27/11) : le regroupement ne vaut que pour AMBIGU et INCOMPLETE ──────────────────────────────────────
+# Décision de Pierre (27/11) : Q10 regroupe nom + jour seulement quand l'heure est dite. Une date illisible ou passée (INTROUVABLE, manque « jour ») garde son bloc propre.
+
+
+async def _date_illisible(texte, heure):
+    return Resultat("INTROUVABLE", {}, "", "jour")
+
+
+async def test_r3_une_date_illisible_ou_passee_avec_l_heure_dite_ne_regroupe_rien(salle, monkeypatch):
+    essai = _essai(salle, monkeypatch)
+    monkeypatch.setattr(essai.source, "resoudre_une_date", _date_illisible)
+    r = await essai.tour("une table pour deux hier à vingt heures", personnes=2, jour="hier", heure="vingt heures")
+    assert r["resultats"][0]["manque"] == "jour" and r["resultats"][0]["statut_du_module"] == "INTROUVABLE", r
+    assert "a_demander_ensemble" not in r["faits"], r
+
+
+async def test_r3_le_jour_absent_avec_l_heure_dite_regroupe_le_nom_et_le_jour(salle, monkeypatch):
+    """« Une table pour deux à vingt heures » (numéro masqué) : aucun jour dit, l'heure l'est : une seule question, le nom et le jour."""
+    essai = _essai(salle, monkeypatch)
+    r = await essai.tour("une table pour deux à vingt heures", personnes=2, heure="vingt heures")
+    assert r["resultats"][0]["manque"] == "jour", r
+    assert r["faits"]["a_demander_ensemble"] == [E.LE_NOM], r
+    assert r.get("a_faire"), r
