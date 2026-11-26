@@ -201,7 +201,7 @@ def _apres_l_ecriture(source: Source, p: dict[str, Any], r: Resultat, chiffre: R
         rendu = rendu_de_monnaie(paiement)
         if rendu:
             faits["rendu"] = rendu
-        ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits=P.serialisable(faits), empreinte=P.empreinte(p))
+        ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits=P.serialisable(faits), empreinte=P.empreinte(p), commande=P.commande_recue(p))
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
         return _avec(Resultat(statut, faits), p)  # aucune phrase : le modèle dit le fait accompli d'après ses faits, le journal en garde les faits
     if r.statut == "INCOMPLETE" and r.manque == "relecture":

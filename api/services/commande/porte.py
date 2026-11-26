@@ -213,6 +213,15 @@ def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_
             "fait_accompli": {"fait": "changee", "total": total}, "a_faire": A_FAIRE_DU_CHANGEMENT}
 
 
+def _avec_l_adresse(textes: dict[str, Any], dernier: Resultat) -> dict[str, Any]:
+    """Lot 8b-1b (E-2) : l'adresse d'une commande enregistrée a changé : elle entre dans les faits du changement et le modèle doit la dire (``chiffres_exiges`` ; sa voie,
+    « 3 rue de Paris ») ; aucun nouvel accord n'est demandé."""
+    adresse = (dernier.faits or {}).get("adresse")
+    if not adresse:
+        return textes
+    return {**textes, "fait_accompli": {**(textes.get("fait_accompli") or {}), "adresse": adresse}, "chiffres_exiges": {**(textes.get("chiffres_exiges") or {}), "adresse": adresse}}
+
+
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None, phrase_du_total: str | None = None, phrase_du_rendu: str | None = None,
                    phrase_du_changement: str | None = None, phrase_du_numero: str | None = None, phrase_de_confirmation: str | None = None) -> dict[str, Any]:
@@ -234,10 +243,10 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     if enregistree and dernier.faits.get("remplace"):
         # B2 (M3, TF2) : changée après l'être : le modèle le dit, le code dit le nouveau total ; rien de ce qui se dit n'a changé, sans le total (RC3) ; l'heure a changé : la confirmation
         if (p.get("enregistree") or {}).get("total") != total_d_avant:
-            return _textes_du_changement(p, question_apres, phrase_du_changement, montant=True)
+            return _avec_l_adresse(_textes_du_changement(p, question_apres, phrase_du_changement, montant=True), dernier)
         if fait_de_la_confirmation(dernier) == J.fait_accompli(p):
-            return _textes_du_changement(p, question_apres, phrase_du_changement, montant=False)
-        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
+            return _avec_l_adresse(_textes_du_changement(p, question_apres, phrase_du_changement, montant=False), dernier)
+        return _avec_l_adresse(_textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation), dernier)
     if enregistree and not deja_enregistree:
         return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation est dite par le modèle, DC4 garde ses deux temps ; le code ne dit rien après sa phrase
@@ -1218,7 +1227,7 @@ async def _proposition_apres_les_cases(f: LaFiche) -> None:
 
 async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
     p, avant = f.p, f.avant_enregistree
-    if (avant is None or moteur.commande_de_l_appel(p) is None or P.empreinte(p) == p.get("empreinte_enregistree")
+    if (avant is None or moteur.commande_de_l_appel(p) is None or not P.commande_changee(p)
             or (P.a_completer(p) and moteur.manque_pour_remplacer(f.source, p) is None)):
         # une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse ; le panier redevenu la commande enregistrée ne change rien ; un panier vidé en diffère (RC8).
         # 7c (Pierre A2, B4 M2) : un manque (l'adresse d'une livraison) se constate d'abord, même quand une ligne attend : rien ne change, le panier redevient celui d'avant

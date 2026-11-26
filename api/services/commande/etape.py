@@ -116,6 +116,7 @@ def _annulee_apres_enregistrement(p: dict[str, Any], d: dict[str, Any]) -> None:
 def _enregistree_en_caisse(p: dict[str, Any], d: dict[str, Any]) -> None:
     p["enregistree"] = d["faits"]
     p["empreinte_enregistree"] = d["empreinte"]  # le panier tel que la caisse l'a reçu : un changement se compare à lui, jamais au panier du début du tour
+    p["commande_enregistree"] = d.get("commande")  # 7c R1, T13 : sa copie (``panier.commande_recue``) ; ce que l'empreinte ne lit pas se compare à elle
 
 
 _EFFETS = {
@@ -136,7 +137,7 @@ def transition(p: dict[str, Any], evenement: str, **donnees: Any) -> str:
     """Un évènement arrive : les faits qu'il résume s'écrivent ICI, l'étape d'arrivée est celle de la table. Rend la nouvelle étape.
 
     ``RELECTURE_POSEE`` : ``relecture`` (le dictionnaire posé) et ``l_accord_vaut`` (la relecture est celle que la personne a entendue : l'étape reste « accordée »).
-    ``ENREGISTREE_EN_CAISSE`` : ``faits`` et ``empreinte`` du panier envoyé. ``ANNULEE_APRES_ENREGISTREMENT`` : ``numero_court``."""
+    ``ENREGISTREE_EN_CAISSE`` : ``faits``, ``empreinte`` et ``commande`` (sa copie, ``panier.commande_recue``) du panier écrit. ``ANNULEE_APRES_ENREGISTREMENT`` : ``numero_court``."""
     avant = courante(p)
     if (avant, evenement) not in _ARRIVEE:
         raise ValueError(f"évènement inconnu de la commande : {evenement!r} depuis {avant!r}")

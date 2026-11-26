@@ -80,4 +80,7 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         # la commande d'avant reste celle de l'appel, telle quelle (étape, empreinte et accord d'avant, sans nouvelle relecture) ; le modèle reçoit le fait et le dit
         return remettre(Resultat(r.statut, {**(r.faits or {}), "raison": "changement_refuse", "commande_d_avant_gardee": True, "numero_court": commande.get("numero_court")},
                                  r.suggestion, r.manque))
-    return Resultat(r.statut, {**r.faits, "remplace": commande.get("numero_court")}, r.suggestion, r.manque)
+    faits = {**r.faits, "remplace": commande.get("numero_court")}
+    if p.get("adresse") and p.get("adresse") != avant.get("adresse"):
+        faits["adresse"] = P.voie_de_l_adresse(p["adresse"])  # E-2 : le modèle dit la nouvelle adresse (exigée de sa phrase)
+    return Resultat(r.statut, faits, r.suggestion, r.manque)

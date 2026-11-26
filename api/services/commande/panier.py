@@ -10,6 +10,7 @@ Toute modification du panier invalide la relecture déjà faite (``relecture`` r
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from datetime import date, datetime
@@ -98,6 +99,32 @@ def remplacer_par(p: dict[str, Any], autre: dict[str, Any]) -> None:
     ``registre.repartir``). L'étape vient avec cet état : c'est celle qu'il portait ; ce n'est pas une transition, c'est un état déjà cohérent qu'on reprend."""
     p.clear()
     p.update(autre)
+
+
+# 7c R1, lot 8b-1b (T13) : ce que la base a reçu et qu'une fiche peut changer (ce que l'empreinte lit, l'adresse, la note, la consigne au livreur) ; gardé à
+# l'enregistrement par l'étape (``commande_enregistree``)
+CLES_DE_LA_COMMANDE_ENREGISTREE = ("mode", "zone", "adresse", "heure_voulue", "moment_voulu", "heure_voulue_dite", "lignes", "note", "consigne_livreur")
+# T13 : ce que la base reçoit et que l'empreinte ne lit pas (l'empreinte dit si la relecture vaut encore : l'adresse n'y entre pas)
+CLES_HORS_EMPREINTE = ("adresse", "note", "consigne_livreur")
+
+
+def commande_recue(p: dict[str, Any]) -> dict[str, Any]:
+    """Une copie de la commande telle que la base la reçoit à l'instant (jamais partagée avec le panier qui continue de changer)."""
+    return copy.deepcopy({k: p.get(k) for k in CLES_DE_LA_COMMANDE_ENREGISTREE})
+
+
+def commande_changee(p: dict[str, Any]) -> bool:
+    """La commande enregistrée de cet appel diffère-t-elle de ce que la base a reçu ? L'empreinte (les lignes, le mode, la zone, l'heure), puis ce qu'elle ne lit pas
+    (T13 : l'adresse, la note, la consigne au livreur), comparé à la copie ``commande_enregistree`` ; une commande enregistrée avant cette copie : l'empreinte seule."""
+    if empreinte(p) != p.get("empreinte_enregistree"):
+        return True
+    recue = p.get("commande_enregistree")
+    return isinstance(recue, dict) and any(recue.get(k) != p.get(k) for k in CLES_HORS_EMPREINTE)
+
+
+def voie_de_l_adresse(adresse: Any) -> str | None:
+    """La voie d'une adresse (« 3 rue de Paris ») telle que le panier la garde."""
+    return adresse.get("voie") if isinstance(adresse, dict) else (str(adresse) if adresse else None)
 
 
 def numeroter_les_lignes(p: dict[str, Any]) -> None:

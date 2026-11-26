@@ -305,7 +305,7 @@ def _libelle_de_la_ligne(l: dict[str, Any]) -> str:
 
 
 def _voie(adresse: Any) -> str | None:
-    return adresse.get("voie") if isinstance(adresse, dict) else (str(adresse) if adresse else None)
+    return P.voie_de_l_adresse(adresse)
 
 
 def _commune(p: dict[str, Any]) -> str | None:
