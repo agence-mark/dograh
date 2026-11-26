@@ -18,6 +18,7 @@ from api.services.actions_communes import parole as PAROLE
 from api.services.commande import porte as PORTE
 from api.services.mots_dits import montant_en_lettres
 from api.services.pipecat.reponse_avalee import RepliqueVerifiee
+from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.workflow import parole_de_la_fiche as PF
 
 from .aides_de_la_commande import a_emporter, jusqu_a_l_enregistrement, premier_article, refuser_la_proposition
@@ -85,14 +86,15 @@ async def test_annulation_relance_ratee_la_phrase_reglee_pas_compris(essai_de):
     assert not suite and dit == REGLEE, (dit, suite)
 
 
-async def test_fiche_vide_apres_l_enregistrement_la_phrase_du_modele_part_seule(essai_de):
-    """Client « Ah merci. » / fiche vide deux fois / avant : modèle « Avec plaisir. » + code « Votre commande est enregistrée… » ; après : modèle « Avec plaisir. » seul."""
+async def test_fiche_vide_apres_l_enregistrement_la_relance_ratee_dit_p3(essai_de):
+    """Client « Ah merci. » / fiche vide deux fois / avant (R1 de C6) : modèle « Avec plaisir. » seul ; après (T12, coordinateur 26/11 10 h 45) : la première fiche vide est
+    la relance du tour, la seconde une relance ratée : rien de réglé à dire, P3 (dite par la voix) ; jamais la phrase du modèle écrite avant l'exécution."""
     e, _ = await _enregistree(essai_de)
     r = await e.tour("ah merci")
     PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Avec plaisir."})
     r2 = await e.fiche()
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r2, {"a_dire": "Avec plaisir."})
-    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == "Avec plaisir.", d
+    assert (d.mode, d.a_dire, d.motif) == (PAROLE.A_DIRE_SEUL, None, REPONSE_PERDUE), d
 
 
 def _etat_avec_la_phrase_reglee() -> PAROLE.EtatDuTour:

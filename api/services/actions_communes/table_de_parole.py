@@ -17,9 +17,10 @@ from typing import Any, Callable
 
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, porte_les_chiffres, sans_balisage
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
+from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.actions_communes.parole import (
-    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
-    apres_un_refus, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
+    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, SUFFIXE, Decision, EtatDuTour,
+    apres_un_refus, la_suite_reglee, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
 )
 
 FAIT_ACCOMPLI = "fait_accompli_du_modele"  # motif : le modèle dit le fait accompli (C6 n° 5), le code dit la suite après sa phrase
@@ -87,13 +88,24 @@ def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
     return Decision(SECOND_PASSAGE, motif=motif)
 
 
+def _la_relance_ratee(e: Entrees) -> Decision:
+    """T12 (coordinateur 26/11 10 h 45 ; reprise R1 de C6) : la relance du tour est faite et la fiche ne change toujours rien : relance ratée. Le code dit la suite réglée
+    (la phrase réglée de cette fiche ou d'une fiche d'avant du tour, ``la_suite_reglee``), sinon la phrase réglée « pas compris » de l'agent (P3 : ``a_dire`` vide, motif
+    ``REPONSE_PERDUE``, dite par la voix) ; jamais la phrase du modèle écrite avant l'exécution, jamais une seconde relance."""
+    _poser_la_phrase_reglee(e, e.suffixe_du_code or e.suffixe_avant)
+    suite = la_suite_reglee(e.etat)
+    return Decision(A_DIRE_SEUL, a_dire=suite, motif=SUFFIXE if suite else REPONSE_PERDUE)
+
+
 def _rien_change(e: Entrees) -> Decision:
-    """Une fiche qui ne change rien est une phrase sans outil : retenue une fois par tour ; puis, si la phrase oublie la question en attente ou ce qui manque, le modèle repasse une fois ;
-    ensuite dite seule (reprise R1 de C6 : le fait accompli n'est jamais redit par le code, il reste au journal) ; jamais « C'est noté » seul quand rien n'est noté."""
+    """Une fiche qui ne change rien est une phrase sans outil : retenue une fois par tour (la relance du tour) ; rejouée sans rien changer, c'est une relance ratée
+    (``_la_relance_ratee``). Sans rien en cours : sa phrase est jetée si elle est vide, porte un chiffre ou oublie ce qui est dû (le modèle repasse une fois), sinon dite seule."""
     etat, phrase = e.etat, e.phrase
     etat.fiches -= 1
-    if not etat.rattrapage_a_joue and (e.objet_en_cours or e.en_attente):
-        etat.rattrapage_a_joue = True
+    if etat.rattrapage_a_joue or etat.relance_du_fait:
+        return _la_relance_ratee(e)
+    if e.objet_en_cours or e.en_attente:
+        etat.rattrapage_a_joue = etat.relance_du_fait = True
         etat.retenues.append(SANS_OUTIL)
         return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE)
     if not phrase or e.chiffre:

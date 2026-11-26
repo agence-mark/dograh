@@ -3,7 +3,8 @@ ou au lieu, un maximum atteint, est un fait que le modèle dit ; la cascade de r
 modèle avec ses candidats ; la cascade de référence a perdu le troisième cas, la question d'ambiguïté dite mot pour mot.
 
 Sur une grille de retours, de phrases, de textes du code, de dossiers et d'états du tour : même mode, même motif, même phrase dite, et mêmes mouvements de
-l'état du tour (fiches, rattrapage, retenues, question donnée, prix). Lot 7b-C5 (décision d'Evan 25/11 8 h 45) : la référence ne complète plus la phrase par la question ou le manque, elle relance le modèle une fois. Reprise R1 de C6 (décisions d'Evan 25/11 8 h 45 et 9 h 30, P3) : elle ne redit plus le fait accompli après la phrase. La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
+l'état du tour (fiches, rattrapage, retenues, question donnée, prix). Lot 7b-C5 (décision d'Evan 25/11 8 h 45) : la référence ne complète plus la phrase par la question ou le manque, elle relance le modèle une fois. Reprise R1 de C6 (décisions d'Evan 25/11 8 h 45 et 9 h 30, P3) : elle ne redit plus le fait accompli après la phrase. T12 (coordinateur 26/11 10 h 45) : une fiche qui ne change rien
+après la relance du tour est une relance ratée (la suite réglée, sinon P3), jamais une seconde relance. La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
 
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_
 from api.services.actions_communes.du import BLOQUANTS, CLE_DU, CLES_DES_FAITS_DU_REFUS, CLE_FAITS_A_DIRE, RETRAIT_D_UNE_LIGNE, RIEN_CHANGE
 from api.services.actions_communes.parole import A_DIRE_SEUL, SECOND_PASSAGE, Decision, EtatDuTour
 from api.services.actions_communes.repli import refuse
+from api.services.phrases.catalogue import REPONSE_PERDUE
 
 
 def _compose(retour):
@@ -65,8 +67,12 @@ def _cascade(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
         and phrase and not chiffre_dans_la_phrase(phrase, etat.executees, paroles))  # C6 n° 11 (décision d'Evan 25/11 9 h 30) : plus de prix dit par le code après la phrase
     if retour.get(RIEN_CHANGE) and not question_deja_donnee:
         etat.fiches -= 1
-        if not etat.rattrapage_a_joue and (objet_en_cours or isinstance(q_dossier, dict)):
-            etat.rattrapage_a_joue = True
+        if etat.rattrapage_a_joue or etat.relance_du_fait:  # T12 (coordinateur 26/11 10 h 45) : la relance du tour est faite, relance ratée : la suite réglée, sinon P3
+            etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or suffixe_avant
+            dit = P.la_suite_reglee(etat)
+            return Decision(A_DIRE_SEUL, a_dire=dit, motif=P.SUFFIXE if dit else REPONSE_PERDUE)
+        if objet_en_cours or isinstance(q_dossier, dict):
+            etat.rattrapage_a_joue = etat.relance_du_fait = True  # la relance du tour (une seule)
             etat.retenues.append(P.SANS_OUTIL)
             return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE)
         if not phrase or chiffre_dans_la_phrase(phrase, etat.executees, paroles):

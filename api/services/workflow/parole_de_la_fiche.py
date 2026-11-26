@@ -18,6 +18,7 @@ from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.barriere_des_chiffres import porte_les_chiffres
 from api.services.actions_communes.repli import consigne_de_ce_que_le_code_dit, consigne_des_chiffres_exiges, consigne_de_relance
 from api.services.commande import panier as P
+from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.workflow.verite_des_actions import Retenue, tracer_une_retenue
 
 CLE_DES_PAROLES = "paroles_de_la_personne"
@@ -341,6 +342,13 @@ async def dire_le_retour(engine: Any, fiche: Any, donnees: Any, params: Any, con
 
     noter_le_porteur(fiche, connecteur, workflow_id)
     decision = decider_apres_la_fiche(fiche, donnees, params.arguments, connecteur)
+    if decision.mode == PAROLE.A_DIRE_SEUL and not decision.a_dire and decision.motif == REPONSE_PERDUE:
+        # T12 : relance ratée sans suite réglée : la phrase réglée « pas compris » de l'agent (P3), jamais un tour muet
+        from dataclasses import replace
+
+        from api.services.pipecat.reponse_avalee import phrase_de_repli_reglee
+
+        decision = replace(decision, a_dire=phrase_de_repli_reglee(getattr(getattr(engine, "active_agent", None), "llm", None)))
     if decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire:
         # Clôture, lot B2 (IC5, inventaire C5 : 390 retours sur 718 sans elle) : ce qui est dit entre dans l'historique du modèle comme
         # réplique de l'agent ; sans elle, le modèle ne sait pas ce que la personne a entendu (le récapitulatif, la question du code)

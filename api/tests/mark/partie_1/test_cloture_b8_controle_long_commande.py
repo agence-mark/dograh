@@ -103,3 +103,23 @@ async def test_la_fiche_rejouee_apres_la_relance_est_une_relance_ratee(faire_mon
     else:
         assert (seconde.decision.a_dire or "").endswith(attendu), seconde.decision  # la question en dernier
     assert not (seconde.textes or {}).get("fait_accompli"), seconde.textes  # le code ne redit pas le fait accompli
+
+
+async def test_la_relance_ratee_sans_suite_dit_p3_a_la_voix(monkeypatch):
+    """T12 : la table rend P3 sans texte (``REPONSE_PERDUE``) ; la voix dit la phrase réglée « pas compris » de l'agent, et le modèle ne repasse pas. Jamais un tour muet."""
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from api.services.groupe import passations as PA
+    from api.services.pipecat.reponse_avalee import ATTRIBUT_PHRASE_DE_REPLI
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    monkeypatch.setattr(PF, "decider_apres_la_fiche", lambda *_a, **_k: PAROLE.Decision(PAROLE.A_DIRE_SEUL, motif=REPONSE_PERDUE))
+    monkeypatch.setattr(PA, "noter_le_porteur", lambda *_a, **_k: None)
+    llm = SimpleNamespace(**{ATTRIBUT_PHRASE_DE_REPLI: lambda: "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"})
+    engine = SimpleNamespace(active_agent=SimpleNamespace(llm=llm), queue_text_message=AsyncMock())
+    params = SimpleNamespace(arguments={"a_dire": C.ANNONCE}, result_callback=AsyncMock())
+    assert await PF.dire_le_retour(engine, {}, {"statut": "OK"}, params, None, None)
+    engine.queue_text_message.assert_awaited_once()
+    assert engine.queue_text_message.await_args.args[0] == "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"
+    assert params.result_callback.await_args.kwargs["properties"].run_llm is False
