@@ -13,7 +13,7 @@ from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.moteur.socle import Reglages, _avec, _r, cle_de_la_remise
+from api.services.commande.moteur.socle import Reglages, _avec, _r, cle_de_la_remise, remise_dite
 from api.services.mots_dits import montant_en_lettres
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _minimum_non_atteint
@@ -112,8 +112,7 @@ async def remises_disponibles(
             p["mentions_de_remise"] += 1
             await _noter_dite(source, r["ref"], appel_id)
             # C7 B5 : la remise est un fait (son montant aussi en lettres, le texte du restaurant s'il en a un), le modèle la dit
-            remise = {"nom": r["nom"], "montant": r["montant"], "montant_dit": montant_en_lettres(r["montant"]), **({"texte_de_l_offre": r["phrase"]} if r.get("phrase") else {})}
-            return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": remise}, ""), p)
+            return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": remise_dite(r)}, ""), p)
     # M25 : une offre « X achetés, Y offerts d'une autre sorte » ATTEINTE ou presque, même sans l'article offert au panier.
     offres = []
     if chiffre is not None and chiffre.statut == "OK" and getattr(source, "offres_a_portee", None) is not None:

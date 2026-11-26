@@ -607,7 +607,7 @@ def poser_le_prix_du_poids(resultats: list[dict[str, Any]], retour: dict[str, An
 async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any, retour: dict[str, Any]) -> DU.Du | None:
     """OFF3 (conversation OFF3-A, D33) : la remise à laquelle un code dit donne droit est dite une fois, au moment où elle s'applique au panier (le code dit d'abord, ou les articles
     d'abord). Sans cela la personne qui a dit son code n'entendait jamais que la remise était prise. C6 n° 11 (décision d'Evan 25/11 9 h 30, § 8 bis) : c'est un FAIT du retour
-    (``remises_a_dire`` : nom, montant, texte de l'offre) que le modèle dit avec ses mots, vérifié par la barrière des chiffres ; rend l'élément de ``Du`` (sa consigne). ⛔ Ne lève jamais."""
+    (``remises_a_dire`` : nom, montant et ``montant_dit``, texte de l'offre) que le modèle dit avec ses mots, vérifié par la barrière des chiffres ; rend l'élément de ``Du`` (sa consigne). ⛔ Ne lève jamais."""
     try:
         if not p.get("remises_du_code") or p.get("enregistree") or p.get("annulee") or not isinstance(retour.get("faits"), dict):
             return None
@@ -619,7 +619,7 @@ async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regl
         nouvelles = [r for r in chiffre.faits.get("remises") or [] if r["ref"] in p["remises_du_code"] and J.une_fois(p, moteur.cle_de_la_remise(r["ref"]))]
         if not nouvelles:
             return None
-        retour["faits"]["remises_a_dire"] = [{"nom": r["nom"], "montant": r["montant"], **({"texte_de_l_offre": r["phrase"]} if r.get("phrase") else {})} for r in nouvelles]
+        retour["faits"]["remises_a_dire"] = [moteur.remise_dite(r) for r in nouvelles]  # mineur de l'audit C7 : la forme de la remise lue, montant en lettres compris
         return DU.Du(consignes=((C.REFUS_A_DIRE, A_FAIRE_DE_LA_REMISE),))
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la remise du code n'a pas pu être posée")

@@ -20,7 +20,7 @@ from api.services.mots_dits import liste_dite_et, montant_en_lettres, nom_dit
 from api.services.commande.resultat import Resultat
 from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, _r, _sans_accent
+from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, _r, _sans_accent, texte_de_l_offre
 from api.services.commande.moteur.prealables import _article_de_la_carte, chiffrer_le_panier, _prealables, _servi_le, _valider
 
 
@@ -445,8 +445,7 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
     if appliquee is None:
         return _avec(_r("OK", faits, ""), p)
     # C7 B5 (Evan 25/11 8 h 45) : la remise est un fait (son montant aussi en lettres, le texte du restaurant s'il en a un), le modèle la dit
-    texte = {"texte_de_l_offre": appliquee["phrase"]} if appliquee.get("phrase") else {}
-    return _avec(_r("OK", {**faits, "reduction": appliquee["montant"], "reduction_dite": montant_en_lettres(appliquee["montant"]), **texte}, ""), p)
+    return _avec(_r("OK", {**faits, "reduction": appliquee["montant"], "reduction_dite": montant_en_lettres(appliquee["montant"]), **texte_de_l_offre(appliquee)}, ""), p)
 
 
 # --------------------------------------------------------------------------- #

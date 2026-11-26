@@ -71,6 +71,19 @@ def cle_de_la_remise(ref: Any) -> str:
     return f"remise:{ref}"
 
 
+def texte_de_l_offre(remise: dict[str, Any]) -> dict[str, str]:
+    """Le texte du restaurant pour une remise (la source l'appelle ``phrase``), sous la seule clé que le modèle reçoit (``texte_de_l_offre``) ; vide s'il n'en a pas."""
+    return {"texte_de_l_offre": remise["phrase"]} if remise.get("phrase") else {}
+
+
+def remise_dite(remise: dict[str, Any]) -> dict[str, Any]:
+    """Une remise appliquée telle que le modèle la dit (C7 B5, C6 n° 11) : son nom, son montant en centimes et en lettres (``montant_dit``), le texte du restaurant s'il en a un.
+    La même forme pour la remise lue et la remise d'un code qui s'applique."""
+    from api.services.mots_dits import montant_en_lettres
+
+    return {"nom": remise["nom"], "montant": remise["montant"], "montant_dit": montant_en_lettres(remise["montant"]), **texte_de_l_offre(remise)}
+
+
 def _le(nom: str, genre: str | None) -> str:
     """« Le filtre », « La vis », « L'écrou » : l'article défini du nom proposé, d'après son genre (sans mot de métier)."""
     if _sans_accent(nom[:1]) in "aeiouyh":
