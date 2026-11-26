@@ -88,11 +88,11 @@ async def test_la_vente_en_plus_propose_la_boisson_precise_quand_le_panier_n_en_
     assert (r.statut, r.manque) == ("INCOMPLETE", "vente_en_plus")
     proposition = r.faits["proposition"]
     assert proposition["raison"] == "categorie_manquante" and proposition["nom"] == "Coca-Cola"
-    # lot 4 (D33) : le modèle pose la question (« proposer Coca-Cola ») ; le code dit le prix après sa phrase, et garde le repli de B8
+    # lot 4 (D33) : le modèle pose la question (« proposer Coca-Cola ») ; C6 n° 11 et 12 (décision d'Evan 25/11 9 h 30) : le prix est un fait que le modèle dit dans sa question,
+    # le code ne compose plus ni « Le Coca-Cola est à deux euros. » ni le repli de B8
     assert r.suggestion == "proposer Coca-Cola" and "prix" not in proposition
     cachee = a.p["proposition_en_plus"]
-    assert cachee["chiffre"] == "Le Coca-Cola est à deux euros."
-    assert cachee["repli"] == "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?" and "quelque chose" not in cachee["repli"]
+    assert cachee["prix"] == 200 and "chiffre" not in cachee and "repli" not in cachee, cachee
 
 
 async def test_la_meilleure_vente_passe_devant(commerce):  # noqa: F811
@@ -107,7 +107,8 @@ async def test_apres_la_boisson_le_dessert_puis_plus_rien_de_generique(commerce)
     a = await AppelFinal(commerce).pret(A("regina", 1, "Normale"), "coca")
     r = await a.finaliser()
     assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "categorie_manquante"
-    assert r.faits["proposition"]["nom"] == "Mousse au chocolat" and "une mousse au chocolat" in a.p["proposition_en_plus"]["repli"]  # accordés
+    # C6 n° 12 (décision d'Evan 25/11 9 h 30) : plus de repli de B8 composé (le modèle accorde l'article dans sa question)
+    assert r.faits["proposition"]["nom"] == "Mousse au chocolat" and "repli" not in a.p["proposition_en_plus"]
     complet = await AppelFinal(commerce).pret(A("regina", 1, "Normale"), "coca", "mousse au chocolat")
     r = await complet.finaliser()
     assert r.manque == "relecture", r  # rien de pertinent à proposer : la commande continue, sans question générique
@@ -153,8 +154,9 @@ async def test_la_vente_en_plus_propose_l_article_offert_et_compte_comme_une_men
     a = await AppelFinal(commerce).pret(A("regina", 2, "Normale"))
     r = await a.finaliser()
     assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "offre", r
-    assert r.suggestion == "proposer Coca-Cola offert"  # lot 4 (D33) : la question du modèle ; le repli de B8 reste au code
-    assert a.p["proposition_en_plus"]["repli"] == "Remise DEUX-UNE : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?"
+    assert r.suggestion == "proposer Coca-Cola offert"  # lot 4 (D33) : la question du modèle
+    # C6 n° 12 (décision d'Evan 25/11 9 h 30) : le repli de B8 n'est plus composé ; l'offre est un fait de la proposition (``offre``, ``offerte``)
+    assert r.faits["proposition"]["offre"] == "Remise DEUX-UNE" and a.p["proposition_en_plus"]["offerte"] is True and "repli" not in a.p["proposition_en_plus"]
     assert a.p["mentions_de_remise"] == 1
     # après un refus de l'appelant, la vente en plus ne parle plus de l'offre : elle propose ce qui manque, sans la mentionner
     b = await AppelFinal(commerce, mentions_de_remise=3).pret(A("regina", 2, "Normale"))

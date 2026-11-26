@@ -284,8 +284,7 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q.update({"article_propose": proposition.get("nom"), "offerte": bool(proposition.get("offre")), "offre": proposition.get("offre")})
         cachee = p_de_la_question.get("proposition_en_plus") if isinstance(p_de_la_question, dict) else None
         if isinstance(cachee, dict):
-            # le prix (un fait que le modèle dit, exigé de sa question : C6 n° 11) et le repli de B8 : gardés dans la question
-            q.update({"prix": cachee.get("prix"), "repli": cachee.get("repli")})
+            q["prix"] = cachee.get("prix")  # le prix : un fait que le modèle dit, exigé de sa question (C6 n° 11)
     if type_ == "relecture" and isinstance(p_de_la_question, dict):
         q["jeton"] = (p_de_la_question.get("relecture") or {}).get("jeton")  # C6 : l'identité de la relecture, dont le texte n'est plus au registre (le modèle la dit)
     if isinstance((r.faits or {}).get("candidats"), list):

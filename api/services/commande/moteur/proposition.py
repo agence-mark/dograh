@@ -9,11 +9,10 @@ from typing import Any
 
 from api.db.bases_clients import recherche_liste
 from api.services.commande import panier as P
-from api.services.mots_dits import montant_en_lettres, nom_dit
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _dit, _r, cle_de_la_remise
+from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _r, cle_de_la_remise
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _bloque_l_ajout, chercher_l_article, etat_apres_ajout, _un_article
 
@@ -47,7 +46,6 @@ async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles:
         proposition = await chercher(p["mode"], lignes, False)
     if proposition is None:
         return None
-    nom = nom_dit(proposition["nom"], 1, genre=proposition.get("genre"), commun=bool(proposition.get("commun")))
     offerte = proposition["raison"] == "offre"
     faits = {"proposition": {k: proposition.get(k) for k in ("ref", "nom", "declinaison", "raison", "etoile", "plusieurs_tailles")}}
     if offerte:
@@ -55,15 +53,13 @@ async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles:
         if J.une_fois(p, cle_de_la_remise(offre["ref"])):
             p["mentions_de_remise"] = p.get("mentions_de_remise", 0) + 1
         faits["proposition"]["offre"] = offre["nom"]
-        offert = "offerte" if proposition.get("genre") == "f" else "offert"
-        repli = f"{_dit(offre['nom'])} : vous avez droit à {nom} {offert}. Je vous l'ajoute ?"
         prix = None
     else:
-        repli = f"Avec cela, je vous propose {nom} à {montant_en_lettres(proposition['prix'])}. Je vous l'ajoute ?"
         prix = proposition["prix"]
+    # C6 n° 12 (décision d'Evan 25/11 9 h 30) : aucune phrase composée (l'ancien repli de B8, jamais dit depuis C5) ; le modèle pose la proposition avec son prix, un fait
     p["proposition_en_plus"] = {
         "ref": proposition.get("ref"), "nom": proposition["nom"], "choix": [c for c in (proposition.get("choix") or []) if isinstance(c, str)],
-        "offerte": offerte, "prix": prix, "repli": repli,
+        "offerte": offerte, "prix": prix,
     }
     return _r("INCOMPLETE", faits, f"proposer {proposition['nom']}" + (" offert" if offerte else ""), "vente_en_plus")
 
