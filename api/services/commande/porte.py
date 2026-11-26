@@ -295,6 +295,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
     groupe = (r.faits or {}).get("nom") if "groupe" in (r.faits or {}) else ((r.faits or {}).get("question") or {}).get("nom")
     if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and groupe:
         q["groupe"] = str(groupe)  # C7 B3 : le choix à faire (le groupe de la base, la question de la carte), son objet au registre et dans la relance, jamais son texte
+        if "groupe" in (r.faits or {}):
+            q["groupe_id"] = str(r.faits["groupe"])  # l'identifiant du groupe de la base : deux groupes de même nom (la sauce du burger, celle du wrap) restent deux questions ; jamais montré au modèle
     if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
         q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):

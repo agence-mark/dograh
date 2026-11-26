@@ -11,7 +11,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes.repli import question_pour_la_relance
 from api.services.commande import moteur
+from api.services.commande import porte
+from api.services.commande import registre as RQ
 from api.services.commande import panier as P
 from api.services.commande.briques import formule as FO
 from api.services.commande.moteur import articles, lecture
@@ -29,6 +33,7 @@ from api.tests.mark import test_base_client as _BASE
 
 base_essai, base_prete, commerce = _BASE.base_essai, _BASE.base_prete, _CLASSEUR.commerce  # les fixtures du classeur, reprises sans import inutile
 
+TOUR = "tour_de_l_appel"
 ADRESSE_AVANT = "Quelle est l'adresse de livraison ?"  # le texte d'avant (``phrase_du_manque(Manque.ADRESSE_ET_COMMUNE)``), refait du seul manque
 
 
@@ -226,3 +231,35 @@ async def test_une_formule_lue_n_a_plus_de_texte_et_ses_etapes_le_refont():
     assert r.suggestion == "" and r.faits["renseigne"] is True, r
     au_choix = "; ".join(f"{e['etape']} : {liste_dite(e['choix'])}" for e in r.faits["etapes"] if e["choix"])  # le texte d'avant, refait des faits
     assert f"{r.faits['article']}. {au_choix}." == "Menu partage. Boisson : Coca ou Fanta.", r.faits["etapes"]
+
+
+# ── le groupe d'un choix obligatoire : son identifiant fait l'objet de la question, son nom reste ce que le modèle dit (risque du premier agent, porte._question_de) ──
+
+
+def _choix_de_la_base(groupe_id: str, nom: str, tour: int) -> dict:
+    """La question née d'un ``CHOIX_OBLIGATOIRE`` de la base (``restauration_commande.py`` : ``groupe`` = l'identifiant du groupe, ``nom`` = son nom)."""
+    return porte._question_de(Resultat("CHOIX_OBLIGATOIRE", {"groupe": groupe_id, "nom": nom, "minimum": 1}, ""), tour, tour)
+
+
+def test_deux_choix_obligatoires_de_deux_groupes_de_meme_nom_sont_deux_questions():
+    """La sauce du burger au tour 1, la sauce du wrap au tour 2 (deux groupes de la base, même nom « Sauce ») : deux objets au registre ; avant, le même (« variante:sauce »)."""
+    p = P.nouveau()
+    CONV.de(p)[TOUR] = 1
+    burger = _choix_de_la_base("G-SAUCE-BURGER", "Sauce", 1)
+    RQ.ouvrir(p, burger)
+    CONV.de(p)[TOUR] = 2
+    wrap = _choix_de_la_base("G-SAUCE-WRAP", "Sauce", 2)
+    assert RQ.objet(wrap, p) != RQ.objet(burger, p), (RQ.objet(wrap, p), RQ.objet(burger, p))
+    assert CONV.identite_de_la_question({**burger, "id": None}) != CONV.identite_de_la_question({**wrap, "id": None})
+
+
+def test_voisin_le_modele_lit_le_nom_du_groupe_jamais_son_identifiant():
+    relance = question_pour_la_relance(_choix_de_la_base("G-SAUCE-BURGER", "Sauce", 1))
+    assert relance.get("groupe") == "Sauce" and "G-SAUCE-BURGER" not in str(relance), relance
+
+
+def test_voisin_une_question_de_la_carte_sans_identifiant_garde_son_nom_pour_objet():
+    """Une question de la carte (``faits.question``, sans identifiant de groupe de la base) : l'objet reste le nom du choix, comme avant."""
+    q = porte._question_de(Resultat("CHOIX_OBLIGATOIRE", {"question": {"nom": "Taille", "type": "variante"}}, "", "taille"), 1, 1)
+    assert q["groupe"] == "Taille" and "groupe_id" not in q, q
+    assert RQ.objet(q, P.nouveau()) == "variante:taille", RQ.objet(q, P.nouveau())

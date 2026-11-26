@@ -88,7 +88,7 @@ def _objet_de_naissance(q: dict[str, Any], p: dict[str, Any], naitre: bool) -> s
         # RC9 (tirées du contrôle long) : l'objet est la ligne DONT PARLE la question (l'article en question), pas toujours la première qui attend : « une regina » dite
         # pendant la taille de la margherita pose la question de la regina sous l'objet de la regina, jamais sous celui de la margherita
         voulue = next((l for l in attente if q.get("article_en_question") and _norme(l.get("nom")) == _norme(q["article_en_question"])), None) or (attente[0] if attente else None)
-        return f"{t}:{(voulue.get('ref') or voulue.get('n')) if voulue else _norme(q.get('groupe'))}"  # C7 B3 : sans ligne qui attend, le groupe à choisir (plus le texte)  # par article : deux lignes du même article attendent la MÊME question (une réponse les complète toutes)
+        return f"{t}:{(voulue.get('ref') or voulue.get('n')) if voulue else _norme(q.get('groupe_id') or q.get('groupe'))}"  # C7 B3 : sans ligne qui attend, le groupe à choisir (son identifiant de la base, sinon son nom ; plus le texte)  # par article : deux lignes du même article attendent la MÊME question (une réponse les complète toutes)
     if t == "ambiguite":
         if naitre:
             CONV.de(p)["hesitations_nees"] = int(CONV.de(p).get("hesitations_nees") or 0) + 1
