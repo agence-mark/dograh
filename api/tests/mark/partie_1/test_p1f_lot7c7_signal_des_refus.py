@@ -560,6 +560,14 @@ async def test_la_table_de_la_reservation_est_fidele_au_texte(cas, salle, monkey
     fidele(cas, await jouer(cas.scenario, salle, monkeypatch))
 
 
+# ── B7 : la base et le moteur de la réservation n'écrivent plus aucun texte de secours (le modèle formule d'après le statut, le manque et les faits) ─────────
+
+@pytest.mark.parametrize("cas", CAS_DE_LA_SALLE, ids=lambda c: c.nom)
+async def test_aucun_retour_de_la_base_de_la_reservation_n_ecrit_de_texte(cas, salle, monkeypatch):
+    r = await jouer(cas.scenario, salle, monkeypatch)
+    assert r.suggestion == "", r
+
+
 # ── A3 : la base de la commande n'écrit plus aucun texte de secours (le modèle formule d'après le statut, le manque et les faits) ─────────────────────────
 
 @pytest.mark.parametrize("cas", CAS_DE_LA_CARTE + CAS_DE_LA_DEMANDE, ids=lambda c: c.nom)

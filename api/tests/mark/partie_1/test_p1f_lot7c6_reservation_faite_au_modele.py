@@ -2,7 +2,7 @@
 
 Avant : code « C'est réservé pour quatre personnes, samedi quatorze novembre à vingt heures, au nom de Paul. ».
 Après : modèle « C'est noté, je vous attends samedi à vingt heures pour quatre. ». La phrase du modèle doit dire les personnes et l'heure (barrière) : sans elles, il est relancé une
-fois, puis la phrase réglée « pas compris » (P3, jamais un tour muet ; le fait accompli n'est jamais redit par le code). La base ne rend plus qu'un texte de secours (nombres en lettres : « trois personnes », plus « 3 »).
+fois, puis la phrase réglée « pas compris » (P3, jamais un tour muet ; le fait accompli n'est jamais redit par le code). La base ne rend plus aucun texte (C7, B7) : le modèle lit les faits ; le texte d'avant se refait des faits (nombres en lettres).
 Vraie source, vraie porte, sans modèle.
 """
 
@@ -122,8 +122,9 @@ async def test_la_base_ne_rend_que_des_textes_de_secours_en_lettres(salle):
     from api.tests.mark.test_restauration_reservation import creer
 
     r = await creer(salle)
-    assert r.suggestion == TS.reservation_enregistree(r.faits) and "deux personnes" in r.suggestion, r.suggestion
+    # C7 (B7) : la base ne rend plus aucun texte ; le texte d'avant se refait de ses faits (nombres en lettres)
+    assert r.suggestion == "" and "deux personnes" in TS.reservation_enregistree(r.faits), r
     m = await RR.modifier_reservation(salle.c, salle.a, r.faits["numero"], {"couverts": 3})
-    assert m.suggestion == TS.reservation_modifiee(m.faits) and "trois personnes" in m.suggestion and "3" not in m.suggestion, m.suggestion
+    assert m.suggestion == "" and "trois personnes" in TS.reservation_modifiee(m.faits) and "3" not in TS.reservation_modifiee(m.faits), m
     a = await RR.annuler_reservation(salle.c, salle.a, r.faits["numero"])
-    assert a.suggestion == TS.reservation_annulee(a.faits), a.suggestion
+    assert a.suggestion == "" and TS.reservation_annulee(a.faits) == "C'est annulé.", a

@@ -259,7 +259,8 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
     vide : rien."""
     if nee is not None and nee.get("type") in TYPES_DE_QUESTION.values() and dernier is not None:
         return _textes_de_la_relecture(nee, dernier, question_du_code)
-    if dernier is not None and bool(dernier.suggestion) and (
+    # C7 (B7) : le fait accompli se lit au statut (enregistrée, ou changée ou annulée sans manque), jamais au texte de la base, qui est vide
+    if dernier is not None and (
             dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)):
         return _textes_du_fait_accompli(dernier, operation, phrase_du_numero)
     return {}
