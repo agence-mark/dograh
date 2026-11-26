@@ -18,10 +18,8 @@ async def test_le_modele_muet_deux_fois_le_client_entend_c_est_enregistre_puis_l
     e, r = await _jusqu_a_la_confirmation(essai_de)
     PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ""})
     verif = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
-    premier = verif.controler_le_silence(None)
-    assert premier is not None and premier.consigne and premier.a_dire is None, premier  # la relance du modèle
-    second = verif.controler_le_silence(None, sans_relance=True)
-    assert second is not None and second.a_dire == f"{CONFIRMATION} {QUESTION_M108}", second
+    retenue = verif.controler_le_silence(None)  # le modèle n'a rien dit au second passage : la suite réglée part seule
+    assert retenue is not None and retenue.a_dire == f"{CONFIRMATION} {QUESTION_M108}", retenue
 
 
 async def test_la_relance_sans_l_heure_dit_c_est_enregistre_avant_la_suite_du_code(essai_de):
