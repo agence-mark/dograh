@@ -38,7 +38,7 @@ TYPE_DU_NUMERO = "numero_affiche"
 TYPE_DU_NUMERO_DICTE = "numero_dicte"  # DC10 : le numéro dicté relu avant l'enregistrement
 TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
 TEXTE_NOUVELLE_COMMANDE = INFO.NOUVELLE_COMMANDE_PROPOSEE  # proposée au modèle, jamais dite mot pour mot par le code (DC5 : un refus suivi d'une question)
-TYPE_DE_L_ETAPE = "etape_formule"
+TYPE_DE_L_ETAPE = formule_a_etapes.TYPE_DE_LA_QUESTION  # le type de la question née d'une étape (jamais réécrit ici)
 CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une question d'hésitation
 # DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question, avec le montant, est posée par le modèle (C6 n° 7, montant exigé de sa phrase)
 TYPE_ANNULATION = "annulation_enregistree"
