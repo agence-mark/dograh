@@ -87,7 +87,7 @@ async def test_regina_et_coca_de_bout_en_bout_jusqu_a_la_prise(appel_de_test, pr
     assert prise.recues == []  # ni envoyé
     fait = await oui(jouer)
     assert fait["statut"] == "ENREGISTREE" and fait["faits"]["total"] == 1490
-    assert "enregistrée" in fait["suggestion"]
+    assert fait["suggestion"] == "" and fait["faits"]["quand_dit"], fait  # C7 B9 (0e89e408) : plus de texte ; « enregistrée, prête/livrée … » est dans les faits mode et quand_dit
     await attendre_les_envois()
     (commande,) = await commerce.c.fetch("SELECT * FROM mark.resto_commande")
     assert (commande["total"], commande["statut"], commande["cree_par"]) == (1490, "acceptee", "agent")

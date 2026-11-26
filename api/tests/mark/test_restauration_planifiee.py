@@ -150,7 +150,7 @@ async def test_un_quart_d_heure_plein_pour_plus_tard_refuse_et_propose_le_premie
     assert premiere.statut == "ENREGISTREE", premiere
     seconde = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=soir.replace(minute=10), appel_id="appel-2"), "relu-2")
     assert (seconde.statut, seconde.manque, seconde.faits["raison"]) == ("ARGUMENT_INVALIDE", "heure_voulue", "creneau_plein")
-    assert seconde.faits["proposition"] == soir.replace(minute=15) and "dix-neuf heures quinze" in seconde.suggestion
+    assert seconde.faits["proposition"] == soir.replace(minute=15) and (seconde.suggestion, seconde.faits["proposition_dite"]) == ("", "dix-neuf heures quinze")  # C7 : l'heure proposée est un fait
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande WHERE site_id = $1", commerce.a) == 1  # rien d'enregistré
     # l'heure proposée passe
     troisieme = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=soir.replace(minute=15), appel_id="appel-3"), "relu-3")
@@ -181,9 +181,9 @@ async def test_une_commande_annulee_libere_le_creneau(commerce):
 async def test_la_phrase_d_une_commande_pour_plus_tard_dit_son_jour(commerce):
     await _permettre(commerce, None)
     ce_soir = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=JEUDI_MIDI.replace(hour=19, minute=30), appel_id="x1"), "r1")
-    assert ce_soir.suggestion == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente."  # le jour même : l'heure seule
+    assert (ce_soir.suggestion, ce_soir.faits["mode"], ce_soir.faits["quand_dit"]) == ("", "emporter", "pour dix-neuf heures trente")  # le jour même : l'heure seule ; C7 B9 : au fait
     demain = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=(JEUDI_MIDI + timedelta(days=1)).replace(hour=19, minute=30), appel_id="x2"), "r2")
-    assert demain.statut == "ENREGISTREE" and demain.suggestion == "Votre commande est enregistrée, elle sera prête pour vendredi treize novembre à dix-neuf heures trente."
+    assert (demain.statut, demain.suggestion, demain.faits["quand_dit"]) == ("ENREGISTREE", "", "pour vendredi treize novembre à dix-neuf heures trente")  # C7 B9 (0e89e408) : plus de texte ; « enregistrée, prête/livrée … » est dans les faits mode et quand_dit
 
 
 # --------------------------------------------------------------------------- #
