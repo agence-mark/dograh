@@ -1,4 +1,4 @@
-"""[.mark] Lot 7b-C3, commit 4 : les questions de manque du moteur de la réservation rendent le texte d'avant, au caractère près, ET ce texte se refait des faits du résultat que lit le modèle
+"""[.mark] Lot 7b-C3, commit 4 : les questions de manque du moteur de la réservation ne portent plus de texte (lot 7b-C7, B7) ; le texte d'avant se refait toujours des faits du résultat que lit le modèle
 (``textes_de_secours``). Le moteur n'importe pas ``phrases_du_manque`` (il importerait ``etat_pour_le_modele``, qui importe le moteur) : il lit la feuille, qui porte aussi les textes du catalogue.
 Le numéro illisible porte le fait ``numero_illisible``, le même nom que la base."""
 
@@ -16,8 +16,9 @@ salle, creer, TEL = RESA.salle, RESA.creer, RESA.TEL  # la fixture et les aides 
 
 
 def _verifie(r, statut: str, manque: str, texte: str, secours):
-    assert (r.statut, r.manque, r.suggestion) == (statut, manque, texte), r
-    assert r.suggestion == secours(faits_publics(r)), r
+    """C7 (B7) : le moteur ne porte plus de texte ; le texte d'avant se refait toujours de ses seuls faits (il sort avec le catalogue, B9)."""
+    assert (r.statut, r.manque, r.suggestion) == (statut, manque, ""), r
+    assert secours(faits_publics(r)) == texte, r
 
 
 class SourceSansJour:

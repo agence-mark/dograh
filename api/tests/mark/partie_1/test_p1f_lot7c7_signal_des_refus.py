@@ -568,6 +568,19 @@ async def test_aucun_retour_de_la_base_de_la_reservation_n_ecrit_de_texte(cas, s
     assert r.suggestion == "", r
 
 
+@pytest.mark.parametrize("cas", CAS_DU_MOTEUR_DE_LA_RESERVATION, ids=lambda c: c.nom)
+async def test_aucun_retour_du_moteur_de_la_reservation_n_ecrit_de_texte(cas, salle, monkeypatch):
+    r = await jouer(cas.scenario, salle, monkeypatch)
+    assert r.suggestion == "", r
+
+
+@pytest.mark.parametrize("cas", [c for c in CAS_DU_MOTEUR_SANS_SALLE if c.texte is not _texte_des_jeudis], ids=lambda c: c.nom)
+async def test_aucun_retour_du_moteur_sans_salle_n_ecrit_de_texte(cas):
+    """Le jour ambigu à la réservation est rendu tel que la source le donne (le texte de la source, ``source_commande``, est vidé par la commande en C7)."""
+    r = await jouer(cas.scenario)
+    assert r.suggestion == "", r
+
+
 # ── A3 : la base de la commande n'écrit plus aucun texte de secours (le modèle formule d'après le statut, le manque et les faits) ─────────────────────────
 
 @pytest.mark.parametrize("cas", CAS_DE_LA_CARTE + CAS_DE_LA_DEMANDE, ids=lambda c: c.nom)

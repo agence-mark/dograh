@@ -22,6 +22,6 @@ async def test_rien_qui_change_ne_se_relit_pas(salle):
     a = Appel(salle)
     await a.confirmee()
     r = await moteur.modifier(a.source, a.etat, a.appelant, personnes=2, prenom="Alice")
-    assert r.statut == "DEJA_FAIT" and r.faits["inchangee"] is True and r.suggestion.startswith("Rien ne change"), r
+    assert r.statut == "DEJA_FAIT" and r.faits["inchangee"] is True and r.suggestion == "", r  # C7 (B7) : « rien ne change » est le fait inchangee
     # un vrai changement de nom reste relu
     assert (await moteur.modifier(a.source, a.etat, a.appelant, prenom="Martin")).faits["ce_qui_change"] == {"prenom": "Martin"}  # C6 n° 8 (décision d'Evan 25/11 9 h 30) : en faits
