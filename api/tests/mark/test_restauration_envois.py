@@ -5,7 +5,7 @@ Vraie base ; l'envoi de SMS du fork (``sms_restauration.envoyer_un_sms``) est re
 | Test | Ce qu'il prouve |
 |---|---|
 | éteint par défaut | aucune ligne, ou une ligne ``actif`` faux : rien ne part, pour chaque déclencheur ; un déclencheur hors de la liste fermée non plus |
-| commande enregistrée | allumé : le texte de l'établissement, ses trous remplis par le code (prénom, numéro court, heure), au numéro de la commande, une fois, à la fin de l'appel (§ 17) |
+| commande enregistrée | allumé : le texte de l'établissement, ses trous remplis par le code (prénom, numéro court, heure), au numéro de la commande, une fois, à la fin de l'appel (§ 17) ; sans organisation (un essai) : la commande part, ni SMS ni ``commande.creee`` |
 | réservation | enregistrée, modifiée, annulée : chacune son déclencheur, au numéro de la réservation ; éteint : rien |
 | à la demande | ``envoyer_un_message`` : éteint, il dit qu'il ne peut pas ; allumé, il envoie la carte ou l'avis au numéro qui s'affiche, jamais un numéro dicté ; une seule fois |
 | cloisonnement | l'envoi allumé d'un autre établissement ne part jamais pour celui-ci |
@@ -25,7 +25,7 @@ from api.services.restauration.appel_et_memoire import flux
 from api.services.restauration.envois_et_sms import sms_restauration as sms_resto
 from api.services.restauration.envois_et_sms.sms_restauration import Envoi
 from api.services.restauration.appel_et_memoire.appel import Lieu
-from api.services.restauration.caisse.envoi_a_la_fin import envoyer_les_commandes_retenues
+from api.services.restauration.caisse.envoi_a_la_fin import envoyer_la_commande_de_l_appel, envoyer_les_commandes_retenues
 from api.services.restauration.source_reservation import SourceReservation
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
@@ -83,8 +83,9 @@ async def test_eteint_par_defaut_aucune_ligne_ou_ligne_eteinte_rien_ne_part(comm
     assert await c.fetchval("SELECT count(*) FROM mark.resto_envoi WHERE actif AND declencheur = 'bonus'") == 1
 
 
-async def test_commande_enregistree_allume_le_texte_de_l_etablissement_trous_remplis_par_le_code(commerce, envoyes):  # noqa: F811
+async def test_commande_enregistree_allume_le_texte_de_l_etablissement_trous_remplis_par_le_code(commerce, envoyes, monkeypatch):  # noqa: F811
     await _allumer(commerce.c, commerce.a, envois.COMMANDE_ENREGISTREE)
+    await _un_essai_sans_organisation_n_envoie_rien(commerce, envoyes, monkeypatch)
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
     fait = await _passer_la_commande(commerce, a)
     assert len(envoyes) == 1
@@ -94,6 +95,29 @@ async def test_commande_enregistree_allume_le_texte_de_l_etablissement_trous_rem
     # rejouer la fin de l'appel n'envoie pas une seconde fois
     await _finir_l_appel(commerce, a)
     assert len(envoyes) == 1
+
+
+async def _un_essai_sans_organisation_n_envoie_rien(boutique, envoyes, monkeypatch):
+    """Audit 8b-1a, R1 : la fin jouée sans organisation laisse la ligne « retenue » ; un essai (organisation ``None``) envoie la commande, sans le SMS allumé
+    ni ``commande.creee`` (pas de portail sans organisation)."""
+    dits: list[tuple] = []
+
+    async def dire(*a, **k):
+        dits.append(a)
+
+    monkeypatch.setattr(flux, "emettre", dire)
+    essai = Appel(boutique, vente_en_plus=False)
+    essai.appelant = Appelant(TEL, "appel-essai")                                  # son propre appel : celui du test suivant reste à part
+    await essai.pret("une regina normale")
+    await essai.jusqu_a_la_relecture()
+    fait = await essai.confirmer()
+    assert fait.statut == "ENREGISTREE", fait
+    fiche, statut = {panier.CLE: essai.p}, "SELECT statut FROM mark.resto_commande WHERE numero::text = $1"
+    await envoyer_la_commande_de_l_appel(None, essai.appelant.appel_id, fiche)
+    assert await boutique.c.fetchval(statut, fait.faits["numero"]) == "retenue" and envoyes == []
+    await envoyer_les_commandes_retenues(boutique.c, None, boutique.base, essai.appelant.appel_id, fiche)
+    assert await boutique.c.fetchval(statut, fait.faits["numero"]) != "retenue"   # la commande de l'essai part
+    assert (envoyes, dits) == ([], [])                                              # sans organisation : ni SMS ni portail
 
 
 async def test_reservation_chaque_geste_son_declencheur_au_numero_de_la_reservation(salle, envoyes, monkeypatch):  # noqa: F811
