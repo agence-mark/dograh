@@ -1,15 +1,15 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "db0d1c0369148eb14351851d405a9c172849ed9f",
+ "commit_teste": "2a4ca85d693be4c6dfa7f7384e94132b1bf1c15f",
  "base_de_comparaison": "76bdf2dfbe1c2172b989c3af63374d2f092b36c7",
- "poste": "sa12",
+ "poste": "sa11",
  "vert": true,
  "controles": {
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 19
+   "fichiers_de_la_zone": 2
   },
   "noqa": {
    "vert": true,
@@ -20,7 +20,7 @@
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1119 files, 3368 dependencies.",
+    "Analyzed 1117 files, 3363 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -30,41 +30,35 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 18.03s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.96s ========================"
   },
   "donnes": {
    "vert": true,
    "tests": [
-    "tests/mark/partie_1/test_p1f_lot8_famille_de_la_case.py",
-    "tests/mark/partie_1/test_p1f_lot8_ouverture_au_decroche.py",
-    "tests/mark/partie_1/test_p1f_lot8_crochets.py",
-    "tests/mark/partie_1/test_p1f_lot8_crochets_au_decroche.py",
-    "tests/mark/partie_1/test_p1f_lot8_crochets_fin.py",
-    "tests/mark/partie_1/test_p1f_lot8_issue_de_fin.py",
-    "tests/mark/partie_1/test_l05_latence.py",
-    "tests/mark/partie_1/test_l19bis_caisse.py",
-    "tests/mark/partie_1/test_l20_connexion_clavier.py",
-    "tests/mark/partie_1/test_p1f_lot10a_connexion_de_l_appel.py",
-    "tests/mark/partie_1/test_p1f_lot4_appel.py",
-    "tests/mark/partie_1/test_p1f_lot4_caisse.py",
     "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
-    "tests/mark/partie_1/test_inventaire_rustines.py",
-    "tests/mark/partie_1/test_l06_parole.py",
-    "tests/mark/test_restauration_statut_portail.py",
-    "tests/mark/test_restauration_direct_appel.py",
-    "tests/mark/test_restauration_commande_outils.py",
-    "tests/test_workflow_text_chat.py",
-    "tests/test_text_chat_session_service.py",
-    "tests/test_text_chat_inactivity.py",
-    "tests/mark/partie_1/test_p1f_lot8_etape_formule.py",
     "tests/mark/partie_1/test_l03_porte.py",
-    "tests/mark/partie_1/test_l04_cuisine.py",
+    "tests/mark/partie_1/test_l06_parole.py",
     "tests/mark/partie_1/test_l13_briques.py",
     "tests/mark/partie_1/test_l14_briques.py",
-    "tests/mark/partie_1/test_p1f_lot5_g36.py",
-    "tests/mark/partie_1/test_p1f_lot2_etape.py"
+    "tests/mark/partie_1/test_l19bis_lourds.py",
+    "tests/mark/partie_1/test_l19bis_parole.py",
+    "tests/mark/partie_1/test_p1f_lot7b_barriere_des_faits.py",
+    "tests/mark/partie_1/test_p1f_lot7b_dc4.py",
+    "tests/mark/partie_1/test_p1f_lot7b_prefixe.py",
+    "tests/mark/partie_1/test_p1f_lot7b_refus_de_la_reservation.py",
+    "tests/mark/partie_1/test_p1f_lot7c6_lecture_n_admet_que_le_prix.py",
+    "tests/mark/partie_1/test_p1f_lot7c6_relectures_de_la_reservation.py",
+    "tests/mark/partie_1/test_p1f_lot7c6_relecture_entendue_aux_valeurs.py",
+    "tests/mark/partie_1/test_p1f_lot7c6_restes_du_n11.py",
+    "tests/mark/partie_1/test_p1f_lot7c6_total_dans_l_etat.py",
+    "tests/mark/partie_1/test_p1f_lot7c6_virgule_entre_deux_nombres.py",
+    "tests/mark/partie_1/test_p1f_lot7_prix_lu.py",
+    "tests/mark/partie_1/test_p1f_lot7_table_egale_cascade.py",
+    "tests/mark/partie_1/test_p1f_lot8_t17_prix_sans_virgule.py",
+    "tests/mark/partie_1/test_l07_reservation.py",
+    "tests/mark/partie_1/test_inventaire_rustines.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_l_empreinte_ne_compte_pas_les_lignes_qui_attendent_et_la_commande_enregistree_garde_la_sienne\nPASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_une_proposition_fermee_sans_reponse_se_lit_dans_le_registre_pas_dans_un_drapeau\nPASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_chaque_ligne_du_md_des_phrases_est_rendue_au_modele_ou_une_exception_nommee_du_plan\nPASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_la_montee_d_un_ancien_panier_n_est_appelee_que_par_du_dossier\nPASSED tests/mark/partie_1/test_p1f_lot2_etape.py::test_a_clore_n_est_admis_que_si_c_est_tout_figure_dans_les_gestes_joues\n========== 463 passed, 13 xfailed, 28 warnings in 438.92s (0:07:18) ==========="
+   "sortie": "\n== paquet 1/4 : poste coord, 2 fichiers, 109 s, code 0\n== paquet 2/4 : poste sa4, 6 fichiers, 112 s, code 0\n== paquet 3/4 : poste sa5, 9 fichiers, 102 s, code 0\n== paquet 4/4 : poste sa11, 5 fichiers, 104 s, code 0\n========== 321 passed, 12 xfailed en 4 paquets in 112s =========="
   }
  }
 }

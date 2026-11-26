@@ -25,6 +25,7 @@ from api.services.actions_communes.forme import (
     DIZAINES,
     SEPARATEUR,
     UNITES,
+    lecture_a_virgule_decimale,
     norm,
     valeur_dite_par_elle,
     valeurs,
@@ -153,7 +154,7 @@ _VIRGULE_EN_ESPACE = str.maketrans({",": " ", ";": " "})
 def _sans_virgule(texte: Any) -> str:
     """Le texte sans ses virgules : la lecture où deux nombres qu'elle sépare se suivent (« vingt-quatre, cinquante euros » se lit « vingt-quatre cinquante euros »). Les espaces
     sont repliés (les lectures des valeurs coupent aux espaces)."""
-    return " ".join(str(texte or "").translate(_VIRGULE_EN_ESPACE).split())
+    return lecture_a_virgule_decimale(texte) or " ".join(str(texte or "").translate(_VIRGULE_EN_ESPACE).split())
 
 
 def _retenue(texte: str, fiches: list, sources: list[str]) -> bool:
