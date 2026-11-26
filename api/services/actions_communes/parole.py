@@ -263,9 +263,15 @@ def question_due_sans_suite(phrase: str, suite: str | None, en_attente: bool) ->
     return not suite and en_attente and not pose_une_question(phrase)
 
 
+def suite_sans_question(suite: str | None) -> bool:
+    """PE-2 (Q5, choix A du point d'étape) : le code dit une suite après la phrase du modèle (le rendu de monnaie, le numéro retenu) qui ne pose pas de question. Forme seulement."""
+    return bool(suite) and not pose_une_question(str(suite))
+
+
 def dit_ce_que_le_code_dit(texte: str, etat: EtatDuTour) -> bool:
-    """C6 : le code dit une QUESTION après la phrase du modèle (``etat.suffixe`` se termine par « ? ») et la phrase du modèle en pose déjà une : deux questions dans un tour. Forme seulement."""
-    return bool(etat.suffixe) and pose_une_question(etat.suffixe) and pose_une_question(texte)
+    """C6 : le code dit une suite après la phrase du modèle (``etat.suffixe``) et la phrase du modèle pose déjà une question : deux questions, ou (PE-2 Q5) la question avant la suite sans
+    question d'un fait accompli du modèle (le rendu de monnaie ; ``etat.exiges`` posé). Elle est relancée sans question ; la question du modèle attend le tour suivant (elle reste au registre). Forme seulement."""
+    return bool(etat.suffixe) and pose_une_question(texte) and (pose_une_question(etat.suffixe) or etat.exiges is not None)
 
 
 REPRISE = "reprise_de_la_question"  # motif : la phrase dite n'a pas posé la question en attente ; le modèle est relancé avec elle (lot 20, C5)

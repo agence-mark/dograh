@@ -206,9 +206,13 @@ def consigne_de_relance(p: dict[str, Any] | None, fiche: Any, etat: Any, connect
     a_dire = faits_du_fait_bloquant(fiche)
     if a_dire:
         faits["a_dire"] = a_dire
+    from api.services.actions_communes.parole import suite_sans_question
+
     q = CONV.question_de(p) if isinstance(p, dict) else None
     manque = None if q is not None or not isinstance(p, dict) else _valeur_du_manque(p, connecteur, fiche)
-    if q is not None:
+    if q is not None and getattr(etat, "exiges", None) is not None and suite_sans_question(getattr(etat, "suffixe", None)):
+        pass  # PE-2 (Q5) : le code dit une suite sans question après la phrase (le rendu) : la question du registre attend le tour suivant, elle ne passe pas avant
+    elif q is not None:
         faits["puis"] = {"question": question_pour_la_relance(q)}
     elif manque:
         faits["puis"] = {"manque": str(manque)}

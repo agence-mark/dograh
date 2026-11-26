@@ -21,7 +21,7 @@ from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.actions_communes.repli import refus_qui_attend_le_client
 from api.services.actions_communes.parole import (
     A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, SUFFIXE, Decision, EtatDuTour,
-    apres_un_refus, la_suite_reglee, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
+    apres_un_refus, la_suite_reglee, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour, suite_sans_question,
 )
 
 FAIT_ACCOMPLI = "fait_accompli_du_modele"  # motif : le modèle dit le fait accompli (C6 n° 5), le code dit la suite après sa phrase
@@ -76,9 +76,26 @@ def _rendre_la_fiche(e: Entrees) -> None:
     e.etat.fiches -= 1  # une fiche vide n'est pas une fiche
 
 
+def _suite_du_code_sans_question(e: Entrees) -> str | None:
+    """PE-2 (Q5) : la suite que le code dit après la confirmation ou le changement du modèle (un fait accompli : ses valeurs exigées sont posées, par cette fiche ou par un passage d'avant du tour)
+    quand elle ne pose pas de question (le rendu de monnaie). Les autres suites ne sont pas touchées."""
+    suite = e.suffixe_du_code or e.suffixe_avant
+    fait_accompli = e.exiges is not None or e.etat.exiges is not None
+    return suite if fait_accompli and suite_sans_question(suite) else None
+
+
 def _du_a_reposer(e: Entrees) -> bool:
-    """Une question attend, ou un manque est dû, et la phrase du modèle n'en pose aucune (une question à la fois) : ce que le modèle a oublié. Lu sur la forme (le « ? », le dossier), jamais sur les mots."""
-    return not pose_une_question(e.phrase) and (e.en_attente or bool(e.du.manque))
+    """Une question attend, ou un manque est dû, et la phrase du modèle n'en pose aucune (une question à la fois) : ce que le modèle a oublié. Lu sur la forme (le « ? », le dossier), jamais sur les mots.
+    PE-2 (Q5, choix A) : quand le code dit une suite sans question après la phrase (le rendu), la question qui attend n'est pas due avant elle : elle reste au registre pour le tour suivant ;
+    un manque reste dû."""
+    question_qui_attend = e.en_attente and _suite_du_code_sans_question(e) is None
+    return not pose_une_question(e.phrase) and (question_qui_attend or bool(e.du.manque))
+
+
+def _dite_seule(e: Entrees, motif: str) -> Decision:
+    """La phrase du modèle est dite seule ; PE-2 (Q5) : suivie de la suite du code sans question (le rendu) quand une question attend, la suite n'est pas perdue."""
+    suite = _suite_du_code_sans_question(e) if e.en_attente else None
+    return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (e.phrase, suite) if x), motif=motif)
 
 
 def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
@@ -120,7 +137,7 @@ def _rien_change(e: Entrees) -> Decision:
     e.etat.jetee = None
     if (relance := _relancer_le_fait(e, MANQUE)) is not None:
         return relance
-    return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
+    return _dite_seule(e, "fait")
 
 
 def _question(e: Entrees) -> Decision:
@@ -145,7 +162,7 @@ def _fait_accompli(e: Entrees) -> Decision:
     la proposition, la relecture de la réservation), si elle pose cette question (reprise R2) ; sinon le modèle repasse avec le retour, la suite gardée pour sa phrase."""
     etat, phrase, suite = e.etat, e.phrase, e.suffixe_du_code
     exiges = e.exiges or {}
-    en_double = bool(suite) and pose_une_question(suite) and pose_une_question(phrase)
+    en_double = bool(suite) and pose_une_question(phrase)  # PE-2 (Q5) : une question du modèle viendrait avant la suite du code (le rendu) ou en ferait deux : elle attend le tour suivant
     due = question_due_sans_suite(phrase, suite, e.en_attente)
     if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and not due and porte_les_chiffres(phrase, exiges):
         etat.jetee = None
@@ -169,7 +186,7 @@ def _dite_ou_due(e: Entrees) -> Decision:
     e.etat.jetee = None
     if (relance := _relancer_le_fait(e, MANQUE)) is not None:
         return relance
-    return Decision(A_DIRE_SEUL, a_dire=e.phrase, motif="fait")
+    return _dite_seule(e, "fait")
 
 
 # Les lignes, dans l'ordre : la première dont la condition est vraie décide.
