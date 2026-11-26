@@ -738,10 +738,13 @@ def _accord_a_redonner(p: dict[str, Any], etat_avant: str) -> bool:
     return ETAPE.accord(p) or (etat_avant == ETAPE.ACCORDEE and ETAPE.courante(p) == ETAPE.EN_COURS and not RQ.question_en_doute(p))
 
 
-def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> None:
-    """n° 45 : « c'est tout » est dit mais la relecture attend l'heure proposée : l'étape le dit (plus un drapeau posé sur la question)."""
+def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> bool:
+    """n° 45 : « c'est tout » est dit mais la relecture attend l'heure proposée : l'étape le dit (plus un drapeau posé sur la question). Rend vrai : la question de l'heure est
+    alors redonnée dans ce tour (7c : le modèle la repose)."""
     if q is not None and q.get("type") == "heure_proposee" and "c_est_tout" in executees and ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
         ETAPE.transition(p, ETAPE.C_EST_TOUT_DIT)
+        return True
+    return False
 
 
 @dataclass
@@ -1215,9 +1218,11 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     q = _question_de(dernier, 0, tour, p) if dernier is not None else None
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         f.ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
-    _dire_c_est_tout(p, q, f.ex.executees)
+    redonnee = _dire_c_est_tout(p, q, f.ex.executees)
     if not RQ.est_deja_ouverte(p, q):
         RQ.ouvrir(p, q)  # celle d'un article en doute est déjà au registre, ouverte à l'article (D25)
+    if redonnee:
+        RQ.redonner(p, q, tour)  # 7c : « c'est tout » redonne l'heure proposée dans ce tour (n° 45), le modèle la repose
     for refus in (r for r in f.bruts if r.manque in MANQUES_REFUSES_DE_QUESTION and statut_qui_refuse(r.statut)):
         manque = _question_de(refus, 0, tour, p)  # ligne 12 : l'heure refusée est posée avant la relecture, le modèle dit le refus puis la demande
         if manque is not None and not RQ.est_deja_ouverte(p, manque):

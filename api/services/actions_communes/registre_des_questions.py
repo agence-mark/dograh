@@ -99,6 +99,16 @@ def ouvrir(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> None:
     ouvertes[cle] = {**deja, **neuve} if meme else neuve
 
 
+def redonner(t: Table, p: dict[str, Any], q: dict[str, Any] | None, tour: int) -> None:
+    """La même question redonnée EXPRÈS dans ce tour (n° 45 : « c'est tout » quand la relecture attend l'heure proposée) : elle naît dans ce tour, le modèle la repose. Avant C7 B3,
+    son autre texte la faisait renaître ; la question se lit par sa structure, la renaissance est dite ici, jamais déduite d'un texte."""
+    if not isinstance(q, dict) or not q.get("type"):
+        return
+    ouverte = (CONV.de(p).get(CLE_DES_QUESTIONS) or {}).get(nommer(t, q, p))
+    if isinstance(ouverte, dict):
+        ouverte["nee_au_tour"] = tour
+
+
 def est_deja_ouverte(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> bool:
     """Cette question, née dans ce tour, est déjà au registre : la fin de la fiche ne la rouvre pas, son objet n'est pas recompté."""
     if not isinstance(q, dict):
