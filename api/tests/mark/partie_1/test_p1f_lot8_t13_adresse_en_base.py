@@ -1,5 +1,7 @@
-"""[.mark] Lot 7c, second passage de l'audit (coordinateur 26/11 14 h 25) : R2 (l'adresse et la note d'une commande enregistrée partent en caisse), R3 (la question
-d'étape d'une formule tombe avec elle) et le juge ``rc_base`` renforcé (a) à (d), vu rouge sur R1 et R2 remis par mutation."""
+"""[.mark] Plan final Partie 1, lot 8b-1b (T13, R2 de l'audit 7c ; E-2) : l'adresse, la note et la consigne au livreur changées après le « oui » réécrivent la commande
+en base au tour même ; la caisse ne reçoit rien pendant l'appel (§ 17 l.404) et reçoit, à la fin de l'appel, UN envoi qui les porte. Un changement d'adresse donne au modèle
+l'adresse dans les faits du changement et l'exige de sa phrase (E-2 ; aucun nouvel accord). Report du test rouge de ``a24c06c0``, adapté au § 17 ; son 4ᵉ test (caisse qui ne
+sait pas annuler) est sans objet (§ 17 l.404)."""
 
 from __future__ import annotations
 
@@ -22,39 +24,42 @@ async def _livree_au_12(faire_monde, monkeypatch):
     return C, partie
 
 
-async def test_r2_une_adresse_changee_sur_une_commande_enregistree_part_en_caisse(faire_monde, monkeypatch):
-    """Audit 7c, R2 (RC2) : l'empreinte ne lit pas l'adresse ; la porte n'envoyait le changement que si l'empreinte changeait. Client (commande enregistrée, livrée au 12 rue de la
-    République à Senlis) « Non, c'est au 3 rue de Paris. » / avant : le panier a la nouvelle adresse, le retour dit FAIT, la base et la caisse gardent le 12 / après : le changement part
-    en caisse, la base et la caisse ont le 3 rue de Paris."""
+async def _un_envoi_a_la_fin(partie) -> dict:
+    assert partie.e.source.prise.recues == [], "rien en caisse pendant l'appel (§ 17)"
+    assert await partie.finir_l_appel() == []
+    recues = partie.e.source.prise.recues
+    assert len(recues) == 1, recues
+    return recues[0]
+
+
+async def test_r2_une_adresse_changee_sur_une_commande_enregistree_est_reecrite_en_base_et_part_a_la_fin(faire_monde, monkeypatch):
+    """Client (commande enregistrée, livrée au 12 rue de la République à Senlis) « Non, c'est au 3 rue de Paris. » / avant : le panier a la nouvelle adresse, la base et la caisse
+    gardent le 12, le livreur va au 12 / après : la base a le 3 rue de Paris au tour même, le modèle dit l'adresse (« C'est noté, au 3 rue de Paris. »), la caisse reçoit le 3 à la fin."""
     C, partie = await _livree_au_12(faire_monde, monkeypatch)
     o = await partie._executer("A", "non, c'est au 3 rue de Paris à Senlis", ADRESSE_2, C._inchange)
     assert "3 rue de Paris" in _voie(o.apres.get("adresse")), o.apres.get("adresse")
     assert "3 rue de Paris" in _voie((o.base or {}).get("adresse")), (o.base or {}).get("adresse")
-    assert "3 rue de Paris" in _voie((o.prise or {}).get("adresse")), (o.prise or {}).get("adresse")
+    assert "3 rue de Paris" in str((o.textes or {}).get("fait_accompli")), o.textes  # E-2 : les faits du changement portent l'adresse
+    assert "3" in str(((o.textes or {}).get("chiffres_exiges") or {}).get("adresse") or ""), o.textes  # E-2 : exigée de la phrase du modèle
+    recue = await _un_envoi_a_la_fin(partie)
+    assert "3 rue de Paris" in _voie(recue.get("adresse")), recue.get("adresse")
 
 
-async def test_r2_une_note_changee_sur_une_commande_enregistree_part_en_caisse(faire_monde, monkeypatch):
-    """R2, la note : Client (commande enregistrée) « Bien cuite, s'il vous plaît. » / avant : la note reste au panier, la caisse ne la reçoit pas / après : la base et la caisse l'ont."""
+async def test_r2_une_note_changee_sur_une_commande_enregistree_est_reecrite_en_base_et_part_a_la_fin(faire_monde, monkeypatch):
+    """R2, la note : Client (commande enregistrée) « Bien cuite, s'il vous plaît. » / avant : la note reste au panier, la caisse ne la reçoit pas / après : la base l'a au tour
+    même, la caisse la reçoit à la fin."""
     C, partie = await _livree_au_12(faire_monde, monkeypatch)
     o = await partie._executer("N", "bien cuite s'il vous plaît", {"note_generale": "bien cuite"}, C._inchange)
     assert "bien cuite" in str(o.apres.get("note") or ""), o.apres.get("note")
     assert "bien cuite" in str((o.base or {}).get("note") or ""), (o.base or {}).get("note")
-    assert "bien cuite" in str((o.prise or {}).get("note") or ""), (o.prise or {}).get("note")
+    recue = await _un_envoi_a_la_fin(partie)
+    assert "bien cuite" in str(recue.get("note") or ""), recue.get("note")
 
 
-async def test_r2_une_consigne_au_livreur_changee_sur_une_commande_enregistree_part_en_caisse(faire_monde, monkeypatch):
-    """R2, la consigne pour le livreur (envoyée à la caisse avec la note) : Client « Sonnez deux fois. » / après : la base l'a."""
+async def test_r2_une_consigne_au_livreur_changee_sur_une_commande_enregistree_est_reecrite_en_base_et_part_a_la_fin(faire_monde, monkeypatch):
+    """R2, la consigne pour le livreur (envoyée à la caisse avec la note) : Client « Sonnez deux fois. » / après : la base l'a au tour même, la caisse à la fin."""
     C, partie = await _livree_au_12(faire_monde, monkeypatch)
     o = await partie._executer("CL", "sonnez deux fois", {"consigne_livreur": "sonnez deux fois"}, C._inchange)
     assert "sonnez deux fois" in str((o.base or {}).get("consigne_livreur") or "") + str((o.base or {}).get("note") or ""), o.base
-
-
-async def test_r2_une_adresse_changee_refusee_par_la_caisse_revient_et_le_dit(faire_monde, monkeypatch):
-    """R2, le refus : la caisse ne sait pas annuler. Client « Non, c'est au 3 rue de Paris. » / avant : FAIT, le panier au 3, la caisse au 12 / après : le panier revient au 12 (ce
-    que la caisse a), le retour dit le changement refusé (jamais fait sans la caisse)."""
-    C, partie = await _livree_au_12(faire_monde, monkeypatch)
-    partie.e.source.permet_l_annulation = lambda: False
-    o = await partie._executer("A", "non, c'est au 3 rue de Paris à Senlis", ADRESSE_2, C._inchange)
-    ops = {x.get("operation"): x for x in (o.retour or {}).get("resultats") or []}
-    assert (ops.get("changer_la_commande_enregistree") or {}).get("faits", {}).get("raison") == "changement_impossible", ops
-    assert "12" in _voie(o.apres.get("adresse")) and "12" in _voie((o.base or {}).get("adresse")), (o.apres.get("adresse"), (o.base or {}).get("adresse"))
+    recue = await _un_envoi_a_la_fin(partie)
+    assert "sonnez deux fois" in str(recue.get("consigne_livreur") or "") + str(recue.get("note") or ""), recue
