@@ -177,8 +177,9 @@ async def test_ic5_la_phrase_du_code_entre_dans_l_historique(monkeypatch):
     assert texte == "Très bien." and options.get("append_to_context") is True, engine.queue_text_message.call_args
 
 
-async def test_regle_3_le_repli_redit_le_fait_accompli(essai_de):
-    """C5, DF5 : après l'enregistrement, « pardon ? » : ni question ni manque ; la confirmation est le fait accompli que le code a dit (§ 2 du plan, jusqu'à C6), jamais « je n'ai pas bien saisi »."""
+async def test_regle_3_le_repli_ne_redit_plus_le_fait_accompli(essai_de):
+    """C5, DF5, puis reprise R1 de C6 : après l'enregistrement, « pardon ? » : ni question ni manque, ni suite réglée en attente ; le fait accompli reste au journal, le code ne le redit
+    plus : une retenue vide (``RepliqueVerifiee`` dit la phrase réglée « pas compris », P3)."""
     e = await essai_de()
     await _jusqu_a_l_enregistrement(e)
     from api.services.actions_communes import journal_du_dit as J
@@ -189,4 +190,4 @@ async def test_regle_3_le_repli_redit_le_fait_accompli(essai_de):
 
     e.montrer()
     silence = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler_le_silence()
-    assert silence is not None and silence.a_dire == confirmation  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : rien n'est dû, le modèle muet : le fait accompli, jamais une phrase composée
+    assert silence is not None and silence.a_dire is None and not silence.consigne, silence  # décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6

@@ -60,7 +60,7 @@ class Observation:
     attendu: Counter | None
     fiche: dict[str, Any] | None
     duree_ms: float = 0.0
-    consigne: str | None = None  # lot 7b-C5 : ce que le code donne au modèle muet après « pardon ? » (la consigne de relance, ses faits en JSON), sinon le fait accompli ; jamais une phrase composée
+    consigne: str | None = None  # lot 7b-C5 : ce que le code donne au modèle muet après « pardon ? » (la consigne de relance, ses faits en JSON) ; sans elle, la phrase réglée « pas compris » (P3, reprise R1 de C6 : jamais le fait accompli) ; jamais une phrase composée
     base: dict[str, Any] | None = None  # la commande de ``resto_commande`` (et ses lignes) quand le panier en porte une enregistrée
     prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois
     finaliser_appels: int = 0  # combien de fois la fiche de ce geste a mené la commande à sa fin (invariant : jamais plus d'une)
@@ -400,7 +400,7 @@ class Partie:
             if not rejeu and dit is not None:
                 self.dernier_effet = effet  # G31 (dans le même tour) ne change pas ce que « je répète » rejouerait
         else:
-            consigne = R.consigne_de_relance(self.p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel)) or J.fait_accompli(self.p)
+            consigne = R.consigne_de_relance(self.p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel))
         base, prise = await self._lire_la_base()
         o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, consigne, base, prise, nombre_de_fins if fiche is not None else 0,
                         relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait)
@@ -700,7 +700,8 @@ def rc6(partie: Partie) -> list[Faute]:
 
 def rc7(o: Observation) -> list[Faute]:
     """Incompréhension : le dire, puis reprendre la question en attente (ou le manque). Lot 7b-C5 : le code ne reprend rien de sa voix, il relance le modèle ; la consigne de relance doit porter la
-    question en attente (son identifiant), ou ce qui manque."""
+    question en attente (son identifiant), ou ce qui manque. Après une action faite (enregistrée ou annulée), rien n'est dû : la phrase réglée « pas compris » part (P3 ; reprise R1 de C6,
+    décisions d'Evan 25/11 8 h 45 et 9 h 30, le code ne redit plus le fait accompli)."""
     if o.geste != "G35":
         return []
     q = question(o.apres)
@@ -708,8 +709,6 @@ def rc7(o: Observation) -> list[Faute]:
         return [("RC7", f"après « pardon ? », la consigne de relance ne porte pas la question en attente : « {o.consigne} »")]
     if not finie(o.apres) and not q and not o.consigne:
         return [("RC7", "après « pardon ? », rien à redire alors que la commande n'est pas finie")]
-    if finie(o.apres) and not o.consigne:
-        return [("RC7", "après une action faite (enregistrée ou annulée), « pardon ? » n'a rien à redire : seule la phrase neutre « je n'ai pas bien saisi » part (C5)")]
     return []
 
 

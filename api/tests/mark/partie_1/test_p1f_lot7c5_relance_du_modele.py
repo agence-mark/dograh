@@ -377,8 +377,8 @@ def _avec_fait_accompli(fiche: dict) -> dict:
     return fiche
 
 
-async def test_s3_la_relance_en_echec_dit_le_fait_accompli_et_garde_la_relance_du_tour():
-    """Réplique retenue (chiffre), 429 sur la relance : le fait accompli que le code a dit (§ 2), pas la phrase réglée ; la relance du fait n'est pas consommée par ce repli."""
+async def test_s3_la_relance_en_echec_ne_dit_plus_le_fait_accompli_et_garde_la_relance_du_tour():
+    """Réplique retenue (chiffre), 429 sur la relance : décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6 : la phrase réglée (P3), jamais le fait accompli gardé au journal ; la relance du fait n'est pas consommée par ce repli."""
     fiche = _avec_fait_accompli(_fiche_du_homard())
 
     async def flux():
@@ -391,14 +391,25 @@ async def test_s3_la_relance_en_echec_dit_le_fait_accompli_et_garde_la_relance_d
     verifie = RepliqueVerifiee(flux(), verificateur.controler, relance_429, None, verificateur.controler_la_relance,
                                lambda *a, **k: verificateur.controler_le_silence(None, **k), lambda: REGLEE)
     dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in verifie])
-    assert dit == "Votre commande est enregistrée.", dit
+    assert dit == REGLEE, dit
     assert PAROLE.etat_du_tour(fiche).relance_du_fait is False
 
 
-def test_s4_des_cases_illisibles_disent_le_fait_accompli_s_il_y_en_a_un():
+def test_s4_des_cases_illisibles_ne_disent_plus_le_fait_accompli():
+    """décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6 : aucune requête possible, aucune suite réglée en attente : la phrase réglée, jamais le fait accompli gardé au journal."""
     moteur = SimpleNamespace(_gathered_context=_avec_fait_accompli(_fiche(fait_bloquant=HOMARD)))
     llm = SimpleNamespace(**{ATTRIBUT_PHRASE_DE_REPLI: lambda: REGLEE})
-    assert AR.phrase_si_les_cases_sont_illisibles(moteur, llm) == "Votre commande est enregistrée."
+    assert AR.phrase_si_les_cases_sont_illisibles(moteur, llm) == REGLEE
+
+
+def test_s4_des_cases_illisibles_disent_la_suite_reglee_deja_posee():
+    """Reprise R1 de C6 : la suite réglée déjà posée (ici M108) part seule, par le même chemin que la relance ratée (``controler_le_silence(sans_relance=True)``)."""
+    fiche = _avec_fait_accompli(_fiche())
+    etat = PAROLE.etat_du_tour(fiche)
+    etat.suffixe = "Puis-je faire autre chose pour vous ?"
+    PAROLE.garder(fiche, etat)
+    llm = SimpleNamespace(**{ATTRIBUT_PHRASE_DE_REPLI: lambda: REGLEE})
+    assert AR.phrase_si_les_cases_sont_illisibles(SimpleNamespace(_gathered_context=fiche), llm) == "Puis-je faire autre chose pour vous ?"
 
 
 # --------------------------------------------------------------------------- commit 7 : E2a et E2b, la table relance au lieu de compléter

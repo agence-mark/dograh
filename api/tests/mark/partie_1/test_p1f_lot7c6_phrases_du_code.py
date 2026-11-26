@@ -3,6 +3,8 @@
 
 Garde G3 : ce qui part à la voix est la phrase du modèle ou le texte d'un motif de ``PHRASES_DU_CODE``. Un xfail strict (``raises=AssertionError``) par famille de phrases, posé
 au commit 1, retiré par le commit qui ferme la famille ; le commit 12 supprime le module et ferme la liste. Aucun modèle, aucun appel : on lit les sources.
+Ce fichier ne lit que les sources ; la G3 qui joue la voix (relance ratée : seule la suite réglée de ``PHRASES_DU_CODE`` ou P3 part) est ``test_p1f_lot7c6_voix_apres_relance_ratee.py``
+(reprises R1 et R6 de l'audit).
 """
 
 from __future__ import annotations

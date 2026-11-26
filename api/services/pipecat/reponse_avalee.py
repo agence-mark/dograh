@@ -366,7 +366,7 @@ def noter_un_outil_de_passation(service: Any, nom: str) -> None:
 
 
 # P5 (lot 19 bis) : la fiche d'un connecteur aux arguments illisibles n'est pas exécutée comme ``{}`` (une fiche vide ne dit rien) : elle arrive marquée, la porte la refuse
-# (``arguments_illisibles``, un refus de LA FICHE) et le modèle repasse ; au bout des passes, le code relance le modèle avec le fait (C5), puis dit le fait accompli ou la phrase réglée. Jamais un tour muet.
+# (``arguments_illisibles``, un refus de LA FICHE) et le modèle repasse ; au bout des passes, le code relance le modèle avec le fait (C5), puis dit la suite réglée déjà posée ou la phrase réglée (P3). Jamais un tour muet.
 ATTRIBUT_NOMS_DES_FICHES = "mark_noms_des_fiches"
 ARGUMENTS_D_UNE_FICHE_ILLISIBLE = '{"arguments_illisibles": true}'
 
@@ -638,7 +638,7 @@ class RepliqueVerifiee:
     - une réplique de texte seul est contrôlée (``controler(texte)`` rend ``None`` ou une retenue) ; sans retenue,
       elle passe telle quelle ;
     - retenue : le modèle est relancé UNE fois, sans flux, avec la consigne de la retenue (``relancer(retenue)``) ; une relance retenue à son tour avec le fait à redonner
-      est relancée au plus UNE fois encore (la relance du fait). Sinon, ou sans réponse : le texte que porte la retenue, le fait accompli ou la phrase réglée de l'agent ;
+      est relancée au plus UNE fois encore (la relance du fait). Sinon, ou sans réponse : le texte que porte la retenue, la suite réglée déjà posée ou la phrase réglée de l'agent (P3) ;
       jamais la réplique retenue, jamais un tour muet (une retenue sans consigne ni appel exigé n'a pas de requête de plus : elle va droit à la phrase du code).
     - SA-36 (M87) : une retenue qui porte un texte à dire à la place (``a_dire``) est remplacée par lui, sans relance ; une relance
       qui affirme comme fait ce qu'aucun outil du tour n'a fait (``controler_la_relance``) est remplacée de même.
@@ -759,7 +759,7 @@ class RepliqueVerifiee:
         return bool(isinstance(a_dire, str) and a_dire.strip()) or not (getattr(retenue, "consigne", None) or getattr(retenue, "outil", None))
 
     async def _dire_sans_relancer(self, retenue, appel, tenus, usage):
-        """Le texte de la retenue, dit sans relance (SA-36 : la question du dernier outil) ; sans texte, la phrase du code : le fait accompli ou la phrase réglée, jamais un tour muet."""
+        """Le texte de la retenue, dit sans relance (SA-36 : la question du dernier outil) ; sans texte, la phrase du code : la suite réglée ou la phrase réglée (P3), jamais un tour muet."""
         a_dire = getattr(retenue, "a_dire", None)
         if isinstance(a_dire, str) and a_dire.strip():
             logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : remplacée par le texte de l'outil")
@@ -770,7 +770,7 @@ class RepliqueVerifiee:
             yield morceau
 
     async def _rendre_la_relance(self, retenue, reprise, appel, tenus, usage, du_fait):
-        """La réponse de la relance, dite telle quelle ; retenue à son tour avec le fait à redonner, la méthode de relance est rappelée UNE fois (``du_fait``) ; sans réponse : le fait accompli ou la phrase réglée."""
+        """La réponse de la relance, dite telle quelle ; retenue à son tour avec le fait à redonner, la méthode de relance est rappelée UNE fois (``du_fait``) ; sans réponse : la suite réglée ou la phrase réglée (P3)."""
         if reprise is not None:
             morceaux, encore = await self._morceaux_de_la_relance(reprise, usage, du_fait)
             if encore is not None:
@@ -788,9 +788,9 @@ class RepliqueVerifiee:
             yield morceau
 
     async def _sans_reponse_de_la_relance(self, retenue, appel, tenus, usage):
-        """La relance a échoué ou n'a rien rendu : la réplique retenue n'est jamais dite telle quelle (le fait accompli ou la phrase réglée la remplace)."""
+        """La relance a échoué ou n'a rien rendu : la réplique retenue n'est jamais dite telle quelle (la suite réglée ou la phrase réglée la remplace)."""
         # D26 (note de Pierre du 20/11, point 4) : la relance a échoué (429, délai) ou n'a rien rendu : la réplique retenue n'est JAMAIS dite
-        # telle quelle ; le fait accompli que le code a dit, sinon la phrase réglée de l'agent la remplace (jamais un refus ni une question composés par le code)
+        # telle quelle ; la suite réglée déjà posée, sinon la phrase réglée de l'agent la remplace (jamais un refus, une question ni un fait accompli composés par le code ; R1 de C6)
         logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : relance sans réponse, phrase du code")
         if appel:
             # le texte retenu précédait un appel d'outil : l'appel part, le texte jamais (l'outil rend ce qui se dit)
@@ -813,7 +813,7 @@ class RepliqueVerifiee:
 
     async def _morceaux_de_la_relance(self, reprise: Any, usage: Any, du_fait: bool = False) -> tuple[list[Any], Any]:
         """La réponse de la relance, rendue telle quelle ; retenue à son tour (D26), elle n'est jamais dite : le texte que la retenue porte, sinon (C5, décision d'Evan 25/11 8 h 45) la retenue
-        elle-même, à relancer UNE fois avec le fait (``du_fait`` : déjà fait, plus de relance), sinon la phrase du code (le fait accompli, ou la phrase réglée de l'agent). Rend ``(morceaux, retenue à relancer)``."""
+        elle-même, à relancer UNE fois avec le fait (``du_fait`` : déjà fait, plus de relance), sinon la phrase du code (la suite réglée, ou la phrase réglée de l'agent). Rend ``(morceaux, retenue à relancer)``."""
         morceaux = en_morceaux(reprise, usage)
         seconde = self._retenue_de_la_relance(morceaux)
         if seconde is None:
@@ -829,8 +829,8 @@ class RepliqueVerifiee:
         return self._a_dire(self._phrase_du_code(), usage_d_ici), None
 
     def _phrase_du_code(self) -> str:
-        """Ce que dit le code quand une réplique retenue n'a pas de remplaçant et que la relance a échoué (C5, décision d'Evan 25/11 8 h 45) : le fait accompli qu'il a déjà dit
-        (§ 2 du plan, jusqu'à C6), sinon la phrase réglée de l'agent. Jamais le refus ni la question composés par le code."""
+        """Ce que dit le code quand une réplique retenue n'a pas de remplaçant et que la relance a échoué (C5, décision d'Evan 25/11 8 h 45) : la suite réglée déjà posée
+        (motifs de ``PHRASES_DU_CODE``, reprise R1 de C6), sinon la phrase réglée « pas compris » de l'agent (P3). Jamais le refus, la question ni le fait accompli composés par le code."""
         if self._silence is not None:
             try:
                 repli = getattr(self._silence(sans_relance=True), "a_dire", None)

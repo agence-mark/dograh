@@ -4,8 +4,8 @@
   lot 2 (``enveloppe.REFUS_DE_LA_FICHE``), jamais du sens. Après un refus de la fiche, une phrase du modèle sans outil n'est jamais dite. Après un
   refus du métier (hors zone, rupture, minimum…), la phrase du modèle qui dit la raison reste dite.
 - ``consigne_de_relance(p, fiche, etat, connecteur)`` (lot 7b-C5, décision d'Evan 25/11 8 h 45) : au bout des passes, sans phrase dicible, le code ne compose aucune phrase : il
-  RELANCE le modèle une fois par tour avec le fait (JSON : les refus du tour, puis la question en attente ou ce qui manque). Si la relance échoue : le fait accompli que le code a déjà
-  dit, sinon la phrase réglée de l'agent.
+  RELANCE le modèle une fois par tour avec le fait (JSON : les refus du tour, puis la question en attente ou ce qui manque). Si la relance échoue : la suite réglée déjà
+  posée (motifs de ``PHRASES_DU_CODE``), sinon la phrase réglée « pas compris » de l'agent (P3 ; reprise R1 de C6 : jamais le fait accompli).
 """
 
 from __future__ import annotations

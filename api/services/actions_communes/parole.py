@@ -8,7 +8,7 @@ Recopie de la boucle du tour du banc (``banc-b12/appel_b12.py`` ``tour``), répa
   A (aucun outil dans ce tour alors qu'un objet est en cours ou qu'une question attend, une fois par tour) ; le rattrapage après un refus (une
   fois par tour, tenu par le drapeau ``rattrapage_refus_joue``, jamais par le texte retenu) ; le repli A (après un refus de LA FICHE, jamais
   dite) ; la barrière des chiffres (toujours) ;
-- **au bout** (C5, décision d'Evan 25/11 8 h 45) : le code ne compose aucune phrase ; une phrase retenue, ou un silence, relance le modèle UNE fois par tour avec le fait (``repli.consigne_de_relance``) ; si la relance échoue : le fait accompli que le code a déjà dit, sinon la phrase réglée de l'agent ;
+- **au bout** (C5, décision d'Evan 25/11 8 h 45) : le code ne compose aucune phrase ; une phrase retenue, ou un silence, relance le modèle UNE fois par tour avec le fait (``repli.consigne_de_relance``) ; si la relance échoue : la suite réglée déjà posée (``la_suite_reglee``, motifs de ``PHRASES_DU_CODE``), sinon la phrase réglée « pas compris » de l'agent (P3) ; le fait accompli n'est gardé qu'au journal ;
 - **ce que le code dit lui-même** (``textes``, posés par la porte, élément 1 (b)) : C6, une phrase réglée (le numéro, le total, le rendu, la question M108 ou DC10) dite juste
   après la phrase du modèle (``suffixe``, gardé dans l'état du tour jusqu'à elle) ; plus aucune porte ne pose ``avant`` (C6 n° 12), la ligne de la table qui le lit reste sans producteur.
 
@@ -38,7 +38,7 @@ RAPPEL_SANS_OUTIL = "- Ta réponse précédente n'avait pas d'appel d'outil : el
 SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refus", "repli_a", "chiffre"
 # C6 : la phrase du modèle (la relecture) dit déjà ce que le CODE dit juste après elle (la question, le total) : retenue, le modèle est relancé une fois (``repli.consigne_de_ce_que_le_code_dit``).
 CE_QUE_LE_CODE_DIT = "dit_ce_que_le_code_dit"
-CHIFFRES_EXIGES = "chiffres_exiges"  # C6 n° 5 : la phrase du modèle ne dit pas les valeurs exigées du fait accompli (l'heure) : relancée une fois, puis le code redit le fait accompli
+CHIFFRES_EXIGES = "chiffres_exiges"  # C6 n° 5 : la phrase du modèle ne dit pas les valeurs exigées du fait accompli (l'heure) : relancée une fois, puis la suite réglée seule, sinon P3 (reprise R1)
 SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le modèle est relancé avec le fait (C5)
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie de la phrase réglée du code (le total, le rendu, M108)
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
@@ -65,7 +65,6 @@ class EtatDuTour:
     suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
     jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
-    fait_a_redire: str | None = None  # C6 n° 5 et 7 : le fait accompli de CE tour que le code redit si la phrase du modèle manque (``None`` : aucun, la phrase réglée de l'agent)
     exiges: dict | None = None  # C6 n° 5 : les valeurs que la phrase du modèle doit dire avant la suite du code (l'heure de la commande enregistrée, ``porte_les_chiffres``) ; ``None`` : rien n'est exigé
     # C6 : ce qui prouve que la relecture est entendue (``{"jeton", "texte", "exiges"}``) : la phrase réglée que le code dit après la relecture du modèle (le total de la commande, la question
     # du numéro de la réservation) et les valeurs que la phrase doit dire (les personnes et l'heure de la réservation, P2) ; notée au journal quand elle part à la voix (``noter_le_total_dit``)
@@ -237,12 +236,13 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour, p: Any = None) -> str | None:
     return dit
 
 
-def fait_puis_la_suite(fait: str | None, etat: EtatDuTour) -> str | None:
-    """C6 n° 5 : quand la phrase du modèle manque, le fait accompli que le code a gardé au journal, puis la suite qu'il dit après la phrase (le rendu, la question M108) ; dans cet ordre,
-    bout à bout, sans rien composer. La suite n'est dite qu'une fois. ``None`` : rien à dire."""
-    dit = " ".join(x for x in (fait, etat.suffixe) if x) or None
+def la_suite_reglee(etat: EtatDuTour) -> str | None:
+    """Reprise R1 de l'audit de C6 (décisions d'Evan 25/11 8 h 45 et 9 h 30, P3) : la phrase du modèle manque (relance ratée) ; le code ne dit que la suite réglée déjà posée après elle
+    (motifs de ``PHRASES_DU_CODE`` : le numéro, le total, le rendu, M108), jamais le fait accompli (gardé au journal seulement). Elle n'est dite qu'une fois. ``None`` : rien de réglé, la
+    phrase réglée « pas compris » de l'agent (P3) la remplace."""
+    dit = etat.suffixe or None
     etat.suffixe = None
-    etat.exiges = etat.fait_a_redire = None
+    etat.exiges = None
     return dit
 
 

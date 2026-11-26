@@ -45,7 +45,7 @@ async def test_le_oui_donne_toujours_la_confirmation_du_code(essai_de):
     await e.tour("j'annule tout", annuler_une_commande_enregistree=True)
     q = CONV.question_de(e.p)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
-    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le « oui » annule toujours ; le modèle le dit, le code garde le fait au journal (le repli le redit)
+    # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le « oui » annule toujours ; le modèle le dit, le code garde le fait au journal (jamais redit, reprise R1)
     textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
     assert e.p.get("annulee") and not textes.get("avant") and textes.get("fait_accompli") == TS.annulation_confirmee({}), textes
 

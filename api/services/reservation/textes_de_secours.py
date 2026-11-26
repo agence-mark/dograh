@@ -122,7 +122,7 @@ def personnes_dites(n: int) -> str:
 
 
 def reservation_enregistree(faits: Faits) -> str:
-    """C6 n° 9 (décision d'Evan 25/11 9 h 30) : le fait accompli que le MODÈLE dit ; ce texte n'est gardé qu'au journal du dit, que le repli redit quand le modèle se tait."""
+    """C6 n° 9 (décision d'Evan 25/11 9 h 30) : le fait accompli que le MODÈLE dit ; ce texte n'est gardé qu'au journal du dit, jamais dit à la voix (reprise R1 de C6 : relance ratée, la suite réglée ou P3)."""
     return f"C'est réservé pour {personnes_dites(faits['couverts'])}, {faits['quand_dit']}, au nom de {faits['prenom']}."
 
 

@@ -3,7 +3,7 @@ ou au lieu, un maximum atteint, est un fait que le modèle dit ; la cascade de r
 modèle avec ses candidats ; la cascade de référence a perdu le troisième cas, la question d'ambiguïté dite mot pour mot.
 
 Sur une grille de retours, de phrases, de textes du code, de dossiers et d'états du tour : même mode, même motif, même phrase dite, et mêmes mouvements de
-l'état du tour (fiches, rattrapage, retenues, question donnée, prix). Lot 7b-C5 (décision d'Evan 25/11 8 h 45) : la référence ne complète plus la phrase par la question ou le manque, elle relance le modèle une fois. La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
+l'état du tour (fiches, rattrapage, retenues, question donnée, prix). Lot 7b-C5 (décision d'Evan 25/11 8 h 45) : la référence ne complète plus la phrase par la question ou le manque, elle relance le modèle une fois. Reprise R1 de C6 (décisions d'Evan 25/11 8 h 45 et 9 h 30, P3) : elle ne redit plus le fait accompli après la phrase. La grille n'a aucune phrase à « ? » au milieu (seule la règle de la question, M4, a changé de forme)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ import itertools
 import pytest
 
 from api.services.actions_communes import conversation as CONV
-from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as P
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, sans_balisage
 from api.services.actions_communes.du import BLOQUANTS, CLE_DU, CLES_DES_FAITS_DU_REFUS, CLE_FAITS_A_DIRE, RETRAIT_D_UNE_LIGNE, RIEN_CHANGE
@@ -56,9 +55,6 @@ def cascade_d_avant(retour, a_dire, etat, paroles, p, textes, objet_en_cours):
             etat.relance_du_fait = True
             etat.suffixe = suffixe_avant
             return Decision(SECOND_PASSAGE, motif=P.MANQUE)
-        reprise = None if due or P.pose_une_question(phrase) or not isinstance(p, dict) else J.fait_accompli(p)
-        if reprise:
-            return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=P.REPRISE)
         return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
     if retour.get("statut") in BLOQUANTS or any((retour.get("faits") or {}).get(k) for k in CLES_DES_FAITS_DU_REFUS):
         return Decision(SECOND_PASSAGE, motif="fait_bloquant")

@@ -308,7 +308,7 @@ async def test_defauts_connus_df12_reservation(salle, monkeypatch):  # noqa: F81
         fautes.append(f"relecture non atteinte : {r}")
     else:
         r = await e.tour("oui c'est bon, à vingt heures", reponse={"question_id": q["id"], "sens": "accepte"}, heure="vingt heures")
-        # C6 n° 9 (décision d'Evan 25/11 9 h 30) : la réservation faite est dite par le modèle (personnes et heure exigées) ; le code en garde le fait au journal, que le repli redit
+        # C6 n° 9 (décision d'Evan 25/11 9 h 30) : la réservation faite est dite par le modèle (personnes et heure exigées) ; le code en garde le fait au journal, jamais redit (reprise R1)
         textes = e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {}
         if r.get("statut") != "ENREGISTREE":
             fautes.append(f"RC4 : l'accord avec l'heure redite n'enregistre pas (statut {r.get('statut')}, {r.get('raison')})")

@@ -3,8 +3,8 @@
 * La fin de la commande (``enregistrement.mener_a_la_fin``) : le panier porte déjà sa commande enregistrée.
 * L'anti-doublon de la source (``enregistrer_commande``) : la même commande rejouée rend la première, avec l'heure annoncée (le fait ``quand_dit``).
 
-C6 n° 5 (décision d'Evan 25/11 9 h 30) : ce n'est plus une phrase du code ; c'est un texte de secours (``textes_de_secours.deja_enregistree``) qui ne lit que les faits, jamais dit
-à la place du modèle. Le texte est celui d'avant, au caractère près.
+C6 n° 5 (décision d'Evan 25/11 9 h 30) : ce n'est plus une phrase du code ; c'est un texte de secours (``textes_de_secours.deja_enregistree``) qui ne lit que les faits, gardé au
+journal seulement, jamais dit à la voix (reprise R1 de C6). Le texte est celui d'avant, au caractère près.
 """
 
 from __future__ import annotations

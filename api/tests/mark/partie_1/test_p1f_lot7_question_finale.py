@@ -60,5 +60,5 @@ async def test_de_bout_en_bout_la_confirmation_porte_sa_question_une_fois(essai_
     r = await jusqu_a_l_enregistrement(e)
     suite = (e.fiche_de_l_appel.get("textes_du_code_de_la_fiche") or {}).get("suffixe") or ""
     assert suite == QUESTION, suite  # après la phrase du modèle : la question M108, une fois
-    assert (J.fait_accompli(e.p) or "").startswith("Votre commande est enregistrée"), J.fait_accompli(e.p)  # le fait gardé au journal (le repli le redit)
+    assert (J.fait_accompli(e.p) or "").startswith("Votre commande est enregistrée"), J.fait_accompli(e.p)  # le fait gardé au journal seulement (reprise R1 : jamais redit par le code)
     assert "Votre commande est enregistrée" not in json.dumps(r, ensure_ascii=False, default=str)  # le texte de secours n'est jamais donné au modèle

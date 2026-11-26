@@ -119,7 +119,7 @@ def noter(dossier: dict[str, Any], cle: str, tour: Any = None) -> int:
     return int(e["fois"])
 
 
-FAIT_ACCOMPLI = "fait_accompli"  # la dernière phrase de fait accompli (enregistrée, changée, annulée) : le repli la redit (B2, M3, règle 3 ; lot 7a, ligne 61). C6 : le modèle la dit, le code en garde le texte
+FAIT_ACCOMPLI = "fait_accompli"  # la dernière phrase de fait accompli (enregistrée, changée, annulée), gardée au journal seulement : le modèle la dit (C6), le code ne la redit jamais (reprise R1 de C6)
 
 
 def dire_le_fait(dossier: dict[str, Any], texte: str, tour: Any = None) -> None:
@@ -129,7 +129,7 @@ def dire_le_fait(dossier: dict[str, Any], texte: str, tour: Any = None) -> None:
 
 
 def fait_accompli(dossier: Any) -> str | None:
-    """La dernière phrase de fait accompli gardée au journal (que le repli redit), ``None`` si aucune."""
+    """La dernière phrase de fait accompli gardée au journal (identité du dernier fait, jamais dite par le code : reprise R1 de C6), ``None`` si aucune."""
     return str((_lu(dossier).get(FAIT_ACCOMPLI) or {}).get("texte") or "").strip() or None
 
 

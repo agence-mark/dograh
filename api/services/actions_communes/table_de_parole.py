@@ -14,11 +14,10 @@ from api.services.actions_communes import conversation as CONV
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, porte_les_chiffres, sans_balisage
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
 from api.services.actions_communes.parole import (
-    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, REPRISE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
+    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
     apres_un_refus, pose_une_question, question_nee_dans_ce_tour,
 )
 
@@ -34,7 +33,6 @@ class Entrees:
     avant: str
     suffixe_du_code: str | None
     exiges: dict | None  # C6 n° 5 : un fait accompli que le modèle dit, avec les valeurs exigées de sa phrase (``None`` : aucun)
-    fait: str | None  # C6 n° 7 : le fait accompli de ce tour que le code redit si la phrase du modèle manque (``None`` : une question, rien à redire)
     question_nee: bool  # elle est née dans CE tour
     question_id: Any
     suffixe_avant: str | None  # la phrase réglée que le code dit après la phrase (le total de la relecture), posée au passage précédent
@@ -89,7 +87,7 @@ def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
 
 def _rien_change(e: Entrees) -> Decision:
     """Une fiche qui ne change rien est une phrase sans outil : retenue une fois par tour ; puis, si la phrase oublie la question en attente ou ce qui manque, le modèle repasse une fois ;
-    ensuite dite seule ; jamais « C'est noté » seul quand rien n'est noté."""
+    ensuite dite seule (reprise R1 de C6 : le fait accompli n'est jamais redit par le code, il reste au journal) ; jamais « C'est noté » seul quand rien n'est noté."""
     etat, phrase = e.etat, e.phrase
     etat.fiches -= 1
     if not etat.rattrapage_a_joue and (e.objet_en_cours or e.en_attente):
@@ -101,9 +99,6 @@ def _rien_change(e: Entrees) -> Decision:
     e.etat.jetee = None
     if (relance := _relancer_le_fait(e, MANQUE)) is not None:
         return relance
-    reprise = None if _du_a_reposer(e) or pose_une_question(phrase) or not isinstance(e.p, dict) else J.fait_accompli(e.p)  # RC4 : le fait accompli, que le code redit (§ 2 du plan, jusqu'à C6)
-    if reprise:
-        return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
 
 
@@ -130,7 +125,7 @@ def _fait_accompli(e: Entrees) -> Decision:
     if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and porte_les_chiffres(phrase, exiges):
         etat.jetee = None
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite) if x), motif=FAIT_ACCOMPLI)
-    etat.suffixe, etat.exiges, etat.fait_a_redire = suite, exiges, e.fait
+    etat.suffixe, etat.exiges = suite, exiges
     return Decision(SECOND_PASSAGE, motif=FAIT_ACCOMPLI)
 
 
@@ -190,7 +185,6 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
         objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
     return Entrees(
         du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None, exiges=exiges,
-        fait=str(textes["fait_accompli"]) if textes.get("fait_accompli") else None,
         question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),

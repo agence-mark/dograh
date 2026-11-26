@@ -235,7 +235,7 @@ def question_du_code(ctx: Any, dernier: Resultat | None) -> str | None:
 
 def _textes_du_fait_accompli(dernier: Resultat, operation: str | None) -> dict[str, Any]:
     """C6 n° 9 (décision d'Evan 25/11 9 h 30 ; P2) : la réservation enregistrée, changée ou annulée est dite par le MODÈLE ; sa phrase doit dire les personnes et l'heure (``chiffres_exiges`` ;
-    rien pour une annulation). ``fait_accompli`` : le texte de secours de la base, gardé au journal du dit (le repli le redit quand le modèle se tait), jamais dit à la place du modèle."""
+    rien pour une annulation). ``fait_accompli`` : le texte de secours de la base, gardé au journal du dit seulement (jamais dit à la voix, même relance ratée : reprise R1 de C6)."""
     faits = dernier.faits or {}
     geste = "reserver" if dernier.statut in STATUTS_ENREGISTRES else operation
     exiges = {} if geste == "annuler" else {k: str(v) for k, v in (("personnes", faits.get("personnes")), ("heure", faits.get("heure_dite"))) if v not in (None, "")}
@@ -506,7 +506,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     if isinstance(ctx.fiche, dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
         if textes.get("fait_accompli"):
-            J.dire_le_fait(e, str(textes["fait_accompli"]), tour)  # C6 n° 9 : le fait accompli dit par le modèle ; le journal en garde le texte de secours, que le repli redit
+            J.dire_le_fait(e, str(textes["fait_accompli"]), tour)  # C6 n° 9 : le fait accompli dit par le modèle ; le journal en garde le texte de secours (jamais redit par le code, R1)
         if "chiffres_exiges" in textes and nee is not None:
             # C6 n° 8 : ce qui prouve que la relecture est entendue (les valeurs exigées, la question du code) ; un « oui » ne vaut accord que pour elle
             etat = PAROLE.etat_du_tour(ctx.fiche)

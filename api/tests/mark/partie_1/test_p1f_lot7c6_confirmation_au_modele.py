@@ -3,7 +3,7 @@
 Avant : code « Votre commande est enregistrée, elle sera prête pour dix-neuf heures. Sur votre billet de cinquante euros, on vous rendra vingt-six euros. Puis-je faire autre chose pour vous ? ».
 Après : modèle « C'est enregistré, prête à dix-neuf heures. » + code « Sur votre billet de cinquante euros, on vous rend vingt-six euros. » (motif ``rendu_de_monnaie``) + code « Puis-je faire
 autre chose pour vous ? » (M108). L'ordre est fixe : la phrase du modèle, le rendu, M108. La phrase du modèle doit dire l'heure (barrière) : sans elle, le modèle est relancé une fois, puis le code
-redit le fait accompli. Sur la vraie source et la vraie porte, sans modèle.
+ne dit que la suite réglée (reprise R1 : jamais le fait accompli). Sur la vraie source et la vraie porte, sans modèle.
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ async def test_la_confirmation_est_dite_par_le_modele_le_code_ne_dit_que_le_rend
     e, r = await _jusqu_a_la_confirmation(essai_de, moyen="especes", rendu_sur=50)
     textes = e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}
     assert not textes.get("avant"), textes  # le code ne dit plus la confirmation
-    assert "Votre commande est enregistrée" not in str(textes.get("suffixe")), textes  # le fait accompli n'est gardé qu'au journal (repli), jamais dit à la place du modèle
+    assert "Votre commande est enregistrée" not in str(textes.get("suffixe")), textes  # le fait accompli n'est gardé qu'au journal, jamais dit à la voix (reprise R1)
     phrase = f"C'est enregistré, prête {_quand(e)}."
     dit = _dire(e, r, phrase) or ""
     assert dit.startswith(phrase), dit
@@ -77,13 +77,13 @@ async def test_sans_monnaie_a_rendre_seule_m108_suit_la_phrase_du_modele(essai_d
     assert _dire(e, r, phrase) == f"{phrase} {QUESTION_M108}"
 
 
-async def test_une_confirmation_sans_l_heure_est_relancee_puis_le_code_redit_le_fait_accompli(essai_de):
-    """Heure exigée (barrière) : « C'est enregistré. » n'est pas dit ; la relance le redit sans l'heure : le fait accompli gardé au journal, puis M108. Jamais un tour muet."""
+async def test_une_confirmation_sans_l_heure_est_relancee_puis_le_code_ne_dit_que_la_suite_reglee(essai_de):
+    """Heure exigée (barrière) : « C'est enregistré. » n'est pas dit ; la relance le redit sans l'heure : décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6 : la suite réglée seule (M108), jamais le fait accompli
+    gardé au journal. Jamais un tour muet."""
     e, r = await _jusqu_a_la_confirmation(essai_de)
     dit = _dire(e, r, "C'est enregistré.") or ""
-    assert dit.endswith(QUESTION_M108) and _quand(e) in dit, dit
-    assert not dit.startswith("C'est enregistré."), dit
-    assert J.fait_accompli(e.p) and dit.startswith(J.fait_accompli(e.p)), (dit, J.fait_accompli(e.p))
+    assert dit == QUESTION_M108, dit
+    assert J.fait_accompli(e.p) and J.fait_accompli(e.p) not in dit, (dit, J.fait_accompli(e.p))
 
 
 async def test_la_relance_qui_dit_l_heure_part_avec_la_suite_du_code(essai_de):

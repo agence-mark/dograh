@@ -62,15 +62,16 @@ async def test_la_reservation_faite_est_dite_par_le_modele_avec_les_personnes_et
     assert not textes.get("avant") and not textes.get("suffixe"), textes  # le code ne dit plus « C'est réservé… »
     assert textes.get("chiffres_exiges") == {"personnes": "4", "heure": "vingt heures"}, textes
     assert "C'est réservé" not in str(r), r
-    assert J.fait_accompli(essai.etat) == textes.get("fait_accompli") and "quatre personnes" in textes["fait_accompli"], textes  # gardé au journal pour le repli
+    assert J.fait_accompli(essai.etat) == textes.get("fait_accompli") and "quatre personnes" in textes["fait_accompli"], textes  # gardé au journal seulement (reprise R1)
     phrase = "C'est noté, je vous attends samedi à vingt heures pour quatre."
     assert _dire(essai, r, phrase) == phrase
 
 
-async def test_sans_l_heure_le_modele_est_relance_puis_le_code_redit_le_fait_accompli(salle, monkeypatch):
+async def test_sans_l_heure_le_modele_est_relance_puis_le_code_ne_redit_plus_le_fait_accompli(salle, monkeypatch):
+    """décisions d'Evan 25/11 8 h 45 et 9 h 30 (P3), C5 § 2, coordinateur 26/11 2 h 05 (P3 tel quel) : reprise R1 de C6 : aucune suite réglée après la réservation faite : rien de composé (``RepliqueVerifiee`` dit la phrase réglée « pas compris », P3 ; jamais un tour muet)."""
     essai, r = await _reservee(salle, monkeypatch)
     dit = _dire(essai, r, "C'est noté.", relance="Parfait, c'est fait.")
-    assert dit == J.fait_accompli(essai.etat) and "vingt heures" in dit, dit  # jamais un tour muet
+    assert dit is None, dit
 
 
 async def test_la_reservation_modifiee_est_dite_par_le_modele(salle, monkeypatch):
