@@ -5,6 +5,7 @@ de l'appel n'a jamais été jouée (serveur redémarré pendant l'appel).
 |---|---|
 | appel terminé sans crochet | la ligne « retenue » part au passage suivant du rattrapage, une fois (rejoué : rien de plus) |
 | appel encore en cours | elle ne part pas |
+| lignes bloquées devant | plus de 50 « retenue » plus anciennes, d'appels encore en cours ou sans appel, ne bloquent jamais celle d'un appel terminé |
 | délai réglé | le délai est un réglage du module (``filet_retenue_min``) : une ligne plus récente que lui attend, quel que soit l'état de l'appel |
 """
 
@@ -30,11 +31,8 @@ async def _vieillir(partie: C.Partie, minutes: int) -> None:
 
 
 async def _rattraper(partie: C.Partie, *, termine: bool) -> None:
-    vus: list[str] = []
-
     async def appel_termine(cle: str) -> bool:
-        vus.append(cle)
-        return termine
+        return termine and cle == str(partie.e.ctx.run_id)   # seul l'appel de la partie est terminé
 
     poser_prise_de_test(partie.e.source.prise)
     try:
@@ -62,6 +60,20 @@ async def test_un_appel_encore_en_cours_sa_commande_ne_part_pas(faire_monde, mon
     await _vieillir(partie, 60)
     await _rattraper(partie, termine=False)
     assert partie.e.source.prise.recues == [] and await _statut(partie) == "retenue"
+
+
+async def test_des_retenues_plus_anciennes_d_appels_en_cours_ou_sans_appel_ne_bloquent_pas_celle_d_un_appel_termine(faire_monde, monkeypatch):
+    """Audit 8b-1a, R2 : 51 lignes d'appels encore en cours et 51 sans appel, toutes plus anciennes : la ligne de l'appel terminé part quand même."""
+    partie = await _retenue(faire_monde, monkeypatch)
+    await _vieillir(partie, 60)
+    await partie.e.monde.c.execute(
+        "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, total, statut, appel_id, maj_le) "
+        "SELECT gen_random_uuid(), 'B' || g, $1, 'emporter', 0, 'retenue', CASE WHEN g <= 51 THEN 'en-cours-' || g END, (SELECT maj_le FROM mark.resto_commande WHERE appel_id = $2) - interval '1 hour' "
+        "FROM generate_series(1, 102) g", partie.e.monde.a, str(partie.e.ctx.run_id),
+    )
+    await _rattraper(partie, termine=True)
+    assert [str(r["numero"]) for r in partie.e.source.prise.recues] == [str(partie.p["enregistree"]["numero"])]
+    assert await partie.e.monde.c.fetchval("SELECT count(*) FROM mark.resto_commande WHERE statut = 'retenue'") == 102   # les autres n'ont pas bougé
 
 
 @pytest.mark.parametrize("reglage, age, part", [(None, 0, False), (30, 10, False), (30, 40, True)])
