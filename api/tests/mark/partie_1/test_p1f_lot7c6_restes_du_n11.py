@@ -32,3 +32,12 @@ def test_plus_aucune_cle_ni_etat_mort_du_prix_dit_par_le_code():
     assert "suffixe_lu" not in PAROLE.EtatDuTour.__dataclass_fields__
     fiche = {PAROLE.CLE_DU_TOUR: 4, PAROLE.CLE_ETAT_DU_TOUR: {"tour": 4, "suffixe": "x", "suffixe_lu": None}}
     assert PAROLE.etat_du_tour(fiche).suffixe == "x"
+
+
+def test_le_rappel_du_chiffre_ne_dit_plus_que_les_chiffres_sont_dits_par_le_code():
+    """Risque 7 (règle 6 : le mécanisme et ce qui le décrit changent ensemble) : depuis C6 n° 11, le modèle dit les prix des faits ; la barrière ne retient que le chiffre absent des
+    faits. Avant, le modèle relancé lisait « Les chiffres sont dits par le code. » ; après, il lit qu'il ne dit que les chiffres des faits, tels quels."""
+    from api.services.actions_communes import barriere_des_chiffres as BC
+
+    assert "dits par le code" not in BC.RAPPEL_DU_CHIFFRE
+    assert "faits" in BC.RAPPEL_DU_CHIFFRE and "n'a pas été dite" in BC.RAPPEL_DU_CHIFFRE

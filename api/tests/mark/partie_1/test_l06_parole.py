@@ -31,7 +31,7 @@ def test_chiffre_retenu_dans_une_phrase_libre():
     assert BC.chiffre_dans_la_phrase("Votre commande sera prête dans 20 minutes.", [], ["à emporter"])
     assert not BC.chiffre_dans_la_phrase("C'est noté. Vous voulez autre chose ?", [], ["une reine"])
     assert not BC.chiffre_dans_la_phrase("J'ai bien noté le code VINGT.", [{"code_de_remise": "vingt"}], ["j'ai le code vingt"])
-    assert "Les chiffres sont dits par le code" in BC.RAPPEL_DU_CHIFFRE
+    assert "Ne dis que les chiffres des faits" in BC.RAPPEL_DU_CHIFFRE  # C6 n° 12 (décision d'Evan 25/11 9 h 30) : le modèle dit les prix des faits, plus « dits par le code »
 
 
 def test_valeur_dite_exemptee():

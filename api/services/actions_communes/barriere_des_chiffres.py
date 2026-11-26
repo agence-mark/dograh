@@ -1,8 +1,8 @@
 """[.mark] Chantier Partie 1, lot 6 : la barrière des chiffres sur toute phrase libre du modèle (B10 point 3, B11 point 4, B12 décision 1).
 
-Les chiffres sont dits par le code (D5, D33), sauf les valeurs des faits que le code donne au modèle (les prix D33, C6 n° 11). Une phrase du modèle (``a_dire`` comprise) qui porte un chiffre n'est jamais dite : elle est retenue et
-le modèle repasse, avec dans l'état « Ta réponse précédente portait un chiffre : elle n'a pas été dite, et rien n'est changé. Les chiffres sont dits
-par le code. » Règle de VALEUR, jamais de sens. Trois exemptions, chacune une règle nommée :
+Le modèle ne dit que les chiffres des faits que le code lui donne (les prix D33, C6 n° 11) ; le code ne dit lui-même que ses phrases réglées (le total, le numéro, le rendu, C6).
+Une phrase du modèle (``a_dire`` comprise) qui porte un autre chiffre n'est jamais dite : elle est retenue et le modèle repasse, avec dans l'état ``RAPPEL_DU_CHIFFRE`` (C6 n° 12 :
+« ne dis que les chiffres des faits »). Règle de VALEUR, jamais de sens. Trois exemptions, chacune une règle nommée :
 
 - les mots du code de remise de la même fiche (B10 point 3) : « le code VINGT » n'est pas un prix ;
 - les valeurs que portent les faits du retour de CE tour (``valeurs_des_faits`` : montants, heures, quantités) : le code les donne au modèle, il peut les dire ;
@@ -31,7 +31,7 @@ from api.services.actions_communes.forme import (
 )
 
 RAPPEL_DU_CHIFFRE = (
-    "- Ta réponse précédente portait un chiffre : elle n'a pas été dite, et rien n'est changé. Les chiffres sont dits par le code."
+    "- Ta réponse précédente portait un chiffre qui n'est dans aucun fait du retour : elle n'a pas été dite, et rien n'est changé. Ne dis que les chiffres des faits, tels quels."
 )
 CHIFFRE = re.compile(r"\d|€|\beuros?\b|centimes?", re.I)
 
