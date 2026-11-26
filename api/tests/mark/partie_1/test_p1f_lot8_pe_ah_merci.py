@@ -10,14 +10,14 @@ from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.du import RIEN_CHANGE
 from api.services.phrases.catalogue import REPONSE_PERDUE
 from api.services.workflow import parole_de_la_fiche as PF
-from api.tests.mark.partie_1.test_cloture_a2_regles_inversees import _jusqu_a_l_enregistrement
+from api.tests.mark.partie_1.aides_de_la_commande import jusqu_a_l_enregistrement_de_la_proposition
 
 PHRASE = "Avec plaisir."
 
 
 async def test_ah_merci_une_fiche_vide_rejouee_dit_la_phrase_du_modele(essai_de):
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     r = await e.fiche()
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": PHRASE})
     assert (d.mode, d.motif) == (PAROLE.SECOND_PASSAGE, RIEN_CHANGE), d  # la relance du tour
@@ -29,7 +29,7 @@ async def test_ah_merci_une_fiche_vide_rejouee_dit_la_phrase_du_modele(essai_de)
 async def test_une_fiche_qui_porte_une_case_rejouee_reste_une_relance_ratee(essai_de):
     """Le voisin : la fiche rejouée n'est pas vide (un changement de mode déjà fait) : P3, comme avant."""
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     cases = {"mode_de_retrait": "livraison"}
     r = await e.tour("finalement en livraison", **cases)
     PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": PHRASE, **cases})

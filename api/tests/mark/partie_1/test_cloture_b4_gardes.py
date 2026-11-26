@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
-from api.tests.mark.partie_1.test_cloture_a2_regles_inversees import _jusqu_a_l_enregistrement
+from api.tests.mark.partie_1.aides_de_la_commande import jusqu_a_l_enregistrement_de_la_proposition
 
 REGINA = {"article": "regina", "quantite": 1, "variante": "Normale"}
 
@@ -51,14 +51,14 @@ async def test_une_case_non_montree_n_ecarte_qu_elle_et_la_fiche_refaite_ne_doub
 
 async def test_enregistree_le_reglement_redonne_ne_change_rien_et_le_dit(essai_de):
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     r = await e.tour("par carte, c'est Léa", moyen_de_paiement="carte_bancaire", prenom="Léa")
     assert r["refus"][0]["raison"] == "deja_fait", r
 
 
 async def test_enregistree_un_article_sans_taille_pose_sa_question(essai_de):
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     await e.tour("et une regina", ajouter=[{"article": "regina", "quantite": 1}])
     assert (CONV.question_de(e.p) or {}).get("type") == "variante", CONV.question_de(e.p)
 
@@ -81,7 +81,7 @@ async def test_revenir_au_panier_d_avant_ne_perd_jamais_la_commande(essai_de):
     """M2 (test des combinaisons, E18) : une Margherita enregistrée, puis deux, puis de nouveau une : le panier retombe sur la clé anti-doublon de la
     première commande, annulée ; l'anti-doublon la rendait comme « déjà faite » et la commande était perdue. Migration 051."""
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     await e.tour("en fait deux", changer_quantite=[{"ligne": 1, "quantite": 2}])
     await e.tour("non, une seule finalement", changer_quantite=[{"ligne": 1, "quantite": 1}])
     assert e.p.get("enregistree") and await _statut_en_base(e) not in (None, "annulee"), (e.retours[-1], await _statut_en_base(e))
@@ -89,7 +89,7 @@ async def test_revenir_au_panier_d_avant_ne_perd_jamais_la_commande(essai_de):
 
 async def test_tout_retirer_d_une_commande_enregistree_demande_l_annulation(essai_de):
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     numero = e.p["enregistree"]["numero"]
     await e.tour("enlevez la margherita", retirer_article=[1])
     assert e.p["enregistree"]["numero"] == numero and e.p["lignes"] and await _statut_en_base(e) != "annulee", e.retours[-1]  # rien n'a changé
@@ -98,7 +98,7 @@ async def test_tout_retirer_d_une_commande_enregistree_demande_l_annulation(essa
 
 async def test_passer_en_livraison_sans_adresse_ne_touche_pas_la_caisse(essai_de):
     e = await essai_de()
-    await _jusqu_a_l_enregistrement(e)
+    await jusqu_a_l_enregistrement_de_la_proposition(e)
     numero = e.p["enregistree"]["numero"]
     r = await e.tour("finalement en livraison", mode_de_retrait="livraison")
     assert e.p["enregistree"]["numero"] == numero and e.p["mode"] == "emporter" and await _statut_en_base(e) != "annulee", r

@@ -9,13 +9,13 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from api.services.workflow import parole_de_la_fiche as PF
-from api.tests.mark.partie_1.test_p1f_lot7c6_confirmation_au_modele import QUESTION_M108, _dire, _jusqu_a_la_confirmation, _quand
+from api.tests.mark.partie_1.aides_de_la_commande import QUESTION_M108, dire_du_modele, jusqu_a_la_confirmation, quand_dit
 
 CONFIRMATION = "C'est enregistré."
 
 
 async def test_le_modele_muet_deux_fois_le_client_entend_c_est_enregistre_puis_la_question(essai_de):
-    e, r = await _jusqu_a_la_confirmation(essai_de)
+    e, r = await jusqu_a_la_confirmation(essai_de)
     PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ""})
     verif = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
     retenue = verif.controler_le_silence(None)  # le modèle n'a rien dit au second passage : la suite réglée part seule
@@ -23,16 +23,16 @@ async def test_le_modele_muet_deux_fois_le_client_entend_c_est_enregistre_puis_l
 
 
 async def test_la_relance_sans_l_heure_dit_c_est_enregistre_avant_la_suite_du_code(essai_de):
-    e, r = await _jusqu_a_la_confirmation(essai_de, moyen="especes", rendu_sur=50)
-    dit = _dire(e, r, "Très bien.", relance="Très bien.") or ""
+    e, r = await jusqu_a_la_confirmation(essai_de, moyen="especes", rendu_sur=50)
+    dit = dire_du_modele(e, r, "Très bien.", relance="Très bien.") or ""
     assert dit.startswith(CONFIRMATION) and dit.endswith(QUESTION_M108) and dit.count(CONFIRMATION) == 1, dit
     assert "billet de cinquante" in dit, dit  # la suite du code suit, dans son ordre : confirmation, rendu, question
 
 
 async def test_le_modele_a_parle_le_code_ne_redit_pas_la_confirmation(essai_de):
-    e, r = await _jusqu_a_la_confirmation(essai_de)
-    phrase = f"Parfait, c'est enregistré, prête {_quand(e)}."
-    dit = _dire(e, r, phrase) or ""
+    e, r = await jusqu_a_la_confirmation(essai_de)
+    phrase = f"Parfait, c'est enregistré, prête {quand_dit(e)}."
+    dit = dire_du_modele(e, r, phrase) or ""
     assert dit == f"{phrase} {QUESTION_M108}" and dit.count("enregistré") == 1, dit
 
 
