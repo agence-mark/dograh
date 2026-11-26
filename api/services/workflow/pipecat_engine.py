@@ -3040,16 +3040,11 @@ class PipecatEngine:
         from api.services.tri.alertes import alerter_la_fin_en_erreur
 
         alerter_la_fin_en_erreur(self, call_status)
-        # [.mark] Chantier Partie 1, lot 6 (C10, L06-15) : une commande commencée, ni enregistrée ni annulée, à la fin de l'appel : « abandonnée ».
-        from api.services.commande.porte import issue_de_fin_d_appel
+        # [.mark] Chantier Partie 1, lots 6 et 7 (C10), lot 8a (113) : un dossier commencé (commande, réservation), ni enregistré ni annulé, à la fin de l'appel : « abandonné ». Chaque
+        # connecteur déclare son issue ; UNE priorité écrite choisit (``modules/crochets.ORDRE_DES_ISSUES``), le clavier lit la même.
+        from api.services.modules import crochets
 
-        abandonnee = issue_de_fin_d_appel(self._gathered_context)
-        if abandonnee:
-            self._gathered_context[CALL_DISPOSITION_CONTEXT_KEY] = abandonnee
-        # [.mark] Chantier Partie 1, lot 7 (C10) : la réservation commencée, ni enregistrée ni retrouvée, à la fin de l'appel : « abandonnée ».
-        from api.services.reservation.porte import issue_de_fin_d_appel as reservation_abandonnee
-
-        abandonnee = reservation_abandonnee(self._gathered_context)
+        abandonnee = crochets.issue_de_fin(self._gathered_context)
         if abandonnee:
             self._gathered_context[CALL_DISPOSITION_CONTEXT_KEY] = abandonnee
 

@@ -77,7 +77,14 @@ class Module:
     # Où est la fonction qui lit leurs valeurs (``module.chemin:fonction``, ``async def f(organization_id, workflow_id, appel) -> dict``) et le module
     # dont l'interrupteur les allume (un module d'ensemble n'a pas le sien : il suit celui d'un module de base). ``None`` : lui-même.
     fournisseur_d_etiquettes: str | None = None
-    interrupteur_des_etiquettes: str | None = None
+    interrupteur_des_etiquettes: str | None = None  # aussi l'interrupteur de ses crochets (``crochets.py``)
+    # Lot 8a : les crochets que le moteur d'appel joue pour les modules ALLUMÉS, sans connaître aucun module (``modules/crochets.py``). Chemins ``module.chemin:fonction``,
+    # résolus à l'appel (même forme que ``fournisseur_d_etiquettes``). ``au_demarrage`` : ``() -> None``, une fois par processus qui joue des appels (l'API, l'ouvrier) ;
+    # les autres : ``async (Decroche | FinDeTour | FinDeLAppel) -> None``. ``None`` : le module n'a pas ce crochet.
+    au_demarrage: str | None = None
+    au_decroche: str | None = None
+    fin_du_tour: str | None = None
+    fin_de_l_appel: str | None = None
     besoins: tuple[Besoin, ...] = ()
     construction: tuple[Reglage, ...] = ()
     terrain: tuple[Reglage, ...] = field(default=())
@@ -284,6 +291,10 @@ RESTAURATION = Module(
     construction=(Reglage("reservation_fois_avant_la_sortie"), Reglage("reservation_boucle_fois_avant_la_sortie")),  # lot 7b (M6) : la clé de la réservation ; celle de la commande est au module commande
     fournisseur_d_etiquettes="api.services.restauration.appel_et_memoire.etiquettes:valeurs",
     interrupteur_des_etiquettes="commande",
+    au_demarrage="api.services.restauration.crochets:inscrire",
+    au_decroche="api.services.restauration.crochets:au_decroche",
+    fin_du_tour="api.services.restauration.crochets:fin_du_tour",
+    fin_de_l_appel="api.services.restauration.crochets:fin_de_l_appel",
     # § 3.3 : ce qui est court, stable et utile à presque chaque appel. Le nom, l'adresse, l'état d'ouverture et la prochaine ouverture sont déjà
     # posés par l'établissement (``etablissement``, ``adresse_etablissement``, ``etat_ouverture``, ``reouverture``) : ils ne sont pas répétés ici.
     etiquettes=(

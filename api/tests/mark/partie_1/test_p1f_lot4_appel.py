@@ -27,7 +27,6 @@ def _appel(run_id, il_y_a_s, au_clavier):
 
 def _vider():
     M._APPELS.clear()
-    M.APPEL_TERMINE = _termine_en_base
 
 
 async def _termine_en_base(cle):
@@ -40,7 +39,7 @@ async def test_un_appel_a_la_voix_inactif_est_ferme_et_un_appel_vivant_reste():
         perdu = _appel(1, M.INACTIVITE_A_LA_VOIX_S + 5, au_clavier=False)
         silencieux = _appel(2, M.INACTIVITE_AU_CLAVIER_S + 5, au_clavier=False)  # se tait depuis 65 s : un appel à la voix peut
         clavier = _appel(3, M.INACTIVITE_AU_CLAVIER_S + 5, au_clavier=True)
-        assert await M.fermer_les_appels_inactifs() == 2
+        assert await M.fermer_les_appels_inactifs(appel_termine=_termine_en_base) == 2
         assert perdu.fermee and clavier.fermee and not silencieux.fermee and M.appel_ouvert(2) is not None
     finally:
         _vider()
@@ -55,10 +54,9 @@ async def test_un_appel_a_la_voix_encore_vivant_n_est_jamais_ferme_meme_sans_auc
         async def en_cours(_cle):
             return False
 
-        M.APPEL_TERMINE = en_cours
-        assert await M.fermer_les_appels_inactifs() == 0 and not vivant.fermee and M.appel_ouvert(1) is not None
-        M.APPEL_TERMINE = _termine_en_base
-        assert await M.fermer_les_appels_inactifs() == 1 and vivant.fermee
+        # lot 8a (157) : l'état d'un appel à la voix est un paramètre du balayage, plus un réglage global
+        assert await M.fermer_les_appels_inactifs(appel_termine=en_cours) == 0 and not vivant.fermee and M.appel_ouvert(1) is not None
+        assert await M.fermer_les_appels_inactifs(appel_termine=_termine_en_base) == 1 and vivant.fermee
     finally:
         _vider()
 
@@ -68,7 +66,7 @@ async def test_un_appel_dont_un_geste_tient_le_verrou_n_est_pas_ferme():
     try:
         c = _appel(1, M.INACTIVITE_A_LA_VOIX_S + 5, au_clavier=False)
         async with M._APPELS["1"].verrou:
-            assert await M.fermer_les_appels_inactifs() == 0
+            assert await M.fermer_les_appels_inactifs(appel_termine=_termine_en_base) == 0
         assert not c.fermee
     finally:
         _vider()
@@ -76,7 +74,7 @@ async def test_un_appel_dont_un_geste_tient_le_verrou_n_est_pas_ferme():
 
 async def test_le_balayage_lance_au_demarrage_ferme_seul_l_appel_inactif():
     _vider()
-    tache = M.demarrer_le_balayage(intervalle_s=0.01)
+    tache = M.demarrer_le_balayage(intervalle_s=0.01, appel_termine=_termine_en_base)
     try:
         c = _appel(1, M.INACTIVITE_A_LA_VOIX_S + 5, au_clavier=False)
         for _ in range(100):

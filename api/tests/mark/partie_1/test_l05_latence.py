@@ -270,6 +270,8 @@ async def test_modifier_une_lecture_verrouillee(faire_monde):
 def appel_suivi(faire_monde, monkeypatch):
     """Un appel suivi (``run_id``) sur la base du monde : les connexions ouvertes sont comptées, la fin d'appel les ferme."""
 
+    suivis: list[str] = []
+
     async def faire(slug: str = "casa-italia"):
         monde = await faire_monde(slug)
         ouvertes: list = []
@@ -282,12 +284,15 @@ def appel_suivi(faire_monde, monkeypatch):
         async def base_et_cle(ctx):
             return monde.base, slug
 
-        monkeypatch.setattr(M, "CONNECTER", connecter)
         monkeypatch.setattr(M, "base_et_cle_de_l_appel", base_et_cle)
         ctx = SimpleNamespace(run_id=f"essai-{id(monde)}", organization_id=None, appel={}, configurations={}, reglages={})
+        suivis.append(str(ctx.run_id))
+        M._APPELS[str(ctx.run_id)] = M.AppelOuvert(monde.base, connecter=connecter)  # lot 8a (157) : l'ouverture des connexions est un paramètre de l'appel suivi
         return monde, ctx, ouvertes
 
-    return faire
+    yield faire
+    for run_id in suivis:  # un appel suivi ne survit pas au test
+        M._APPELS.pop(run_id, None)
 
 
 async def test_une_connexion_par_appel(appel_suivi):

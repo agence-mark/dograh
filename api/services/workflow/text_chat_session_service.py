@@ -13,6 +13,7 @@ from api.db.workflow_run_text_session_client import (
     WorkflowRunTextSessionRevisionConflictError,
 )
 from api.enums import WorkflowRunState
+from api.services.modules import crochets
 from api.services.workflow.disposition_mapping import map_disposition
 from api.services.workflow.text_chat_logs import (
     build_text_chat_realtime_feedback_events,
@@ -251,6 +252,36 @@ def _build_text_chat_completion_write(
     }
 
 
+def _fiche_de_la_partie(text_session: WorkflowRunTextSessionModel) -> dict | None:
+    """La fiche de l'appel du point de reprise, telle qu'elle est ; ``None`` quand le point de reprise est illisible (une fin ne dépend jamais de lui)."""
+    checkpoint = text_session.checkpoint
+    fiche = checkpoint.get("gathered_context") if isinstance(checkpoint, dict) else None
+    return fiche if isinstance(fiche, dict) else None
+
+
+async def _issue_de_la_partie(run_id: int, text_session: WorkflowRunTextSessionModel, extracted: dict) -> str | None:
+    """[.mark] Lot 8a (113 bis) : un dossier commencé (commande, réservation), ni enregistré ni annulé, à la fin de la partie : « abandonné », comme à la voix (``_end_call``), par la même priorité
+    écrite et AVANT le classement par le modèle (qui n'est plus appelé pour rien) ; une issue déjà posée dans la fiche n'est jamais écrasée. Avant, rien ne la posait au clavier."""
+    workflow_run = text_session.workflow_run
+    return crochets.issue_de_fin(_fiche_de_la_partie(text_session)) or await extract_text_chat_final_disposition(
+        workflow_run_id=run_id,
+        workflow_id=workflow_run.workflow_id,
+        organization_id=workflow_run.workflow.organization_id,
+        checkpoint=text_session.checkpoint,
+        session_data=normalize_text_chat_session_data(text_session.session_data),
+        extracted=extracted,
+    )
+
+
+async def _jouer_la_fin_de_la_partie(run_id: int, text_session: WorkflowRunTextSessionModel) -> None:
+    """[.mark] Lot 8a (C4) : la fin d'une partie au clavier demandée ou par inactivité (seul point d'entrée : les trois appelants passent par ``complete_text_chat_session``). Jouée UNE fois, la fin
+    écrite et seulement alors (un conflit de révision n'a pas fini la partie). ⛔ Ne lève jamais."""
+    workflow_run = text_session.workflow_run
+    # ``run_configs`` ``None`` (aucun module écarté), comme la fin d'un tour : les appelants chargent la session sans ``definition`` (objet détaché, la lire lève).
+    fin = crochets.FinDeLAppel(run_id, _fiche_de_la_partie(text_session), workflow_run.workflow.organization_id, None, au_clavier=True)
+    await crochets.fin_de_l_appel(fin)
+
+
 async def complete_text_chat_session(
     *,
     run_id: int,
@@ -304,14 +335,7 @@ async def complete_text_chat_session(
     # [.mark] agent-facon-tala, C4: the business outcome at EVERY ending (hangup, inactivity, end of the
     # keyboard), from the conversation and the record, like a voice call's teardown. ``None``: the list has no
     # outcome to take, the mechanical status stays.
-    issue = await extract_text_chat_final_disposition(
-        workflow_run_id=run_id,
-        workflow_id=workflow_run.workflow_id,
-        organization_id=workflow_run.workflow.organization_id,
-        checkpoint=text_session.checkpoint,
-        session_data=normalize_text_chat_session_data(text_session.session_data),
-        extracted=extracted,
-    )
+    issue = await _issue_de_la_partie(run_id, text_session, extracted)
     mapped_issue = (
         await map_disposition(workflow_run.workflow.organization_id, issue) if issue else None
     )
@@ -379,6 +403,7 @@ async def complete_text_chat_session(
     completed_session_data["status"] = "completed"
     feedback_events = build_text_chat_realtime_feedback_events(completed_session_data)
 
+    await _jouer_la_fin_de_la_partie(run_id, text_session)
     await _upload_text_chat_transcript(run_id, feedback_events)
     await _enqueue_text_chat_completion(run_id)
 

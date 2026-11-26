@@ -174,6 +174,9 @@ class Connecteur:
     # action de lecture (une lecture du même tour attend le modèle). L'outil ne teste plus aucun nom écrit en dur : il lit ces deux déclarations. ``None`` : aucune.
     porte_la_fiche: str | None = None
     porte_la_lecture: str | None = None
+    # Lot 8a (113) : l'issue « abandonnée » de ce connecteur à la fin de l'appel (un dossier commencé, ni enregistré ni annulé, aucune issue posée). Reçoit la fiche de l'appel, rend le
+    # code de l'issue ou ``None``. Lu par ``modules/crochets.issue_de_fin`` (voix et clavier), qui choisit entre deux connecteurs par une priorité écrite.
+    issue_de_fin: Callable[[dict], str | None] | None = None
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)

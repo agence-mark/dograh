@@ -44,14 +44,12 @@ class AppelOuvert:
     reouvertures: int = 0
     ouvertures: int = 0
     dernier_geste: float = field(default_factory=time.perf_counter)  # clôture A5 ; durée monotone (``perf_counter``), jamais l'heure réelle : la source d'heure du module est ``horloge`` (D6) : la limite d'inactivité du clavier se lit ici
+    # Lot 8a (157) : l'ouverture d'une connexion est un PARAMÈTRE de l'appel (un essai en pose une autre : compter les connexions, simuler une coupure) ; sa valeur par défaut est la vraie.
+    connecter: Callable[[str], Awaitable[Any]] = connecter
     au_clavier: bool = False  # Pierre 12 : posé par la fin d'un tour au clavier ; seul un appel au clavier est balayé pour inactivité (un appel à la voix peut se taire plus de 60 s)
 
 
 _APPELS: dict[str, AppelOuvert] = {}
-
-# L'ouverture d'une connexion, remplaçable par un essai (compter les connexions, simuler une coupure).
-CONNECTER: Callable[[str], Awaitable[Any]] = connecter
-
 
 def _cle(run_id: Any) -> str | None:
     return str(run_id) if run_id else None
@@ -71,7 +69,7 @@ def attente_du_chargement_s(configurations: Any) -> float:
 
 
 async def _ouvrir(appel: AppelOuvert) -> Any:
-    connexion = await CONNECTER(appel.nom_base)
+    connexion = await appel.connecter(appel.nom_base)
     connexion.instantane = appel.instantane
     appel.ouvertures += 1
     return connexion
@@ -126,7 +124,7 @@ async def geste(ctx: Any) -> AsyncIterator[tuple[Any, Lieu]]:
     cle = _cle(getattr(ctx, "run_id", None))
     if cle is None:
         nom_base, cle_lieu = await base_et_cle_de_l_appel(ctx)
-        connexion = await CONNECTER(nom_base)
+        connexion = await connecter(nom_base)
         try:
             yield connexion, Lieu(nom_base, await identifiant_de_l_etablissement(connexion, cle_lieu), ctx.organization_id)
         finally:
@@ -149,7 +147,7 @@ async def _charger(appel: AppelOuvert, ctx: Any, contexte: dict | None, fiche_de
     from api.services.restauration.source_commande import SourceClasseur
 
     debut = time.perf_counter()
-    connexion = await CONNECTER(appel.nom_base)
+    connexion = await appel.connecter(appel.nom_base)
     gardee = False
     try:
         await _poser_le_lieu_et_l_instantane(appel, connexion, ctx)
@@ -287,11 +285,7 @@ async def _appel_termine_en_base(cle: str) -> bool:
         return False
 
 
-# L'état d'un appel à la voix, remplaçable par un essai (comme ``CONNECTER``).
-APPEL_TERMINE: Callable[[str], Awaitable[bool]] = _appel_termine_en_base
-
-
-async def fermer_les_appels_inactifs(sauf: str | None = None) -> int:
+async def fermer_les_appels_inactifs(sauf: str | None = None, *, appel_termine: Callable[[str], Awaitable[bool]] = _appel_termine_en_base) -> int:
     """Ferme les appels ouverts de CE processus : au clavier ceux restés sans geste depuis ``INACTIVITE_AU_CLAVIER_S`` ; à la voix ceux restés sans geste depuis
     ``INACTIVITE_A_LA_VOIX_S`` ET déjà terminés en base (un appel qui parle sans outil n'a pas de geste, il n'est pas inactif). Jamais celui qu'on nomme ni ceux dont
     un geste tient le verrou. Rend le nombre fermé. La liste ``_APPELS`` est propre au processus : ce balayage l'est aussi."""
@@ -300,17 +294,17 @@ async def fermer_les_appels_inactifs(sauf: str | None = None) -> int:
     for cle, a in list(_APPELS.items()):
         if cle == sauf or a.verrou.locked() or maintenant - a.dernier_geste <= (INACTIVITE_AU_CLAVIER_S if a.au_clavier else INACTIVITE_A_LA_VOIX_S):
             continue
-        if a.au_clavier or await APPEL_TERMINE(cle):
+        if a.au_clavier or await appel_termine(cle):
             inactifs.append(cle)
     for cle in inactifs:
         await fermer(cle)
     return len(inactifs)
 
 
-async def _balayer_sans_fin(intervalle_s: float) -> None:
+async def _balayer_sans_fin(intervalle_s: float, appel_termine: Callable[[str], Awaitable[bool]]) -> None:
     while True:
         await asyncio.sleep(intervalle_s)
-        if fermes := await fermer_les_appels_inactifs():  # ne lève jamais : ``fermer`` journalise ce qui échoue
+        if fermes := await fermer_les_appels_inactifs(appel_termine=appel_termine):  # ne lève jamais : ``fermer`` journalise ce qui échoue
             logger.info(f"[.mark] Call memory: {fermes} idle call(s) closed")
 
 
@@ -319,9 +313,9 @@ def _journaliser_la_fin_du_balayage(tache: asyncio.Task) -> None:
         logger.error(f"[.mark] Call memory: the idle sweep stopped ({type(tache.exception()).__name__}): idle calls are no longer closed by this process")
 
 
-def demarrer_le_balayage(intervalle_s: float = INTERVALLE_DU_BALAYAGE_S) -> asyncio.Task:
+def demarrer_le_balayage(intervalle_s: float = INTERVALLE_DU_BALAYAGE_S, *, appel_termine: Callable[[str], Awaitable[bool]] = _appel_termine_en_base) -> asyncio.Task:
     """Lancé au démarrage de chaque processus de l'API (cycle de vie de ``app.py``) : ferme périodiquement les appels inactifs de ce processus. À arrêter avec ``cancel()``."""
-    tache = asyncio.create_task(_balayer_sans_fin(intervalle_s), name="balayage-des-appels-inactifs")
+    tache = asyncio.create_task(_balayer_sans_fin(intervalle_s, appel_termine), name="balayage-des-appels-inactifs")
     tache.add_done_callback(_journaliser_la_fin_du_balayage)
     return tache
 

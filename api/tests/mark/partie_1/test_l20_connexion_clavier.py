@@ -104,9 +104,8 @@ async def test_la_connexion_du_chargement_devient_celle_de_l_appel(monkeypatch):
     async def charger_pour_l_appel(self):
         return {}, {}
 
-    monkeypatch.setattr(M, "CONNECTER", connecter)
     monkeypatch.setattr(source_commande.SourceClasseur, "charger_pour_l_appel", charger_pour_l_appel)
-    appel = M.AppelOuvert("base_essai", lieu=SimpleNamespace(etablissement_id=1))
+    appel = M.AppelOuvert("base_essai", lieu=SimpleNamespace(etablissement_id=1), connecter=connecter)
     await M._charger(appel, SimpleNamespace(organization_id=1), {}, {})
     assert len(ouvertes) == 1 and appel.connexion is ouvertes[0] and not ouvertes[0].fermee, "le premier geste ne rouvre rien"
     assert await M._connexion_prete(appel) is ouvertes[0] and len(ouvertes) == 1

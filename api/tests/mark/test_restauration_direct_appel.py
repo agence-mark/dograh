@@ -248,12 +248,14 @@ async def test_sans_le_module_ou_sans_etablissement_il_n_y_a_pas_de_direct(db_se
 
 
 def test_run_pipeline_prepare_le_direct_apres_le_canal_de_l_amont_et_le_ferme_dans_le_finally_final():
+    """Lot 8a (C3 : fiche prête § 3, 8a ; fiche mâchée n° C3) : le direct est le crochet ``au_decroche`` (moment ``CANAL``) et sa fermeture part dans ``fin_de_l_appel`` ; l'ordre et le finally final
+    restent ceux d'avant : le canal de l'amont d'abord, le direct COMPOSÉ au canal, la fin dans le dernier ``finally``."""
     racine = Path(direct.__file__).resolve().parents[3]
     source = (racine / "services" / "pipecat" / "run_pipeline.py").read_text(encoding="utf-8")
-    assert source.count("preparer_le_direct(") == 1 and source.count("direct_restauration.fermer(") == 1
-    i_canal, i_direct, i_composer = source.index("ws_sender = get_ws_sender(workflow_run_id)"), source.index("preparer_le_direct("), source.index("direct_restauration.composer(ws_sender)")
-    assert i_canal < i_direct < i_composer
-    i_fin = source.index("direct_restauration.fermer(")
+    assert source.count("crochets.CANAL") == 1 and source.count("crochets.fin_de_l_appel(") == 2  # le finally, et la fin d'un montage tombé
+    i_canal, i_direct = source.index("ws_sender = get_ws_sender(workflow_run_id)"), source.index("crochets.CANAL")
+    assert i_canal < i_direct and "canal=ws_sender" in source[i_direct : i_direct + 400] and ").canal" in source[i_direct : i_direct + 600]
+    i_fin = source.rindex("crochets.fin_de_l_appel(")
     assert source.rindex("    finally:\n", 0, i_fin) > source.index("await run_worker_runner(worker_runner, task)")  # le dernier ``finally``, celui qui suit la boucle de l'appel
     # R9 : ce lot ne touche pas Pipecat (aucun import ni appel de la bibliothèque dans le service du direct)
     assert "import pipecat" not in Path(direct.__file__).read_text(encoding="utf-8") and "from pipecat" not in Path(direct.__file__).read_text(encoding="utf-8")
