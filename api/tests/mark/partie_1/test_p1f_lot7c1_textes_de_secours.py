@@ -46,7 +46,8 @@ VIDES = {TS.n_est_plus_disponible, TS.maximum_atteint, TS.ne_se_prend_pas_avec_d
          TS.pas_dans_la_commande, TS.que_change_t_on, TS.pas_de_commande_en_ce_moment, TS.ce_sera_pret, TS.commande_vide_a_lire, TS.pas_d_offre, TS.tout_retirer_c_est_annuler,
          TS.offre_presque_atteinte, TS.seuil_presque_atteint,
          TS.question_d_un_choix, TS.vous_voulez_dire, TS.sur_lequel, TS.sur_quelle_moitie, TS.vous_voulez_retirer, TS.laquelle,  # C7 B3
-         TS.quel_numero_de_commande, TS.commande_introuvable, TS.commandes_plusieurs, TS.commande_annulee}  # C7 B4
+         TS.quel_numero_de_commande, TS.commande_introuvable, TS.commandes_plusieurs, TS.commande_annulee,  # C7 B4
+         TS.moyen_non_accepte, TS.quel_montant, TS.et_le_reste, TS.billet_insuffisant, TS.sur_quel_reglement}  # C7 B5 (règlement)
 
 
 def le_texte_de_secours_suffit(r, texte_de_secours, attendu: str | None = None) -> None:
@@ -554,14 +555,16 @@ async def test_un_moyen_non_accepte_dit_les_moyens_pris_et_les_porte_en_fait(app
     paiement, r = await reglement.regler(appel.source, appel.p, 2000, moyen="bitcoin")
     assert paiement is None and r.statut == "MOYEN_NON_ACCEPTE", r
     faits = porte.faits_vus_par_le_modele(r)
-    assert faits["acceptes_dits"] and r.suggestion == TS.moyen_non_accepte(faits)
-    assert r.suggestion.startswith("Ce moyen de paiement n'est pas accepté. On prend : ") and r.suggestion.endswith(".")
+    assert faits["acceptes_dits"]
+    le_texte_de_secours_suffit(r, TS.moyen_non_accepte)  # C7 B5 (Evan 25/11 8 h 45) : le modèle le dit, ses faits refont le texte d'avant
+    assert TS.moyen_non_accepte(faits).startswith("Ce moyen de paiement n'est pas accepté. On prend : ")
 
 
 async def test_le_moyen_qui_manque_se_demande_par_la_phrase_du_manque(appel):
     paiement, r = await reglement.regler(appel.source, appel.p, 2000)
     assert paiement is None and r.manque == "paiement"
-    assert r.suggestion == phrase_du_manque(Manque.PAIEMENT) == "Vous réglez comment ?"
+    # C7 B5 (Evan 25/11 8 h 45) : la phrase du manque n'est plus au retour ; le manque et les moyens (libellés) la portent
+    assert r.suggestion == "" and r.faits["moyens"] and phrase_du_manque(Manque.PAIEMENT) == "Vous réglez comment ?"
 
 
 async def test_une_part_illisible_demande_le_montant_avec_son_fait(appel):
@@ -581,7 +584,7 @@ async def test_une_part_nulle_demande_aussi_le_montant(appel):
 async def test_une_part_et_pas_de_moyen_pour_le_reste_redemande_le_reste(appel):
     paiement, r = await reglement.regler(appel.source, appel.p, 2000, moyen="especes", part=5)
     assert paiement is None and r.manque == "paiement_reste"
-    assert porte.faits_vus_par_le_modele(r)["reste"] == 1500
+    assert porte.faits_vus_par_le_modele(r)["reste"] == 1500 and porte.faits_vus_par_le_modele(r)["reste_dit"] == "quinze euros"  # C7 B5 : en lettres
     le_texte_de_secours_suffit(r, TS.et_le_reste, "Et le reste, vous le réglez comment ?")
 
 
