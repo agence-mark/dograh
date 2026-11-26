@@ -86,3 +86,11 @@ def test_lecteur_connecteurs_valeur_pas_dans_ses_mots():
     assert valeur_pas_dans_ses_mots({"rendu_sur": 50}, ["un billet de cinquante euros"]) is None
     assert valeur_pas_dans_ses_mots({"telephone": "0612345678"}, ["zéro six douze trente-quatre cinquante-six soixante-dix-huit"]) is None
     assert valeur_pas_dans_ses_mots({"rendu_sur": 50}, ["un billet de vingt euros"])["raison"] == "valeur_pas_dans_ses_mots"
+
+
+def test_voisin_un_seul_chiffre_apres_la_virgule_devant_un_euro_est_les_dixiemes():
+    """« 24,5 € » est 24,50 € ; « 24,05 € » reste 24,05 ; hors argent rien ne change (« 1,5 kg »)."""
+    assert forme.valeurs("24,5 €") == [("2450", "argent")]
+    assert forme.valeurs("24,05 €") == [("2405", "argent")]
+    assert forme.valeurs("1,5 kg") == [("105", "nombre")]
+    assert porte_les_chiffres("Cela fait vingt-quatre euros cinquante.", {"total": "24,5 €"})
