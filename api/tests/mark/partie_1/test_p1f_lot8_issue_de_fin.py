@@ -65,3 +65,32 @@ def test_seuls_la_commande_et_la_reservation_declarent_une_issue_de_fin():
 @pytest.mark.parametrize("fiche", [{"commande_panier": "pas un dictionnaire"}, {"reservation_etat": 3}])
 def test_une_fiche_mal_formee_ne_leve_pas(fiche):
     assert crochets.issue_de_fin(fiche) is None
+
+
+# ---- 113 bis : au clavier, la même issue (avant, « commande abandonnée » n'était jamais posée au clavier)
+
+
+async def _issue_au_clavier(fiche: dict) -> str | None:
+    from api.services.workflow.text_chat_runner import extract_text_chat_final_disposition
+
+    checkpoint = {"current_node_id": "n1", "messages": [], "gathered_context": fiche}
+    return await extract_text_chat_final_disposition(workflow_run_id=1, workflow_id=1, organization_id=7, checkpoint=checkpoint)
+
+
+async def test_au_clavier_une_partie_finie_avec_un_panier_commence_finit_abandonnee():
+    assert await _issue_au_clavier(_commande_commencee()) == "commande_abandonnee"
+
+
+async def test_au_clavier_la_reservation_seule_garde_son_issue_et_la_commande_passe_devant():
+    assert await _issue_au_clavier(_reservation_commencee()) == "reservation_abandonnee"
+    assert await _issue_au_clavier({**_commande_commencee(), **_reservation_commencee()}) == "commande_abandonnee"
+
+
+async def test_au_clavier_rien_de_commence_rien_a_dire():
+    assert await _issue_au_clavier({}) is None
+
+
+async def test_au_clavier_une_commande_enregistree_n_est_pas_abandonnee():
+    fiche = _commande_commencee()
+    fiche[P.CLE]["enregistree"] = {"numero": "C1"}
+    assert await _issue_au_clavier(fiche) is None
