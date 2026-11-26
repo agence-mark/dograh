@@ -62,3 +62,19 @@ async def test_e36_voisins_annulee_et_pas_passee_sont_dites_par_la_valeur_fermee
         faits = r["resultats"][0]["faits"]
         assert faits["etat"] == voulu and "statut" not in faits, (brut, faits)
         assert bool(r.get("a_faire")) == (voulu == "pas_passee"), (brut, r)
+
+
+async def test_r1_tranche_le_message_laisse_apres_le_suivi_est_urgent_selon_le_statut_brut(essai_de, monkeypatch):
+    """Reprise R1 de l'audit de la tranche (B5, « urgent si la commande est en cours ») : dans le même appel, la commande retrouvée puis un message laissé ; l'urgence se lit sur le
+    statut BRUT gardé au code (``CLE_STATUT_LU``), jamais sur la valeur fermée donnée au modèle (``etat`` dit « enregistree » pour une commande terminée comme en préparation).
+    Client « Ma commande est arrivée, mais il manque la boisson. » (terminée) : message normal ; en préparation : urgent ; refusée : normal."""
+    for brut, urgent in (("terminee", False), ("en_preparation", True), ("refusee", False)):
+        e = await essai_de()
+
+        async def retrouver(numero=None, telephone=None, brut=brut):
+            return Resultat("OK", {"commandes": [{**DEUX[0], "statut": brut}]})
+        monkeypatch.setattr(e.source, "retrouver", retrouver)
+        e.dit("ma commande, il manque la boisson, vous pouvez prévenir ?")
+        r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "laisser_un_message": {"objet": "Il manque la boisson"}, "a_dire": "x"}, e.ctx)
+        message = next(x for x in r["resultats"] if x.get("operation") != "retrouver_une_commande_enregistree")
+        assert message["faits"] == {"urgent": urgent}, (brut, e.ctx.fiche.get(porte.CLE_COMMANDE_RETROUVEE), r)
