@@ -324,7 +324,7 @@ def _objet_de_la_question(q: dict[str, Any]) -> str | None:
 
 def _question(q: dict[str, Any]) -> str:
     if q.get("type") == "proposition" and q.get("article_propose"):
-        quoi = q["article_propose"] + (f", offert ({q.get('offre') or 'offre'})" if q.get("offerte") else (f", son prix : {q['prix']} centimes, que tu dis" if q.get("prix") else ""))
+        quoi = q["article_propose"] + (f", offert ({q.get('offre') or 'offre'})" if q.get("offerte") else (f", son prix : {montant_en_lettres(int(q['prix']))}, que tu dis" if q.get("prix") else ""))  # C7 (e) : la forme exigée
         return f"- Question en attente : {q['id']} (proposition) : {quoi} ; réponses : accepte, refuse, autre."
     nom = NOMS_DES_QUESTIONS.get(q.get("type"), q.get("type"))
     if q.get("type") in QUESTIONS_DITES_PAR_LE_CODE:
