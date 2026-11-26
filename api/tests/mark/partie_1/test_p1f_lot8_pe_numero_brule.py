@@ -70,3 +70,17 @@ async def test_reservation_le_numero_d_une_reponse_refusee_au_mauvais_numero_n_e
     cite = "Q-" + str(int(r["question"]["id"].split("-")[1]) + 5)
     await essai.tour("oui", reponse={"question_id": cite, "sens": "accepte"})
     assert (CONV.de(essai.etat).get("prochain_q") or 0) > int(cite.split("-")[1])
+
+
+def test_un_numero_cite_qui_n_est_pas_un_numero_du_code_ne_change_rien():
+    """R5 (second passage) : un ``question_id`` écrit par le modèle qui n'a pas la forme « Q-n » (un chiffre en exposant, un mot) ne lève pas et ne touche pas ``prochain_q``."""
+    from api.services.actions_communes import conversation as CONV
+    from api.services.actions_communes import registre_des_questions as RQ
+
+    for cite in ("Q-²", "Q-", "Q-x", "R-5", "", None):
+        p: dict = {}
+        RQ.bruler_le_numero(p, cite)
+        assert CONV.de(p).get(RQ.CLE_DU_PROCHAIN) is None, cite
+    p = {}
+    RQ.bruler_le_numero(p, "Q-7")
+    assert CONV.de(p)[RQ.CLE_DU_PROCHAIN] == 8
