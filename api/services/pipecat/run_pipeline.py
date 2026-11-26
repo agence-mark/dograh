@@ -70,7 +70,7 @@ from api.services.etablissements.phrases import (
 )
 from api.services.objets_agent.appel import injecter_objets
 from api.services.modules.etiquettes import injecter_etiquettes_du_module
-from api.services.restauration.appel_et_memoire.etiquettes import injecter_l_ouverture_de_la_caisse
+from api.services.modules import crochets  # [.mark] lot 8a : le moteur joue les crochets des modules allumés, il ne nomme aucun module
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -170,7 +170,6 @@ from api.services.pipecat.worker_runner import (
     run_worker_runner,
 )
 from api.services.pipecat.ws_sender_registry import get_ws_sender
-from api.services.restauration.appel_et_memoire.direct_appel import preparer_le_direct  # [.mark] lot 21
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.answer_classification_service import (
     AnswerClassificationService,
@@ -918,18 +917,17 @@ async def _run_pipeline(
             unregister_worker_active_call(workflow_run_id)
 
 
-async def _run_pipeline_impl(*args, **kwargs) -> None:
-    """[.mark] Pierre 12 : le montage de l'appel peut lever APRÈS le chargement de l'appel (``charger_au_decroche``) et AVANT le ``try/finally`` qui ferme sa connexion à la base du client :
-    elle ne l'était jamais (depuis A5, ``743a996b3346``). Un échec du montage la ferme ici ; ``fermer`` est sans effet si l'appel est déjà fermé. ⛔ Ne masque jamais l'erreur."""
+async def _run_pipeline_impl(transport, workflow_id: int, workflow_run_id: int, user_id: int, **options) -> None:
+    """[.mark] Pierre 12 : le montage de l'appel peut lever APRÈS le chargement de l'appel (``charger_au_decroche``) et AVANT le ``try/finally`` qui joue la fin de l'appel :
+    elle ne l'était jamais (depuis A5, ``743a996b3346``). Un échec du montage joue ici le crochet ``fin_de_l_appel`` des modules (le chargement arrêté, la connexion fermée) ; il est sans effet
+    si l'appel est déjà fini. Lot 8a (115) : l'identifiant de l'appel est un argument nommé, jamais lu par sa position. ⛔ Ne masque jamais l'erreur."""
     try:
-        await _run_pipeline_corps(*args, **kwargs)
+        await _run_pipeline_corps(transport, workflow_id, workflow_run_id, user_id, **options)
     except BaseException:
         try:
-            from api.services.restauration.appel_et_memoire import memoire_de_l_appel
-
-            await memoire_de_l_appel.fermer(kwargs.get("workflow_run_id", args[2] if len(args) > 2 else None))
+            await crochets.fin_de_l_appel(crochets.FinDeLAppel(workflow_run_id, None, options.get("organization_id")))
         except Exception as erreur:  # noqa: BLE001
-            logger.warning(f"[.mark] Call connection not closed after a failed setup: {erreur!r}")
+            logger.warning(f"[.mark] Call end hooks not played after a failed setup: {type(erreur).__name__}")
         raise
 
 
@@ -1104,9 +1102,14 @@ async def _run_pipeline_corps(
     )
     # [.mark] Chantier Partie 1, lot 4 (Q10) : l'ouverture lue par le module (horaires ET état de la caisse), une seule lecture : une caisse en
     # pause le dit dès le décroché. Ne lève jamais.
-    merged_call_context_vars = await injecter_l_ouverture_de_la_caisse(
-        merged_call_context_vars, run_configs, workflow.organization_id, workflow.id, reglages_annonce, call_direction
-    )
+    merged_call_context_vars = (
+        await crochets.au_decroche(
+            crochets.Decroche(
+                crochets.CONTEXTE, merged_call_context_vars, run_configs, workflow.organization_id, workflow.id, workflow_run_id,
+                reglages_annonce=reglages_annonce, direction=call_direction,
+            )
+        )
+    ).contexte
     # [.mark] The organization's trade vocabulary (plan lexique-metier, L1, L2):
     # read once here, used three times -- the terms the transcription listens
     # for, the names corrected before the model reads them, and how the voice
@@ -1419,20 +1422,16 @@ async def _run_pipeline_corps(
 
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
-    # [.mark] Module Restauration, lot 21 : le direct des appels. Pour un agent qui porte le module de commande et un établissement connu, ce que l'appel dit passe aussi
-    # dans le flux (``appel.commence``, ``appel.tour`` final seulement, ``appel.outil``, ``appel.fini``). Le canal de l'amont est COMPOSÉ, jamais remplacé ; sans module,
-    # ``direct_restauration`` est ``None`` et rien ne change (ni l'appel, ni le canal).
-    direct_restauration = await preparer_le_direct(
-        organisation_id=workflow.organization_id,
-        workflow_id=workflow_id,
-        workflow_run_id=workflow_run_id,
-        run_configs=run_configs,
-        cle_etablissement=etablissement_servi.etablissement.id if etablissement_servi else None,
-        contexte=merged_call_context_vars,
-    )
-    if direct_restauration is not None:
-        ws_sender = direct_restauration.composer(ws_sender)
-        direct_restauration.commencer()
+    # [.mark] Lot 8a (C3) : le direct des appels (module Restauration, lot 21) est le crochet ``au_decroche`` du module, au moment ``CANAL`` : le canal de l'amont est COMPOSÉ, jamais
+    # remplacé ; sans module allumé, le canal est celui d'avant. Sa fermeture part dans ``fin_de_l_appel``, même sur une coupure.
+    ws_sender = (
+        await crochets.au_decroche(
+            crochets.Decroche(
+                crochets.CANAL, merged_call_context_vars, run_configs, workflow.organization_id, workflow_id, workflow_run_id,
+                cle_de_l_etablissement=etablissement_servi.etablissement.id if etablissement_servi else None, canal=ws_sender,
+            )
+        )
+    ).canal
 
     async def send_node_transition(
         node_id: str,
@@ -1552,10 +1551,10 @@ async def _run_pipeline_corps(
 
     # [.mark] Chantier Partie 1, lot 5 (E23, D58) : le chargement de l'appel (carte, réglages, zones, remises, index de recherche) part ici, en tâche,
     # pendant la phrase d'accueil ; il range les listes fermées de la fiche dans le contexte de l'appel. Jamais attendu ici, ne lève jamais.
-    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
-
-    memoire_de_l_appel.charger_au_decroche(
-        workflow.organization_id, workflow_run_id, run_configs, merged_call_context_vars, engine._gathered_context
+    await crochets.au_decroche(
+        crochets.Decroche(
+            crochets.MONTAGE, merged_call_context_vars, run_configs, workflow.organization_id, workflow_id, workflow_run_id, fiche=engine._gathered_context
+        )
     )
 
     # Set the context, audio_config, and audio_buffer after creation
@@ -2160,13 +2159,8 @@ async def _run_pipeline_corps(
     except asyncio.CancelledError:
         logger.warning("Received CancelledError in _run_pipeline")
     finally:
-        # [.mark] Lot 21 : l'appel quitte « en cours » à sa fin, même s'il coupe (``appel.fini`` avec son motif ; ne lève jamais, borné dans le temps).
-        if direct_restauration is not None:
-            await direct_restauration.fermer(getattr(engine, "_gathered_context", None))
-        # [.mark] Lot 5 (D53) : la connexion de l'appel à la base du client est fermée avec lui (ne lève jamais).
-        from api.services.restauration.appel_et_memoire import memoire_de_l_appel
-
-        await memoire_de_l_appel.fermer(workflow_run_id)
+        # [.mark] Lot 8a (C4) : la fin de l'appel des modules, même s'il coupe (le direct quitte « en cours », la connexion de l'appel à la base du client est fermée ; ne lève jamais).
+        await crochets.fin_de_l_appel(crochets.FinDeLAppel(workflow_run_id, getattr(engine, "_gathered_context", None), workflow.organization_id, run_configs))
         from api.services.site_mark.texte_visiteur import retirer_porte as _retirer_porte_texte
 
         _retirer_porte_texte(workflow_run_id)

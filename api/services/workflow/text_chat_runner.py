@@ -64,7 +64,7 @@ from api.services.etablissements.phrases import (
 )
 from api.services.objets_agent.appel import injecter_objets
 from api.services.modules.etiquettes import injecter_etiquettes_du_module
-from api.services.restauration.appel_et_memoire.etiquettes import injecter_l_ouverture_de_la_caisse
+from api.services.modules import crochets  # [.mark] lot 8a : le moteur joue les crochets des modules allumés, il ne nomme aucun module
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -675,17 +675,19 @@ async def execute_text_chat_pending_turn(
 ) -> TextChatTurnExecutionResult:
     """[.mark] Un tour au clavier. Lot 20 : la connexion de l'appel à la base du client ne doit pas fuir (97 sur 100 parties). Clôture A5 (IC1) :
     elle est GARDÉE entre deux tours comme à la voix, fermée à la fin de la partie (appel terminé, ou tour en échec) et après une limite
-    d'inactivité (``memoire_de_l_appel.fin_du_tour_au_clavier``) : un tour ne relit plus la carte entière."""
-    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
-
+    d'inactivité (crochet ``fin_du_tour`` des modules) : un tour ne relit plus la carte entière. Lot 8a : un tour qui TERMINE l'appel (l'agent le finit) joue aussi le crochet ``fin_de_l_appel``, comme
+    ``complete_text_chat_session`` pour une fin demandée ou par inactivité ; un tour en échec ne finit pas la partie (seule sa connexion est fermée, comme avant)."""
     try:
         resultat = await _executer_le_tour(
             workflow_run_id=workflow_run_id, workflow_id=workflow_id, session_data=session_data, checkpoint=checkpoint
         )
     except BaseException:
-        await memoire_de_l_appel.fin_du_tour_au_clavier(workflow_run_id, termine=True)
+        await crochets.fin_du_tour(crochets.FinDeTour(workflow_run_id, termine=True))
         raise
-    await memoire_de_l_appel.fin_du_tour_au_clavier(workflow_run_id, termine=bool(getattr(resultat, "is_completed", True)))
+    termine = bool(getattr(resultat, "is_completed", True))
+    if termine:
+        await crochets.fin_de_l_appel(crochets.FinDeLAppel(workflow_run_id, getattr(resultat, "gathered_context", None), au_clavier=True))
+    await crochets.fin_du_tour(crochets.FinDeTour(workflow_run_id, termine=termine))
     return resultat
 
 
@@ -879,9 +881,8 @@ async def _executer_le_tour(
         initial_context, run_configs, workflow.organization_id, workflow.id
     )
     # [.mark] Chantier Partie 1, lot 4 (Q10) : l'ouverture lue par le module (horaires ET état de la caisse), comme au téléphone.
-    initial_context = await injecter_l_ouverture_de_la_caisse(
-        initial_context, run_configs, workflow.organization_id, workflow.id, reglages_annonce
-    )
+    decroche = crochets.Decroche(crochets.CONTEXTE, initial_context, run_configs, workflow.organization_id, workflow.id, workflow_run_id, reglages_annonce=reglages_annonce, au_clavier=True)
+    initial_context = (await crochets.au_decroche(decroche)).contexte
     # [.mark] The organization's trade vocabulary (plan lexique-metier, L10):
     # the keyboard bench reads a typed message like a call's. Empty when the
     # agent's switch is off, and never raises.
@@ -949,11 +950,8 @@ async def _executer_le_tour(
 
     # [.mark] Chantier Partie 1, lot 6 : le chargement de l'appel du lot 5 (listes fermées de la fiche, objets de la carte), comme au décroché
     # d'un appel ; les listes entrent dans le contexte enregistré juste après, les objets dans la fiche du point de reprise.
-    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
-
-    await memoire_de_l_appel.charger_au_clavier(
-        workflow.organization_id, workflow_run_id, run_configs, initial_context, base_checkpoint.setdefault("gathered_context", {})
-    )
+    montage = crochets.Decroche(crochets.MONTAGE, initial_context, run_configs, workflow.organization_id, workflow.id, workflow_run_id, fiche=base_checkpoint.setdefault("gathered_context", {}), au_clavier=True)
+    await crochets.au_decroche(montage)
 
     await db_client.update_workflow_run(
         workflow_run_id,

@@ -13,6 +13,7 @@ from api.db.workflow_run_text_session_client import (
     WorkflowRunTextSessionRevisionConflictError,
 )
 from api.enums import WorkflowRunState
+from api.services.modules import crochets
 from api.services.workflow.disposition_mapping import map_disposition
 from api.services.workflow.text_chat_logs import (
     build_text_chat_realtime_feedback_events,
@@ -379,6 +380,18 @@ async def complete_text_chat_session(
     completed_session_data["status"] = "completed"
     feedback_events = build_text_chat_realtime_feedback_events(completed_session_data)
 
+    # [.mark] Lot 8a (C4) : la fin d'une partie au clavier demandée ou par inactivité (seul point d'entrée : les trois appelants passent ici). Jouée UNE fois, la fin écrite et seulement alors
+    # (un conflit de révision n'a pas fini la partie) ; une partie déjà finie est sortie plus haut. ⛔ Ne lève jamais.
+    run_configs = getattr(getattr(workflow_run, "definition", None), "workflow_configurations", None)
+    await crochets.fin_de_l_appel(
+        crochets.FinDeLAppel(
+            run_id,
+            (normalize_text_chat_checkpoint(text_session.checkpoint).get("gathered_context")),
+            workflow_run.workflow.organization_id,
+            run_configs if isinstance(run_configs, dict) else None,
+            au_clavier=True,
+        )
+    )
     await _upload_text_chat_transcript(run_id, feedback_events)
     await _enqueue_text_chat_completion(run_id)
 
