@@ -53,3 +53,20 @@ def test_t2_voisin_jamais_notee_jamais_dite():
     p = P.nouveau()
     CONV.de(p)[TOUR] = 3
     assert "fermeture_dite" not in _faits(p)
+
+
+async def test_t2_voisin_par_choisir_mode_et_un_vrai_tour_de_porte(essai_de, monkeypatch):
+    """Mineur de l'audit C7 commande : T2 par ``choisir_mode`` et la vraie porte. Client « En livraison. » (tout est fermé) / le retour porte la fermeture en faits, sans
+    ``fermeture_dite`` : le modèle l'annonce. Client « Bon, et à emporter ? » au tour suivant / ``fermeture_dite`` vrai : déjà dite, le modèle ne la redit pas (« fermeture déjà
+    dite ne se redit pas », perdue au second ``finaliser`` du test c1)."""
+    e = await essai_de("casa-italia")
+    vrai_etat = e.source.etat
+
+    async def ferme(mode):
+        return {**dict(await vrai_etat(mode)), "ouvert": False, "statut": "LIVRAISON_TERMINEE", "raison": "fin_de_service", "planifiee_permise": False}
+
+    monkeypatch.setattr(e.source, "etat", ferme)
+    premier = await e.tour("en livraison", mode_de_retrait="livraison")
+    assert J.deja_dit(e.p, J.FERMETURE) and "fermeture_dite" not in str(premier), premier
+    second = await e.tour("bon, et à emporter ?", mode_de_retrait="emporter")
+    assert (second.get("faits") or {}).get("fermeture_dite") is True, second
