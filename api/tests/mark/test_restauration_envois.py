@@ -83,9 +83,9 @@ async def test_eteint_par_defaut_aucune_ligne_ou_ligne_eteinte_rien_ne_part(comm
     assert await c.fetchval("SELECT count(*) FROM mark.resto_envoi WHERE actif AND declencheur = 'bonus'") == 1
 
 
-async def test_commande_enregistree_allume_le_texte_de_l_etablissement_trous_remplis_par_le_code(commerce, envoyes, monkeypatch):  # noqa: F811
+async def test_commande_enregistree_allume_le_texte_de_l_etablissement_trous_remplis_par_le_code(commerce, envoyes):  # noqa: F811
     await _allumer(commerce.c, commerce.a, envois.COMMANDE_ENREGISTREE)
-    await _un_essai_sans_organisation_n_envoie_rien(commerce, envoyes, monkeypatch)
+    await _un_essai_sans_organisation_n_envoie_rien(commerce, envoyes)
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
     fait = await _passer_la_commande(commerce, a)
     assert len(envoyes) == 1
@@ -97,7 +97,7 @@ async def test_commande_enregistree_allume_le_texte_de_l_etablissement_trous_rem
     assert len(envoyes) == 1
 
 
-async def _un_essai_sans_organisation_n_envoie_rien(boutique, envoyes, monkeypatch):
+async def _un_essai_sans_organisation_n_envoie_rien(boutique, envoyes):
     """Audit 8b-1a, R1 : la fin jouée sans organisation laisse la ligne « retenue » ; un essai (organisation ``None``) envoie la commande, sans le SMS allumé
     ni ``commande.creee`` (pas de portail sans organisation)."""
     dits: list[tuple] = []
@@ -105,7 +105,12 @@ async def _un_essai_sans_organisation_n_envoie_rien(boutique, envoyes, monkeypat
     async def dire(*a, **k):
         dits.append(a)
 
-    monkeypatch.setattr(flux, "emettre", dire)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(flux, "emettre", dire)
+        await _finir_un_essai_sans_organisation(boutique, envoyes, dits)
+
+
+async def _finir_un_essai_sans_organisation(boutique, envoyes, dits):
     essai = Appel(boutique, vente_en_plus=False)
     essai.appelant = Appelant(TEL, "appel-essai")                                  # son propre appel : celui du test suivant reste à part
     await essai.pret("une regina normale")
