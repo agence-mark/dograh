@@ -46,6 +46,7 @@ class Entrees:
     etat: EtatDuTour
     retour: dict
     p: dict | None
+    fiche_vide: bool = False  # PE-2 (Q3) : la fiche jouée ne porte aucune case (seulement la phrase du modèle) : lue sur ses arguments (``parole.fiche_vide``)
 
     @property
     def question_deja_donnee(self) -> bool:
@@ -92,9 +93,13 @@ def _relancer_le_fait(e: Entrees, motif: str) -> Decision | None:
 def _la_relance_ratee(e: Entrees) -> Decision:
     """T12 (coordinateur 26/11 10 h 45 ; reprise R1 de C6) : la relance du tour est faite et la fiche ne change toujours rien : relance ratée. Le code dit la suite réglée
     (la phrase réglée de cette fiche ou d'une fiche d'avant du tour, ``la_suite_reglee``), sinon la phrase réglée « pas compris » de l'agent (P3 : ``a_dire`` vide, motif
-    ``REPONSE_PERDUE``, dite par la voix) ; jamais la phrase du modèle écrite avant l'exécution, jamais une seconde relance."""
+    ``REPONSE_PERDUE``, dite par la voix) ; jamais une seconde relance. PE-2 (Q3, point d'étape du 26/11) : sans suite réglée, la fiche rejouée est VIDE (aucune case) et rien n'est dû
+    (``_du_a_reposer``) : la phrase du modèle, sans chiffre, est dite seule (« Ah merci. » / « Avec plaisir. »). Lu sur la forme, jamais sur les mots : une fiche vide qui n'a rien
+    changé laisse passer aussi un « C'est noté. » sans rien de dû ; c'est le prix de la décision."""
     _poser_la_phrase_reglee(e, e.suffixe_du_code or e.suffixe_avant)
     suite = la_suite_reglee(e.etat)
+    if not suite and e.fiche_vide and e.phrase and not e.chiffre and not _du_a_reposer(e):
+        return Decision(A_DIRE_SEUL, a_dire=e.phrase, motif="fait")
     return Decision(A_DIRE_SEUL, a_dire=suite, motif=SUFFIXE if suite else REPONSE_PERDUE)
 
 
@@ -239,7 +244,7 @@ def _jeter_la_phrase_perimee(e: Entrees) -> None:
 
 
 def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list[str], p: dict | None, textes: dict, objet_en_cours: bool | None,
-                      suffixe_avant: str | None, ancre_avant: str | None = None) -> Entrees:
+                      suffixe_avant: str | None, ancre_avant: str | None = None, fiche_vide: bool = False) -> Entrees:
     """Ce que la table lit, rassemblé depuis le retour de la fiche et l'état du tour."""
     from api.services.actions_communes.du import du_du_retour
 
@@ -255,4 +260,4 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
         question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant, ancre_avant=ancre_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),
-        etat=etat, retour=retour, p=p)
+        etat=etat, retour=retour, p=p, fiche_vide=fiche_vide)

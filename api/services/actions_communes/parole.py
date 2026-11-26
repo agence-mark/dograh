@@ -217,7 +217,13 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     etat.suite.append(REFUS_DE_LA_FICHE if de_la_fiche else REFUS if refusee else FAIT)  # ligne 23
     phrase = sans_balisage(str(a_dire or ""))
     jeter(etat, phrase)  # ce qui est jeté dans le tour (ligne 20) ; oubliée si la phrase est dite en un passage
-    return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant, ancre_avant))
+    return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant, ancre_avant, fiche_vide(fiche)))
+
+
+def fiche_vide(arguments: Any) -> bool:
+    """PE-2 (Q3) : la fiche jouée ne porte aucune case : ses arguments n'ont rien d'autre que la phrase du modèle (``a_dire``). Une forme (une case remplie ou non), jamais un mot ;
+    sans arguments lisibles : faux."""
+    return isinstance(arguments, dict) and not any(v for k, v in arguments.items() if k != "a_dire")
 
 
 def pose_une_question(phrase: str) -> bool:
