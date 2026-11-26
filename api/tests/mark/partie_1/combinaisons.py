@@ -32,6 +32,7 @@ from api.db.bases_clients.restauration_commande import commande_complete
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import repli as R
+from api.services.commande import contrat as CONTRAT
 from api.services.commande import panier as P
 from api.services.groupe import passations as PASSATIONS
 from api.services.workflow import parole_de_la_fiche as PF
@@ -355,6 +356,7 @@ class Partie:
         self.journal: list[str] = []  # ce que le code a dit, tour après tour (RC3)
         self.derniere_fiche: dict[str, Any] | None = None
         self.dernier_effet: Callable | None = None  # l'effet de la dernière fiche jouée (G32 la rejoue au tour suivant : même effet)
+        self.derniere_lecture: tuple[int, bool] | None = None  # (tour, sa réponse visait la question posée) de la dernière fiche jouée : PE-1, la fiche identique au tour d'avant
         self.fiche_du_tour: dict[str, Any] | None = None  # la fiche déjà jouée dans le tour en cours (G31 la rejoue dans CE tour ; un nouveau tour la rend au suivant, G32)
         self.attendu: Counter | None = Counter()
         for x in [*monde.carte.get("produits", []), *(monde.carte.get("formules") or [])]:
@@ -364,6 +366,9 @@ class Partie:
     @property
     def p(self) -> dict[str, Any]:
         return self.e.p
+
+    def fiche_de_l_appel_tour(self) -> int:
+        return int(self.e.fiche_de_l_appel.get(CONTRAT.CLE_DU_TOUR) or 0)
 
     def _compter_la_fin(self) -> list[int]:
         """L'espion de l'invariant « un seul finaliser par fiche » : chaque passage de la commande à sa fin, dans la fiche jouée, y est compté."""
@@ -391,6 +396,8 @@ class Partie:
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
             debut = time.perf_counter()
+            reponse_dite = fiche.get("reponse")
+            self.derniere_lecture = (int(self.fiche_de_l_appel_tour()), isinstance(reponse_dite, dict) and bool(question(avant).get("id")) and reponse_dite.get("question_id") == question(avant).get("id"))
             appels_de_la_fin = self._compter_la_fin()
             retour = await e.fiche(**fiche) if fiche else await e.fiche()
             nombre_de_fins = len(appels_de_la_fin)
@@ -428,6 +435,10 @@ class Partie:
         reponse = fiche.get("reponse")
         q = question(self.p)
         vivante = isinstance(reponse, dict) and bool(q.get("id")) and reponse.get("question_id") == q.get("id")
+        if fiche.get("ajouter") and not vivante and self.derniere_lecture == (self.fiche_de_l_appel_tour(), False):
+            # PE-1 (Q1/Q2 c, Pierre 26/11 ; bilan-point-d-etape-7b-c.md:274) : la fiche qui ajoute, lue telle quelle au tour d'avant, n'est pas appliquée : le modèle demande si c'est un de plus (le tour d'après
+            # dit « un autre » : la même fiche s'applique). Aucune ligne ne change, ni l'ajout ni les retraits de la même fiche.
+            return _inchange
         if isinstance(reponse, dict) and not vivante:
             return (lambda avant, p: _effet_par_numero(fiche, avant, p)) if fiche.get("retirer_article") or fiche.get("changer_quantite") or fiche.get("ajouter") else _inchange
         if vivante and reponse.get("sens") == "accepte" and q.get("type") == "proposition":

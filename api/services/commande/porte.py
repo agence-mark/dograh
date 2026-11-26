@@ -959,6 +959,25 @@ async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
         f.refus.append(B.refus("question_inconnue", ["reponse"], pour=True, reste="reponse : la question en attente a disparu avec le panier"))
 
 
+def _cle_de_la_fiche(tour: Any, fiche: dict[str, Any]) -> str:
+    """La clé d'idempotence de la fiche DITE : la réponse implicite (posée par le registre quand la fiche n'a pas répondu à la question en attente) n'est pas dite par le modèle,
+    elle est hors de la clé ; sans cela la même fiche, redite quand une question est née entre-temps, ne serait pas reconnue."""
+    dite = {k: v for k, v in fiche.items() if not (k == "reponse" and isinstance(v, dict) and v.get("implicite"))}
+    return cle_d_idempotence(tour, "fiche", dite)
+
+
+def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[str, Any]) -> dict[str, Any] | None:
+    """Q1/Q2 (c, Pierre 26/11) : une fiche qui AJOUTE et que le tour d'avant a déjà lue, mot pour mot (réponse comprise : un ``reponse`` différent est une autre fiche), n'est ni
+    ignorée (« un Coca... et un autre Coca » perdrait le second) ni ajoutée tout de suite : rien n'est appliqué, elle n'est PAS notée exécutée (le tour suivant, « un autre » la
+    même, passe), et le fait (les articles lus dans la fiche) revient au modèle, qui demande au client si c'est un de plus ou le même. Rend l'enveloppe du refus, ou ``None``."""
+    if not fiche.get("ajouter") or not isinstance(tour, int) or _cle_de_la_fiche(tour - 1, fiche) not in (CONV.de(p).get("fiches_executees") or []):
+        return None
+    articles = [{"article": a.get("article"), "quantite": a.get("quantite", 1)} for a in fiche["ajouter"] if isinstance(a, dict)]
+    refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire="rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)")
+    return Enveloppe("REJETEE", faits={"articles": articles}, raison=refus["raison"], a_faire=refus["a_faire"],
+                     plus={"refus": [refus], "cases_refusees": refus["cases"], "fiche_appliquee": False}).vers_json()
+
+
 async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaFiche | dict[str, Any]:
     """Lire la fiche : ce qu'elle dit, ce que le code en refuse, ce qui est déjà fait. Rien n'est exécuté. Rend le plan, ou l'enveloppe d'un refus entier."""
     p = ctx.panier
@@ -967,7 +986,10 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
     tour = (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0)
-    if deja_executee(p, cle_d_idempotence(tour, "fiche", fiche)):  # rejouée à l'identique dans ce tour : rien ne change (E11)
+    identique = _fiche_identique_au_tour_d_avant(p, tour, fiche)
+    if identique is not None:
+        return identique
+    if deja_executee(p, _cle_de_la_fiche(tour, fiche)):  # rejouée à l'identique dans ce tour : rien ne change (E11)
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
     f = LaFiche(ctx=ctx, ex=ex, fiche=fiche, tour=tour, reponse_ecartee=reponse_ecartee, case_ecartee=case_ecartee,
                 reponse=fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None)

@@ -28,6 +28,7 @@ REFUS_DE_LA_FICHE = frozenset({
     "arguments_illisibles", "article_aussi_choix_d_une_etape", "article_deja_choix_de_la_formule", "case_sans_objet", "cases_pas_ouvertes", "fiche_vide",
     "formule_sans_variante", "article_deja_en_question", "format", "format_illisible", "operation_inconnue", "outil_inconnu", "question_inconnue", "recapitulatif_pas_accepte", "reponse_hors_liste",
     "reponse_manquante", "valeur_hors_liste", "valeur_pas_dans_ses_mots", "choix_hors_liste",
+    "fiche_identique_au_tour_d_avant",  # lot 8 PE-1 (Q1/Q2 c) : la fiche qui ajoute, déjà lue au tour d'avant : le modèle demande si c'est un de plus
 })
 
 # Les refus du métier : la phrase du modèle qui dit la raison reste dite (B12, décision 1). Une raison nouvelle d'un module entre ici ou dans

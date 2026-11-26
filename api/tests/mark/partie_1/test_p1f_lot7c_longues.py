@@ -130,7 +130,8 @@ async def test_rc2_le_juge_du_rejeu_suit_b1_b4_et_le_oui_a_la_proposition(faire_
     """Les quatre suites tirées réduites (graine 20261122) : l'attente du juge pour « je répète » (G32) contredisait ses propres règles écrites. B1 : une réponse au mauvais numéro est
     écartée SEULE, le reste passe (E7 : la regina du remplacement rejoué entre) ; B4 (M6) : deux cases sur la même ligne sont refusées, le reste passe (E6 : l'ajout entre, comme
     ``fusion``) ; ``_oui`` : « oui » à la proposition posée ajoute l'article proposé (E1 : le « oui » rejoué vise maintenant la proposition du Coca, posée au tour d'avant) ; G3 :
-    un article inconnu ne change rien (E8, effet déclaré). Le code n'a pas bougé : ces paniers sont ceux que les règles écrites donnent."""
+    un article inconnu ne change rien (E8, effet déclaré). Lot 8 PE-1 (Q1/Q2 c, Pierre 26/11, ``bilan-point-d-etape-7b-c.md:274`` ; ``decisions-du-coordinateur.md:112``) : la fiche qui ajoute, rejouée telle quelle au tour
+d'après, n'est plus appliquée (le modèle demande si c'est un de plus) : le juge du rejeu (``combinaisons._effet_du_rejeu``) attend alors « rien ne change » pour ces fiches ; ``test_p1f_lot8_pe_fiche_repetee.py`` tient le code."""
     from api.tests.mark.partie_1 import combinaisons as C
 
     monde = await faire_monde("casa-italia")
