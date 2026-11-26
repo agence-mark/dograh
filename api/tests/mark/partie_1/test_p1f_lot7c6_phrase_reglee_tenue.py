@@ -163,6 +163,7 @@ QUESTION_DU_MODELE = "Une deuxième margherita, ou c'était la même ?"
 async def _relecture_puis_la_meme_margherita_redite(essai_de):
     """Le scénario d'origine de S1 : la relecture naît (« Non merci, c'est tout. »), puis, dans le même tour, la fiche redit la margherita du premier tour. Rend l'essai, le retour de la fiche refusée et l'ancien total en lettres."""
     e = await essai_de("casa-italia")
+    e.voix = False  # rien n'est dit tant que ``_voix`` ne le dit pas : le total de la relecture n'est noté dit que s'il part vraiment à la voix
     await a_emporter(e)
     await premier_article(e)
     q = question_posee(e)
@@ -173,6 +174,12 @@ async def _relecture_puis_la_meme_margherita_redite(essai_de):
     return e, await e.fiche(ajouter=[MARGHERITA]), ancien
 
 
+async def _la_question_du_modele_apres_le_refus(e, r2) -> str:
+    """La fiche est refusée ; le modèle repasse, rappelle une fiche vide (rien n'est dû) avec sa question : ce qui part à la voix (Q3 du point d'étape)."""
+    assert PF.decider_apres_la_fiche(e.fiche_de_l_appel, r2, {"a_dire": "Voilà, deux margherita alors."}).mode == PAROLE.SECOND_PASSAGE
+    return await _voix(e, await e.fiche(), QUESTION_DU_MODELE, [QUESTION_DU_MODELE])
+
+
 async def test_s1_la_meme_margherita_redite_refusee_la_question_du_modele_finit_la_replique_sans_l_ancien_total(essai_de):
     """Le scénario d'origine de S1, margherita redite (consigne de Pierre du 27/11 ; decisions-du-coordinateur.md:112, Pierre 26/11 ~17 h, Q1/Q2 c corrigé) : la fiche est refusée
     (``fiche_identique_au_tour_d_avant``), le modèle demande « une de plus ou la même ? ». Avant PE-1 : « Une deuxième margherita, ou c'était la même ? Cela fait dix euros quatre-vingt-dix,
@@ -180,7 +187,7 @@ async def test_s1_la_meme_margherita_redite_refusee_la_question_du_modele_finit_
     e, r2, ancien = await _relecture_puis_la_meme_margherita_redite(essai_de)
     assert "fiche_identique_au_tour_d_avant" in str(r2), r2
     jeton = e.p["relecture"]["jeton"]
-    dit = await _voix(e, r2, "Voilà, deux margherita alors.", [QUESTION_DU_MODELE])
+    dit = await _la_question_du_modele_apres_le_refus(e, r2)
     assert dit == QUESTION_DU_MODELE, dit
     assert ancien not in dit and "c'est bon pour vous" not in dit, dit
     assert question_posee(e).get("type") == "relecture" and e.p["relecture"]["jeton"] == jeton, question_posee(e)
@@ -188,12 +195,11 @@ async def test_s1_la_meme_margherita_redite_refusee_la_question_du_modele_finit_
 
 
 async def test_s1_la_meme_margherita_redite_puis_c_etait_la_meme_le_total_est_dit_au_tour_suivant(essai_de):
-    """Suite du précédent : le client répond « c'était la même ». Le tour suivant dit la phrase réglée du total de la relecture restée en attente, une seule fois, et la note dite à son jeton."""
+    """Suite du précédent : le client répond « c'était la même, c'est tout ». Le tour suivant dit la phrase réglée du total de la relecture restée en attente (jamais dite : elle n'est pas « déjà dite »), avec sa question, et la note dite à son jeton."""
     e, r2, ancien = await _relecture_puis_la_meme_margherita_redite(essai_de)
-    jeton = e.p["relecture"]["jeton"]
-    assert await _voix(e, r2, "Voilà, deux margherita alors.", [QUESTION_DU_MODELE]) == QUESTION_DU_MODELE
-    r3 = await e.tour("c'était la même")
+    assert await _la_question_du_modele_apres_le_refus(e, r2) == QUESTION_DU_MODELE
+    r3 = await e.tour("c'était la même, c'est tout", c_est_tout=True)
     phrase = "D'accord, une seule margherita alors."
     dit = await _voix(e, r3, phrase, [phrase])
     assert dit.startswith(phrase) and ancien in dit and dit.rstrip().endswith("?"), dit
-    assert PAROLE.total_dit(e.p, jeton), dit
+    assert question_posee(e).get("type") == "relecture" and PAROLE.total_dit(e.p, e.p["relecture"]["jeton"]), dit

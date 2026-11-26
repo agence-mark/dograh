@@ -31,6 +31,11 @@ REFUS_DE_LA_FICHE = frozenset({
     "fiche_identique_au_tour_d_avant",  # lot 8 PE-1 (Q1/Q2 c) : la fiche qui ajoute, déjà lue au tour d'avant : le modèle demande si c'est un de plus
 })
 
+# Le genre « le client doit répondre d'abord » : un refus de la fiche dont la suite est la question du modèle au client (un de plus ou le même ?). La phrase réglée d'un passage d'avant ne suit
+# pas cette question : elle attend le tour suivant, la question qui la portait restant posée (``table_de_parole._garder_la_phrase_reglee``). Toujours rangé aussi dans ``REFUS_DE_LA_FICHE``.
+REFUS_QUI_ATTEND_LE_CLIENT = frozenset({"fiche_identique_au_tour_d_avant"})
+assert REFUS_QUI_ATTEND_LE_CLIENT <= REFUS_DE_LA_FICHE
+
 # Les refus du métier : la phrase du modèle qui dit la raison reste dite (B12, décision 1). Une raison nouvelle d'un module entre ici ou dans
 # ``REFUS_DE_LA_FICHE`` dans le même commit (``test_chaque_raison_rangee_fiche_ou_metier``).
 RAISONS_DU_METIER = frozenset({

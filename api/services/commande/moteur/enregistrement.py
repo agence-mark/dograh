@@ -20,7 +20,7 @@ from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CL
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, noter_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
-from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, poser_la_relecture, regler, rendu_de_monnaie
+from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, poser_la_relecture, regler, relecture_entendue, rendu_de_monnaie
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
 
@@ -315,8 +315,8 @@ async def _finaliser(
         if dit and confirmer:
             ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite
-        elif dit:
-            return _relecture_deja_dite(p, total)
+        elif dit and relecture_entendue(p):
+            return _relecture_deja_dite(p, total)  # ``dit`` sans entendue : la phrase du total n'est jamais partie à la voix (fiche refusée, PE-1) : la relecture se repose, son total se dit
         else:
             return demander_la_consigne_livreur(source, p, poser_la_relecture(source, p, chiffre))
     # 2. Le règlement, 3. le numéro et le prénom, 4. l'enregistrement (la consigne pour le livreur est demandée avec le récapitulatif)

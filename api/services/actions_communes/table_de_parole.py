@@ -18,6 +18,7 @@ from typing import Any, Callable
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, porte_les_chiffres, sans_balisage
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
 from api.services.phrases.catalogue import REPONSE_PERDUE
+from api.services.actions_communes.repli import refus_qui_attend_le_client
 from api.services.actions_communes.parole import (
     A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, SANS_OUTIL, SECOND_PASSAGE, SUFFIXE, Decision, EtatDuTour,
     apres_un_refus, la_suite_reglee, pose_une_question, question_due_sans_suite, question_nee_dans_ce_tour,
@@ -198,9 +199,10 @@ def decider(e: Entrees) -> Decision:
 
 def _garder_la_phrase_reglee(e: Entrees, decision: Decision) -> Decision:
     """Le modèle repasse et aucune phrase réglée n'attend sa phrase : celle de cette fiche, sinon celle d'une fiche d'avant du tour (``suffixe_avant``), est remise, comme
-    ``_relancer_le_fait``. Une phrase dite seule (``A_DIRE_SEUL``) garde ce que sa ligne a décidé."""
+    ``_relancer_le_fait``. Une phrase dite seule (``A_DIRE_SEUL``) garde ce que sa ligne a décidé. Exception : la fiche est refusée parce que le client doit répondre d'abord
+    (``refus_qui_attend_le_client``) : la question du modèle finit la réplique, la phrase réglée d'un passage d'avant n'est pas remise et attend le tour suivant, la question qui la portait restant posée."""
     if decision.mode == SECOND_PASSAGE and not e.etat.suffixe:
-        _poser_la_phrase_reglee(e, e.suffixe_du_code or e.suffixe_avant)
+        _poser_la_phrase_reglee(e, e.suffixe_du_code or (None if refus_qui_attend_le_client(e.retour) else e.suffixe_avant))
     return decision
 
 

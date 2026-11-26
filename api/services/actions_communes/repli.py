@@ -14,7 +14,7 @@ from api.services.actions_communes import conversation as CONV
 import json
 from typing import Any
 
-from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, REFUS_DE_LA_FICHE
+from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, REFUS_DE_LA_FICHE, REFUS_QUI_ATTEND_LE_CLIENT
 
 RAPPEL_APRES_REFUS = (
     "- Ta réponse précédente n'avait pas d'appel d'outil après le refus de ta fiche : elle n'a pas été dite, et rien n'est changé."
@@ -37,6 +37,11 @@ def _raisons(x: Any, sortie: list[str]) -> list[str]:
 def refus_de_la_fiche(retour: Any) -> bool:
     """Vrai si le retour porte une raison rangée « fiche » (``REFUS_DE_LA_FICHE``)."""
     return any(r in REFUS_DE_LA_FICHE for r in _raisons(retour, []))
+
+
+def refus_qui_attend_le_client(retour: Any) -> bool:
+    """Vrai si le retour porte une raison du genre « le client doit répondre d'abord » (``REFUS_QUI_ATTEND_LE_CLIENT``) : la question du modèle finit la réplique."""
+    return any(r in REFUS_QUI_ATTEND_LE_CLIENT for r in _raisons(retour, []))
 
 
 # Les statuts du module qui NE refusent PAS : une réussite, une lecture, un manque (``INCOMPLETE`` : le numéro, le prénom), une précision à demander (``AMBIGU``, ``CHOIX_OBLIGATOIRE``), un
