@@ -54,11 +54,14 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
     """La commande de CET appel, déjà enregistrée, vient d'être changée dans le panier (« finalement deux tiramisus », « mettez-la en mega ») : lot 8b-1b (E4 ; § 17 l.404),
     sa ligne ``retenue`` est RÉÉCRITE en base, à sa place (même numéro) ; rien ne part ni ne s'annule en caisse pendant l'appel, la fin de l'appel enverra la dernière version.
     ``avant`` : le panier d'avant la fiche. Quand il manque quelque chose, que le nouveau panier ne se chiffre pas, que le règlement ne tient plus ou que la base refuse la
-    nouvelle version (tout ou rien, Pierre A2), rien n'est changé (le panier redevient celui d'avant) et la raison est rendue."""
+    nouvelle version (tout ou rien, Pierre A2), rien n'est changé et la raison est rendue : le panier redevient celui d'avant, ou la commande enregistrée quand la fiche
+    refusée complétait une ligne en attente (T16, option C ; ``lignes_en_attente_retirees``)."""
     commande = commande_de_l_appel(avant) or {}
 
     def remettre(r: Resultat) -> Resultat:
-        P.remplacer_par(p, avant)
+        retirees = P.revenir_apres_un_refus(p, avant)  # T16, option C
+        if retirees:
+            r = Resultat(r.statut, {**(r.faits or {}), "lignes_en_attente_retirees": retirees}, r.suggestion, r.manque)
         return _avec(r, p)
 
     manque = _manque_pour_remplacer(source, p)

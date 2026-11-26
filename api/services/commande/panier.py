@@ -130,6 +130,37 @@ def commande_changee(p: dict[str, Any]) -> bool:
     return any(recue.get(k) != p.get(k) for k in CLES_HORS_EMPREINTE) or (CLE_DU_PRENOM in recue and recue[CLE_DU_PRENOM] != prenom_de(p))
 
 
+def revenir_a_la_commande_enregistree(p: dict[str, Any], avant: dict[str, Any]) -> None:
+    """7c R1 (Pierre A2 : tout ou rien) : le panier revient à ce que la base a reçu, jamais au seul panier du début de la fiche : une ligne qui attendait sa taille depuis
+    un tour d'avant ne revient pas, ce qu'elle accompagnait non plus. La conversation, les numéros et le reste de l'état sont ceux d'avant la fiche ; le prénom gardé
+    revient dans ``client``. Une commande enregistrée avant cette copie : le panier d'avant, sans ses lignes en attente."""
+    recue = copy.deepcopy(avant.get("commande_enregistree"))
+    if not isinstance(recue, dict):
+        recue = {"lignes": [l for l in avant["lignes"] if not l.get("attente")]}
+    neuf = {**copy.deepcopy(avant), **{k: v for k, v in recue.items() if k != CLE_DU_PRENOM}}
+    if CLE_DU_PRENOM in recue:
+        neuf["client"] = {**(neuf.get("client") or {}), "prenom": recue[CLE_DU_PRENOM]}
+    remplacer_par(p, neuf)
+
+
+def lignes_completees(avant: dict[str, Any], p: dict[str, Any]) -> list[dict[str, Any]]:
+    """Les lignes qui attendaient leur réponse (leur taille) dans ``avant`` et que ``p`` a complétées (même numéro de ligne, plus rien n'attend)."""
+    en_attente = {l["n"] for l in avant["lignes"] if l.get("attente")}
+    return [l for l in p["lignes"] if l.get("n") in en_attente and not l.get("attente")]
+
+
+def revenir_apres_un_refus(p: dict[str, Any], avant: dict[str, Any]) -> list[str]:
+    """T16, option C (règle A2 de Pierre « tout ou rien ») : un changement refusé d'une commande enregistrée. La fiche refusée complétait une ligne en attente : la ligne
+    sort, et ce qui l'accompagnait sans être écrit en base aussi (retour à la commande enregistrée) ; sinon le panier redevient celui d'avant la fiche (une ligne en attente
+    qu'elle ne touchait pas reste, sa question aussi). Rend les noms des lignes retirées, lus dans le panier."""
+    completees = lignes_completees(avant, p)
+    if completees:
+        revenir_a_la_commande_enregistree(p, avant)
+    else:
+        remplacer_par(p, avant)
+    return [str(l.get("nom")) for l in completees]
+
+
 def voie_de_l_adresse(adresse: Any) -> str | None:
     """La voie d'une adresse (« 3 rue de Paris ») telle que le panier la garde."""
     return adresse.get("voie") if isinstance(adresse, dict) else (str(adresse) if adresse else None)

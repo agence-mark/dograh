@@ -45,7 +45,8 @@ async def test_un_changement_refuse_revient_a_la_commande_enregistree_sans_la_li
     o = await _normale(partie)
     assert C.lignes_de(o.apres) == enregistre and not P.a_completer(o.apres), dict(C.lignes_de(o.apres))
     assert C.question(o.apres).get("type") != "variante" and not C.rc9(o), C.question(o.apres)
-    assert _faits_du_changement(o).get("lignes_en_attente_retirees") == ["Regina"], _faits_du_changement(o)
+    retirees = _faits_du_changement(o).get("lignes_en_attente_retirees") or []
+    assert len(retirees) == 1 and "Regina" in retirees[0], _faits_du_changement(o)  # le nom lu dans le panier (« Regina Normale »)
     remettre()
     o = await partie.geste("G6")
     assert C.lignes_de(o.apres) == {C.MARGHERITA: 2} and not P.a_completer(o.apres), dict(C.lignes_de(o.apres))
