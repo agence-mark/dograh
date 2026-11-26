@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "a2ac290ccaee7856614f35150b843597b670014f",
+ "commit_teste": "a62d312e5b2fadcdae5aba8385b14c9eeb6cc571",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa10",
  "vert": true,
@@ -30,7 +30,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.89s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.65s ========================"
   },
   "donnes": {
    "vert": true,
@@ -166,9 +166,10 @@
     "tests/mark/partie_1/test_l20_file_des_questions.py",
     "tests/mark/partie_1/test_p1f_lot7c7_jour_a_demander.py",
     "tests/mark/partie_1/test_p1f_lot7c7_fait_accompli_en_faits.py",
-    "tests/mark/test_restauration_envois.py"
+    "tests/mark/test_restauration_envois.py",
+    "tests/mark/partie_1/test_cloture_b8_controle_long_commande.py"
    ],
-   "sortie": "\n== paquet 1/4 : poste coord, 32 fichiers, 444 s, code 0\n== paquet 2/4 : poste sa4, 33 fichiers, 394 s, code 0\n== paquet 3/4 : poste sa5, 35 fichiers, 411 s, code 0\n== paquet 4/4 : poste sa11, 32 fichiers, 428 s, code 0\n========== 2050 passed, 2 skipped, 16 xfailed en 4 paquets in 444s =========="
+   "sortie": "\n== paquet 1/4 : poste coord, 33 fichiers, 405 s, code 0\n== paquet 2/4 : poste sa4, 33 fichiers, 413 s, code 0\n== paquet 3/4 : poste sa5, 34 fichiers, 401 s, code 0\n== paquet 4/4 : poste sa10, 33 fichiers, 397 s, code 0\n========== 2085 passed, 16 xfailed, 2 skipped en 4 paquets in 413s =========="
   }
  }
 }
