@@ -263,3 +263,17 @@ def test_voisin_une_question_de_la_carte_sans_identifiant_garde_son_nom_pour_obj
     q = porte._question_de(Resultat("CHOIX_OBLIGATOIRE", {"question": {"nom": "Taille", "type": "variante"}}, "", "taille"), 1, 1)
     assert q["groupe"] == "Taille" and "groupe_id" not in q, q
     assert RQ.objet(q, P.nouveau()) == "variante:taille", RQ.objet(q, P.nouveau())
+
+
+def _choix_du_moteur(groupe_id: str, nom: str) -> dict:
+    """La question née d'un ``CHOIX_OBLIGATOIRE`` du moteur (``articles.question_ouverte`` : ``faits.question`` porte ``groupe`` = l'identifiant, ``nom`` = son nom)."""
+    question = {"type": "groupe", "groupe": groupe_id, "nom": nom, "min": 1, "max": 1, "options": ["Blanche", "Samouraï"]}
+    return porte._question_de(Resultat("CHOIX_OBLIGATOIRE", {"article": "Burger", "question": question}, "", nom), 1, 1)
+
+
+def test_mineur_audit_c7_le_groupe_de_la_question_du_moteur_fait_aussi_l_objet():
+    """Mineur de l'audit C7 commande (``porte.py:295-299``) : ``question.groupe`` du moteur n'alimentait pas ``groupe_id``. Client « Un burger et un wrap. » (deux groupes
+    « Sauce » de la carte) / avant : un seul objet « variante:sauce », la sauce du wrap prise pour celle du burger / après : deux questions ; le modèle lit toujours le nom."""
+    burger, wrap = _choix_du_moteur("G-SAUCE-BURGER", "Sauce"), _choix_du_moteur("G-SAUCE-WRAP", "Sauce")
+    assert burger["groupe"] == wrap["groupe"] == "Sauce" and burger.get("groupe_id") == "G-SAUCE-BURGER", burger
+    assert CONV.identite_de_la_question({**burger, "id": None}) != CONV.identite_de_la_question({**wrap, "id": None})

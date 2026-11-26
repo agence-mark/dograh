@@ -298,11 +298,16 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q["jeton"] = (p_de_la_question.get("relecture") or {}).get("jeton")  # C6 : l'identité de la relecture, dont le texte n'est plus au registre (le modèle la dit)
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
-    groupe = (r.faits or {}).get("nom") if "groupe" in (r.faits or {}) else ((r.faits or {}).get("question") or {}).get("nom")
+    de_la_base = "groupe" in (r.faits or {})
+    question_du_moteur = (r.faits or {}).get("question") if isinstance((r.faits or {}).get("question"), dict) else {}
+    groupe = (r.faits or {}).get("nom") if de_la_base else question_du_moteur.get("nom")
     if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and groupe:
         q["groupe"] = str(groupe)  # C7 B3 : le choix à faire (le groupe de la base, la question de la carte), son objet au registre et dans la relance, jamais son texte
-        if "groupe" in (r.faits or {}):
-            q["groupe_id"] = str(r.faits["groupe"])  # l'identifiant du groupe de la base : deux groupes de même nom (la sauce du burger, celle du wrap) restent deux questions ; jamais montré au modèle
+        groupe_id = r.faits["groupe"] if de_la_base else question_du_moteur.get("groupe")
+        if groupe_id:
+            # l'identifiant du groupe (de la base, ou de la question du moteur : mineur de l'audit C7) : deux groupes de même nom (la sauce du burger, celle du wrap) restent
+            # deux questions ; jamais montré au modèle
+            q["groupe_id"] = str(groupe_id)
     if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
         q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
