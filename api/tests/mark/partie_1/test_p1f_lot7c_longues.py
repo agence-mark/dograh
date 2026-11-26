@@ -123,7 +123,7 @@ async def test_rc2_une_taille_a_donner_sur_une_commande_enregistree_attend_toujo
     assert C.question(o.apres).get("type") == "variante" and C.lignes_de(o.apres)[C.REGINA] == 1 and not C.rc2(o) and not C.rc8(o)
 
 
-SUITES_DU_REJEU = [("E1", ("G5+G28", "G32")), ("E7", ("G21", "G11+G27", "G32")), ("E6", ("G2", "G29+G11", "G32")), ("E8", ("G7+G3", "G32"))]
+SUITES_DU_REJEU = [("E1", ("G5+G28", "G32")), ("E7", ("G21", "G11+G27", "G32")), ("E6", ("G2", "G29+G11", "G32")), ("E8", ("G7+G3", "G32")), ("E1", ("G1", "G32", "G32"))]
 
 
 async def test_rc2_le_juge_du_rejeu_suit_b1_b4_et_le_oui_a_la_proposition(faire_monde, monkeypatch):
