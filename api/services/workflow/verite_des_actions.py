@@ -732,7 +732,7 @@ class Retenue:
     consigne: str
     # Lot 6 (K8) : l'outil à appeler obligatoirement à la relance (position « relance » du déclenchement de l'action).
     outil: str | None = None
-    # SA-36 (M87) : le texte dit À LA PLACE de la réplique, sans relance (ce que le dernier outil demande). ``None`` : relance.
+    # Le texte dit À LA PLACE de la réplique, sans relance (une phrase réglée du module). ``None`` : relance. Lot 8d : plus jamais le texte d'un outil.
     a_dire: str | None = None
     # SA-49 (M115, appel 2599) : la relance n'a pas appelé ``outil`` malgré l'appel obligatoire (Gemma 4 sur Scaleway répond du texte) : le CODE
     # fait l'appel lui-même, sans arguments (l'outil garde ce qui est dit et demande ce qui manque). Jamais le texte de l'annonce.
@@ -832,28 +832,10 @@ def resultat_pas_fait(resultat: Any) -> bool:
         return False
 
 
-def texte_demande_par(resultats: list[Any]) -> str | None:
-    """Ce que le DERNIER résultat qui propose un texte demande de dire (``texte_a_dire``, sinon ``suggestion``, au premier niveau ou
-    dans ``data``), sauf un texte déjà dit par le code. ``None`` : aucun. ⛔ Ne lève jamais."""
-    try:
-        from api.services.outils_mark.pour_la_voix import CLE_DEJA_DIT, CLE_SUGGESTION, CLE_TEXTE_A_DIRE
-
-        for resultat in reversed(resultats):
-            if not isinstance(resultat, Mapping) or resultat.get(CLE_DEJA_DIT):
-                continue
-            donnees = resultat.get("data") if isinstance(resultat.get("data"), Mapping) else {}
-            for texte in (resultat.get(CLE_TEXTE_A_DIRE), resultat.get(CLE_SUGGESTION), donnees.get(CLE_SUGGESTION)):
-                if isinstance(texte, str) and texte.strip():
-                    return texte.strip()
-        return None
-    except Exception:  # noqa: BLE001
-        return None
-
-
 def affirmation_sans_outil_fait(texte: str, messages: Any, formulations: Any = None) -> Retenue | None:
     """Une réplique qui affirme que c'est fait (``formulations`` de l'agent, ou ``PARTICIPES_D_ACTION``, plus ``PARTICIPES_DE_PRISE``)
-    alors que des outils ont été appelés dans ce tour et que TOUS disent « pas fait » : retenue, avec à dire à la place ce que le
-    dernier outil demande (``None`` : aucun texte proposé, le modèle est relancé). Une question n'est pas une affirmation. Aucun mot
+    alors que des outils ont été appelés dans ce tour et que TOUS disent « pas fait » : retenue sans texte à dire à la place
+    (lot 8d : le modèle est relancé avec la consigne, jamais remplacé par le texte d'un outil). Une question n'est pas une affirmation. Aucun mot
     de métier. ⛔ Ne lève jamais."""
     try:
         resultats = resultats_du_tour(messages)
@@ -870,7 +852,7 @@ def affirmation_sans_outil_fait(texte: str, messages: Any, formulations: Any = N
                     continue
             m = regle.search(phrase) or _PRISE_AU_PRESENT.search(phrase) or _PRIS_EN_COMPTE.search(phrase)
             if m:
-                return Retenue(RAISON_ACTION_NON_FAITE, m.group(0), CONSIGNE_ACTION_NON_FAITE, a_dire=texte_demande_par(resultats))
+                return Retenue(RAISON_ACTION_NON_FAITE, m.group(0), CONSIGNE_ACTION_NON_FAITE, a_dire=None)
         return None
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] affirmation non contrôlée : {erreur!r}")
