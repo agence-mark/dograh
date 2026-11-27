@@ -1358,6 +1358,9 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     Un refus (hors zone, article inconnu, heure…) n'est jamais dit par le code : le modèle le dit d'après les faits (``refus_de_la_fiche``), le journal de ce qui est dit dit
     s'il l'a déjà entendu (une issue, puis la sortie)."""
     ctx, p, dernier, tour = f.ctx, f.p, f.dernier, f.tour
+    annulation = next((r for r in reversed(f.bruts) if r.faits.get("annulee") or r.faits.get("commande_annulee")), None)
+    if annulation is not None and p.get("annulee"):
+        dernier = annulation  # § 17 l.407 : annulée dans cette fiche et toujours annulée (le reste de la fiche n'a pas rouvert un panier) : le fait dit est l'annulation, jamais le dernier geste
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
