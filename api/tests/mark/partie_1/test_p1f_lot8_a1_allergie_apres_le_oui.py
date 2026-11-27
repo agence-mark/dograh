@@ -99,3 +99,21 @@ async def test_r1_bis_puis_un_nouveau_oui_rouvre_la_meme_ligne_et_un_seul_envoi_
     assert str(e.p["enregistree"]["numero"]) == numero and await _lignes(e) == [(numero, "retenue")], await _lignes(e)
     await _le_filet_sur_un_appel_note_termine(e)  # l'appel plante après le nouveau « oui » : le filet envoie, une fois
     assert [str(x["numero"]) for x in e.source.prise.recues] == [numero] and await _lignes(e) == [(numero, "acceptee")], (e.source.prise.recues, await _lignes(e))
+
+
+async def test_r1_bis_une_base_qui_leve_a_l_annulation_l_accord_est_retire_quand_meme_et_rien_ne_part(essai_de):
+    """Panne de base à l'annulation de la ligne : l'exception est journalisée (jamais avalée), mais l'accord est retiré et le blocage d'allergie continue (le modèle reçoit les faits) ;
+    à la fin de l'appel la commande n'est plus accordée : rien n'est envoyé."""
+    e, numero = await _enregistree(essai_de)
+    _greffier_qui_note_l_allergie(e)
+
+    async def en_panne(numero_de_la_ligne):
+        raise ConnectionError("base indisponible")
+
+    e.source.annuler_une_commande = en_panne
+    r = await e.tour("ah, et mon fils est allergique aux noix", note_generale="allergique aux noix")
+    assert not e.p.get("enregistree"), r
+    faits = [x["faits"] for x in r["resultats"] if x["operation"] == "allergie"]
+    assert faits and faits[0]["allergie"] == "noix", r["resultats"]
+    await e.finir_l_appel()
+    assert e.source.prise.recues == [], e.source.prise.recues
