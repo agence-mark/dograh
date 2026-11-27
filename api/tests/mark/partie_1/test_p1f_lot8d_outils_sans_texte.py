@@ -20,7 +20,7 @@ PHRASE_DE_L_OUTIL = "Quel est votre numéro de téléphone ?"
 RESULTATS = {
     "suggestion au premier niveau": {"statut": "INCOMPLETE", "faits": {}, "suggestion": PHRASE_DE_L_OUTIL, "manque": "telephone"},
     "texte_a_dire": {"statut": "INCOMPLETE", "faits": {}, "texte_a_dire": PHRASE_DE_L_OUTIL, "restitution": "mot_pour_mot", "manque": "telephone"},
-    "suggestion dans data": {"status": "success", "data": {"suggestion": PHRASE_DE_L_OUTIL}},
+    "suggestion dans data": {"statut": "INCOMPLETE", "data": {"suggestion": PHRASE_DE_L_OUTIL}, "manque": "telephone"},
 }
 
 
