@@ -55,3 +55,46 @@ async def test_une_allergie_au_tour_suivant_puis_un_nouveau_oui_garde_le_meme_nu
     assert str(e.p["enregistree"]["numero"]) == numero, e.p.get("enregistree")
     await e.finir_l_appel()
     assert [str(x["numero"]) for x in e.source.prise.recues] == [numero] and await _lignes(e) == [(numero, "acceptee")], (e.source.prise.recues, await _lignes(e))
+
+
+async def _le_filet_sur_un_appel_note_termine(e) -> None:
+    """Le filet du rattrapage (E11) joué sur l'appel de la partie, noté terminé, dont la ligne a plus d'une heure : tout ce qui est encore ``retenue`` part."""
+    from api.services.restauration.appel_et_memoire.memoire_de_l_appel import EtatDeLAppel
+    from api.services.restauration.caisse import rattrapage
+    from api.services.restauration.caisse.prises.prise import poser_prise_de_test
+
+    from api.db.bases_clients.restauration_commun import maintenant
+
+    await e.monde.c.execute("UPDATE mark.resto_commande SET maj_le = $2::timestamptz - interval '60 minutes' WHERE appel_id = $1", str(e.ctx.run_id), await maintenant(e.monde.c))  # l'heure de la base d'essai, pas celle du serveur
+    await e.monde.c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test') ON CONFLICT (site_id) DO NOTHING", e.monde.a)
+
+    async def etats_des_appels(cles: list[str]) -> dict[str, EtatDeLAppel]:
+        return {c: EtatDeLAppel(termine=True, au_clavier=False) for c in cles if c == str(e.ctx.run_id)}
+
+    poser_prise_de_test(e.source.prise)
+    try:
+        await rattrapage.rattrapage_des_envois(bases=[(7, e.monde.base)], etats_des_appels=etats_des_appels)
+    finally:
+        poser_prise_de_test(None)
+
+
+async def test_r1_bis_une_allergie_au_tour_suivant_annule_la_ligne_au_tour_meme_le_filet_n_envoie_rien(essai_de):
+    """Client « Oui, c'est bon. » / « Ah, et mon fils est allergique aux noix. » / le modèle dit que le gâteau contient des noix / l'appel plante (pas de fin d'appel) :
+    avant, la ligne restait ``retenue`` et le filet envoyait le gâteau aux noix sans nouveau « oui » ; après, la ligne est ``annulee`` dès le tour de l'allergie, rien ne part."""
+    e, numero = await _enregistree(essai_de)
+    _greffier_qui_note_l_allergie(e)
+    await e.tour("ah, et mon fils est allergique aux noix", note_generale="allergique aux noix")
+    assert await _lignes(e) == [(numero, "annulee")], await _lignes(e)  # au tour même, sans attendre la fin de l'appel
+    await _le_filet_sur_un_appel_note_termine(e)
+    assert e.source.prise.recues == [] and await _lignes(e) == [(numero, "annulee")], (e.source.prise.recues, await _lignes(e))
+
+
+async def test_r1_bis_puis_un_nouveau_oui_rouvre_la_meme_ligne_et_un_seul_envoi_par_le_filet_ou_la_fin(essai_de):
+    e, numero = await _enregistree(essai_de)
+    _greffier_qui_note_l_allergie(e)
+    await e.tour("ah, et mon fils est allergique aux noix", note_generale="allergique aux noix")
+    assert await _lignes(e) == [(numero, "annulee")]
+    await AC.jusqu_a_l_enregistrement(e, prenom="Léa", telephone="0612345678")  # le nouveau « oui »
+    assert str(e.p["enregistree"]["numero"]) == numero and await _lignes(e) == [(numero, "retenue")], await _lignes(e)
+    await _le_filet_sur_un_appel_note_termine(e)  # l'appel plante après le nouveau « oui » : le filet envoie, une fois
+    assert [str(x["numero"]) for x in e.source.prise.recues] == [numero] and await _lignes(e) == [(numero, "acceptee")], (e.source.prise.recues, await _lignes(e))
