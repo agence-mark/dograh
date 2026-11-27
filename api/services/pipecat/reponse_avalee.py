@@ -83,7 +83,7 @@ def dernier_message_est_un_resultat_a_reprendre(messages: Any) -> bool:
             return False
         donnees = resultat.get("data") if isinstance(resultat.get("data"), dict) else {}
         return any(isinstance(t, str) and t.strip() for t in (resultat.get(CLE_TEXTE_A_DIRE), resultat.get(CLE_SUGGESTION), donnees.get(CLE_SUGGESTION)))
-    except Exception:  # noqa: BLE001 -- un résultat illisible ne se reprend pas
+    except Exception:  # noqa: BLE001 -- un résultat illisible ne propose rien
         return False
 
 
