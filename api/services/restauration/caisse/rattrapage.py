@@ -22,6 +22,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from typing import Any
 
+import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import connexion as base_client
@@ -141,7 +142,7 @@ async def _ne_pas_envoyer_une_retenue_sans_accord(connexion, organization_id: in
             await alerter(connexion, organization_id, etablissement_id, numero, secours, RAISON_ACCORD_RETIRE)
     try:
         await restauration.changer_statut(connexion, etablissement_id, numero, "retenue", "annulee", "agent")
-    except Exception:  # R1 : jamais envoyée ; la marque et l'alerte la gardent hors d'envoi
+    except (asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError):  # R1 : jamais envoyée ; la marque et l'alerte la gardent hors d'envoi
         logger.exception(f"[.mark] Order {numero}: the catch-up could not cancel a line whose agreement was withdrawn")
     return 0
 
