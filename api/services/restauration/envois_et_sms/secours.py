@@ -33,7 +33,8 @@ async def secours_de_la_commande(connexion: Connexion, organization_id: int | No
     numero = str(commande["numero"])
     try:
         if await liaison_db.imprimante(connexion, etablissement_id) is not None:
-            cree = await liaison_db.creer_le_ticket(connexion, etablissement_id, numero)
+            async with connexion.transaction():  # son point de reprise : une erreur SQL du ticket ne défait pas la transaction de l'appelant (la marque du filet)
+                cree = await liaison_db.creer_le_ticket(connexion, etablissement_id, numero)
             bilan["ticket"] = "pose" if cree else "deja_la"
     except Exception as erreur:  # noqa: BLE001
         bilan["ticket"] = "echec"
