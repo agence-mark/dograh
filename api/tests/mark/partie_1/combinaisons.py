@@ -167,13 +167,15 @@ def _ref_du_nom(nom: Any) -> str | None:
 
 
 # Les questions dont « oui » ne touche pas au panier ; « oui » à une proposition ajoute l'article proposé.
-OUI_SANS_EFFET = {"relecture", "numero_affiche", "numero_dicte", "variante", "ambiguite", "etape", "heure_proposee", "annulation_enregistree"}
+OUI_SANS_EFFET = {"relecture", "numero_affiche", "numero_dicte", "variante", "ambiguite", "etape", "heure_proposee"}
 
 
 def _oui(avant: Counter, p) -> Counter | None:
     """« oui » : ce qu'il fait au panier dépend de la question posée. Un type de question qui n'est pas dans la table = effet inconnu = le cas échoue."""
     q = question(p)
     t = q.get("type")
+    if t == "annulation_enregistree":
+        return Counter()  # § 17 l.407 : « oui » à l'annulation vide le panier (annuler = vider), plus de panier gardé derrière une commande annulée
     if t == "proposition":
         ref = _ref_du_nom(q.get("article_propose"))
         return _plus(ref)(avant, p) if ref else None
@@ -765,7 +767,7 @@ def rc8(o: Observation) -> list[Faute]:
     """Une commande enregistrée ne change pas sans passer par la base ; § 17 l.407 : annulée, elle est vidée et un article dit ensuite entre (DC5 est tombé : la règle « aucune ligne
     ajoutée à une commande annulée » est retirée)."""
     r = o.retour or {}
-    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres):  # la ligne attend sa taille : la caisse après
+    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres) and not o.apres.get("annulee"):  # la ligne attend sa taille : la caisse après ; annulée, le panier est vidé (§ 17 l.407)
         ops = {x.get("operation") for x in r.get("resultats") or []}
         if "changer_la_commande_enregistree" not in ops:
             return [("RC8", "le panier d'une commande enregistrée change sans passer par la caisse")]
