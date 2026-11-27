@@ -417,14 +417,6 @@ async def marquer_l_alerte_du_filet(connexion: asyncpg.Connection, etablissement
     return bool(pose)
 
 
-async def retirer_l_alerte_du_filet(connexion: asyncpg.Connection, etablissement_id: int, numero: str, dernier_oui: datetime) -> None:
-    """Reprise de l'audit de 8b-1b : l'alerte du filet n'a pas pu partir ; la marque est retirée pour que le passage suivant la redise (une ligne encore ``retenue`` seulement).
-    ``maj_le`` reprend l'heure du dernier « oui » (``dernier_oui``) que la pose de la marque avait avancée (déclencheur ``resto_maj_le``) : le filet compte depuis elle."""
-    await connexion.execute(
-        "UPDATE mark.resto_commande SET filet_alerte_le = NULL, maj_le = $3 WHERE site_id = $1 AND numero = $2 AND statut = 'retenue'",
-        etablissement_id, uuid.UUID(str(numero)), dernier_oui)
-
-
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:
     """Les commandes que la caisse a REÇUES (elle leur a donné un identifiant) mais qu'elle n'a pas encore prises en charge, à la plus courte de deux échéances : ``depuis_minutes``
     après l'envoi, ou (commande PRÉVUE pour plus tard, ``heure_voulue``) l'heure promise à la personne moins ``MARGE_AVANT_L_HEURE`` : une alerte, jamais un renvoi aveugle. (Un envoi qui n'a pas abouti n'a pas d'identifiant : il est à reprendre,
