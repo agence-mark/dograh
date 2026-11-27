@@ -93,3 +93,16 @@ async def test_r1_la_fiche_refaite_apres_un_ajout_du_tour_ne_pose_pas_la_questio
     assert RAISON in _raisons(r) and _margheritas(e) == 2, r
     r = await e.tour("une de plus", ajouter=[MARGHERITA])
     assert RAISON not in _raisons(r) and _margheritas(e) == 3, r
+
+
+async def test_r1_le_retrait_refuse_puis_la_fiche_refaite_sans_lui_ne_pose_pas_la_question(essai_de):
+    """Reprise R1 de l'audit T31 + T34, le cas réel : « Une margherita. » puis « Retirez le coca, et une margherita. » : la fiche change le panier (comparée mot pour mot), la
+    margherita entre, le retrait est refusé (pas de coca). Le modèle refait la fiche avec la margherita seule, dans le MÊME tour : sa case ``ajouter`` est déjà faite, aucune question
+    « une deuxième, ou la même ? » (l'article vient d'être pris), rien n'est ajouté. Rouge sans le saut ``refaite`` de ``porte._lire``."""
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    r = await e.tour("retirez le coca, et une margherita normale", ajouter=[MARGHERITA], retirer_article=[9])
+    assert RAISON not in _raisons(r) and _margheritas(e) == 2, r
+    r = await e.fiche(ajouter=[MARGHERITA])
+    assert RAISON not in _raisons(r) and _margheritas(e) == 2, r
