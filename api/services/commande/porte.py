@@ -1677,6 +1677,33 @@ def _prendre_les_notes_du_greffier(p: dict[str, Any], source: Any, fiche_de_l_ap
         p[moteur.CLE_NOTES_DU_GREFFIER] = notes
 
 
+def _la_fiche_peut_enregistrer(p: dict[str, Any], arguments: dict[str, Any]) -> bool:
+    """Lu AVANT d'exécuter (A1, 8b-3) : la fiche peut mener la commande à sa fin : « c'est tout », une réponse à la relecture posée, ou une case de fin (règlement, numéro, prénom,
+    consigne) sur une commande qui a des lignes et n'est pas déjà finie. Même condition que ``_la_fin_est_due``, sans l'exécution."""
+    if not p.get("lignes") or ETAPE.finie(p):
+        return False
+    if arguments.get("c_est_tout") is True:
+        return True
+    a_relire = ETAPE.courante(p) in (ETAPE.A_RELIRE, ETAPE.A_CLORE, ETAPE.ACCORDEE)
+    return a_relire and (isinstance(arguments.get("reponse"), dict) or any(arguments.get(k) not in (None, "") for k in (*contrat.CASES_DE_FIN, "consigne_livreur")))
+
+
+async def _attendre_le_greffier_avant_la_fin(p: dict[str, Any], arguments: dict[str, Any], ctx: Any) -> None:
+    """A1 (8b-3, option A d'Evan) : une allergie dite avec le « oui » doit être notée avant que la commande s'enregistre : sur la SEULE fiche qui peut enregistrer, la passe du greffier
+    est attendue (le délai du dernier tour, celui de la garde des actions). Au clavier ou sans greffier (``rattraper`` absent) : sans effet. Ne lève jamais."""
+    rattraper = getattr(ctx, "rattraper", None)
+    if rattraper is None or not _la_fiche_peut_enregistrer(p, arguments):
+        return
+    from api.services.workflow.enveloppe_des_actions import (
+        DELAI_DE_LA_PASSE_DU_DERNIER_TOUR,
+    )
+
+    try:
+        await rattraper(DELAI_DE_LA_PASSE_DU_DERNIER_TOUR)
+    except Exception as erreur:  # noqa: BLE001 -- R1 : au journal ; la fiche continue sans la passe
+        logger.warning(f"[.mark] passe du greffier non attendue avant l'enregistrement : {erreur!r}")
+
+
 # Lot 6 (C10, complément de Pierre point 2) : l'issue de l'appel posée par l'opération qui la fait, au moment où elle la fait, jamais devinée par
 # le classement de fin. Le code est celui que l'outil règle (``reglages.issues``), sinon le nom de l'issue elle-même.
 ISSUES_DE_LA_COMMANDE = ("commande_enregistree", "commande_annulee", "message_a_transmettre", "commande_abandonnee")
@@ -1814,6 +1841,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 PAROLE.admettre_les_valeurs(getattr(ctx, "fiche", None), retour.get("faits"))
                 return retour
             if action.nom == "fiche":
+                await _attendre_le_greffier_avant_la_fin(p, dict(arguments or {}), ctx)
                 _prendre_les_notes_du_greffier(p, source, ctx.fiche)
                 if isinstance(ctx.fiche, dict) and isinstance((ctx.reglages or {}).get(REGLAGE_DES_ISSUES), dict):
                     ctx.fiche[CLE_ISSUES_REGLEES] = dict(ctx.reglages[REGLAGE_DES_ISSUES])
