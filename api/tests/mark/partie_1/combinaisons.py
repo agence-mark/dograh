@@ -384,11 +384,13 @@ class Partie:
         suivante la même s'applique (« un autre »), le juge ne regarde que ce qu'il a lui-même attendu. « Mot pour mot » compte la réponse : une réponse qui visait la question posée au tour
         d'avant et ne vise plus rien au rejeu est écartée SEULE (B1), la fiche qui reste n'est plus celle d'avant : elle s'applique.
         T34 (Pierre, 27/11 10 h 49, ``decisions-du-coordinateur.md``) : « mot pour mot » devient « les articles seuls » : la même case ``ajouter``, avec ou sans les autres cases
-        (paiement, prénom, mode, réponse), est la même fiche ; sauf la fiche qui change aussi le panier (vider, annuler, retirer, changer une ligne), comparée mot pour mot."""
+        (paiement, prénom, mode, réponse), est la même fiche ; sauf la fiche qui change aussi le panier (vider, annuler, retirer, changer une ligne) ou qui répond à la question posée
+        sur l'article (``QUESTIONS_SUR_UN_ARTICLE``), comparée mot pour mot."""
         if not fiche or not fiche.get("ajouter"):
             return False
         precedent = self.fiche_de_l_appel_tour() - 1
-        articles_seuls = not any(fiche.get(c) not in (None, "", [], False) for c in _CASES_QUI_CHANGENT_LE_PANIER)
+        sur_l_article = _reponse_vivante(fiche, avant) and question(avant).get("type") in QUESTIONS_SUR_UN_ARTICLE  # la réponse à la taille, aux options, à l'étape
+        articles_seuls = not sur_l_article and not any(fiche.get(c) not in (None, "", [], False) for c in _CASES_QUI_CHANGENT_LE_PANIER)
         return any(tour == precedent and ((dite == fiche and vivante == _reponse_vivante(fiche, avant)) or (articles_seuls and dite.get("ajouter") == fiche["ajouter"]))
                    for tour, dite, vivante in self.ajoutees)
 

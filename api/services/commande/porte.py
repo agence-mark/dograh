@@ -987,12 +987,16 @@ def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[s
     range) : le même article inconnu redit n'est pas « un de plus », il reste refusé comme avant (journal des refus, sortie). ``fiche`` : la fiche DITE (``_fiche_dite``, T31 : ses cases
     écartées seules comprises). T34 (Pierre, 27/11 10 h 49) : la comparaison se fait sur les ARTICLES SEULS (la case ``ajouter``, rangée par ``_ranger_la_fiche_ajoutee``), avec ou sans
     les autres cases (paiement, prénom, mode, réponse, « c'est tout ») : « une margherita, par carte » puis « une margherita » est la même fiche. Sauf la fiche qui change aussi le panier
-    (vider, annuler, retirer, changer une ligne : « annulez tout, une regina à la place ») : l'article redit y a un autre sens, elle reste comparée mot pour mot. Rend l'enveloppe du
+    (vider, annuler, retirer, changer une ligne : « annulez tout, une regina à la place »), ou qui répond à la question posée sur l'article (taille, options, étape : sa réponse
+    serait perdue) : l'article redit y a un autre sens, elle reste comparée mot pour mot. Rend l'enveloppe du
     refus, ou ``None``."""
     if not fiche.get("ajouter") or not isinstance(tour, int):
         return None
     ajoutees = CONV.de(p).get(CLE_DES_FICHES_AJOUTEES) or []
-    articles_seuls = not any(fiche.get(c) not in (None, "", [], False) for c in CASES_QUI_CHANGENT_LE_PANIER)
+    reponse = fiche.get("reponse")
+    repond_sur_l_article = (isinstance(reponse, dict) and not reponse.get("implicite") and not reponse.get("ecartee")
+                            and (CONV.question_de(p) or {}).get("type") in QUESTIONS_SUR_UN_ARTICLE)  # « une regina » / « quelle taille ? » / la regina redite avec « normale »
+    articles_seuls = not repond_sur_l_article and not any(fiche.get(c) not in (None, "", [], False) for c in CASES_QUI_CHANGENT_LE_PANIER)
     if _cle_de_la_fiche(tour - 1, fiche) not in ajoutees and not (articles_seuls and cle_de_la_case(tour - 1, "ajouter", fiche["ajouter"]) in ajoutees):
         return None
     articles = [{"article": a.get("article"), "quantite": a.get("quantite", 1)} for a in fiche["ajouter"] if isinstance(a, dict)]
