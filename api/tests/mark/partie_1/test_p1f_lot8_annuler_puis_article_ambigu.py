@@ -19,5 +19,5 @@ async def test_annulez_et_une_salmone_la_question_laquelle_est_posee_et_la_comma
     o = await partie._executer("G13", "annulez, et une salmone", {"annuler_la_commande": True, **SALMONE_DITE}, C._inchange)
     assert C.question(o.apres).get("type") == "ambiguite", (C.question(o.apres), o.retour)
     assert (o.fiche or {}).get(ISSUES.CLE_DE_L_ISSUE) != "commande_annulee", ((o.fiche or {}).get(ISSUES.CLE_DE_L_ISSUE), o.textes)
-    assert (o.textes or {}).get("fait_accompli", {}) != {"fait": "annulee"}, o.textes  # le code ne répond pas pour l'annulation avant la question née
+    assert ((o.textes or {}).get("fait_accompli") or {}).get("fait") not in ("annulee", "annulee_en_cours"), o.textes  # le code ne répond pas pour l'annulation avant la question née
     assert not o.apres.get("lignes"), o.apres.get("lignes")  # la margherita est bien annulée : annuler = vider
