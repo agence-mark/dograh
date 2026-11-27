@@ -42,6 +42,7 @@ from api.services.actions_communes.resultat import avec_le_fait_du_numero_affich
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
+from api.services.commande.moteur.socle import prealable_du_metier
 from api.services.commande.moteur.socle import CLE_STATUT_LU, STATUTS_PERDUS
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
@@ -1249,8 +1250,24 @@ def _la_fin_est_due(f: LaFiche) -> str | None:
     return None
 
 
+async def _rouvrir_pour_l_allergie(f: LaFiche) -> bool:
+    """8b-3 R1 (décision d'Evan 24/11 17 h 45) : une allergie notée APRÈS le « oui » (commande enregistrée) retire l'accord : le blocage d'allergie du métier rend ses faits au modèle
+    (la relecture repart, même numéro) ; sans nouvel accord, la fin de l'appel n'envoie rien (E3). ``True`` : la fiche s'arrête là."""
+    if not ETAPE.enregistree(f.p) or not f.p.get("lignes"):
+        return False
+    attente = await prealable_du_metier(f.source, f.p, f.regles)
+    if attente is None:
+        return False
+    f.dernier = attente
+    f.resultats.append(_resultat_public("allergie", attente))
+    f.bruts.append(attente)
+    return True
+
+
 async def _mener_a_la_fin_de_la_fiche(f: LaFiche) -> None:
     """UN SEUL ``finaliser`` par fiche (C7), appelé ici et nulle part ailleurs ; le résultat est celui de la fiche. S'il lâche, « c'est tout » n'est pas dit fait."""
+    if await _rouvrir_pour_l_allergie(f):
+        return
     operation = _la_fin_est_due(f)
     if operation is None:
         return
@@ -1684,9 +1701,11 @@ def _prendre_les_notes_du_greffier(p: dict[str, Any], source: Any, fiche_de_l_ap
 
 def _la_fiche_peut_enregistrer(p: dict[str, Any], arguments: dict[str, Any]) -> bool:
     """Lu AVANT d'exécuter (A1, 8b-3) : la fiche peut mener la commande à sa fin : « c'est tout », une réponse à la relecture posée, ou une case de fin (règlement, numéro, prénom,
-    consigne) sur une commande qui a des lignes et n'est pas déjà finie. Même condition que ``_la_fin_est_due``, sans l'exécution."""
-    if not p.get("lignes") or ETAPE.finie(p):
+    consigne) sur une commande qui a des lignes et n'est pas annulée ; enregistrée, toute fiche (l'allergie dite après le « oui »). Même condition que ``_la_fin_est_due``, sans l'exécution."""
+    if not p.get("lignes") or ETAPE.annulee(p):
         return False
+    if ETAPE.enregistree(p):
+        return True  # une allergie dite après le « oui » rouvre la commande : le greffier est attendu avant de la lire (8b-3 R1)
     de_fin = isinstance(arguments.get("reponse"), dict) or any(arguments.get(k) not in (None, "") for k in (*contrat.CASES_DE_FIN, "consigne_livreur"))
     return arguments.get("c_est_tout") is True or (de_fin and ETAPE.courante(p) in (ETAPE.A_RELIRE, ETAPE.A_CLORE, ETAPE.ACCORDEE))
 

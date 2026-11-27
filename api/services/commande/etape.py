@@ -37,9 +37,10 @@ for _avant in (EN_COURS, A_CLORE, A_RELIRE, ACCORDEE):
     _ARRIVEE[(_avant, ANNULEE_APRES_ENREGISTREMENT)] = ANNULEE
 for _avant in (EN_COURS, A_CLORE):
     _ARRIVEE[(_avant, C_EST_TOUT_DIT)] = A_CLORE
-for _ev in (PANIER_TOUCHE, RELECTURE_POSEE, ACCORD_DONNE, ACCORD_RETIRE, ALLERGIE_A_DONNER, ENREGISTREE_EN_BASE):
+for _ev in (PANIER_TOUCHE, RELECTURE_POSEE, ACCORD_DONNE, ACCORD_RETIRE, ENREGISTREE_EN_BASE):
     _ARRIVEE[(ENREGISTREE, _ev)] = ENREGISTREE  # enregistrée : ses faits peuvent encore se poser (l'accord, la relecture d'un changement), l'étape reste
 _ARRIVEE[(ENREGISTREE, ENREGISTREMENT_DEFAIT)] = None
+_ARRIVEE[(ENREGISTREE, ALLERGIE_A_DONNER)] = None  # 8b-3 (Evan 24/11 17 h 45) : une allergie dite après le « oui » retire l'accord : la relecture repart, la ligne gardée (même numéro)
 _ARRIVEE[(ENREGISTREE, ANNULEE_EN_COURS)] = ANNULEE
 _ARRIVEE[(ENREGISTREE, ANNULEE_APRES_ENREGISTREMENT)] = ANNULEE
 for _ev in (e for e in EVENEMENTS if e != ENREGISTREMENT_DEFAIT):
@@ -109,6 +110,10 @@ def _relecture_posee_effet(p: dict[str, Any], d: dict[str, Any]) -> None:
 
 def _allergie(p: dict[str, Any], d: dict[str, Any]) -> None:
     p["relecture"], p["derniere_lecture"] = None, None
+    if p.get("enregistree"):
+        # accordée puis une allergie : la ligne ``retenue`` est gardée sous son numéro pour le nouvel accord (``CLE_DE_LA_LIGNE_ANNULEE``, réécrite à sa place) ; sans lui, la fin de l'appel l'annule (E3)
+        p[CLE_DE_LA_LIGNE_ANNULEE] = (p["enregistree"] or {}).get("numero")
+        p["enregistree"] = p["empreinte_enregistree"] = p["commande_enregistree"] = None
 
 
 def _annulee_apres_enregistrement(p: dict[str, Any], d: dict[str, Any]) -> None:
