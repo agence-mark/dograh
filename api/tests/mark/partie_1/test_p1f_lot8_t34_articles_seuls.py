@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import Counter
 
+from api.services.commande import panier as P
 from api.tests.mark.partie_1.aides_de_la_commande import a_emporter
 
 MARGHERITA = {"article": "margherita", "quantite": 1, "variante": "Normale"}
@@ -161,7 +162,6 @@ async def test_r2_sans_autre_case_aucune_case_non_prise(essai_de):
     assert RAISON in _raisons(r) and "cases_non_prises" not in r["faits"], r
 
 
-
 async def test_r2_la_consigne_dit_de_refaire_la_fiche_sans_l_article_et_cette_fiche_n_ajoute_rien(essai_de):
     """3e passage d'audit T34 : renvoyée telle quelle dans le même tour, la fiche serait encore refusée comme identique ; la consigne dit donc de refaire la fiche avec les cases
     non prises SANS l'article, tant que le client n'a pas répondu à « un de plus ou le même ? ». La fiche refaite ainsi (paiement, numéro, prénom seuls) n'est pas refusée comme
@@ -205,3 +205,44 @@ async def test_la_formule_redite_avec_la_reponse_a_son_etape_n_est_pas_identique
     reponse = {"question_id": q["id"], "valeurs": ["ketchup"], **({} if q["type"] == "etape" else {"sens": "accepte"})}
     r = await e.tour("ketchup", ajouter=[menu], reponse=reponse)
     assert RAISON not in _raisons(r) and _combien(e, "menu") == 1, r
+
+
+# --------------------------------------------------------------------------- R1 de l'audit T34 : la dispense ne couvre que la réponse qui complète l'article en question
+
+
+REGINA_SANS_TAILLE = {"article": "regina", "quantite": 1}
+
+
+async def test_r1_la_reponse_qui_ne_choisit_rien_ne_dispense_pas_l_article_redit(essai_de):
+    """« Une regina. » / « Quelle taille ? » / « Euh, je sais pas » : le modèle redit la regina avec une réponse ``autre`` sans valeur. Elle ne complète rien : la fiche est jugée
+    sur ses articles (T34), la question « un de plus ou le même ? », jamais une seconde regina sans rien demander."""
+    from api.services.actions_communes import conversation as CONV
+
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une regina", ajouter=[REGINA_SANS_TAILLE])
+    q = CONV.question_de(e.p)
+    assert q and q.get("type") == "variante" and _combien(e, "regina") == 1, q
+    r = await e.tour("euh, je sais pas", ajouter=[REGINA_SANS_TAILLE], reponse={"question_id": q["id"], "sens": "autre"})
+    assert _combien(e, "regina") == 1, r
+    assert RAISON in _raisons(r), r
+
+
+async def test_r1_l_autre_article_redit_avec_la_reponse_pose_la_question(essai_de):
+    """« Une margherita et une regina. » (la margherita prise, la regina attend sa taille) / « Normale. » : le modèle redit la margherita ET la regina avec la réponse. La regina est
+    complétée par la réponse ; la margherita redite est jugée comme T34 : la question, jamais une seconde margherita sans rien demander, et la taille n'est pas perdue (la fiche est
+    refaite avec la réponse seule)."""
+    from api.services.actions_communes import conversation as CONV
+
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une margherita normale et une regina", ajouter=[MARGHERITA, REGINA_SANS_TAILLE])
+    q = CONV.question_de(e.p)
+    assert q and q.get("type") == "variante" and _margheritas(e) == 1 and _combien(e, "regina") == 1, q
+    reponse = {"question_id": q["id"], "sens": "accepte", "valeurs": ["Normale"]}
+    r = await e.tour("normale", ajouter=[MARGHERITA, REGINA_SANS_TAILLE], reponse=reponse)
+    assert _margheritas(e) == 1 and _combien(e, "regina") == 1, r
+    assert RAISON in _raisons(r) and "reponse" in (r["faits"].get("cases_non_prises") or []), r
+    r = await e.fiche(reponse=reponse)
+    assert RAISON not in _raisons(r) and _margheritas(e) == 1 and _combien(e, "regina") == 1, r
+    assert not P.a_completer(e.p), e.p  # la regina a sa taille
