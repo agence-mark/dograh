@@ -179,12 +179,14 @@ async def test_une_fusion_sans_effet_connu_echoue(faire_monde, monkeypatch):
 
 
 async def test_un_article_compte_en_trop_dans_une_fusion_est_vu(faire_monde, monkeypatch):
-    """« oui » + « encore une margherita » qui passerait de 1 à 5 margherita reste rouge : l'effet de chaque geste est tenu."""
+    """« oui » + « une regina » qui passerait de 0 à 5 reginas reste rouge : l'effet de chaque geste est tenu. T34 (Pierre, 27/11 10 h 49, ``decisions-du-coordinateur.md``) :
+    depuis E7, la margherita est celle du tour d'avant ; « oui » + « encore une margherita » (G23+G6) est désormais « la même fiche » (rien ne change, le modèle demande) et
+    l'effet faussé n'y était plus jamais lu. Le geste faussé est donc un article que le tour d'avant n'a pas (G1, la regina)."""
     from dataclasses import replace
 
     monde = await faire_monde("casa-italia")
-    monkeypatch.setitem(C.GESTES, "G6", replace(C.GESTES["G6"], effet=C._plus(C.MARGHERITA, 4)))  # l'attente se trompe : elle dit 4 en plus, le code en met 1
-    r = await C.jouer(monde, monkeypatch, "E7", ("G23+G6",))
+    monkeypatch.setitem(C.GESTES, "G1", replace(C.GESTES["G1"], effet=C._plus(C.REGINA, 5)))  # l'attente se trompe : elle dit 5 en plus, le code en met 1
+    r = await C.jouer(monde, monkeypatch, "E7", ("G23+G1",))
     assert any(regle == "RC2" for _, regle, _ in r.fautes), r.fautes
 
 
