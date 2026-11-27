@@ -1021,7 +1021,10 @@ def _numero_court_reecrit(a: _ACommande, ancienne: asyncpg.Record) -> str:
 
 
 # Les lignes qu'une réécriture peut prendre : la ``retenue`` de l'appel ; avec ``rouvrir``, aussi celle que cet appel a annulée sans qu'elle soit jamais partie (§ 17 l.407)
-_LIGNE_REECRITE = "(statut = 'retenue' OR ($3::boolean AND statut = 'annulee' AND envoyee_le IS NULL AND appel_id IS NOT DISTINCT FROM $4))"
+_LIRE_LA_LIGNE_A_REECRIRE = (
+    "SELECT numero_court, mode, paiement, statut FROM mark.resto_commande WHERE numero = $1 AND site_id = $2 AND "
+    "(statut = 'retenue' OR ($3::boolean AND statut = 'annulee' AND envoyee_le IS NULL AND appel_id IS NOT DISTINCT FROM $4)) FOR UPDATE"
+)
 
 
 async def _reecrire_la_ligne(connexion: asyncpg.Connection, a: _ACommande, numero: uuid.UUID, rouvrir: bool = False) -> str | None:
@@ -1033,9 +1036,7 @@ async def _reecrire_la_ligne(connexion: asyncpg.Connection, a: _ACommande, numer
     async with connexion.transaction():
         await poser_session(connexion, "agent", "commande:reecriture")
         appel = a.brouillon.get("appel_id")
-        ancienne = await connexion.fetchrow(
-            f"SELECT numero_court, mode, paiement, statut FROM mark.resto_commande WHERE numero = $1 AND site_id = $2 AND {_LIGNE_REECRITE} FOR UPDATE",
-            numero, a.etablissement_id, rouvrir, appel)
+        ancienne = await connexion.fetchrow(_LIRE_LA_LIGNE_A_REECRIRE, numero, a.etablissement_id, rouvrir, appel)
         if ancienne is None:
             return None
         numero_court = await connexion.fetchval(

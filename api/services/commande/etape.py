@@ -100,7 +100,7 @@ def _selon_la_relecture(p: dict[str, Any]) -> str:
 
 def _panier_touche(p: dict[str, Any], d: dict[str, Any]) -> None:
     p["relecture"] = None
-    p["annulee"] = None  # un panier touché après une annulation est de nouveau une commande à prendre (l'étape repart en cours, ``_ARRIVEE``)
+    p.pop("annulee", None)  # un panier touché après une annulation est de nouveau une commande à prendre (l'étape repart en cours, ``_ARRIVEE``)
 
 
 def _relecture_posee_effet(p: dict[str, Any], d: dict[str, Any]) -> None:

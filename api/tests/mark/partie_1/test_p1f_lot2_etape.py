@@ -111,7 +111,7 @@ def test_une_commande_annulee_reprend_un_article_et_l_allergie_fait_repartir_la_
         E.transition(p, ev, faits={}, empreinte="e")
         assert p["etape"] == E.ANNULEE and p["annulee"]
     E.transition(p, E.PANIER_TOUCHE)
-    assert p["etape"] == E.EN_COURS and not p["annulee"]
+    assert p["etape"] == E.EN_COURS and not p.get("annulee")
     q = P.nouveau()
     E.transition(q, E.RELECTURE_POSEE, relecture={"a": 1}, l_accord_vaut=False)
     E.transition(q, E.ACCORD_DONNE)
