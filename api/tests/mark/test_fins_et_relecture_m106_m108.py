@@ -26,6 +26,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+from api.services.actions_communes import parole as PAROLE
 from api.services.commande import moteur
 from api.services.commande.moteur import Reglages
 from api.services.commande.resultat import question_apres_enregistrement
@@ -166,6 +167,9 @@ async def test_m106_m107_rappel_sans_rien_de_nouveau_ne_redit_rien_puis_oui_enre
     a = await Appel(commerce, vente_en_plus=False).pret()
     premiere = await a.jusqu_a_la_relecture()
     jeton = a.p["relecture"]["jeton"]
+    # La relecture a été ENTENDUE (appels 2592, 2593) : la porte note au journal du dit la phrase réglée du total partie à la voix. Jamais entendue, elle se repose avec son total
+    # (PE-1, decisions-du-coordinateur.md « 27/11 ~2 h 15 » ; règle C6 de ``relecture_entendue``, reglement.py:161-164) : ce n'est plus le cas de M106
+    PAROLE.noter_le_total_dit(a.p, PAROLE.EtatDuTour(tour=1, total_a_dire={"jeton": jeton, "texte": "Cela fait un total."}), "Cela fait un total.")
     # 2593 : « C'est quel numéro que vous avez ? » ; le modèle rappelle finaliser avec les mêmes arguments
     r = await a.finaliser(prenom="Alice", moyen="carte")
     assert r.suggestion == "" and r.manque != "relecture" and "maintenant" not in r.suggestion

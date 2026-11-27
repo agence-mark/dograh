@@ -153,6 +153,8 @@ async def test_la_facade_suffit_de_l_import_a_la_purge(base_prete):
             )
             assert r.statut == "ENREGISTREE"
             numero = r.faits["numero"]
+            # 8b-1a (E2, ``restauration_commande.py:1007`` ; plan final § 17 l.403) : la commande de l'agent naît ``retenue`` et part à la fin de l'appel
+            assert (await restauration.changer_statut(c, a, numero, "retenue", "nouvelle", "agent")).statut == "OK"
             assert (await restauration.changer_statut(c, a, numero, "nouvelle", "envoyee", "agent")).statut == "OK"
             assert (await restauration.statut_commande(c, a, numero=numero)).faits["commandes"][0]["statut"] == "envoyee"
             assert (await restauration.client_par_numero(c, a, "+33612345678"))["nb_commandes"] == 1
