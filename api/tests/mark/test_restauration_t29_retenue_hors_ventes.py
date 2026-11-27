@@ -16,9 +16,11 @@ from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_commande import commandes_planifiees
 from api.db.bases_clients.restauration_purge import purger
 from api.db.bases_clients.restauration_remise_ecran import remises_pour_l_ecran
-from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
+from api.tests.mark import test_restauration_classeur_commande as _classeur
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
-from api.tests.mark.test_restauration_classeur_commande import brouillon, commerce, enregistrer  # noqa: F401
+
+commerce = _classeur.commerce  # fixture du dossier reprise par nom
+brouillon, enregistrer = _classeur.brouillon, _classeur.enregistrer
 
 AVEC_REMISE = {"remises": [{"ref": "DIX"}], "paiement": {"moyens": [{"moyen": "carte", "montant": 2142}]}}
 
@@ -40,7 +42,7 @@ async def _une_retenue_et_une_vente(commerce, **plus) -> None:
     assert statuts == ["nouvelle", "retenue"], statuts
 
 
-async def test_t29_une_retenue_purgee_n_entre_pas_dans_le_chiffre_d_affaires(commerce):  # noqa: F811
+async def test_t29_une_retenue_purgee_n_entre_pas_dans_le_chiffre_d_affaires(commerce):
     await _remise_dix(commerce)
     await _une_retenue_et_une_vente(commerce, **AVEC_REMISE)
     c, a = commerce.c, commerce.a
@@ -51,14 +53,14 @@ async def test_t29_une_retenue_purgee_n_entre_pas_dans_le_chiffre_d_affaires(com
     assert (recap["nb"], recap["ca"], recap["remises"]) == (2, 2142, 238), dict(recap)
 
 
-async def test_t29_une_retenue_ne_compte_pas_dans_les_remises_de_l_ecran(commerce):  # noqa: F811
+async def test_t29_une_retenue_ne_compte_pas_dans_les_remises_de_l_ecran(commerce):
     remise = await _remise_dix(commerce)
     await _une_retenue_et_une_vente(commerce, **AVEC_REMISE)
     lignes = {x["id"]: x for x in await remises_pour_l_ecran(commerce.c, commerce.a)}
     assert (lignes[remise]["utilisations"], lignes[remise]["ca_centimes"]) == (1, 2142), lignes[remise]
 
 
-async def test_t29_une_retenue_n_est_pas_une_commande_planifiee_a_venir(commerce):  # noqa: F811
+async def test_t29_une_retenue_n_est_pas_une_commande_planifiee_a_venir(commerce):
     c, a = commerce.c, commerce.a
     demain = JEUDI_MIDI + timedelta(days=1)
     await c.execute("UPDATE mark.resto_reglage_type SET planifiee_permise = true, jours_a_l_avance = 2, delai_minimal = 60 WHERE site_id = $1 AND type = 'emporter'", a)
