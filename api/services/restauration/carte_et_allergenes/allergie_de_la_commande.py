@@ -224,11 +224,11 @@ async def _tenter_l_annulation(source: Source, p: dict[str, Any], numero: str) -
 
 async def refaire_l_annulation(source: Source, p: dict[str, Any]) -> None:
     """T35 : retente la marque et l'annulation d'une ligne que la panne a laissée ``retenue``, tant que l'accord reste retiré (la commande n'est pas de nouveau enregistrée : l'étape retombe en cours, ``ALLERGIE_A_DONNER`` ne se garde pas) ; réussie,
-    ou l'accord redonné ou la commande annulée (la ligne est rouverte ou close, il ne faut plus y toucher), elle n'est plus retentée. Rien n'est dit au client."""
+    ou l'accord redonné (la ligne est rouverte, il ne faut plus l'annuler), elle n'est plus retentée. Une annulation du panier (``porte.annuler``) ne touche pas la ligne en base : elle ne l'arrête pas. Rien n'est dit au client."""
     numero = p.get(CLE_ANNULATION_A_REFAIRE)
     if not numero:
         return
-    if ETAPE.enregistree(p) or ETAPE.courante(p) == ETAPE.ANNULEE:
+    if ETAPE.enregistree(p):
         p.pop(CLE_ANNULATION_A_REFAIRE, None)
         return
     await _tenter_l_annulation(source, p, str(numero))
