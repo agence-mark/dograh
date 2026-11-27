@@ -388,7 +388,7 @@ class Partie:
             return
         tour, entree = self.fiche_de_l_appel_tour(), (self.fiche_de_l_appel_tour(), copy.deepcopy(fiche), _reponse_vivante(fiche, avant))
         if appliquee:
-            self.ajoutees = [entree]
+            self.ajoutees = [x for x in self.ajoutees if x[0] == tour] + [entree]  # T28 (a) : comme le code, plusieurs fiches ; la liste ne se vide qu'au changement de tour
         elif any(t == tour and dite.get("ajouter") == fiche["ajouter"] for t, dite, _ in self.ajoutees):
             self.ajoutees.append(entree)
 
