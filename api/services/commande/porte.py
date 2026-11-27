@@ -964,6 +964,19 @@ def _cle_de_la_fiche(tour: Any, fiche: dict[str, Any]) -> str:
     return cle_d_idempotence(tour, "fiche", dite)
 
 
+def _fiche_dite(du_modele: dict[str, Any], lue: dict[str, Any], reponse_ecartee: dict | None, case_ecartee: dict | None) -> dict[str, Any]:
+    """T31 : la fiche telle que le modèle l'a DITE, pour « la même au tour d'avant » : la fiche lue, plus ce qui en a été écarté seul (une case pas montrée dans ce tour, B4 ; une
+    réponse sans question, B1). Écartées, elles restent des mots de la personne : « encore une margherita, par carte, c'est Léa » n'est pas « une margherita ». La réponse écartée
+    est marquée : celle qui visait la question du tour d'avant et ne vise plus rien n'est pas la même fiche (PE-1 R4)."""
+    dite = dict(lue)
+    for case in (case_ecartee or {}).get("cases") or []:
+        if du_modele.get(case) is not None:
+            dite[case] = du_modele[case]
+    if reponse_ecartee is not None and isinstance(du_modele.get("reponse"), dict):
+        dite["reponse"] = {**du_modele["reponse"], "ecartee": True}
+    return dite
+
+
 CLE_DES_FICHES_AJOUTEES = "fiches_ajoutees"  # les clés des fiches, et des cases ``ajouter`` du tour, dont un article a été pris (le tour d'avant en fait partie) ; un article refusé n'y entre pas
 
 
@@ -971,7 +984,8 @@ def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[s
     """Q1/Q2 (c, Pierre 26/11) : une fiche qui AJOUTE et que le tour d'avant a déjà lue, mot pour mot (réponse comprise : un ``reponse`` différent est une autre fiche), n'est ni
     ignorée (« un Coca... et un autre Coca » perdrait le second) ni ajoutée tout de suite : rien n'est appliqué, elle n'est PAS notée (le tour suivant, « un autre » la même, passe), et
     le fait (les articles lus dans la fiche) revient au modèle, qui demande au client si c'est un de plus ou le même. Seule une fiche dont un article a été PRIS compte (``_case_ajouter`` la
-    range) : le même article inconnu redit n'est pas « un de plus », il reste refusé comme avant (journal des refus, sortie). Rend l'enveloppe du refus, ou ``None``."""
+    range) : le même article inconnu redit n'est pas « un de plus », il reste refusé comme avant (journal des refus, sortie). ``fiche`` : la fiche DITE (``_fiche_dite``, T31 : ses cases
+    écartées seules comprises). Rend l'enveloppe du refus, ou ``None``."""
     if not fiche.get("ajouter") or not isinstance(tour, int) or _cle_de_la_fiche(tour - 1, fiche) not in (CONV.de(p).get(CLE_DES_FICHES_AJOUTEES) or []):
         return None
     articles = [{"article": a.get("article"), "quantite": a.get("quantite", 1)} for a in fiche["ajouter"] if isinstance(a, dict)]
@@ -988,10 +1002,12 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
     tour = (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0)
-    identique = _fiche_identique_au_tour_d_avant(p, tour, fiche)
+    dite = _fiche_dite(fiche_du_modele, fiche, reponse_ecartee, case_ecartee)
+    cle = _cle_de_la_fiche(tour, dite)
+    identique = _fiche_identique_au_tour_d_avant(p, tour, dite)
     if identique is not None:
+        _ranger_si_refaite(p, tour, dite["ajouter"], cle)
         return identique
-    cle = _cle_de_la_fiche(tour, fiche)
     if deja_executee(p, cle):  # rejouée à l'identique dans ce tour : rien ne change (E11)
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
     f = LaFiche(ctx=ctx, ex=ex, fiche=fiche, tour=tour, cle=cle, reponse_ecartee=reponse_ecartee, case_ecartee=case_ecartee,
@@ -1074,9 +1090,15 @@ def _ranger_la_fiche_ajoutee(f: LaFiche, articles: int) -> None:
 def _ranger_la_fiche_refaite(f: LaFiche) -> None:
     """Une fiche refaite dans le même tour après un refus partiel : sa case ``ajouter`` est déjà faite (``deja_faites``), ``_case_ajouter`` ne tourne pas ; si cette case a pris un article
     dans ce tour, la fiche refaite est rangée comme la première (le modèle la redit au tour d'après : un de plus ou le même ?)."""
-    ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
-    if cle_de_la_case(f.tour, "ajouter", f.fiche["ajouter"]) in ajoutees and f.cle not in ajoutees:
-        ajoutees.append(f.cle)
+    _ranger_si_refaite(f.p, f.tour, f.fiche["ajouter"], f.cle)
+
+
+def _ranger_si_refaite(p: dict[str, Any], tour: Any, ajouter: Any, cle: str) -> None:
+    """La règle de ``_ranger_la_fiche_refaite``, aussi pour la fiche refaite que le code refuse comme identique au tour d'avant (T31, E0 → G1 · G33 · G32) : refusée, elle reste
+    celle que le modèle redit au tour suivant, jamais un article de plus sans rien demander."""
+    ajoutees = CONV.de(p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
+    if cle_de_la_case(tour, "ajouter", ajouter) in ajoutees and cle not in ajoutees:
+        ajoutees.append(cle)
 
 
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
