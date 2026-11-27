@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 
+from api.services.pipecat.reponse_avalee import phrase_de_repli_par_defaut
 from api.services.workflow import chiffres_sans_source as c
 from api.services.workflow.verite_des_actions import RAISON_ACTION_NON_FAITE, VerificateurDeReplique
 from api.tests.mark.test_verite_des_actions import Banc, _morceau, _reponse, _service, _texte  # noqa: F401
@@ -115,7 +116,8 @@ async def test_2571_la_relance_d_une_retenue_qui_affirme_le_faux_ne_dit_pas_le_t
     service = _service([_morceau(origine), _morceau(fin="stop")], banc, _reponse(DIT_2571))
     morceaux = await _jouer_avec(service, MESSAGES_2571)
     assert len(service.requetes) == 1  # la relance a bien eu lieu
-    assert "À emporter ou en livraison ?" not in _texte(morceaux)  # lot 8d : jamais le texte de l'outil dit par le code
+    # Lot 8d, reprise R1 : la relance affirme encore le faux (« c'est noté », rien n'est enregistré) : jamais dite, ni le texte de l'outil ; la phrase réglée du module.
+    assert _texte(morceaux) == phrase_de_repli_par_defaut()
 
 
 async def test_2572_c_est_note_apres_une_heure_ambigue_relance_le_modele_sans_dire_le_texte_de_l_outil():

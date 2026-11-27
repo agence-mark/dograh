@@ -63,3 +63,10 @@ def test_la_confirmation_trop_tot_ne_porte_aucune_suggestion_meme_vide():
     assert refus is not None and refus["manque"] == "reponse_a_la_relecture"
     assert "suggestion" not in refus, refus
     assert phrase_de_repli(_Service([])) is not None  # la phrase réglée reste là pour le modèle muet
+
+
+async def test_l_echec_repete_est_un_resultat_qui_attend_une_reponse_modele_muet_phrase_reglee():
+    """Reprise R2 : l'échec répété ne porte plus de texte, seulement une consigne : un modèle muet et une relance vide ne font jamais un tour muet."""
+    retour = garde.retour_d_echec_repete("INTROUVABLE")
+    for service in (_Service(FLUX_AVALE, reprise=_reponse()), _Service(FLUX_AVALE, erreur=RuntimeError("x"))):
+        assert _texte(await _lire_tout(service, _apres_l_outil(retour))) == phrase_de_repli(service)
