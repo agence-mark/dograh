@@ -1078,6 +1078,12 @@ def _ranger_la_fiche_refaite(f: LaFiche) -> None:
         ajoutees.append(f.cle)
 
 
+def _rouvrir_la_commande_annulee(p: dict[str, Any]) -> None:
+    """8b-3 : annulée puis un article qui demande (« laquelle ? ») dans la même fiche : la commande continue, sa question ne tombe pas avec l'annulation."""
+    if ETAPE.annulee(p):
+        ETAPE.transition(p, ETAPE.PANIER_TOUCHE)
+
+
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     """Les articles dits, un à un ; chaque article qui demande quelque chose ouvre sa question au registre (D25) ; l'état du panier après les ajouts (chiffrage, minimum de la
     zone) est le résultat du dernier ajout, comme ``moteur.ajouter`` le rend après sa phrase."""
@@ -1106,8 +1112,7 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         if r.statut in ("AMBIGU", "CHOIX_OBLIGATOIRE"):
             # D25 : chaque article qui demande ouvre SA question au registre, qui les pose l'une après l'autre : aucun n'est perdu
             RQ.ouvrir(f.p, _question_de(r, 0, f.tour, f.p))
-            if ETAPE.annulee(f.p):
-                ETAPE.transition(f.p, ETAPE.PANIER_TOUCHE)  # 8b-3 : annulée puis un article qui demande (« laquelle ? ») dans la même fiche : la commande continue, sa question ne tombe pas avec l'annulation
+            _rouvrir_la_commande_annulee(f.p)
             premiere_demande = premiere_demande or r
     # Le résultat de la fiche ne dépend pas de l'ordre des articles : le premier article qui demande est le fait de la fiche ; sinon, dès qu'un article est pris, c'est l'état du
     # panier après le dernier article PRIS (total, proposition), qu'un refus placé avant ou après ne recouvre pas ; les refus se lisent sur tous les résultats (``refusants_de_la_fiche``)
