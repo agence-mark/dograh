@@ -1001,7 +1001,7 @@ def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[s
                   and not (c == "reponse" and isinstance(fiche.get(c), dict) and fiche[c].get("implicite"))]
     a_faire = "rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)"
     if non_prises:
-        a_faire += " ; les autres cases de la fiche ne sont pas prises non plus (faits.cases_non_prises) : remets-les dans la fiche refaite"
+        a_faire += " ; les autres cases de la fiche ne sont pas prises non plus (faits.cases_non_prises) : refais la fiche avec ces cases seules, sans l'article, tant que le client n'a pas répondu à « un de plus ou le même ? »"
     refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire=a_faire)
     faits: dict[str, Any] = {"articles": articles, **({"cases_non_prises": non_prises} if non_prises else {})}
     return Enveloppe("REJETEE", faits=faits, raison=refus["raison"], a_faire=refus["a_faire"],
