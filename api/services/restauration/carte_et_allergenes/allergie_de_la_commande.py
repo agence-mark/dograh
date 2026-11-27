@@ -196,19 +196,42 @@ async def faits_a_redonner_pour_les_lignes_nouvelles(source: Source, p: dict[str
     return None
 
 
+CLE_ANNULATION_A_REFAIRE = "annulation_a_refaire"  # le numéro de la ligne dont la marque « accord retiré » ou l'annulation n'a pas abouti (une donnée, jamais un drapeau) ; retentée aux tours suivants
+
+
 async def _annuler_la_ligne_retenue(source: Source, p: dict[str, Any]) -> None:
     """8b-3 R1-bis : une allergie dite après le « oui » (commande enregistrée) retire l'accord ; la ligne ``retenue`` de la base passe à « annulée » au tour même, sans envoi (comme l'annulation
-    après le « oui »). Le nouveau « oui » la rouvre sous le même numéro (``rouvrir``). Un refus de la base (la ligne n'est plus ``retenue`` : déjà partie ou annulée) ne change rien de plus : le filet ne la prend pas."""
+    après le « oui »). Le nouveau « oui » la rouvre sous le même numéro (``rouvrir``). Un refus de la base (la ligne n'est plus ``retenue`` : déjà partie ou annulée) ne change rien de plus : le filet ne la prend pas.
+    T35 : une panne de base (marque ou annulation) garde le numéro dans ``CLE_ANNULATION_A_REFAIRE`` : ``refaire_l_annulation`` retente aux tours suivants."""
     numero = (p.get("enregistree") or {}).get("numero") if ETAPE.enregistree(p) else None
     if numero is None:
         return
+    await _tenter_l_annulation(source, p, str(numero))
+
+
+async def _tenter_l_annulation(source: Source, p: dict[str, Any], numero: str) -> None:
+    """Pose la marque puis annule (``annuler_une_commande``). Panne de base : journalisée avec sa trace, le numéro est gardé pour une nouvelle tentative ; sinon la tentative est finie."""
     try:
-        r = await source.annuler_une_commande(str(numero))
+        r = await source.annuler_une_commande(numero)
     except PANNES_DE_BASE:  # une panne de base ne garde jamais l'accord : il est retiré quand même (la fin de l'appel n'envoie rien), la trace est journalisée
-        logger.exception(f"[.mark] commande {numero} : l'annulation après l'allergie a levé, l'accord est retiré quand même")
+        logger.exception(f"[.mark] commande {numero} : l'annulation après l'allergie a levé, l'accord est retiré quand même, nouvelle tentative au tour suivant")
+        p[CLE_ANNULATION_A_REFAIRE] = numero
         return
+    p.pop(CLE_ANNULATION_A_REFAIRE, None)
     if r.statut not in ("OK", "DEJA_FAIT"):
         logger.error(f"[.mark] commande {numero} : l'annulation après l'allergie est refusée par la base ({r.statut})")
+
+
+async def refaire_l_annulation(source: Source, p: dict[str, Any]) -> None:
+    """T35 : retente la marque et l'annulation d'une ligne que la panne a laissée ``retenue``, tant que l'accord reste retiré (la commande n'est pas de nouveau enregistrée : l'étape retombe en cours, ``ALLERGIE_A_DONNER`` ne se garde pas) ; réussie,
+    ou l'accord redonné ou la commande annulée (la ligne est rouverte ou close, il ne faut plus y toucher), elle n'est plus retentée. Rien n'est dit au client."""
+    numero = p.get(CLE_ANNULATION_A_REFAIRE)
+    if not numero:
+        return
+    if ETAPE.enregistree(p) or ETAPE.courante(p) == ETAPE.ANNULEE:
+        p.pop(CLE_ANNULATION_A_REFAIRE, None)
+        return
+    await _tenter_l_annulation(source, p, str(numero))
 
 
 async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
@@ -434,6 +457,7 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
     comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. Rend l'élément de ``Du`` (des faits que le modèle doit dire) ;
     ne lève jamais : une panne part au journal d'erreur."""
     try:
+        await refaire_l_annulation(source, p)  # T35 : une coupure courte de la base au tour de l'allergie est rattrapée dès le tour suivant
         if allergie_a_donner(p) is None:
             return None  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
         if _donnee(p) is not None:
