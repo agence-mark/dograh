@@ -4,6 +4,8 @@ retenues (``filet_retenue_min``) se lit et se règle dans les réglages du modul
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -28,3 +30,19 @@ async def test_le_delai_du_filet_se_lit_et_se_regle_a_l_ecran(commerce):
 def test_le_delai_du_filet_a_les_bornes_de_la_base(hors_bornes):
     with pytest.raises(ValidationError):
         ReglageChange(filet_retenue_min=hors_bornes)
+
+
+ECRAN = Path(__file__).resolve().parents[4] / "ui" / "src" / "components" / "mark" / "restauration"
+
+
+@pytest.mark.parametrize("reglage", ["filet_retenue_min", "conservation_client_mois"])
+def test_le_reglage_se_voit_et_s_enregistre_dans_l_ecran_des_reglages(reglage):
+    """Reprise de l'audit de 8b-1b (refus 18 à moitié) : le réglage a son type, son champ dans « Réglages restaurant » et part avec l'enregistrement des réglages des
+    commandes (voisin : la conservation de la fiche client se voyait sans jamais s'enregistrer). Lecture des sources de l'écran : forme seulement."""
+    types = (ECRAN / "donnees.ts").read_text(encoding="utf-8")
+    ecran = (ECRAN / "reglages-restaurant.tsx").read_text(encoding="utf-8")
+    assert f"    {reglage}: number;" in types, reglage
+    assert f"valeur={{String(reglage.{reglage})}}" in ecran, reglage
+    sauver = ecran[ecran.index("const sauver = () => {"):]
+    sauver = sauver[: sauver.index("};")]
+    assert f"{reglage}: reglage.{reglage}" in sauver, reglage
