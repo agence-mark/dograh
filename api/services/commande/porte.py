@@ -1003,9 +1003,10 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
     tour = (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0)
     dite = _fiche_dite(fiche_du_modele, fiche, reponse_ecartee, case_ecartee)
     cle = _cle_de_la_fiche(tour, dite)
-    identique = _fiche_identique_au_tour_d_avant(p, tour, dite)
+    # T31 R1 : la fiche refaite dans le même tour, sa case ``ajouter`` déjà faite, n'ajoute rien : pas de question (l'article vient d'être pris), le chemin normal la range
+    refaite = bool(dite.get("ajouter")) and case_deja_faite(p, tour, "ajouter", dite["ajouter"])
+    identique = None if refaite else _fiche_identique_au_tour_d_avant(p, tour, dite)
     if identique is not None:
-        _ranger_si_refaite(p, tour, dite["ajouter"], cle)
         return identique
     if deja_executee(p, cle):  # rejouée à l'identique dans ce tour : rien ne change (E11)
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
@@ -1089,15 +1090,9 @@ def _ranger_la_fiche_ajoutee(f: LaFiche, articles: int) -> None:
 def _ranger_la_fiche_refaite(f: LaFiche) -> None:
     """Une fiche refaite dans le même tour après un refus partiel : sa case ``ajouter`` est déjà faite (``deja_faites``), ``_case_ajouter`` ne tourne pas ; si cette case a pris un article
     dans ce tour, la fiche refaite est rangée comme la première (le modèle la redit au tour d'après : un de plus ou le même ?)."""
-    _ranger_si_refaite(f.p, f.tour, f.fiche["ajouter"], f.cle)
-
-
-def _ranger_si_refaite(p: dict[str, Any], tour: Any, ajouter: Any, cle: str) -> None:
-    """La règle de ``_ranger_la_fiche_refaite``, aussi pour la fiche refaite que le code refuse comme identique au tour d'avant (T31, E0 → G1 · G33 · G32) : refusée, elle reste
-    celle que le modèle redit au tour suivant, jamais un article de plus sans rien demander."""
-    ajoutees = CONV.de(p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
-    if cle_de_la_case(tour, "ajouter", ajouter) in ajoutees and cle not in ajoutees:
-        ajoutees.append(cle)
+    ajoutees = CONV.de(f.p).setdefault(CLE_DES_FICHES_AJOUTEES, [])
+    if cle_de_la_case(f.tour, "ajouter", f.fiche["ajouter"]) in ajoutees and f.cle not in ajoutees:
+        ajoutees.append(f.cle)
 
 
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
