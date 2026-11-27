@@ -67,3 +67,21 @@ async def test_la_fiche_refaite_sans_ses_cases_ecartees_reste_la_meme_au_tour_d_
     assert _margheritas(e) == 1
     r = await e.tour("je répète, une margherita normale", ajouter=[MARGHERITA])
     assert RAISON in _raisons(r) and _margheritas(e) == 1, r
+
+
+async def test_r1_la_fiche_refaite_apres_un_ajout_du_tour_ne_pose_pas_la_question(essai_de):
+    """Reprise R1 de l'audit T31 : le tour d'avant a déjà pris une margherita, ce tour-ci en prend une autre avec des cases écartées ; la fiche refaite dans le MÊME tour (la margherita
+    seule) ne pose pas « une deuxième, ou la même ? » (l'article vient d'être pris) : sa case est déjà faite, rien n'est ajouté. Le tour d'après, « je répète » pose la question une
+    seule fois ; « une de plus » passe ensuite. Client « Une margherita. » … « Encore une margherita, par carte, c'est Léa. » / « Je répète. » / modèle « Une troisième, ou la
+    même ? » / « Une de plus. » → trois margheritas."""
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    await e.tour(DIT, ajouter=[MARGHERITA], **FIN)
+    assert _margheritas(e) == 2
+    r = await e.fiche(ajouter=[MARGHERITA])
+    assert RAISON not in _raisons(r) and _margheritas(e) == 2, r
+    r = await e.tour("je répète, une margherita normale", ajouter=[MARGHERITA])
+    assert RAISON in _raisons(r) and _margheritas(e) == 2, r
+    r = await e.tour("une de plus", ajouter=[MARGHERITA])
+    assert RAISON not in _raisons(r) and _margheritas(e) == 3, r
