@@ -417,6 +417,23 @@ async def marquer_l_alerte_du_filet(connexion: asyncpg.Connection, etablissement
     return bool(pose)
 
 
+async def marquer_l_accord_retire(connexion: asyncpg.Connection, etablissement_id: int, numero: str) -> None:
+    """Lot 8b-3 (T35) : pose la marque « accord retiré » sur une commande encore ``retenue`` (le client a dit une allergie après son « oui »). Posée AVANT la tentative de l'annuler :
+    si l'annulation échoue puis que l'appel plante, le filet lit la marque et n'envoie pas la ligne. Un nouveau « oui » l'efface (``reecrire_la_commande``)."""
+    await connexion.execute(
+        "UPDATE mark.resto_commande SET accord_retire_le = $3 WHERE site_id = $1 AND numero = $2 AND statut = 'retenue'", etablissement_id, uuid.UUID(str(numero)), await maintenant(connexion)
+    )
+
+
+async def accord_retire(connexion: asyncpg.Connection, etablissement_id: int, numero: str) -> bool:
+    """Lot 8b-3 (T35) : la commande ``retenue`` porte-t-elle la marque « accord retiré » ? (le filet ne l'envoie alors pas)"""
+    return bool(
+        await connexion.fetchval(
+            "SELECT 1 FROM mark.resto_commande WHERE site_id = $1 AND numero = $2 AND statut = 'retenue' AND accord_retire_le IS NOT NULL", etablissement_id, uuid.UUID(str(numero))
+        )
+    )
+
+
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:
     """Les commandes que la caisse a REÇUES (elle leur a donné un identifiant) mais qu'elle n'a pas encore prises en charge, à la plus courte de deux échéances : ``depuis_minutes``
     après l'envoi, ou (commande PRÉVUE pour plus tard, ``heure_voulue``) l'heure promise à la personne moins ``MARGE_AVANT_L_HEURE`` : une alerte, jamais un renvoi aveugle. (Un envoi qui n'a pas abouti n'a pas d'identifiant : il est à reprendre,

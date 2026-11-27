@@ -42,6 +42,7 @@ from api.services.actions_communes.resultat import avec_le_fait_du_numero_affich
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
+from api.services.commande.moteur.socle import prealable_du_metier
 from api.services.commande.moteur.socle import CLE_STATUT_LU, STATUTS_PERDUS
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
@@ -1078,6 +1079,12 @@ def _ranger_la_fiche_refaite(f: LaFiche) -> None:
         ajoutees.append(f.cle)
 
 
+def _rouvrir_la_commande_annulee(p: dict[str, Any]) -> None:
+    """8b-3 : annulée puis un article qui demande (« laquelle ? ») dans la même fiche : la commande continue, sa question ne tombe pas avec l'annulation."""
+    if ETAPE.annulee(p):
+        ETAPE.transition(p, ETAPE.PANIER_TOUCHE)
+
+
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
     """Les articles dits, un à un ; chaque article qui demande quelque chose ouvre sa question au registre (D25) ; l'état du panier après les ajouts (chiffrage, minimum de la
     zone) est le résultat du dernier ajout, comme ``moteur.ajouter`` le rend après sa phrase."""
@@ -1106,6 +1113,7 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         if r.statut in ("AMBIGU", "CHOIX_OBLIGATOIRE"):
             # D25 : chaque article qui demande ouvre SA question au registre, qui les pose l'une après l'autre : aucun n'est perdu
             RQ.ouvrir(f.p, _question_de(r, 0, f.tour, f.p))
+            _rouvrir_la_commande_annulee(f.p)
             premiere_demande = premiere_demande or r
     # Le résultat de la fiche ne dépend pas de l'ordre des articles : le premier article qui demande est le fait de la fiche ; sinon, dès qu'un article est pris, c'est l'état du
     # panier après le dernier article PRIS (total, proposition), qu'un refus placé avant ou après ne recouvre pas ; les refus se lisent sur tous les résultats (``refusants_de_la_fiche``)
@@ -1242,8 +1250,24 @@ def _la_fin_est_due(f: LaFiche) -> str | None:
     return None
 
 
+async def _rouvrir_pour_l_allergie(f: LaFiche) -> bool:
+    """8b-3 R1 (décision d'Evan 24/11 17 h 45) : une allergie notée APRÈS le « oui » (commande enregistrée) retire l'accord : le blocage d'allergie du métier rend ses faits au modèle
+    (la relecture repart, même numéro) ; sans nouvel accord, la fin de l'appel n'envoie rien (E3). ``True`` : la fiche s'arrête là."""
+    if not ETAPE.enregistree(f.p) or not f.p.get("lignes"):
+        return False
+    attente = await prealable_du_metier(f.source, f.p, f.regles)
+    if attente is None:
+        return False
+    f.dernier = attente
+    f.resultats.append(_resultat_public("allergie", attente))
+    f.bruts.append(attente)
+    return True
+
+
 async def _mener_a_la_fin_de_la_fiche(f: LaFiche) -> None:
     """UN SEUL ``finaliser`` par fiche (C7), appelé ici et nulle part ailleurs ; le résultat est celui de la fiche. S'il lâche, « c'est tout » n'est pas dit fait."""
+    if await _rouvrir_pour_l_allergie(f):
+        return
     operation = _la_fin_est_due(f)
     if operation is None:
         return
@@ -1675,6 +1699,30 @@ def _prendre_les_notes_du_greffier(p: dict[str, Any], source: Any, fiche_de_l_ap
         p[moteur.CLE_NOTES_DU_GREFFIER] = notes
 
 
+def _la_fiche_peut_enregistrer(p: dict[str, Any], arguments: dict[str, Any]) -> bool:
+    """Lu AVANT d'exécuter (A1, 8b-3) : la fiche peut mener la commande à sa fin : « c'est tout », une réponse à la relecture posée, ou une case de fin (règlement, numéro, prénom,
+    consigne) sur une commande qui a des lignes et n'est pas annulée ; enregistrée, toute fiche (l'allergie dite après le « oui »). Même condition que ``_la_fin_est_due``, sans l'exécution."""
+    if not p.get("lignes") or ETAPE.annulee(p):
+        return False
+    if ETAPE.enregistree(p):
+        return True  # une allergie dite après le « oui » rouvre la commande : le greffier est attendu avant de la lire (8b-3 R1)
+    de_fin = isinstance(arguments.get("reponse"), dict) or any(arguments.get(k) not in (None, "") for k in (*contrat.CASES_DE_FIN, "consigne_livreur"))
+    return arguments.get("c_est_tout") is True or (de_fin and ETAPE.courante(p) in (ETAPE.A_RELIRE, ETAPE.A_CLORE, ETAPE.ACCORDEE))
+
+
+async def _attendre_le_greffier_avant_la_fin(p: dict[str, Any], arguments: dict[str, Any], ctx: Any) -> None:
+    """A1 (8b-3, option A d'Evan) : une allergie dite avec le « oui » doit être notée avant que la commande s'enregistre : sur la SEULE fiche qui peut enregistrer, la passe du greffier
+    est attendue (le délai du dernier tour, celui de la garde des actions). Au clavier ou sans greffier (``rattraper`` absent) : sans effet."""
+    rattraper = getattr(ctx, "rattraper", None)
+    if rattraper is None or not _la_fiche_peut_enregistrer(p, arguments):
+        return
+    from api.services.workflow.enveloppe_des_actions import (
+        DELAI_DE_LA_PASSE_DU_DERNIER_TOUR,
+    )
+
+    await rattraper(DELAI_DE_LA_PASSE_DU_DERNIER_TOUR)  # ``Greffier.rattraper`` ne lève jamais
+
+
 # Lot 6 (C10, complément de Pierre point 2) : l'issue de l'appel posée par l'opération qui la fait, au moment où elle la fait, jamais devinée par
 # le classement de fin. Le code est celui que l'outil règle (``reglages.issues``), sinon le nom de l'issue elle-même.
 ISSUES_DE_LA_COMMANDE = ("commande_enregistree", "commande_annulee", "message_a_transmettre", "commande_abandonnee")
@@ -1700,7 +1748,12 @@ def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
 
 def _panier_vide_apres_l_annulation(p: dict[str, Any]) -> bool:
     """Une annulation faite dans la fiche vaut jusqu'au bout si le panier finit vide : rien en cours, rien gardé de côté (R3 de l'audit 8b-2 ; un mode qui suit efface la marque « annulée » sans rouvrir de commande)."""
-    return bool(p.get("annulee")) or not (p.get("lignes") or p.get("dits_en_attente"))
+    return bool(p.get("annulee")) or not (p.get("lignes") or p.get("dits_en_attente") or _question_d_article_ouverte(p))
+
+
+def _question_d_article_ouverte(p: dict[str, Any]) -> bool:
+    """8b-3 : un article qui demande (doute, taille, étape de sa formule) tient la commande ouverte : un panier avec une question sur un article n'est pas vide."""
+    return any(isinstance(q, dict) and q.get("type") in RQ.QUESTIONS_AVANT_LA_RELECTURE for q in (CONV.de(p).get(RQ.CLE_DES_QUESTIONS) or {}).values())
 
 
 def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any], resultats: list[dict[str, Any]] | None = None) -> None:
@@ -1807,6 +1860,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 PAROLE.admettre_les_valeurs(getattr(ctx, "fiche", None), retour.get("faits"))
                 return retour
             if action.nom == "fiche":
+                await _attendre_le_greffier_avant_la_fin(p, dict(arguments or {}), ctx)
                 _prendre_les_notes_du_greffier(p, source, ctx.fiche)
                 if isinstance(ctx.fiche, dict) and isinstance((ctx.reglages or {}).get(REGLAGE_DES_ISSUES), dict):
                     ctx.fiche[CLE_ISSUES_REGLEES] = dict(ctx.reglages[REGLAGE_DES_ISSUES])

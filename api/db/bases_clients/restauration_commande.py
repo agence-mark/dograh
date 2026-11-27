@@ -1039,10 +1039,12 @@ async def _reecrire_la_ligne(connexion: asyncpg.Connection, a: _ACommande, numer
         ancienne = await connexion.fetchrow(_LIRE_LA_LIGNE_A_REECRIRE, numero, a.etablissement_id, rouvrir, appel)
         if ancienne is None:
             return None
+        # Le nouveau « oui » efface la marque « accord retiré » (T35, 056) ET remet ``filet_alerte_le`` à zéro (055) : une ligne alertée par le filet puis rouverte redevient lue par le filet
+        # (sans cela, un appel planté après le nouveau « oui » ne serait plus jamais envoyé par le filet).
         numero_court = await connexion.fetchval(
             "UPDATE mark.resto_commande SET mode = $3, heure_voulue = $4, heure_annoncee = $5, telephone = $6, prenom = $7, second_numero = $8::jsonb, adresse = $9::jsonb, "
             "zone_id = $10, remises = $11::jsonb, sous_total = $12, frais = $13, total = $14, paiement = $15::jsonb, note = $16, maj_le = $17, taux_tva_frais = $18, "
-            "consigne_livreur = $19, numero_court = $20, statut = 'retenue' WHERE numero = $1 AND site_id = $2 AND (statut = 'retenue' OR ($21::boolean AND statut = 'annulee' "
+            "consigne_livreur = $19, numero_court = $20, statut = 'retenue', accord_retire_le = NULL, filet_alerte_le = NULL WHERE numero = $1 AND site_id = $2 AND (statut = 'retenue' OR ($21::boolean AND statut = 'annulee' "
             "AND envoyee_le IS NULL AND appel_id IS NOT DISTINCT FROM $22)) RETURNING numero_court",
             numero, a.etablissement_id, a.mode, a.heure_voulue, a.heure_annoncee, client["telephone"], client.get("prenom"),
             json.dumps(client["second_numero"]) if client.get("second_numero") else None, json.dumps(brouillon["adresse"]) if brouillon.get("adresse") else None,

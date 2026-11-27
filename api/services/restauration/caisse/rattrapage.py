@@ -26,7 +26,7 @@ from loguru import logger
 
 from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration, restauration_liaison as liaison_db
-from api.db.bases_clients.restauration_commun import MODES, maintenant
+from api.db.bases_clients.restauration_commun import MODES, PANNES_DE_BASE, maintenant
 from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.services.base_client.rattachement import organisations_rattachees
 from api.constants import TEXT_CHAT_INACTIVITY_SWEEP_LOOKBACK_SECONDS
@@ -42,6 +42,7 @@ CLE_ALERTE = "mark:resto:sans-reponse:"
 PLUS_LONG_APPEL_A_LA_VOIX = timedelta(seconds=MAX_CALL_DURATION_SECONDS)
 # Au-delà, plus rien ne fermera l'appel (le balayage des parties au clavier ne remonte pas plus loin) : la ligne ne peut vraiment pas partir seule.
 LIMITE_DU_FILET = timedelta(seconds=TEXT_CHAT_INACTIVITY_SWEEP_LOOKBACK_SECONDS)
+RAISON_ACCORD_RETIRE = "commande retenue dont l'accord a été retiré après le oui (allergie ou annulation du client) : elle n'est pas envoyée, à vérifier avec le client"
 RAISON_DU_FILET = "commande retenue d'un appel qui n'a jamais fini : à vérifier, à saisir à la main si le client l'attend"
 EtatsDesAppels = Callable[[list[str]], Awaitable["dict[str, EtatDeLAppel] | None"]]
 
@@ -115,6 +116,8 @@ async def _une_retenue(
     laisse (ni annulée ni envoyée à l'aveugle ; la fin de l'appel, si elle arrive, l'envoie encore). La marque (un seul passage alerte) et l'alerte vont dans UNE transaction :
     une alerte qui lève défait la marque, le passage suivant la redit. Rend 1 si elle part."""
     if appel_fini(etat, maj_le, moment):
+        if await liaison_db.accord_retire(connexion, etablissement_id, numero):
+            return await _ne_pas_envoyer_une_retenue_sans_accord(connexion, organization_id, etablissement_id, numero, secours)
         logger.warning(f"[.mark] Order {numero}: its call ended without its end hook, the catch-up sends it")
         await envoyer_la_commande_retenue(connexion, organization_id, nom_base, etablissement_id, numero)
         return 1
@@ -124,6 +127,22 @@ async def _une_retenue(
         if await liaison_db.marquer_l_alerte_du_filet(connexion, etablissement_id, numero):
             logger.error(f"[.mark] Order {numero}: retained, its call never ended, the restaurant is alerted")
             await alerter(connexion, organization_id, etablissement_id, numero, secours, RAISON_DU_FILET)
+    return 0
+
+
+async def _ne_pas_envoyer_une_retenue_sans_accord(connexion, organization_id: int, etablissement_id: int, numero: str, secours: Secours) -> int:
+    """Lot 8b-3 (T35) : l'accord de cette ligne a été retiré (allergie dite après le « oui ») et son annulation n'a pas abouti : le filet ne l'envoie jamais sans nouveau « oui ». Il
+    alerte le restaurant UNE fois (la marque et l'alerte vont dans UNE transaction, comme la limite du filet), puis passe la ligne à « annulée » ; une annulation qui échoue encore
+    est journalisée ; la ligne reste ``retenue`` et marquée, alertée, hors de la lecture du filet : elle ne part jamais, le restaurant la voit. Le client n'entend rien de
+    neuf. Rend 0 : rien ne part."""
+    async with connexion.transaction():
+        if await liaison_db.marquer_l_alerte_du_filet(connexion, etablissement_id, numero):
+            logger.error(f"[.mark] Order {numero}: its agreement was withdrawn and its cancellation failed, the catch-up does not send it, the restaurant is alerted")
+            await alerter(connexion, organization_id, etablissement_id, numero, secours, RAISON_ACCORD_RETIRE)
+    try:
+        await restauration.changer_statut(connexion, etablissement_id, numero, "retenue", "annulee", "agent")
+    except PANNES_DE_BASE:  # R1 : jamais envoyée ; la marque et l'alerte la gardent hors d'envoi
+        logger.exception(f"[.mark] Order {numero}: the catch-up could not cancel a line whose agreement was withdrawn")
     return 0
 
 
