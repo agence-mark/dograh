@@ -46,6 +46,9 @@ STATUTS = frozenset(
 RAISONS_REFUS = frozenset({"produit_inconnu", "prix_different", "restaurant_ferme", "remise_inconnue", "caisse_injoignable", "autre"})
 SOURCES = frozenset({"caisse", "portail", "mark", "agent", "import"})
 TYPES = frozenset({"emporter", "livraison", "sur_place", "reservation"})
+# Ce qu'une écriture en base peut lever sans que ce soit un défaut du code : la base (erreur SQL, connexion perdue ou fermée), le réseau, le délai. Les seules pannes qu'on journalise sans les laisser remonter.
+PANNES_DE_BASE = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError)
+
 MODES = frozenset({"emporter", "livraison", "sur_place"})
 
 

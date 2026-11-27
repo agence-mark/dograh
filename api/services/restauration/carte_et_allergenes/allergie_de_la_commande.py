@@ -9,9 +9,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-import asyncpg
 from loguru import logger
 
+from api.db.bases_clients.restauration_commun import PANNES_DE_BASE
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes import journal_du_dit as J
@@ -194,10 +194,6 @@ async def faits_a_redonner_pour_les_lignes_nouvelles(source: Source, p: dict[str
     if any(l.get("etat") in ("present", "inconnu") for a in par_allergene for l in a.get("articles") or []):
         return faits
     return None
-
-
-# Ce que l'annulation de la ligne peut lever sans que ce soit un défaut du code : la base (erreur SQL, connexion perdue ou fermée), le réseau, le délai.
-PANNES_DE_BASE = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError)
 
 
 async def _annuler_la_ligne_retenue(source: Source, p: dict[str, Any]) -> None:

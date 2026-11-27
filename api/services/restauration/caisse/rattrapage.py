@@ -22,12 +22,11 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from typing import Any
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration, restauration_liaison as liaison_db
-from api.db.bases_clients.restauration_commun import MODES, maintenant
+from api.db.bases_clients.restauration_commun import MODES, PANNES_DE_BASE, maintenant
 from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.services.base_client.rattachement import organisations_rattachees
 from api.constants import TEXT_CHAT_INACTIVITY_SWEEP_LOOKBACK_SECONDS
@@ -142,7 +141,7 @@ async def _ne_pas_envoyer_une_retenue_sans_accord(connexion, organization_id: in
             await alerter(connexion, organization_id, etablissement_id, numero, secours, RAISON_ACCORD_RETIRE)
     try:
         await restauration.changer_statut(connexion, etablissement_id, numero, "retenue", "annulee", "agent")
-    except (asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError):  # R1 : jamais envoyée ; la marque et l'alerte la gardent hors d'envoi
+    except PANNES_DE_BASE:  # R1 : jamais envoyée ; la marque et l'alerte la gardent hors d'envoi
         logger.exception(f"[.mark] Order {numero}: the catch-up could not cancel a line whose agreement was withdrawn")
     return 0
 
