@@ -258,7 +258,10 @@ class ReglageDuModule(BaseModel):
     moyens_paiement: list[MoyenDePaiement] = Field(default_factory=list)
     plafond_titre_restaurant: int | None = None
     conservation_client_mois: int = 12
-    filet_retenue_min: int = Field(default=2, description="Minutes après le dernier « oui » avant que le filet envoie une commande dont la fin d'appel n'a pas été jouée.")
+    filet_retenue_min: int = Field(
+        default=2,
+        description="Minutes après le dernier « oui » avant que le filet reprenne une commande dont la fin d'appel n'a pas été jouée. Elle ne part qu'une fois l'appel fini "
+                    "(noté terminé ou, à la voix, plus long que la durée maximale d'un appel) ; une commande qui ne peut pas partir alerte le restaurant une fois.")
 
 
 class ReglageChange(BaseModel):
