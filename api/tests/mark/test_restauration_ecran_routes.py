@@ -257,6 +257,7 @@ async def test_les_reglages_s_ecrivent_se_relisent_et_se_journalisent(db_session
         assert lu["reglage"] == {
             "prefixe_numero_court": "CB", "moyens_paiement": ["carte", "titre_restaurant"], "plafond_titre_restaurant": 2500, "conservation_client_mois": 12,
             "numero_mode": "moyen", "prefixe_mixte": "XX", "notes_libres": False, "titre_alcool_exclu": True, "titre_sans_rendu": False, "pause_caisse_pause_telephone": True,
+            "filet_retenue_min": 2,  # lot 8b-1b : le délai du filet, réglage visible (refus 18 ; audit 8b-1a, remarque 3)
         }
         assert lu["envoi_heure_changee"] == {"texte": "Votre commande est décalée à {heure}.", "actif": True}
         # un champ seul ne touche pas les autres

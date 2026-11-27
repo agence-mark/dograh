@@ -18,7 +18,7 @@ def _lu_par_l_enregistrement() -> bool:
     pas d'un autre module (carte, créneau, annonce) qui lit ses propres réglages."""
     cadre, dessous = sys._getframe(2), None
     while cadre is not None:
-        if cadre.f_code.co_name == "enregistrer_commande":
+        if cadre.f_code.co_name in ("enregistrer_commande", "_controler_la_commande"):  # 8b-1b : ses contrôles, partagés avec la réécriture
             return dessous is None or dessous in ("reglages_de_l_enregistrement", "reglages_du_module", "reglages_de_paiement", "ligne_de_reglage")
         dessous, cadre = cadre.f_code.co_name, cadre.f_back
     return False
