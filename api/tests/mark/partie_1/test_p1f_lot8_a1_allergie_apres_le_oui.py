@@ -10,7 +10,6 @@ avec lui, c'est le même numéro et un seul envoi.
 
 from __future__ import annotations
 
-from api.services.actions_communes import du as DU
 from api.tests.mark.partie_1 import aides_de_la_commande as AC
 from api.tests.mark.partie_1.aides_briques import brique
 
@@ -42,7 +41,8 @@ async def test_une_allergie_au_tour_suivant_rouvre_la_commande_et_sans_nouveau_o
     _greffier_qui_note_l_allergie(e)
     r = await e.tour("ah, et mon fils est allergique aux noix", note_generale="allergique aux noix")
     assert not e.p.get("enregistree"), r  # l'accord est retiré
-    assert r.get(DU.CLE_FAITS_A_DIRE) and r["faits"]["allergie"], r  # les faits de l'allergie sont rendus au modèle
+    faits = [x["faits"] for x in r["resultats"] if x["operation"] == "allergie"]  # le blocage d'allergie du métier : ses faits (ce qui en contient) sont dans le retour, le modèle les dit
+    assert faits and faits[0]["allergie"] == "noix" and faits[0]["articles"][0]["etat"] == "present", r["resultats"]
     await e.finir_l_appel()
     assert e.source.prise.recues == [] and await _lignes(e) == [(numero, "annulee")], (e.source.prise.recues, await _lignes(e))
 
@@ -54,4 +54,4 @@ async def test_une_allergie_au_tour_suivant_puis_un_nouveau_oui_garde_le_meme_nu
     await AC.jusqu_a_l_enregistrement(e, prenom="Léa", telephone="0612345678")  # la relecture repart, le « oui » est redonné
     assert str(e.p["enregistree"]["numero"]) == numero, e.p.get("enregistree")
     await e.finir_l_appel()
-    assert [str(x["numero"]) for x in e.source.prise.recues] == [numero] and await _lignes(e) == [(numero, "nouvelle")], (e.source.prise.recues, await _lignes(e))
+    assert [str(x["numero"]) for x in e.source.prise.recues] == [numero] and await _lignes(e) == [(numero, "acceptee")], (e.source.prise.recues, await _lignes(e))
