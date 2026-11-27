@@ -767,11 +767,17 @@ def rc7(o: Observation) -> list[Faute]:
     return []
 
 
+def _annulee_dans_la_fiche(o: Observation) -> bool:
+    """L'annulation a eu lieu dans la fiche de ce geste (l'ajout qui suit efface la marque « annulée » : le panier vidé reste voulu)."""
+    r = o.retour or {}
+    return "annuler_la_commande" in set(r.get("cases_executees") or []) or any("commande_annulee" in (x.get("faits") or {}) for x in r.get("resultats") or [])  # le « oui » à la question d'annulation
+
+
 def rc8(o: Observation) -> list[Faute]:
     """Une commande enregistrée ne change pas sans passer par la base ; § 17 l.407 : annulée, elle est vidée et un article dit ensuite entre (DC5 est tombé : la règle « aucune ligne
     ajoutée à une commande annulée » est retirée)."""
     r = o.retour or {}
-    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres) and not o.apres.get("annulee"):  # la ligne attend sa taille : la caisse après ; annulée, le panier est vidé (§ 17 l.407)
+    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres) and not o.apres.get("annulee") and not _annulee_dans_la_fiche(o):  # la ligne attend sa taille : la caisse après ; annulée (ou annulée dans cette fiche, puis un article dit : R2 de l'audit 8b-2), le panier est vidé (§ 17 l.407)
         ops = {x.get("operation") for x in r.get("resultats") or []}
         if "changer_la_commande_enregistree" not in ops:
             return [("RC8", "le panier d'une commande enregistrée change sans passer par la caisse")]
