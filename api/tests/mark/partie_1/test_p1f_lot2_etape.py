@@ -19,7 +19,7 @@ from api.services.commande import panier as P
 from api.tests.mark.partie_1 import combinaisons as C
 
 API = I.RACINE_API
-CLES_ECRITES_PAR_L_ETAPE = {"etape", "enregistree", "annulee", "numero_de_la_commande_annulee", "empreinte_enregistree", "commande_enregistree"}
+CLES_ECRITES_PAR_L_ETAPE = {"etape", "enregistree", "annulee", "numero_de_la_commande_annulee", "numero_de_la_ligne_annulee", "empreinte_enregistree", "commande_enregistree"}
 
 
 def test_la_table_est_fermee_chaque_etape_connait_chaque_evenement():
@@ -76,7 +76,7 @@ def test_le_parcours_d_une_commande_relecture_accord_enregistrement():
     E.transition(p, E.RELECTURE_POSEE, relecture={"empreinte": "y"}, l_accord_vaut=False)
     assert p["etape"] == E.A_RELIRE and not E.accord(p), "une relecture qui repart ne vaut plus l'accord d'avant (RC10)"
     E.transition(p, E.ACCORD_DONNE)
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
+    E.transition(p, E.ENREGISTREE_EN_BASE, faits={"numero": "1"}, empreinte="e")
     assert p["etape"] == E.ENREGISTREE and p["enregistree"] == {"numero": "1"}
 
 
@@ -91,23 +91,27 @@ def test_un_panier_change_efface_la_relecture_et_l_accord():
 def test_changer_une_commande_enregistree_la_defait_puis_revient_a_ce_que_disent_les_faits():
     p = P.nouveau()
     E.transition(p, E.ACCORD_DONNE)
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
+    E.transition(p, E.ENREGISTREE_EN_BASE, faits={"numero": "1"}, empreinte="e")
     d_avant = copy.deepcopy(p)
     E.transition(p, E.ENREGISTREMENT_DEFAIT)
     assert p["etape"] == E.EN_COURS and p["enregistree"] is None, "défaite, la commande se relit : l'accord ne survit pas à un état qu'il ne dit plus"
     P.remplacer_par(p, d_avant)  # la nouvelle version refusée : la commande d'avant redevient telle quelle
     assert p["etape"] == E.ENREGISTREE and E.accord(p) and p["enregistree"] == {"numero": "1"} and p["empreinte_enregistree"] == "e"
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "2"}, empreinte="e")
+    E.transition(p, E.ENREGISTREE_EN_BASE, faits={"numero": "2"}, empreinte="e")
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="7")
     assert p["etape"] == E.ANNULEE and p["enregistree"] is None and p["annulee"] and p["numero_de_la_commande_annulee"] == "7"
 
 
-def test_une_commande_annulee_ne_revient_pas_et_l_allergie_fait_repartir_la_relecture():
+def test_une_commande_annulee_reprend_un_article_et_l_allergie_fait_repartir_la_relecture():
+    """Périmé (§ 17 l.407, décision d'Evan du 24/11 12 h 10 : « annuler = vider, on peut recommander ») : l'annulée n'était plus terminale pour un article, elle l'était pour tout.
+    Maintenant seul un panier touché (un article dit) la rouvre : l'étape repart en cours et le drapeau d'annulation tombe ; les autres évènements la laissent annulée."""
     p = P.nouveau()
     E.transition(p, E.ANNULEE_EN_COURS)
-    for ev in (E.PANIER_TOUCHE, E.ACCORD_DONNE, E.ENREGISTREE_EN_CAISSE):
+    for ev in (E.ACCORD_DONNE, E.ENREGISTREE_EN_BASE):
         E.transition(p, ev, faits={}, empreinte="e")
-        assert p["etape"] == E.ANNULEE
+        assert p["etape"] == E.ANNULEE and p["annulee"]
+    E.transition(p, E.PANIER_TOUCHE)
+    assert p["etape"] == E.EN_COURS and not p["annulee"]
     q = P.nouveau()
     E.transition(q, E.RELECTURE_POSEE, relecture={"a": 1}, l_accord_vaut=False)
     E.transition(q, E.ACCORD_DONNE)
@@ -188,7 +192,7 @@ def test_les_connecteurs_lisent_l_etape_et_gardent_la_forme_de_leurs_retours():
     assert A._action_ouverte(fiche) == {"outil": "fiche", "attend_une_reponse": False, "a_finir": True}
     assert A._etat_final(fiche) == {"enregistree": False, "articles": {"Regina": 2}, "mode": "emporter"}
     E.transition(p, E.ACCORD_DONNE)
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
+    E.transition(p, E.ENREGISTREE_EN_BASE, faits={"numero": "1"}, empreinte="e")
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is True
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="1")
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is False
@@ -211,7 +215,7 @@ def test_une_commande_finie_garde_son_mode_sans_etre_ouverte():
     """Voisin : enregistrée ou annulée, la commande garde son mode (``repartir_de_zero`` le reprend aussi) et n'est plus une action ouverte."""
     from api.services.integrations.connectors.actions import commande as A
 
-    for fin in (lambda p: E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e"),
+    for fin in (lambda p: E.transition(p, E.ENREGISTREE_EN_BASE, faits={"numero": "1"}, empreinte="e"),
                 lambda p: E.transition(p, E.ANNULEE_EN_COURS)):
         p = P.nouveau()
         p["mode"] = "emporter"
@@ -234,8 +238,7 @@ def test_un_appelant_connu_n_ouvre_pas_la_commande_au_bonjour():
 def test_seuls_le_choix_du_mode_et_le_panier_neuf_ecrivent_le_mode():
     """Le mode n'est jamais écrit par le chargement de l'appelant connu : dans ``services/commande``, seuls le choix du mode (``mode_et_adresse``) et
     ``repartir_de_zero`` (``panier``) l'écrivent DIRECTEMENT (``["mode"] =``). Un troisième écrivain direct ouvrirait la commande dès le bonjour d'un habitué.
-    Le test ne voit pas ``registre.repartir`` (la nouvelle commande, DC5), qui recopie le mode par une boucle (``neuf[cle] = p[cle]``) puis ``remplacer_par`` :
-    c'est la copie voulue, le mode de la commande d'avant est gardé."""
+    (§ 17 l.407 : ``registre.repartir`` n'existe plus, une commande annulée reprend dans le même panier.)"""
     import re
 
     ecrivains = sorted(
@@ -321,7 +324,7 @@ def test_l_empreinte_ne_compte_pas_les_lignes_qui_attendent_et_la_commande_enreg
     base = P.empreinte(p)
     attend = {**p, "lignes": [{"n": 1, "ref": "r1", "quantite": 1, "attente": {"nom": "taille"}, "code": None, "choix": [], "retires": []}]}
     assert P.empreinte(attend) == base, "une ligne qui attend sa réponse n'est pas dans l'empreinte"
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "n"}, empreinte=base)
+    E.transition(p, E.ENREGISTREE_EN_BASE, faits={"numero": "n"}, empreinte=base)
     assert p["empreinte_enregistree"] == base and p["enregistree"] == {"numero": "n"}
     ancien = {"lignes": [], "mode": "emporter", "enregistree": {"numero": "n"}}
     assert P.du_dossier({P.CLE: ancien})["empreinte_enregistree"] == P.empreinte(ancien), "un ancien panier enregistré monte avec l'empreinte de son panier"
