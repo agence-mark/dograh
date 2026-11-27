@@ -1682,15 +1682,13 @@ def _la_fiche_peut_enregistrer(p: dict[str, Any], arguments: dict[str, Any]) -> 
     consigne) sur une commande qui a des lignes et n'est pas déjà finie. Même condition que ``_la_fin_est_due``, sans l'exécution."""
     if not p.get("lignes") or ETAPE.finie(p):
         return False
-    if arguments.get("c_est_tout") is True:
-        return True
-    a_relire = ETAPE.courante(p) in (ETAPE.A_RELIRE, ETAPE.A_CLORE, ETAPE.ACCORDEE)
-    return a_relire and (isinstance(arguments.get("reponse"), dict) or any(arguments.get(k) not in (None, "") for k in (*contrat.CASES_DE_FIN, "consigne_livreur")))
+    de_fin = isinstance(arguments.get("reponse"), dict) or any(arguments.get(k) not in (None, "") for k in (*contrat.CASES_DE_FIN, "consigne_livreur"))
+    return arguments.get("c_est_tout") is True or (de_fin and ETAPE.courante(p) in (ETAPE.A_RELIRE, ETAPE.A_CLORE, ETAPE.ACCORDEE))
 
 
 async def _attendre_le_greffier_avant_la_fin(p: dict[str, Any], arguments: dict[str, Any], ctx: Any) -> None:
     """A1 (8b-3, option A d'Evan) : une allergie dite avec le « oui » doit être notée avant que la commande s'enregistre : sur la SEULE fiche qui peut enregistrer, la passe du greffier
-    est attendue (le délai du dernier tour, celui de la garde des actions). Au clavier ou sans greffier (``rattraper`` absent) : sans effet. Ne lève jamais."""
+    est attendue (le délai du dernier tour, celui de la garde des actions). Au clavier ou sans greffier (``rattraper`` absent) : sans effet."""
     rattraper = getattr(ctx, "rattraper", None)
     if rattraper is None or not _la_fiche_peut_enregistrer(p, arguments):
         return
@@ -1698,10 +1696,7 @@ async def _attendre_le_greffier_avant_la_fin(p: dict[str, Any], arguments: dict[
         DELAI_DE_LA_PASSE_DU_DERNIER_TOUR,
     )
 
-    try:
-        await rattraper(DELAI_DE_LA_PASSE_DU_DERNIER_TOUR)
-    except Exception as erreur:  # noqa: BLE001 -- R1 : au journal ; la fiche continue sans la passe
-        logger.warning(f"[.mark] passe du greffier non attendue avant l'enregistrement : {erreur!r}")
+    await rattraper(DELAI_DE_LA_PASSE_DU_DERNIER_TOUR)  # ``Greffier.rattraper`` ne lève jamais
 
 
 # Lot 6 (C10, complément de Pierre point 2) : l'issue de l'appel posée par l'opération qui la fait, au moment où elle la fait, jamais devinée par
