@@ -654,6 +654,9 @@ def rc2(o: Observation) -> list[Faute]:
     else:
         manque, surplus = +(o.attendu - reel), +(reel - o.attendu)
         vidage = bool({"vider_le_panier", "annuler_la_commande"} & set((o.retour or {}).get("cases_executees") or []))  # § 17 l.407 : le vidage emporte les articles gardés d'avant ; ceux d'après sont tous neufs
+        ajoutes_gardes = sum(int((x.get("faits") or {}).get("quantite") or 1) for x in (o.retour or {}).get("resultats") or [] if x.get("operation") == "ajouter" and "garde" in (x.get("faits") or {}))
+        if vidage and en_attente(o.apres) > ajoutes_gardes:  # R1 (audit 8b-2) : après le vidage, seuls restent gardés les articles que la fiche a ajoutés ; un article d'avant qui survit est une faute
+            f.append(("RC2", f"le vidage a laissé {en_attente(o.apres) - ajoutes_gardes} article(s) d'avant gardé(s) de côté ({en_attente(o.apres)} gardés, {ajoutes_gardes} ajoutés par la fiche)"))
         gardes = en_attente(o.apres) - (0 if vidage else en_attente(o.avant))
         liberes = en_attente(o.avant) - en_attente(o.apres)
         # ce qui manque au panier et qui est gardé de côté n'est pas perdu ; les gardés peuvent compter plus que ce qui manque : un article inconnu, dit
@@ -764,11 +767,17 @@ def rc7(o: Observation) -> list[Faute]:
     return []
 
 
+def _annulee_dans_la_fiche(o: Observation) -> bool:
+    """L'annulation a eu lieu dans la fiche de ce geste (l'ajout qui suit efface la marque « annulée » : le panier vidé reste voulu)."""
+    r = o.retour or {}
+    return "annuler_la_commande" in set(r.get("cases_executees") or []) or any("commande_annulee" in (x.get("faits") or {}) for x in r.get("resultats") or [])  # le « oui » à la question d'annulation
+
+
 def rc8(o: Observation) -> list[Faute]:
     """Une commande enregistrée ne change pas sans passer par la base ; § 17 l.407 : annulée, elle est vidée et un article dit ensuite entre (DC5 est tombé : la règle « aucune ligne
     ajoutée à une commande annulée » est retirée)."""
     r = o.retour or {}
-    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres) and not o.apres.get("annulee"):  # la ligne attend sa taille : la caisse après ; annulée, le panier est vidé (§ 17 l.407)
+    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres) and not o.apres.get("annulee") and not _annulee_dans_la_fiche(o):  # la ligne attend sa taille : la caisse après ; annulée (ou annulée dans cette fiche, puis un article dit : R2 de l'audit 8b-2), le panier est vidé (§ 17 l.407)
         ops = {x.get("operation") for x in r.get("resultats") or []}
         if "changer_la_commande_enregistree" not in ops:
             return [("RC8", "le panier d'une commande enregistrée change sans passer par la caisse")]

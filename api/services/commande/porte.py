@@ -218,8 +218,7 @@ def _avec_le_nouveau_numero(textes: dict[str, Any], phrase_du_numero_de_commande
     """Reprise R1 de 8b-1b : le numéro de commande a changé avec le changement (son préfixe suit le mode) ; sa phrase réglée passe en tête de la suite du code, après la phrase du modèle."""
     if not phrase_du_numero_de_commande:
         return textes
-    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x),
-            "a_faire": " ; ".join(x for x in (textes.get("a_faire"), A_SANS_LE_NUMERO_DE_COMMANDE) if x)}
+    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x), "a_faire_du_numero": A_SANS_LE_NUMERO_DE_COMMANDE}  # une consigne de plus, jamais collée à l'autre
 
 
 def _avec_l_adresse(textes: dict[str, Any], dernier: Resultat) -> dict[str, Any]:
@@ -1383,8 +1382,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     s'il l'a déjà entendu (une issue, puis la sortie)."""
     ctx, p, dernier, tour = f.ctx, f.p, f.dernier, f.tour
     annulation = next((r for r in reversed(f.bruts) if r.faits.get("annulee") or r.faits.get("commande_annulee")), None)
-    if annulation is not None and p.get("annulee"):
-        dernier = annulation  # § 17 l.407 : annulée dans cette fiche et toujours annulée (le reste de la fiche n'a pas rouvert un panier) : le fait dit est l'annulation, jamais le dernier geste
+    if annulation is not None and _panier_vide_apres_l_annulation(p):
+        dernier = annulation  # § 17 l.407 : annulée dans cette fiche et le panier finit vide (un mode ou « c'est tout » qui suit n'y change rien) : le fait dit est l'annulation, jamais le dernier geste
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
@@ -1397,6 +1396,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
         consignes.append((C.QUESTION, A_FAIRE_DE_L_HEURE))
     if textes.get("a_faire"):
         consignes.append((C.RESTE, str(textes["a_faire"])))  # C6 n° 5 et 6 : le modèle dit le fait accompli, le code la suite
+    if textes.get("a_faire_du_numero"):
+        consignes.append((C.RESTE, str(textes["a_faire_du_numero"])))  # 8b-2 : le numéro change, le code le dit après la phrase du modèle ; sa consigne est rangée à part, ``une_consigne`` les met dans l'ordre
     if refusants:  # C5 : le refus se lit sur les refusants, plus sur le texte de secours (une suggestion vide garde sa consigne)
         # Le refus se dit une fois comme un fait (B3, M5, C7, DF7) ; redit, le journal donne l'issue, puis la sortie. Une question née avec le refus se dit d'une seule voix avec lui.
         etape = J.fait_redit(p, " ".join(J.identite_du_refus(r) for r in refusants), tour, _seuil_de_sortie(ctx))
@@ -1719,11 +1720,17 @@ def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
     return ISSUES.issue_de_fin_d_appel(fiche_de_l_appel, CLE_ISSUES_REGLEES, "commande_abandonnee", _commande_commencee)
 
 
-def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any]) -> None:
-    """Après la fiche : enregistrée, ou annulée (en cours ou enregistrée) dans CE geste."""
+def _panier_vide_apres_l_annulation(p: dict[str, Any]) -> bool:
+    """Une annulation faite dans la fiche vaut jusqu'au bout si le panier finit vide : rien en cours, rien gardé de côté (R3 de l'audit 8b-2 ; un mode qui suit efface la marque « annulée » sans rouvrir de commande)."""
+    return bool(p.get("annulee")) or not (p.get("lignes") or p.get("dits_en_attente"))
+
+
+def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any], resultats: list[dict[str, Any]] | None = None) -> None:
+    """Après la fiche : enregistrée, ou annulée (en cours ou enregistrée) dans CE geste, même si un mode ou un « c'est tout » qui suit a effacé la marque et que le panier finit vide."""
+    annulee_dans_la_fiche = any((x.get("faits") or {}).get("annulee") or (x.get("faits") or {}).get("commande_annulee") for x in resultats or [])
     if p.get("enregistree") and not avant.get("enregistree"):
         poser_l_issue(ctx, "commande_enregistree")
-    elif (p.get("annulee") and not avant.get("annulee")) or (p.get("numero_de_la_commande_annulee") and p.get("numero_de_la_commande_annulee") != avant.get("numero_de_la_commande_annulee")):
+    elif (annulee_dans_la_fiche and _panier_vide_apres_l_annulation(p)) or (p.get("annulee") and not avant.get("annulee")) or (p.get("numero_de_la_commande_annulee") and p.get("numero_de_la_commande_annulee") != avant.get("numero_de_la_commande_annulee")):
         poser_l_issue(ctx, "commande_annulee")
 
 
@@ -1834,7 +1841,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 DU.assembler(retour, poser_le_minimum(ctx, p, retour), await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour),
                              poser_la_regle_de_la_ligne(retour.get("resultats") or [], retour), poser_les_regles_de_l_article(retour.get("resultats") or [], retour, p),
                              poser_le_prix_du_poids(retour.get("resultats") or [], retour), await poser_la_remise_du_code(ctx, source, p, regles, retour), poser_la_ligne_retiree(retour))
-                _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
+                _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant, retour.get("resultats"))
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))
                 return avec_le_fait_du_numero_affiche(retour, contexte_appelant_affiche(ctx))

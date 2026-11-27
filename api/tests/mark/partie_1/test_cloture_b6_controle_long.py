@@ -57,11 +57,11 @@ async def test_famille_1_l_article_connu_est_garde_du_mode_a_cote_d_un_inconnu(e
 
 
 async def test_famille_2_annuler_dans_la_fiche_vide_puis_l_article_entre(essai_de):
-    """Périmé (§ 17 l.407, décision d'Evan du 24/11 12 h 10, ``decisions-du-coordinateur.md:37`` : « annuler = vider, DC5 tombe ») : « Une regina, et annulez tout » : l'ordre des cases
+    """Périmé (§ 17 l.407, décision d'Evan du 24/11 12 h 10, ``decisions-du-coordinateur.md:37`` : « annuler = vider, DC5 tombe ») : « Annulez tout, une regina à la place. » (la phrase d'origine « une regina, et annulez tout » : son sens est laissé à Pierre, ``decisions-du-coordinateur.md``, dernière ligne du 27/11 7 h 23) : l'ordre des cases
     (vider et annuler, puis ajouter) fait que la regina entre dans le panier vidé ; l'ancien test attendait le refus « commande_annulee » et un panier vide."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
-    r = await e.tour("une regina, et annulez tout", ajouter=[REGINA], annuler_la_commande=True)
+    r = await e.tour("annulez tout, une regina à la place", ajouter=[REGINA], annuler_la_commande=True)
     assert _noms(e) == ["Regina Normale"] and not e.p.get("annulee") and not r.get("refus"), (e.p.get("lignes"), r.get("refus"))
     assert _dit_par_le_code(e) == "", _dit_par_le_code(e)  # C6 n° 7 : rien n'est dit par le code
 
@@ -75,6 +75,9 @@ async def test_famille_2_annuler_dans_la_fiche_vide_et_le_reste_de_la_fiche_suit
     await e.tour("annulez, finalement en livraison, c'est tout", annuler_la_commande=True, mode_de_retrait="livraison", c_est_tout=True)
     assert not e.p.get("lignes") and e.p.get("mode") == "livraison" and not e.p.get("relecture"), e.p
     assert _dit_par_le_code(e) == "", _dit_par_le_code(e)  # C6 n° 7 : le modèle dit l'annulation d'après les résultats de la fiche ; le mode changé rouvre un panier vide (``toucher``)
+    # R3 de l'audit 8b-2 : annulée dans la fiche et le panier finit vide : le fait donné au modèle est l'annulation (jamais « c'est tout »), et l'issue d'appel est posée
+    assert J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, J.fait_accompli(e.p)
+    assert e.fiche_de_l_appel.get("call_disposition") == "commande_annulee", e.fiche_de_l_appel.get("call_disposition")
 
 
 async def test_famille_3_c_est_tout_attend_l_article_en_doute(essai_de):

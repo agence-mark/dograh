@@ -9,8 +9,7 @@ Mécanisme commun à toute action interne, sans un mot de métier, sous l'interr
 
 - un résultat qui demande une confirmation (``faits.a_confirmer`` vrai) note le tour de la personne où il a été rendu
   (``CLE_TOUR`` de la fiche), par action ;
-- un appel de la même action avec ``confirmer`` vrai, dans ce MÊME tour, n'est pas joué : un refus neutre, sans phrase à dire
-  (``suggestion`` vide), avec la consigne d'attendre la réponse ; au tour suivant de la personne, il est joué comme avant ;
+- un appel de la même action avec ``confirmer`` vrai, dans ce MÊME tour, n'est pas joué : un refus neutre, sans phrase à dire, avec la consigne d'attendre la réponse ; au tour suivant de la personne, il est joué comme avant ;
 - invisible quand tout va bien : rien n'est ajouté à un résultat, aucune question ni phrase n'est imposée à l'agent.
 
 Sans compteur de tours dans la fiche (agent sans fiche), rien n'est retenu : le comportement d'avant. ⛔ Ne lève jamais.
@@ -50,7 +49,6 @@ def confirmation_avant_la_reponse(fiche: Any, cle: str, arguments: dict | None) 
         return {
             "statut": "INCOMPLETE",
             "faits": {"en_attente_de_la_reponse": True},
-            "suggestion": "",
             "manque": "reponse_a_la_relecture",
             "consigne": CONSIGNE,
         }

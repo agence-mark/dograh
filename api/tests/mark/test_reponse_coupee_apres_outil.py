@@ -20,9 +20,9 @@ flux du cerveau, ouvert à 21:00:45.242, ne rend toujours rien.
 |---|---|
 | clavier | le passage du clavier arme la garde du modèle sur l'agent qui parle, comme le téléphone |
 | flux muet sans garde | la cause : il n'en sort jamais (seul le chien de garde de 35 s y met fin, en coupant l'appel) |
-| flux muet gardé, après un outil | relancé une fois, puis la ``suggestion`` de l'outil est dite : jamais un silence |
+| flux muet gardé, après un outil | relancé une fois (lot 8d : jamais la ``suggestion`` de l'outil dite par le code) : jamais un silence |
 | flux vide après un outil | relancé une fois (même sans jeton compté), la relance est rendue |
-| relance vide après un outil | la ``suggestion`` de l'outil est dite (``texte_a_dire`` d'abord) |
+| relance vide après un outil | la phrase réglée « réponse perdue » est dite (lot 8d : jamais le texte de l'outil) |
 | texte déjà dit par le code | le silence du modèle est la bonne réponse : rien n'est relancé ni redit |
 """
 
@@ -36,7 +36,7 @@ import re
 import pytest
 
 from api.services.panne.delai_modele import DelaiModeleMixin
-from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin
+from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin, phrase_de_repli
 from api.services.workflow import text_chat_runner
 from api.tests.mark.test_reponse_avalee import FLUX_AVALE, _Base, _Contexte, _morceau, _reponse
 
@@ -121,13 +121,14 @@ async def test_la_cause_un_flux_muet_sans_garde_ne_finit_jamais():
         await asyncio.wait_for(lire(), 0.3)
 
 
-async def test_un_flux_muet_garde_apres_un_outil_dit_la_suggestion_de_l_outil():
+async def test_un_flux_muet_garde_apres_un_outil_est_relance_sans_dire_le_texte_de_l_outil():
+    # Lot 8d (périmé par REPRISE.md:30 : « le modèle parle, jamais le code ») : relancé une fois, jamais la suggestion de l'outil dite par le code.
     service = _ServiceGarde()
     service.mark_delai_modele_s = 0.05
     morceaux = await asyncio.wait_for(
         _lire_tout(service, _apres_l_outil(INCOMPLETE)), 2
     )
-    assert _texte(morceaux) == SUGGESTION
+    assert SUGGESTION not in _texte(morceaux)
     assert len(service.requetes) == 1 and service.requetes[0]["stream"] is False  # relancé une fois, sans flux
 
 
@@ -150,18 +151,19 @@ async def test_un_flux_vide_apres_un_outil_qui_propose_une_phrase_est_relance():
     assert len(service.requetes) == 1
 
 
-async def test_une_relance_vide_apres_un_outil_dit_le_texte_de_l_outil():
+async def test_une_relance_vide_apres_un_outil_dit_la_phrase_reglee_pas_le_texte_de_l_outil():
+    # Lot 8d (périmé par REPRISE.md:30-31 : « aucun texte de secours dit par le code ») : la phrase réglée « réponse perdue ».
     for service in (_Service(FLUX_AVALE, reprise=_reponse()), _Service(FLUX_AVALE, erreur=RuntimeError("x"))):
-        assert _texte(await _lire_tout(service, _apres_l_outil(INCOMPLETE))) == SUGGESTION
+        assert _texte(await _lire_tout(service, _apres_l_outil(INCOMPLETE))) == phrase_de_repli(service)
     a_dire = {**INCOMPLETE, "texte_a_dire": "Votre numéro, s'il vous plaît ?", "restitution": "mot_pour_mot"}
     service = _Service(FLUX_AVALE, reprise=_reponse())
-    assert _texte(await _lire_tout(service, _apres_l_outil(a_dire))) == "Votre numéro, s'il vous plaît ?"
+    assert _texte(await _lire_tout(service, _apres_l_outil(a_dire))) == phrase_de_repli(service)
 
 
-async def test_une_suggestion_rangee_dans_data_est_dite_aussi():
+async def test_une_suggestion_rangee_dans_data_n_est_pas_dite_non_plus():
     resultat = {"status": "success", "data": {"suggestion": SUGGESTION}}
     service = _Service(FLUX_AVALE, reprise=_reponse())
-    assert _texte(await _lire_tout(service, _apres_l_outil(resultat))) == SUGGESTION
+    assert _texte(await _lire_tout(service, _apres_l_outil(resultat))) == phrase_de_repli(service)
 
 
 async def test_un_texte_deja_dit_par_le_code_laisse_le_silence_du_modele():
