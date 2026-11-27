@@ -195,6 +195,17 @@ async def faits_a_redonner_pour_les_lignes_nouvelles(source: Source, p: dict[str
     return None
 
 
+async def _annuler_la_ligne_retenue(source: Source, p: dict[str, Any]) -> None:
+    """8b-3 R1-bis : une allergie dite après le « oui » (commande enregistrée) retire l'accord ; la ligne ``retenue`` de la base passe à « annulée » au tour même, sans envoi (comme l'annulation
+    après le « oui »). Le nouveau « oui » la rouvre sous le même numéro (``rouvrir``). Un refus de la base (la ligne n'est plus ``retenue`` : déjà partie ou annulée) ne change rien de plus : le filet ne la prend pas."""
+    numero = (p.get("enregistree") or {}).get("numero") if ETAPE.enregistree(p) else None
+    if numero is None:
+        return
+    r = await source.annuler_une_commande(str(numero))
+    if r.statut not in ("OK", "DEJA_FAIT"):
+        logger.error(f"[.mark] commande {numero} : l'annulation après l'allergie est refusée par la base ({r.statut})")
+
+
 async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
     """Le fait bloquant : ni relecture ni enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour DÉJÀ FINI (critère sur l'état, jamais sur les mots).
     Si la fiche de ce tour est la première à connaître l'allergie, le retour porte ses faits et la relecture repart de zéro. A2 : une ligne ajoutée ou changée depuis, dont un allergène dit est
@@ -214,6 +225,7 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
     if faits is None:
         faits = await faits_de_l_allergie(source, p) or {}
     noter_l_allergie_donnee(p, tour)
+    await _annuler_la_ligne_retenue(source, p)  # R1-bis : l'accord est retiré, la ligne ne doit plus pouvoir partir (filet E11) sans nouveau « oui »
     ETAPE.transition(p, ETAPE.ALLERGIE_A_DONNER)
     return _avec(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
 
