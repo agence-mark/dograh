@@ -75,6 +75,9 @@ async def test_famille_2_annuler_dans_la_fiche_vide_et_le_reste_de_la_fiche_suit
     await e.tour("annulez, finalement en livraison, c'est tout", annuler_la_commande=True, mode_de_retrait="livraison", c_est_tout=True)
     assert not e.p.get("lignes") and e.p.get("mode") == "livraison" and not e.p.get("relecture"), e.p
     assert _dit_par_le_code(e) == "", _dit_par_le_code(e)  # C6 n° 7 : le modèle dit l'annulation d'après les résultats de la fiche ; le mode changé rouvre un panier vide (``toucher``)
+    # R3 de l'audit 8b-2 : annulée dans la fiche et le panier finit vide : le fait donné au modèle est l'annulation (jamais « c'est tout »), et l'issue d'appel est posée
+    assert J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, J.fait_accompli(e.p)
+    assert e.fiche_de_l_appel.get("call_disposition") == "commande_annulee", e.fiche_de_l_appel.get("call_disposition")
 
 
 async def test_famille_3_c_est_tout_attend_l_article_en_doute(essai_de):
