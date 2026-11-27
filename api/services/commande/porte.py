@@ -218,8 +218,7 @@ def _avec_le_nouveau_numero(textes: dict[str, Any], phrase_du_numero_de_commande
     """Reprise R1 de 8b-1b : le numéro de commande a changé avec le changement (son préfixe suit le mode) ; sa phrase réglée passe en tête de la suite du code, après la phrase du modèle."""
     if not phrase_du_numero_de_commande:
         return textes
-    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x),
-            "a_faire": " ; ".join(x for x in (textes.get("a_faire"), A_SANS_LE_NUMERO_DE_COMMANDE) if x)}
+    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x), "a_faire_du_numero": A_SANS_LE_NUMERO_DE_COMMANDE}  # une consigne de plus, jamais collée à l'autre
 
 
 def _avec_l_adresse(textes: dict[str, Any], dernier: Resultat) -> dict[str, Any]:
@@ -1375,6 +1374,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
         consignes.append((C.QUESTION, A_FAIRE_DE_L_HEURE))
     if textes.get("a_faire"):
         consignes.append((C.RESTE, str(textes["a_faire"])))  # C6 n° 5 et 6 : le modèle dit le fait accompli, le code la suite
+    if textes.get("a_faire_du_numero"):
+        consignes.append((C.RESTE, str(textes["a_faire_du_numero"])))  # 8b-2 : le numéro change, le code le dit après la phrase du modèle ; sa consigne est rangée à part, ``une_consigne`` les met dans l'ordre
     if refusants:  # C5 : le refus se lit sur les refusants, plus sur le texte de secours (une suggestion vide garde sa consigne)
         # Le refus se dit une fois comme un fait (B3, M5, C7, DF7) ; redit, le journal donne l'issue, puis la sortie. Une question née avec le refus se dit d'une seule voix avec lui.
         etape = J.fait_redit(p, " ".join(J.identite_du_refus(r) for r in refusants), tour, _seuil_de_sortie(ctx))
