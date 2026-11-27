@@ -119,7 +119,7 @@ async def test_echec_repete_le_troisieme_appel_identique_n_est_pas_lance_et_rend
     for _ in range(2):
         assert (await jouer("echoue", {"q": "x"}, fiche, TOUTES)).donnees["statut"] == "INTROUVABLE"
     r = await jouer("echoue", {"q": "x"}, fiche, TOUTES)
-    assert r.statut == "ok" and r.donnees["statut"] == "ECHEC_REPETE" and "demande de rappel" in r.donnees["suggestion"]
+    assert r.statut == "ok" and r.donnees["statut"] == "ECHEC_REPETE" and "demande de rappel" in r.donnees["consigne"] and "suggestion" not in r.donnees  # lot 8d : une consigne, jamais un texte à dire
     assert JOURNAL.count("echoue:['q']") == 2                                  # le troisième n'a pas tourné
     # un autre argument repart ; un autre appel de la même fiche aussi
     assert (await jouer("echoue", {"q": "y"}, fiche, TOUTES)).donnees["statut"] == "INTROUVABLE"

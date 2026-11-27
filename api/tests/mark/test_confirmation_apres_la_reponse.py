@@ -70,7 +70,7 @@ async def test_une_confirmation_dans_le_tour_de_la_relecture_n_est_pas_jouee():
     assert relecture == RELECTURE  # invisible : le résultat de la relecture est intact
     refus = await _appeler(fiche, joues, {"confirmer": True})
     assert joues == [{}], "la confirmation sans réponse de la personne a été jouée"
-    assert refus["statut"] != "ENREGISTREE" and refus["suggestion"] == ""
+    assert refus["statut"] != "ENREGISTREE" and "suggestion" not in refus  # lot 8d : aucune phrase, ni vide
     assert refus["manque"] == "reponse_a_la_relecture"
 
 
