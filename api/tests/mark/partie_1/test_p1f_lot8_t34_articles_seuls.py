@@ -159,3 +159,30 @@ async def test_r2_sans_autre_case_aucune_case_non_prise(essai_de):
     await e.tour("une margherita normale", ajouter=[MARGHERITA])
     r = await e.tour("une margherita normale", ajouter=[MARGHERITA])
     assert RAISON in _raisons(r) and "cases_non_prises" not in r["faits"], r
+
+
+
+async def test_r2_la_consigne_dit_de_refaire_la_fiche_sans_l_article_et_cette_fiche_n_ajoute_rien(essai_de):
+    """3e passage d'audit T34 : renvoyée telle quelle dans le même tour, la fiche serait encore refusée comme identique ; la consigne dit donc de refaire la fiche avec les cases
+    non prises SANS l'article, tant que le client n'a pas répondu à « un de plus ou le même ? ». La fiche refaite ainsi (paiement, numéro, prénom seuls) n'est pas refusée comme
+    identique et n'ajoute aucun article ; avant la relecture, ces cases suivent leur ordre habituel (B4 : redemandées à leur tour)."""
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    r = await e.tour("par carte, c'est Léa", ajouter=[MARGHERITA], **FIN)
+    assert RAISON in _raisons(r), r
+    assert "sans l'article" in str(r.get("a_faire")) and "un de plus ou le même" in str(r.get("a_faire")), r.get("a_faire")
+    r = await e.fiche(**FIN)
+    assert RAISON not in _raisons(r) and _margheritas(e) == 1, r
+
+
+async def test_r2_la_fiche_refaite_sans_l_article_pose_la_case_non_prise(essai_de):
+    """La case non prise, remise seule dans la fiche refaite du même tour, est posée : « Une margherita. » … « Une margherita, à emporter. » / refusée (mode non pris) / fiche
+    refaite avec le mode seul : à emporter, une margherita."""
+    e = await essai_de()
+    await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    r = await e.tour("une margherita normale, à emporter", ajouter=[MARGHERITA], mode_de_retrait="emporter")
+    assert RAISON in _raisons(r) and r["faits"].get("cases_non_prises") == ["mode_de_retrait"], r
+    assert "sans l'article" in str(r.get("a_faire")), r.get("a_faire")
+    r = await e.fiche(mode_de_retrait="emporter")
+    assert RAISON not in _raisons(r) and e.p.get("mode") == "emporter" and _margheritas(e) == 1, r
