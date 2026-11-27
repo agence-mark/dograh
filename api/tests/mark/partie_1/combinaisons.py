@@ -654,6 +654,9 @@ def rc2(o: Observation) -> list[Faute]:
     else:
         manque, surplus = +(o.attendu - reel), +(reel - o.attendu)
         vidage = bool({"vider_le_panier", "annuler_la_commande"} & set((o.retour or {}).get("cases_executees") or []))  # § 17 l.407 : le vidage emporte les articles gardés d'avant ; ceux d'après sont tous neufs
+        ajoutes_gardes = sum(int((x.get("faits") or {}).get("quantite") or 1) for x in (o.retour or {}).get("resultats") or [] if x.get("operation") == "ajouter" and "garde" in (x.get("faits") or {}))
+        if vidage and en_attente(o.apres) > ajoutes_gardes:  # R1 (audit 8b-2) : après le vidage, seuls restent gardés les articles que la fiche a ajoutés ; un article d'avant qui survit est une faute
+            f.append(("RC2", f"le vidage a laissé {en_attente(o.apres) - ajoutes_gardes} article(s) d'avant gardé(s) de côté ({en_attente(o.apres)} gardés, {ajoutes_gardes} ajoutés par la fiche)"))
         gardes = en_attente(o.apres) - (0 if vidage else en_attente(o.avant))
         liberes = en_attente(o.avant) - en_attente(o.apres)
         # ce qui manque au panier et qui est gardé de côté n'est pas perdu ; les gardés peuvent compter plus que ce qui manque : un article inconnu, dit
