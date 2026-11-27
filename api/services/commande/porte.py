@@ -924,6 +924,13 @@ def _prenom_qui_change(p: dict[str, Any], case: str, valeur: Any) -> bool:
     return case == P.CLE_DU_PRENOM and ETAPE.courante(p) == RQ.ENREGISTREE and moteur.prenom_retenu(str(valeur)) != P.prenom_de(p)
 
 
+def _garder_l_annulation_voulue(f: LaFiche, refusees_en_propre: set[str]) -> None:
+    """RC4 : le refus d'une autre case (le règlement avant l'accord de la relecture) n'écarte pas l'annulation que la personne a demandée : « annuler » reste dans ``cases_ecartees``
+    seulement quand elle est refusée pour elle-même. Le reste de la fiche suit l'ordre des cases : vider, puis ajouter (§ 17 l.407, plus de refus après l'annulation)."""
+    if f.fiche.get("annuler_la_commande") is True and ETAPE.courante(f.p) != ETAPE.ANNULEE and "*" not in f.ecartees and "annuler_la_commande" not in refusees_en_propre:
+        f.ecartees.discard("annuler_la_commande")
+
+
 async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
     """L'état d'AVANT la fiche (la question posée, le panier d'avant, l'étape) et ce que la fiche ne peut pas faire : une réponse déjà sans objet, un article déjà en question."""
     p, fiche, source, regles = f.p, f.fiche, f.source, f.regles
@@ -991,6 +998,7 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
     await _refus_des_cases(f, f.refus)
     propres = [c for r in f.refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"]]
     f.ecartees = cases_ecartees(propres)
+    _garder_l_annulation_voulue(f, set(propres))
     # B4 (M6, point 3) : une case déjà faite dans ce tour, à l'identique (la fiche refaite après un refus partiel), n'est pas refaite
     f.deja_faites = {c for c, v in f.fiche.items() if c not in f.ecartees and case_deja_faite(p, tour, c, v)}
     await _lire_ce_qui_est_deja_pose(f)
