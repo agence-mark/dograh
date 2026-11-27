@@ -66,6 +66,7 @@ class Observation:
     finaliser_appels: int = 0  # combien de fois la fiche de ce geste a mené la commande à sa fin (invariant : jamais plus d'une)
     relance_du_fait: bool = False  # lot 7b-C5 : le modèle a déjà été relancé avec le fait dans ce tour (le plafond d'une relance par tour)
     identique: bool = False  # PE-1 : la fiche est celle du tour d'avant ; le juge attend le panier inchangé ET le refus qui fait demander « un de plus ou le même ? »
+    base_avant: dict[str, Any] | None = None  # T15 (b) : la commande de ``resto_commande`` telle que l'observation d'avant (ou la fin de la recette) l'a lue
 
     @property
     def dit_par_le_code(self) -> str:
@@ -360,6 +361,7 @@ class Partie:
         self.ajoutees: list[tuple[int, dict[str, Any], bool]] = []
         self.fiche_du_tour: dict[str, Any] | None = None  # la fiche déjà jouée dans le tour en cours (G31 la rejoue dans CE tour ; un nouveau tour la rend au suivant, G32)
         self.attendu: Counter | None = Counter()
+        self.base_d_avant: dict[str, Any] | None = None  # T15 (b) : la base lue à l'observation d'avant
         for x in [*monde.carte.get("produits", []), *(monde.carte.get("formules") or [])]:
             cle = str(x["nom"]).casefold()
             REFS_DE_LA_CARTE[cle] = x["id"] if REFS_DE_LA_CARTE.get(cle, x["id"]) == x["id"] else ""  # deux articles du même nom : pas de ref sûre
@@ -435,7 +437,8 @@ class Partie:
             consigne = R.consigne_de_relance(self.p, e.fiche_de_l_appel, PAROLE.etat_du_tour(e.fiche_de_l_appel))
         base, prise = await self._lire_la_base()
         o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, consigne, base, prise, nombre_de_fins if fiche is not None else 0,
-                        relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait, identique=identique)
+                        relance_du_fait=PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait, identique=identique, base_avant=self.base_d_avant)
+        self.base_d_avant = base
         self.observations.append(o)
         # C6 n° 5 (décision d'Evan 25/11 9 h 30) : un fait accompli neuf est dit par le modèle, suivi de la question M108 du code ; ce que la personne entend de neuf est ce fait (gardé au journal)
         fait = (o.textes or {}).get("fait_accompli")  # B9 : les faits du fait accompli (plus une phrase) ; deux fois les mêmes faits = redit
@@ -595,6 +598,7 @@ class Partie:
                     return False
         self.observations.clear()
         self.attendu = lignes_de(self.p)
+        self.base_d_avant, _ = await self._lire_la_base()
         return ATTEINT[etat](self.p)
 
 
@@ -866,9 +870,10 @@ def _lignes_de_la_base(commande: dict[str, Any]) -> Counter:
 
 
 def rc_base(o: Observation) -> list[Faute]:
-    """Pendant l'appel : la commande enregistrée est la même dans le panier et dans ``resto_commande`` (et ses lignes) : lignes (code, retraits, quantité), total, mode ;
-    elle y est « retenue » et la caisse n'en a RIEN reçu (§ 17 : elle part à la fin de l'appel, jugée par ``rc_base_fin``). Une commande fausse en base ne reste jamais verte
-    parce que le panier en mémoire est juste (Pierre 15)."""
+    """Pendant l'appel : la commande enregistrée est la même dans le panier et dans ``resto_commande`` (et ses lignes) : lignes (code, retraits, quantité), total, mode, adresse, note
+    et consigne au livreur (T15 (c)) ; elle y est « retenue » et la caisse n'en a RIEN reçu (§ 17 : elle part à la fin de l'appel, jugée par ``rc_base_fin``). Une commande fausse en
+    base ne reste jamais verte parce que le panier en mémoire est juste (Pierre 15). T15 (b) : tant qu'une ligne attend sa taille, la base ne bouge pas ; (a) : après un refus de
+    changement, le panier est la base, sauf une ligne en attente qu'aucune fiche refusée n'a complétée. (d) « caisse qui ne sait pas annuler » : sans objet (§ 17 l.404)."""
     e = o.apres.get("enregistree")
     if not e:
         return []
@@ -877,15 +882,61 @@ def rc_base(o: Observation) -> list[Faute]:
     if b is None:
         return [*f, ("BASE", f"enregistrée dans le panier (numéro {e.get('numero')}), absente de resto_commande")]
     annulee = bool(o.apres.get("annulee") or e.get("annulee"))
-    if P.a_completer(o.apres) and not annulee:
-        return f  # RC8 : un changement dont une ligne attend sa taille part en caisse après sa réponse ; en attendant, la base est celle d'avant
     if annulee != (b.get("statut") == "annulee"):
         f.append(("BASE", f"panier {'annulé' if annulee else 'actif'}, resto_commande au statut « {b.get('statut')} »"))
     if annulee:
         return f
     if b.get("statut") != "retenue":
         f.append(("BASE", f"pendant l'appel, resto_commande au statut « {b.get('statut')} » (attendu : retenue)"))
-    return f + _panier_face_a_la_base(o.apres, b)
+    if P.a_completer(o.apres):
+        # RC8 : un changement dont une ligne attend sa taille part en base après sa réponse ; en attendant, la base est celle d'avant, et elle ne bouge pas (T15 (b))
+        return f + _la_base_n_a_pas_bouge(o) + _apres_un_refus(o)
+    return f + _panier_face_a_la_base(o.apres, b) + _apres_un_refus(o)
+
+
+STATUTS_DU_CHANGEMENT_PASSE = ("ENREGISTREE", "DEJA_FAIT", "OK", "CHOIX_OBLIGATOIRE", "RETENU", "FAIT")
+
+
+def _la_base_n_a_pas_bouge(o: Observation) -> list[Faute]:
+    """T15 (b) : une ligne attend sa taille, rien n'est réécrit : la commande de ``resto_commande`` est celle de l'observation d'avant (même numéro)."""
+    a, b = o.base_avant, o.base
+    if a is None or b is None or str(a.get("numero")) != str(b.get("numero")):
+        return []
+    f: list[Faute] = []
+    if _lignes_de_la_base(a) != _lignes_de_la_base(b) or a.get("total") != b.get("total") or a.get("mode") != b.get("mode"):
+        f.append(("BASE", "une ligne attend sa taille et la base a bougé (lignes, total ou mode : elle ne change qu'à la réponse)"))
+    for cle in ("adresse", "note", "consigne_livreur"):
+        if a.get(cle) != b.get(cle):
+            f.append(("BASE", f"une ligne attend sa taille et la base a bougé ({cle} : elle ne change qu'à la réponse)"))
+    return f
+
+
+def _changement_refuse(o: Observation) -> bool:
+    ops = [x for x in (o.retour or {}).get("resultats") or [] if x.get("operation") == "changer_la_commande_enregistree"]
+    return bool(o.avant.get("enregistree")) and any(x.get("statut_du_module") not in STATUTS_DU_CHANGEMENT_PASSE for x in ops)
+
+
+def _la_fiche_completait_la_ligne(o: Observation) -> bool:
+    """La fiche répond à la question d'une ligne en attente (sa taille) : sa réponse la complète (option C : « qu'aucune fiche refusée n'a complétée »)."""
+    fiche = o.fiche or {}
+    reponse = fiche.get("reponse")
+    return (isinstance(reponse, dict) and _reponse_vivante(fiche, o.avant) and question(o.avant).get("type") in QUESTIONS_SUR_UN_ARTICLE
+            and bool(reponse.get("valeurs") or reponse.get("sens") == "accepte"))
+
+
+def _apres_un_refus(o: Observation) -> list[Faute]:
+    """T15 (a) : un changement de la commande enregistrée est refusé : la ligne en attente que la fiche refusée complétait n'est pas revenue (option C), et le mode, l'adresse, la note
+    et la consigne sont ceux d'avant la fiche (le panier sans la fiche refusée ; sans ligne en attente, ``_panier_face_a_la_base`` juge aussi le panier face à la base)."""
+    if not _changement_refuse(o):
+        return []
+    f: list[Faute] = []
+    attendaient = {l.get("n") for l in P.a_completer(o.avant)}
+    if _la_fiche_completait_la_ligne(o) and any(l.get("n") in attendaient for l in P.a_completer(o.apres)):
+        f.append(("BASE", "changement refusé (refus) : la ligne en attente que la fiche refusée complétait est revenue en attente (option C : elle sort avec le refus)"))
+    for cle in ("mode", "adresse", "note", "consigne_livreur"):
+        if o.avant.get(cle) != o.apres.get(cle):
+            f.append(("BASE", f"changement refusé (refus) : {cle} n'est plus celui d'avant la fiche"))
+    return f
 
 
 def _panier_face_a_la_base(p: dict[str, Any], b: dict[str, Any]) -> list[Faute]:
@@ -900,6 +951,13 @@ def _panier_face_a_la_base(p: dict[str, Any], b: dict[str, Any]) -> list[Faute]:
         f.append(("BASE", f"total du panier {e.get('total')} / total de resto_commande {b.get('total')}"))
     if p.get("mode") and p.get("mode") != b.get("mode"):
         f.append(("BASE", f"mode du panier {p.get('mode')} / mode de resto_commande {b.get('mode')}"))
+    if p.get("adresse") and p.get("adresse") != b.get("adresse"):
+        f.append(("BASE", f"adresse du panier {p.get('adresse')} / adresse de resto_commande {b.get('adresse')}"))  # T15 (c) : T13
+    if p.get("note") and str(p["note"]) not in str(b.get("note") or ""):
+        f.append(("BASE", f"note du panier « {p.get('note')} » / note de resto_commande « {b.get('note')} »"))
+    consigne = str(p.get("consigne_livreur") or "").strip()
+    if consigne and consigne.casefold() != "aucune" and consigne != str(b.get("consigne_livreur") or ""):
+        f.append(("BASE", f"consigne au livreur du panier « {consigne} » / consigne de resto_commande « {b.get('consigne_livreur')} »"))
     return f
 
 
