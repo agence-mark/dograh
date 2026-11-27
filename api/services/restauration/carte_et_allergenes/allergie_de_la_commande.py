@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import asyncpg
 from loguru import logger
 
 from api.services.actions_communes import phrases_d_information as INFO
@@ -195,6 +196,10 @@ async def faits_a_redonner_pour_les_lignes_nouvelles(source: Source, p: dict[str
     return None
 
 
+# Ce que l'annulation de la ligne peut lever sans que ce soit un défaut du code : la base (erreur SQL, connexion perdue ou fermée), le réseau, le délai.
+PANNES_DE_BASE = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError)
+
+
 async def _annuler_la_ligne_retenue(source: Source, p: dict[str, Any]) -> None:
     """8b-3 R1-bis : une allergie dite après le « oui » (commande enregistrée) retire l'accord ; la ligne ``retenue`` de la base passe à « annulée » au tour même, sans envoi (comme l'annulation
     après le « oui »). Le nouveau « oui » la rouvre sous le même numéro (``rouvrir``). Un refus de la base (la ligne n'est plus ``retenue`` : déjà partie ou annulée) ne change rien de plus : le filet ne la prend pas."""
@@ -203,7 +208,7 @@ async def _annuler_la_ligne_retenue(source: Source, p: dict[str, Any]) -> None:
         return
     try:
         r = await source.annuler_une_commande(str(numero))
-    except Exception:  # noqa: BLE001 -- une panne de base ne garde jamais l'accord : il est retiré quand même (la fin de l'appel n'envoie rien), la trace est journalisée
+    except PANNES_DE_BASE:  # une panne de base ne garde jamais l'accord : il est retiré quand même (la fin de l'appel n'envoie rien), la trace est journalisée
         logger.exception(f"[.mark] commande {numero} : l'annulation après l'allergie a levé, l'accord est retiré quand même")
         return
     if r.statut not in ("OK", "DEJA_FAIT"):
@@ -229,8 +234,10 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
     if faits is None:
         faits = await faits_de_l_allergie(source, p) or {}
     noter_l_allergie_donnee(p, tour)
-    await _annuler_la_ligne_retenue(source, p)  # R1-bis : l'accord est retiré, la ligne ne doit plus pouvoir partir (filet E11) sans nouveau « oui »
-    ETAPE.transition(p, ETAPE.ALLERGIE_A_DONNER)
+    try:
+        await _annuler_la_ligne_retenue(source, p)  # R1-bis : la ligne ne doit plus pouvoir partir (filet E11) sans nouveau « oui »
+    finally:
+        ETAPE.transition(p, ETAPE.ALLERGIE_A_DONNER)  # l'accord est retiré quoi qu'il arrive à l'annulation (une exception imprévue remonte, après le retrait)
     return _avec(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
 
 
