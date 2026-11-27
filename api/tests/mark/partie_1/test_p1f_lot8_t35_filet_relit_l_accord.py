@@ -145,3 +145,29 @@ async def test_t35_retente_la_base_tombe_au_tour_de_l_allergie_revient_au_suivan
     alertes: list = []
     await _le_filet(e, alertes)
     assert e.source.prise.recues == [] and await _lignes(e) == [(numero, "annulee")] and alertes == [], (e.source.prise.recues, await _lignes(e), alertes)
+
+
+async def test_t35_r1_la_retente_survit_a_une_annulation_du_panier_et_le_filet_n_envoie_rien(essai_de, monkeypatch):
+    """« Oui, c'est bon. » / « Ah, et mon fils est allergique aux noix. » (base en panne : ni marque ni annulation) / « Bon, laissez tomber, j'annule. » (base revenue) / l'appel plante :
+    avant, la retente s'arrêtait sur l'étape « annulée » (qui ne touche pas la ligne) et le filet envoyait le gâteau ; après, la ligne est annulée en base, rien n'est reçu."""
+    from api.db.bases_clients import restauration_liaison as liaison_db
+
+    e, numero = await _enregistree(essai_de)
+    original_statut, original_marque = restauration.changer_statut, liaison_db.marquer_l_accord_retire
+
+    async def en_panne(*args, **kwargs):
+        raise ConnectionError("base indisponible")
+
+    _greffier_qui_note_l_allergie(e)
+    monkeypatch.setattr(restauration, "changer_statut", en_panne)
+    monkeypatch.setattr(liaison_db, "marquer_l_accord_retire", en_panne)
+    try:
+        await e.tour("ah, et mon fils est allergique aux noix", note_generale="allergique aux noix")
+    finally:
+        monkeypatch.setattr(restauration, "changer_statut", original_statut)
+        monkeypatch.setattr(liaison_db, "marquer_l_accord_retire", original_marque)
+    assert await _lignes(e) == [(numero, "retenue")], await _lignes(e)
+    await e.tour("bon, laissez tomber, j'annule", annuler_la_commande=True)
+    alertes: list = []
+    await _le_filet(e, alertes)
+    assert e.source.prise.recues == [] and await _lignes(e) == [(numero, "annulee")], (e.source.prise.recues, await _lignes(e))
