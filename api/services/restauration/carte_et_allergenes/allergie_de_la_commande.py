@@ -201,7 +201,11 @@ async def _annuler_la_ligne_retenue(source: Source, p: dict[str, Any]) -> None:
     numero = (p.get("enregistree") or {}).get("numero") if ETAPE.enregistree(p) else None
     if numero is None:
         return
-    r = await source.annuler_une_commande(str(numero))
+    try:
+        r = await source.annuler_une_commande(str(numero))
+    except Exception:  # noqa: BLE001 -- une panne de base ne garde jamais l'accord : il est retiré quand même (la fin de l'appel n'envoie rien), la trace est journalisée
+        logger.exception(f"[.mark] commande {numero} : l'annulation après l'allergie a levé, l'accord est retiré quand même")
+        return
     if r.statut not in ("OK", "DEJA_FAIT"):
         logger.error(f"[.mark] commande {numero} : l'annulation après l'allergie est refusée par la base ({r.statut})")
 
