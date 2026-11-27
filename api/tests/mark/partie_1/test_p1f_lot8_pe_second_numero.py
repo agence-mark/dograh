@@ -52,7 +52,9 @@ async def test_le_second_numero_est_note_dit_par_le_code_et_joint_a_la_commande(
     assert DIT in textes["suffixe"] and DIT_SECOND in textes["suffixe"], textes  # le numéro et le second, tels que retenus
     base = await commande_complete(e.monde.c, e.monde.a, e.p["enregistree"]["numero"])
     assert (base["client"]["second_numero"] or {}).get("numero") == SECOND, base["client"]
-    envoyee = e.source.prise.recues[-1]
+    assert e.source.prise.recues == []  # § 17 (plan final, l.403) : la caisse ne reçoit rien pendant l'appel
+    await e.finir_l_appel()  # … elle reçoit la commande à la fin de l'appel, une fois
+    (envoyee,) = e.source.prise.recues
     assert SECOND in (envoyee.get("note") or "") or (envoyee["client"].get("second_numero") or {}).get("numero") == SECOND, envoyee  # la prise de test n'a qu'un téléphone : le second part dans la note
 
 
