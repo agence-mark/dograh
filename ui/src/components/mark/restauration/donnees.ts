@@ -222,6 +222,8 @@ export interface ReglageDuModule {
     moyens_paiement: MoyenDePaiement[];
     plafond_titre_restaurant: number | null;
     conservation_client_mois: number;
+    /** Minutes après le dernier « oui » avant que le filet reprenne une commande dont la fin d'appel n'a pas été jouée (1 à 120). */
+    filet_retenue_min: number;
 }
 export interface TempsRecurrent {
     id?: number | null;
