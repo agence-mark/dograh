@@ -112,14 +112,19 @@ async def _une_retenue(
     connexion, organization_id: int, nom_base: str, etablissement_id: int, numero: str, maj_le: datetime, etat: EtatDeLAppel | None, moment: datetime, secours: Secours
 ) -> int:
     """Une ligne de la page : elle part si son appel est fini ; sinon, au-delà de la limite du filet, le restaurant est alerté une fois (la commande jointe) et le filet la
-    laisse (ni annulée ni envoyée à l'aveugle ; la fin de l'appel, si elle arrive, l'envoie encore). Rend 1 si elle part."""
+    laisse (ni annulée ni envoyée à l'aveugle ; la fin de l'appel, si elle arrive, l'envoie encore). La marque prise avant l'alerte (un seul passage alerte) est retirée si
+    l'alerte lève : le passage suivant la redit. Rend 1 si elle part."""
     if appel_fini(etat, maj_le, moment):
         logger.warning(f"[.mark] Order {numero}: its call ended without its end hook, the catch-up sends it")
         await envoyer_la_commande_retenue(connexion, organization_id, nom_base, etablissement_id, numero)
         return 1
     if maj_le <= moment - LIMITE_DU_FILET and await liaison_db.marquer_l_alerte_du_filet(connexion, etablissement_id, numero):
         logger.error(f"[.mark] Order {numero}: retained, its call never ended, the restaurant is alerted")
-        await alerter(connexion, organization_id, etablissement_id, numero, secours, RAISON_DU_FILET)
+        try:
+            await alerter(connexion, organization_id, etablissement_id, numero, secours, RAISON_DU_FILET)
+        except Exception as erreur:  # l'alerte ratée est redite au passage suivant ; les autres lignes continuent
+            logger.error(f"[.mark] Order {numero}: the safety-net alert failed ({type(erreur).__name__}), retried next pass")
+            await liaison_db.retirer_l_alerte_du_filet(connexion, etablissement_id, numero, maj_le)
     return 0
 
 
