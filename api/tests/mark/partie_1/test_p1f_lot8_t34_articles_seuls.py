@@ -186,3 +186,22 @@ async def test_r2_la_fiche_refaite_sans_l_article_pose_la_case_non_prise(essai_d
     assert "sans l'article" in str(r.get("a_faire")), r.get("a_faire")
     r = await e.fiche(mode_de_retrait="emporter")
     assert RAISON not in _raisons(r) and e.p.get("mode") == "emporter" and _margheritas(e) == 1, r
+
+
+# --------------------------------------------------------------------------- garde élargie de T31 : la réponse à une question sur l'article n'est jamais « la même fiche »
+
+
+async def test_la_formule_redite_avec_la_reponse_a_son_etape_n_est_pas_identique(essai_de):
+    """« Un menu burger avec un cheeseburger et un coca. » / « Quelle sauce ? » / « Ketchup. » : le modèle redit le menu avec la réponse. La fiche porte une réponse à la question
+    posée sur l'article (étape, options) : elle n'est jamais refusée comme identique (la réponse serait perdue) ; un seul menu, sa sauce posée (D01)."""
+    from api.services.actions_communes import conversation as CONV
+
+    e = await essai_de()
+    await a_emporter(e)
+    menu = {"article": "menu burger", "quantite": 1, "composition": ["cheeseburger", "coca"]}
+    await e.tour("un menu burger avec un cheeseburger et un coca", ajouter=[menu])
+    q = CONV.question_de(e.p)
+    assert q.get("type") in ("etape", "variante"), q
+    reponse = {"question_id": q["id"], "valeurs": ["ketchup"], **({} if q["type"] == "etape" else {"sens": "accepte"})}
+    r = await e.tour("ketchup", ajouter=[menu], reponse=reponse)
+    assert RAISON not in _raisons(r) and _combien(e, "menu") == 1, r
