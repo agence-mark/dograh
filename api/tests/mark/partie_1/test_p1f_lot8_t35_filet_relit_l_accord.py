@@ -91,3 +91,30 @@ async def test_t35_un_nouveau_oui_apres_la_panne_rouvre_la_meme_ligne_et_le_file
     await _le_filet(e, alertes)
     assert [str(x["numero"]) for x in e.source.prise.recues] == [numero] and await _lignes(e) == [(numero, "acceptee")], (e.source.prise.recues, await _lignes(e))
     assert alertes == [], alertes
+
+
+async def test_t35_r_a_le_client_annule_la_base_tombe_l_appel_plante_l_alerte_ne_parle_pas_d_allergie(essai_de, monkeypatch):
+    """Client « Annulez ma commande. » / « Oui. » / la base tombe pendant l'annulation / l'appel coupe : le filet n'envoie rien (la marque est posée aussi par ce chemin) et le restaurant
+    lit une raison vraie : avant, le texte de l'alerte parlait d'allergie ; après, il dit seulement que l'accord a été retiré (allergie ou annulation)."""
+    from api.services.actions_communes import conversation as CONV
+
+    e, numero = await _enregistree(essai_de)
+    await e.tour("annulez ma commande", annuler_une_commande_enregistree=True)
+    q = CONV.question_de(e.p)
+    original = restauration.changer_statut
+
+    async def en_panne(*args, **kwargs):
+        raise ConnectionError("base indisponible")
+
+    monkeypatch.setattr(restauration, "changer_statut", en_panne)
+    try:
+        await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    except ConnectionError:  # le tour peut lever : seule compte la ligne laissée ``retenue``
+        pass
+    finally:
+        monkeypatch.setattr(restauration, "changer_statut", original)
+    assert await _lignes(e) == [(numero, "retenue")], await _lignes(e)
+    alertes: list = []
+    await _le_filet(e, alertes)
+    assert e.source.prise.recues == [] and await _lignes(e) == [(numero, "annulee")], (e.source.prise.recues, await _lignes(e))
+    assert len(alertes) == 1 and "annulation" in alertes[0][1] + alertes[0][0], alertes
