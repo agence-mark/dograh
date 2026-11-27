@@ -653,7 +653,8 @@ def rc2(o: Observation) -> list[Faute]:
         f.append(("RC2", f"effet du geste sur le panier non déclaré ({o.geste}) : l'effet d'un geste est toujours connu, sinon le cas échoue"))
     else:
         manque, surplus = +(o.attendu - reel), +(reel - o.attendu)
-        gardes = en_attente(o.apres) - en_attente(o.avant)
+        vidage = bool({"vider_le_panier", "annuler_la_commande"} & set((o.retour or {}).get("cases_executees") or []))  # § 17 l.407 : le vidage emporte les articles gardés d'avant ; ceux d'après sont tous neufs
+        gardes = en_attente(o.apres) - (0 if vidage else en_attente(o.avant))
         liberes = en_attente(o.avant) - en_attente(o.apres)
         # ce qui manque au panier et qui est gardé de côté n'est pas perdu ; les gardés peuvent compter plus que ce qui manque : un article inconnu, dit
         # avec un connu avant le mode, est gardé lui aussi (dit introuvable quand le mode le prend) sans être dans le panier attendu (RC13, famille 1) ;
