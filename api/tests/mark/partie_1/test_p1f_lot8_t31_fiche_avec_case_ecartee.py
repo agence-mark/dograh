@@ -4,7 +4,11 @@ Une case que le tour ne montre pas (le règlement, le numéro, le prénom avant 
 « mot pour mot » celle du tour d'avant : elle s'applique. Client « Une margherita. » … « Encore une margherita, par carte, 06 12 34 56 78, c'est Léa. » / avant : une seule
 margherita, et le modèle demande « une deuxième, ou la même ? » alors que la personne a dit autre chose / après : deux margheritas, le règlement écarté est redemandé à son tour.
 Même lecture pour une réponse écartée seule (B1, un « oui » au mauvais numéro). Et la fiche refaite dans le même tour, refusée comme identique, reste « celle du tour d'avant » au tour
-suivant (E0 → G1 · G33 · G32 : sinon « je répète » ajoute une troisième regina sans rien demander)."""
+suivant (E0 → G1 · G33 · G32 : sinon « je répète » ajoute une troisième regina sans rien demander).
+
+T34 (Pierre, 27/11 10 h 49, ``decisions-du-coordinateur.md``, dernière ligne) rend faux les deux premiers tests tels qu'écrits : la comparaison se fait sur les ARTICLES SEULS, la
+margherita redite avec des cases écartées (ou une réponse écartée) au tour suivant est la même fiche : le modèle demande. Ils disent désormais la question (cas complets dans
+``test_p1f_lot8_t34_articles_seuls.py``)."""
 
 from __future__ import annotations
 
@@ -29,23 +33,24 @@ def _raisons(r: dict) -> set[str]:
     return {str(x) for x in [r.get("raison"), *((x or {}).get("raison") for x in r.get("refus") or [])] if x}
 
 
-async def test_la_fiche_avec_des_cases_ecartees_n_est_pas_celle_du_tour_d_avant(essai_de):
-    """E7 → G6+G19 des combinaisons longues : la margherita redite avec le règlement, le numéro et le prénom (écartés, pas encore montrés) entre ; aucune question « la même ? »."""
+async def test_la_fiche_avec_des_cases_ecartees_est_celle_du_tour_d_avant_t34(essai_de):
+    """E7 → G6+G19 des combinaisons longues : la margherita redite avec le règlement, le numéro et le prénom (écartés, pas encore montrés). Avant T34 : elle entrait. Depuis T34
+    (articles seuls) : la question « une deuxième, ou la même ? », une seule margherita."""
     e = await essai_de()
     await a_emporter(e)
     await e.tour("une margherita normale", ajouter=[MARGHERITA])
     assert _margheritas(e) == 1
     r = await e.tour(DIT, ajouter=[MARGHERITA], **FIN)
-    assert RAISON not in _raisons(r) and _margheritas(e) == 2, r
+    assert RAISON in _raisons(r) and _margheritas(e) == 1, r
 
 
-async def test_la_fiche_avec_une_reponse_au_mauvais_numero_n_est_pas_celle_du_tour_d_avant(essai_de):
-    """E7 → G6+G27 : la margherita redite avec un « oui » à une question qui n'existe pas (réponse écartée seule, B1) est une autre fiche : elle s'applique."""
+async def test_la_fiche_avec_une_reponse_au_mauvais_numero_est_celle_du_tour_d_avant_t34(essai_de):
+    """E7 → G6+G27 : la margherita redite avec un « oui » à une question qui n'existe pas (réponse écartée seule, B1). Avant T34 : elle s'appliquait. Depuis T34 : la question."""
     e = await essai_de()
     await a_emporter(e)
     await e.tour("une margherita normale", ajouter=[MARGHERITA])
     r = await e.tour("oui, et encore une margherita normale", ajouter=[MARGHERITA], reponse={"question_id": "Q-99", "sens": "accepte"})
-    assert RAISON not in _raisons(r) and _margheritas(e) == 2, r
+    assert RAISON in _raisons(r) and _margheritas(e) == 1, r
 
 
 @pytest.mark.parametrize(("etat", "suite"), [("E7", ("G6+G19",)), ("E7", ("G6+G27",)), ("E10", ("G6+G19",)), ("E7", ("G19+G6",)), ("E0", ("G1", "G33", "G32"))])
@@ -73,11 +78,14 @@ async def test_r1_la_fiche_refaite_apres_un_ajout_du_tour_ne_pose_pas_la_questio
     """Reprise R1 de l'audit T31 : le tour d'avant a déjà pris une margherita, ce tour-ci en prend une autre avec des cases écartées ; la fiche refaite dans le MÊME tour (la margherita
     seule) ne pose pas « une deuxième, ou la même ? » (l'article vient d'être pris) : sa case est déjà faite, rien n'est ajouté. Le tour d'après, « je répète » pose la question une
     seule fois ; « une de plus » passe ensuite. Client « Une margherita. » … « Encore une margherita, par carte, c'est Léa. » / « Je répète. » / modèle « Une troisième, ou la
-    même ? » / « Une de plus. » → trois margheritas."""
+    même ? » / « Une de plus. » → trois margheritas. Depuis T34 (articles seuls), la margherita redite au tour 2 pose d'abord la question ; le « une de plus » qui suit (tour 3,
+    avec les cases écartées) est l'ajout du tour, et la fiche refaite est celle de ce tour-là."""
     e = await essai_de()
     await a_emporter(e)
     await e.tour("une margherita normale", ajouter=[MARGHERITA])
-    await e.tour(DIT, ajouter=[MARGHERITA], **FIN)
+    r = await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    assert RAISON in _raisons(r) and _margheritas(e) == 1, r
+    await e.tour(DIT.replace("encore une margherita normale", "une de plus"), ajouter=[MARGHERITA], **FIN)
     assert _margheritas(e) == 2
     r = await e.fiche(ajouter=[MARGHERITA])
     assert RAISON not in _raisons(r) and _margheritas(e) == 2, r

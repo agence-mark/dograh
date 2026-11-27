@@ -127,3 +127,12 @@ async def test_trois_tours_avec_le_meme_article_question_pris_question(essai_de)
     assert RAISON not in _raisons(r) and _margheritas(e) == 2, r
     r = await e.tour("une margherita normale", ajouter=[MARGHERITA])
     assert RAISON in _raisons(r) and _margheritas(e) == 2, r
+
+
+async def test_vider_le_panier_et_redire_le_meme_article_est_pris(essai_de):
+    """La fiche qui change aussi le panier (« on recommence, une margherita ») reste comparée mot pour mot : l'article redit après le vidage entre, sans question."""
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    r = await e.tour("on recommence, une margherita normale", ajouter=[MARGHERITA], vider_le_panier=True)
+    assert RAISON not in _raisons(r) and _margheritas(e) == 1, r

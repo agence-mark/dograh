@@ -977,6 +977,7 @@ def _fiche_dite(du_modele: dict[str, Any], lue: dict[str, Any], reponse_ecartee:
 
 
 CLE_DES_FICHES_AJOUTEES = "fiches_ajoutees"  # les clés des fiches, et des cases ``ajouter`` du tour, dont un article a été pris (le tour d'avant en fait partie) ; un article refusé n'y entre pas
+CASES_QUI_CHANGENT_LE_PANIER = tuple(c for c in ORDRE_DES_CASES[:ORDRE_DES_CASES.index("ajouter")] if c != "reponse")  # T34 : avec l'une d'elles, l'article redit n'est pas « le même »
 
 
 def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[str, Any]) -> dict[str, Any] | None:
@@ -984,8 +985,15 @@ def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[s
     ignorée (« un Coca... et un autre Coca » perdrait le second) ni ajoutée tout de suite : rien n'est appliqué, elle n'est PAS notée (le tour suivant, « un autre » la même, passe), et
     le fait (les articles lus dans la fiche) revient au modèle, qui demande au client si c'est un de plus ou le même. Seule une fiche dont un article a été PRIS compte (``_case_ajouter`` la
     range) : le même article inconnu redit n'est pas « un de plus », il reste refusé comme avant (journal des refus, sortie). ``fiche`` : la fiche DITE (``_fiche_dite``, T31 : ses cases
-    écartées seules comprises). Rend l'enveloppe du refus, ou ``None``."""
-    if not fiche.get("ajouter") or not isinstance(tour, int) or _cle_de_la_fiche(tour - 1, fiche) not in (CONV.de(p).get(CLE_DES_FICHES_AJOUTEES) or []):
+    écartées seules comprises). T34 (Pierre, 27/11 10 h 49) : la comparaison se fait sur les ARTICLES SEULS (la case ``ajouter``, rangée par ``_ranger_la_fiche_ajoutee``), avec ou sans
+    les autres cases (paiement, prénom, mode, réponse, « c'est tout ») : « une margherita, par carte » puis « une margherita » est la même fiche. Sauf la fiche qui change aussi le panier
+    (vider, annuler, retirer, changer une ligne : « annulez tout, une regina à la place ») : l'article redit y a un autre sens, elle reste comparée mot pour mot. Rend l'enveloppe du
+    refus, ou ``None``."""
+    if not fiche.get("ajouter") or not isinstance(tour, int):
+        return None
+    ajoutees = CONV.de(p).get(CLE_DES_FICHES_AJOUTEES) or []
+    articles_seuls = not any(fiche.get(c) not in (None, "", [], False) for c in CASES_QUI_CHANGENT_LE_PANIER)
+    if _cle_de_la_fiche(tour - 1, fiche) not in ajoutees and not (articles_seuls and cle_de_la_case(tour - 1, "ajouter", fiche["ajouter"]) in ajoutees):
         return None
     articles = [{"article": a.get("article"), "quantite": a.get("quantite", 1)} for a in fiche["ajouter"] if isinstance(a, dict)]
     refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire="rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)")

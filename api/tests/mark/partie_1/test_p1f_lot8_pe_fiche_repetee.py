@@ -49,15 +49,16 @@ async def test_le_scenario_je_repete_deux_pizzas_ne_sont_pas_doublees(essai_de):
     assert e.lignes() == avant and r.get("raison") == RAISON, (avant, e.lignes(), r)
 
 
-async def test_refus_11_la_meme_fiche_avec_une_reponse_differente_n_est_pas_identique(essai_de):
-    """Le « même » se lit sur toute la fiche : la même case ``ajouter`` avec une réponse à la proposition posée est une autre fiche, elle s'applique."""
+async def test_refus_11_la_meme_fiche_avec_une_reponse_differente_est_identique_t34(essai_de):
+    """Avant T34, le « même » se lisait sur toute la fiche : la même case ``ajouter`` avec une réponse à la proposition posée s'appliquait. T34 (Pierre, 27/11 10 h 49,
+    ``decisions-du-coordinateur.md``, dernière ligne) : la comparaison se fait sur les articles seuls, la réponse comprise parmi les autres cases : la question, une seule regina."""
     e = await essai_de()
     await a_emporter(e)
     await e.tour("une regina", ajouter=[REGINA])
     q = question_posee(e)
     assert q.get("type") == "proposition", q
     r = await e.tour("non merci, et une autre regina", ajouter=[REGINA], reponse={"question_id": q["id"], "sens": "refuse"})
-    assert _reginas(e) == 2 and r.get("raison") != RAISON, r
+    assert _reginas(e) == 1 and r.get("raison") == RAISON, r
 
 
 async def test_une_fiche_sans_ajout_identique_n_est_pas_refusee(essai_de):
