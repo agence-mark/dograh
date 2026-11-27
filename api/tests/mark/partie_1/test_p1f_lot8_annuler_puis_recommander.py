@@ -78,6 +78,16 @@ async def test_le_oui_a_l_annulation_et_l_article_dans_la_meme_fiche_l_article_e
     assert dict(C.lignes_de(o.apres)) == {C.REGINA: 1} and "commande_annulee" not in C._raisons(o.retour), (dict(C.lignes_de(o.apres)), C._raisons(o.retour))
 
 
+async def test_le_oui_a_l_annulation_et_l_article_dans_la_meme_fiche_n_est_pas_une_faute_rc8(faire_monde, monkeypatch):
+    """R2 de l'audit 8b-2 : « Oui, et mettez-moi une regina à la place. » : l'ajout efface la marque « annulé », mais l'annulation a eu lieu dans la fiche : le panier d'une commande
+    enregistrée a bien changé par le vidage voulu (§ 17 l.407), le juge RC8 ne doit pas y voir un panier changé sans passer par la caisse."""
+    partie = C.Partie(await faire_monde("casa-italia"), monkeypatch)
+    assert await partie.recette("E16")
+    o = await _annuler(partie, REGINA_DITE)
+    assert dict(C.lignes_de(o.apres)) == {C.REGINA: 1}, o.apres.get("lignes")
+    assert C.rc8(o) == [], C.rc8(o)
+
+
 async def test_annulee_recommandee_puis_annulee_encore_la_meme_ligne_reste_annulee(faire_monde, monkeypatch):
     partie = C.Partie(await faire_monde("casa-italia"), monkeypatch)
     assert await partie.recette("E16")
