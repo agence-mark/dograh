@@ -65,8 +65,10 @@ async def _commander(resto, quand, *, tel="+33612345678", appel="x", remises=Non
             "relu",
         )
         assert r.statut == "ENREGISTREE", r
+        # 8b-1a (E2, ``restauration_commande.py:1007`` ; plan final § 17 l.403) : la commande de l'agent naît ``retenue`` et part à la fin de l'appel
+        assert (await changer_statut(resto.c, etab or resto.a, r.faits["numero"], "retenue", "nouvelle", "agent")).statut == "OK"
         if annuler:
-            await changer_statut(resto.c, etab or resto.a, r.faits["numero"], "nouvelle", "annulee", "portail")
+            assert (await changer_statut(resto.c, etab or resto.a, r.faits["numero"], "nouvelle", "annulee", "portail")).statut == "OK"
     return r.faits["numero"]
 
 
@@ -236,3 +238,18 @@ async def test_la_tache_de_nuit_lit_les_agents_du_module_et_purge_la_base_puis_l
         assert resultat[monde.org_a.id]["statut"] == "faite" and resultat[monde.org_a.id]["base"]["commandes"] == 0
     finally:
         await c.close()
+
+
+async def test_une_commande_retenue_suit_la_meme_duree_que_les_autres(resto):
+    """8b-1a (E2) : une commande de l'agent ``retenue`` (sa fin d'appel jamais jouée) n'est ni purgée avant les 30 jours ni gardée au-delà."""
+    c, a = resto.c, resto.a
+    for quand, appel in ((JEUDI_MIDI - timedelta(days=40), "vieille"), (JEUDI_MIDI - timedelta(days=5), "recente")):
+        with horloge.remplacer(resto.base, quand):
+            r = await enregistrer_commande(
+                c, a, {"mode": "emporter", "client": {"telephone": "+33612345678"}, "lignes": [{"code_caisse": "BOI-COCA-COLA-33-CL"}], "appel_id": appel,
+                       "paiement": {"moyens": [{"moyen": "carte", "montant": 200}]}}, "relu",
+            )
+            assert r.statut == "ENREGISTREE", r
+    assert await c.fetchval("SELECT count(*) FROM mark.resto_commande WHERE statut = 'retenue'") == 2
+    assert (await purger(c, JEUDI_MIDI - timedelta(days=30)))["commandes"] == 1
+    assert await c.fetchval("SELECT appel_id FROM mark.resto_commande WHERE statut = 'retenue'") == "recente"
