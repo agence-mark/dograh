@@ -136,3 +136,26 @@ async def test_vider_le_panier_et_redire_le_meme_article_est_pris(essai_de):
     await e.tour("une margherita normale", ajouter=[MARGHERITA])
     r = await e.tour("on recommence, une margherita normale", ajouter=[MARGHERITA], vider_le_panier=True)
     assert RAISON not in _raisons(r) and _margheritas(e) == 1, r
+
+
+# --------------------------------------------------------------------------- R2 de l'audit T34 : les cases non prises sont dites au modèle
+
+
+async def test_r2_la_fiche_refusee_dit_au_modele_les_cases_non_prises(essai_de):
+    """La fiche refusée comme identique n'applique RIEN, ni le paiement ni le prénom : le fait le dit au modèle (``faits.cases_non_prises``, des noms de cases, jamais une phrase au
+    client), pour qu'il les remette dans la fiche refaite. « Une margherita. » … « Par carte, c'est Léa » (la margherita recopiée) / faits : moyen_de_paiement, telephone, prenom."""
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    r = await e.tour("par carte, c'est Léa", ajouter=[MARGHERITA], **FIN)
+    assert RAISON in _raisons(r), r
+    assert sorted(r["faits"].get("cases_non_prises") or []) == sorted(FIN), r
+    assert "Léa" not in str(r["faits"].get("cases_non_prises")), r  # des noms de cases, pas les valeurs
+
+
+async def test_r2_sans_autre_case_aucune_case_non_prise(essai_de):
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    r = await e.tour("une margherita normale", ajouter=[MARGHERITA])
+    assert RAISON in _raisons(r) and "cases_non_prises" not in r["faits"], r
