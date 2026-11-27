@@ -120,10 +120,8 @@ def _n1(p):
 
 def _plus(ref: str, n: int = 1):
     def effet(avant: Counter, p) -> Counter | None:
-        if p.get("annulee"):
-            return Counter(avant)  # DC5 : rien n'entre dans une commande annulée
         c = Counter(avant)
-        c[ref] += n
+        c[ref] += n  # § 17 l.407 : annuler = vider, un article dit après entre dans le panier vidé (DC5 est tombé)
         return c
 
     return effet
@@ -135,7 +133,7 @@ def _inchange(avant: Counter, p) -> Counter:
 
 def _sans_ligne_1(avant: Counter, p) -> Counter | None:
     l1 = _ligne_1(p)
-    if l1 is None or p.get("annulee"):
+    if l1 is None:
         return Counter(avant)
     c = Counter(avant)
     c[l1["ref"]] -= int(l1.get("quantite") or 0)
@@ -147,7 +145,7 @@ def _sans_ligne_1(avant: Counter, p) -> Counter | None:
 def _ligne_1_a(q: int):
     def effet(avant: Counter, p) -> Counter | None:
         l1 = _ligne_1(p)
-        if l1 is None or p.get("annulee"):
+        if l1 is None:
             return Counter(avant)
         c = Counter(avant)
         c[l1["ref"]] += q - int(l1.get("quantite") or 0)
@@ -157,7 +155,7 @@ def _ligne_1_a(q: int):
 
 
 def _vide(avant: Counter, p) -> Counter:
-    return Counter(avant) if p.get("annulee") or p.get("enregistree") else Counter()  # DC5 ; DC4 + M2 (enregistrée : la confirmation d'abord)  # DC5 : rien ne change dans une commande annulée
+    return Counter(avant) if p.get("enregistree") else Counter()  # DC4 + M2 (enregistrée : la confirmation d'abord)
 
 
 REFS_DE_LA_CARTE: dict[str, str] = {}  # nom (sans casse) -> ref, pour les articles que le CODE ajoute (une proposition acceptée) ; posé par ``Partie``
@@ -167,7 +165,7 @@ def _ref_du_nom(nom: Any) -> str | None:
     return REFS_DE_LA_CARTE.get(str(nom or "").casefold()) or None
 
 
-# Les questions dont « oui » ne touche pas au panier ; « oui » à une proposition ajoute l'article proposé, à « une nouvelle commande ? » ouvre une commande neuve (DC5).
+# Les questions dont « oui » ne touche pas au panier ; « oui » à une proposition ajoute l'article proposé.
 OUI_SANS_EFFET = {"relecture", "numero_affiche", "numero_dicte", "variante", "ambiguite", "etape", "heure_proposee", "annulation_enregistree"}
 
 
@@ -175,13 +173,9 @@ def _oui(avant: Counter, p) -> Counter | None:
     """« oui » : ce qu'il fait au panier dépend de la question posée. Un type de question qui n'est pas dans la table = effet inconnu = le cas échoue."""
     q = question(p)
     t = q.get("type")
-    if p.get("annulee") and t != "nouvelle_commande":
-        return Counter(avant)
     if t == "proposition":
         ref = _ref_du_nom(q.get("article_propose"))
         return _plus(ref)(avant, p) if ref else None
-    if t == "nouvelle_commande":
-        return Counter()  # DC5 : une commande neuve, l'ancienne n'y est plus
     if t in OUI_SANS_EFFET:
         return Counter(avant)
     return None
@@ -211,8 +205,6 @@ def _ajouts_deja_repondus(fiche: dict[str, Any], p: dict[str, Any]) -> Counter:
 
 def _effet_par_numero(fiche: dict[str, Any], avant: Counter, p: dict[str, Any]) -> Counter | None:
     """Une fiche rejouée au tour suivant : retirer et changer visent des lignes PAR LEUR NUMÉRO ; un numéro qui n'existe plus n'est rien (refusé, le reste passe) ; ajouter ajoute."""
-    if p.get("annulee"):
-        return Counter(avant)
     lignes = {l.get("n"): l for l in p.get("lignes") or []}
     visees = [n for n in fiche.get("retirer_article") or [] if isinstance(n, int)] + [c.get("ligne") for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
     conflit = len(visees) != len(set(visees))  # B4 (M6, RC5) : deux cases sur la même ligne sont refusées toutes les deux ; le reste de la fiche passe (7c : l'ajout aussi, comme ``fusion``)
@@ -546,28 +538,11 @@ class Partie:
         sans_conflit = {"G7": _inchange, "G8": _inchange, "G9": _inchange, "G29": _inchange, "G11": lambda a, p: _plus(REGINA)(a, p)}
 
         def effet(avant: Counter, p) -> Counter | None:
-            # L'ordre du CODE (``porte.ORDRE_DES_CASES``, jamais celui de la personne) : vider et annuler d'abord, puis le reste. Annulée dans la fiche, la
-            # commande n'existe plus et rien n'y entre (DC5, RC8) ; vidée, la suite se pose sur un panier vide (les lignes dites ne sont plus là).
-            if p.get("annulee") and "G23" in codes and question(p).get("type") == "nouvelle_commande":
-                # DC5 (Evan, 22/11) : « oui » à « voulez-vous en passer une nouvelle ? » ouvre une commande NEUVE (``registre.repartir``) : ce que la même fiche dit y entre,
-                # le panier d'avant n'y est plus (l'attente du test disait « rien n'entre dans une commande annulée », vrai sans ce « oui »)
-                c, vu = Counter(), {**p, "lignes": [], "annulee": False}
-                for code, ef in zip(codes, effets):
-                    if code != "G23":
-                        c = ef(c, vu)
-                        if c is None:
-                            return None
-                return c
-            if p.get("annulee"):
-                return Counter(avant)  # DC5 : rien ne change dans une commande déjà annulée
-            if "G23" in codes and question(p).get("type") == "annulation_enregistree":
-                # DC4 + DC5 (Evan, 22/11) : le « oui » de cette fiche confirme l'annulation de la commande enregistrée, et l'ordre du code (``ORDRE_DES_CASES`` : la réponse avant les ajouts)
-                # l'annule avant tout ajout : l'ajout de la même fiche est refusé (« commande_annulee »). L'ancienne attente le posait sur une commande encore vivante.
-                return Counter(avant)
+            # L'ordre du CODE (``porte.ORDRE_DES_CASES``, jamais celui de la personne) : vider et annuler d'abord, puis le reste. § 17 l.407 (DC5 est tombé) : annuler = vider le panier,
+            # ce que la même fiche dit ensuite entre dans le panier vidé.
+            annule_ici = bool({"G13", "G14"} & set(codes)) or ("G23" in codes and question(p).get("type") == "annulation_enregistree")  # DC4 : le « oui » de la fiche confirme l'annulation
             if isinstance(fiche.get("reponse"), dict) and "sens" in fiche["reponse"] and question(p).get("type") == "etape":
                 return Counter(avant)  # B4 (M9) : à une étape de formule la réponse se dit dans ``valeurs`` ; ``reponse.sens`` n'est pas montré : une sous-case sans objet refuse la fiche entière
-            if {"G13", "G14"} & set(codes):
-                return Counter()
             if p.get("enregistree") and "G15" in codes and p.get("mode") != "livraison" and not ({"G16", "G17"} & set(codes)):
                 return Counter(avant)  # E10 : changer une commande enregistrée en livraison sans adresse : « changement_incomplet », le panier d'avant revient (le retour le dit : « ta fiche n'a rien changé »)
             c, vu = Counter(avant), p
@@ -577,18 +552,18 @@ class Partie:
             # sur toute la commande) n'est alors pas exécuté ; « annuler » l'est (le refus d'une autre case n'annule pas l'annulation voulue, RC4)
             fin_montree = bool(p.get("relecture")) and p.get("etape") != "accordee" and not accord  # sinon la fin n'est pas montrée : ses cases sont écartées seules (B4), le reste est fait
             vider = "G12" in codes and not ("G19" in codes and fin_montree)
-            if vider:
-                c, vu = Counter(), {**p, "lignes": []}
+            if vider or annule_ici:
+                c, vu = Counter(), {**p, "lignes": [], **({"enregistree": None} if annule_ici else {})}
             for code, ef in zip(codes, effets):
                 if code in ("G12", "G13", "G14"):
                     continue
-                if code == "G23" and vider:
+                if code == "G23" and (vider or annule_ici):
                     continue  # la question en attente portait sur le panier que cette même fiche vient de vider : la réponse n'a plus d'objet (``porte``, refus « question_inconnue »)
                 ef = sans_conflit.get(code, ef) if conflit else ef
                 c = ef(c, vu)
                 if c is None:
                     return None
-            if vider and p.get("enregistree") and not +c:
+            if vider and not annule_ici and p.get("enregistree") and not +c:
                 return Counter(avant)  # DC4 + M2 : tout retirer d'une commande enregistrée, c'est l'annuler (la confirmation d'abord) : rien ne change
             return c - _ajouts_deja_repondus(fiche, p)
 
@@ -783,10 +758,8 @@ def rc7(o: Observation) -> list[Faute]:
 
 
 def rc8(o: Observation) -> list[Faute]:
-    """Une commande finie est fermée : annulée, aucune ligne ajoutée ; enregistrée, un changement passe par la caisse ou est refusé."""
-    repart = question(o.avant).get("type") == "nouvelle_commande" and ((o.fiche or {}).get("reponse") or {}).get("sens") == "accepte"  # DC5 : « oui » = une commande neuve
-    if o.avant.get("annulee") and +lignes_de(o.apres) - +lignes_de(o.avant) and not repart:
-        return [("RC8", "un article entre dans une commande annulée")]
+    """Une commande enregistrée ne change pas sans passer par la base ; § 17 l.407 : annulée, elle est vidée et un article dit ensuite entre (DC5 est tombé : la règle « aucune ligne
+    ajoutée à une commande annulée » est retirée)."""
     r = o.retour or {}
     if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres):  # la ligne attend sa taille : la caisse après
         ops = {x.get("operation") for x in r.get("resultats") or []}
