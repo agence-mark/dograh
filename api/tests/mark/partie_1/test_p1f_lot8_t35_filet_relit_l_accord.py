@@ -118,3 +118,30 @@ async def test_t35_r_a_le_client_annule_la_base_tombe_l_appel_plante_l_alerte_ne
     await _le_filet(e, alertes)
     assert e.source.prise.recues == [] and await _lignes(e) == [(numero, "annulee")], (e.source.prise.recues, await _lignes(e))
     assert len(alertes) == 1 and "annulation" in alertes[0][1] + alertes[0][0], alertes
+
+
+async def test_t35_retente_la_base_tombe_au_tour_de_l_allergie_revient_au_suivant_la_ligne_est_marquee_et_annulee(essai_de, monkeypatch):
+    """Coupure courte : la base tombe au tour de l'allergie (ni marque ni annulation), revient au tour suivant : le code retente tout seul, la ligne est marquée puis ``annulee`` ; si
+    l'appel plante ensuite, le filet n'envoie rien et n'alerte pas (la ligne n'est plus ``retenue``). Le code ne dit rien de plus au client."""
+    from api.db.bases_clients import restauration_liaison as liaison_db
+
+    e, numero = await _enregistree(essai_de)
+    original_statut, original_marque = restauration.changer_statut, liaison_db.marquer_l_accord_retire
+
+    async def en_panne(*args, **kwargs):
+        raise ConnectionError("base indisponible")
+
+    _greffier_qui_note_l_allergie(e)
+    monkeypatch.setattr(restauration, "changer_statut", en_panne)
+    monkeypatch.setattr(liaison_db, "marquer_l_accord_retire", en_panne)
+    try:
+        await e.tour("ah, et mon fils est allergique aux noix", note_generale="allergique aux noix")
+    finally:
+        monkeypatch.setattr(restauration, "changer_statut", original_statut)
+        monkeypatch.setattr(liaison_db, "marquer_l_accord_retire", original_marque)
+    assert await _lignes(e) == [(numero, "retenue")], await _lignes(e)  # la coupure : rien n'a pu être fait
+    await e.tour("hum, je réfléchis")  # le tour suivant, la base est revenue
+    assert await _lignes(e) == [(numero, "annulee")], await _lignes(e)
+    alertes: list = []
+    await _le_filet(e, alertes)
+    assert e.source.prise.recues == [] and await _lignes(e) == [(numero, "annulee")] and alertes == [], (e.source.prise.recues, await _lignes(e), alertes)
