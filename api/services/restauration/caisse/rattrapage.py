@@ -43,7 +43,7 @@ CLE_ALERTE = "mark:resto:sans-reponse:"
 PLUS_LONG_APPEL_A_LA_VOIX = timedelta(seconds=MAX_CALL_DURATION_SECONDS)
 # Au-delà, plus rien ne fermera l'appel (le balayage des parties au clavier ne remonte pas plus loin) : la ligne ne peut vraiment pas partir seule.
 LIMITE_DU_FILET = timedelta(seconds=TEXT_CHAT_INACTIVITY_SWEEP_LOOKBACK_SECONDS)
-RAISON_ACCORD_RETIRE = "commande retenue dont le client a retiré son accord (allergie dite après le oui) : elle n'est pas envoyée, à vérifier avec le client"
+RAISON_ACCORD_RETIRE = "commande retenue dont l'accord a été retiré après le oui (allergie ou annulation du client) : elle n'est pas envoyée, à vérifier avec le client"
 RAISON_DU_FILET = "commande retenue d'un appel qui n'a jamais fini : à vérifier, à saisir à la main si le client l'attend"
 EtatsDesAppels = Callable[[list[str]], Awaitable["dict[str, EtatDeLAppel] | None"]]
 
