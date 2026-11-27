@@ -1,14 +1,12 @@
 """[.mark] Clôture de la Partie 1, lot B1 : deux comportements décidés par Evan le 22/11, posés sur le registre des questions.
 
 * DC3 : une proposition (« un Coca ? ») se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas.
-* DC5 : un ajout après une annulation est refusé : la commande n'existe plus ; le code le dit et propose d'en passer une nouvelle ; au « oui », une
-  commande neuve (l'article se redit), au « non », rien.
+* DC5 : TOMBÉ (§ 17 l.407, décision d'Evan du 24/11 12 h 10) : annuler = vider le panier ; un article dit après entre, dans le même appel.
 """
 
 from __future__ import annotations
 
 from api.services.actions_communes import conversation as CONV
-from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
 from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
 
@@ -45,23 +43,13 @@ async def _annulee(e) -> None:
     assert ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
 
 
-async def test_dc5_un_ajout_apres_l_annulation_est_refuse_et_une_nouvelle_commande_proposee(essai_de):
+async def test_apres_l_annulation_un_ajout_entre_dans_un_panier_vide(essai_de):
+    """Périmé (§ 17 l.407, plan final Partie 1 : « annuler = vider, DC5 tombe » ; décision d'Evan du 24/11 12 h 10, ``decisions-du-coordinateur.md:37``) : l'ancien test attendait
+    le refus « commande_annulee » et la question « nouvelle commande ». Maintenant l'article entre dans le panier vidé, sans refus ni question, et le mode est gardé."""
     e = await essai_de()
     await _annulee(e)
+    assert not e.p.get("lignes"), "annuler = vider le panier"
     r = await e.tour("et une regina normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert not e.p.get("lignes") and r["refus"][0]["raison"] == "commande_annulee", r
-    q = CONV.question_de(e.p)
-    assert q["type"] == RQ.TYPE_NOUVELLE_COMMANDE, q
-    assert RQ.TEXTE_NOUVELLE_COMMANDE not in " ".join((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).values()), "c'est le modèle qui le dit : un refus suivi d'une question (DC5)"
-    assert q["texte"] == RQ.TEXTE_NOUVELLE_COMMANDE, "la question porte la phrase proposée au modèle"
-    await e.tour("oui, une regina normale", reponse={"question_id": q["id"], "sens": "accepte"}, ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert ETAPE_.courante(e.p) == RQ.EN_COURS and [l["nom"] for l in e.p["lignes"]] == ["Regina Normale"] and e.p.get("mode") == "emporter", e.p
-
-
-async def test_dc5_non_a_la_nouvelle_commande_ne_change_rien(essai_de):
-    e = await essai_de()
-    await _annulee(e)
-    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    q = CONV.question_de(e.p)
-    await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
-    assert ETAPE_.courante(e.p) == RQ.ANNULEE and not CONV.question_de(e.p) and not e.p.get("lignes"), e.p
+    assert [l["nom"] for l in e.p["lignes"]] == ["Regina Normale"] and not r.get("refus"), (e.p.get("lignes"), r.get("refus"))
+    assert ETAPE_.courante(e.p) == RQ.EN_COURS and not e.p.get("annulee") and e.p.get("mode") == "emporter", e.p
+    assert (CONV.question_de(e.p) or {}).get("type") != "nouvelle_commande", CONV.question_de(e.p)

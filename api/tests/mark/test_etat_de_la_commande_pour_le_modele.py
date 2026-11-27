@@ -79,7 +79,7 @@ def test_e6_commande_enregistree():
 
     p = panier.nouveau()
     p["lignes"] = [{"n": 1, "nom": "X", "code": "x", "quantite": 1, "choix": [], "retires": []}]
-    ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero_court": "C12"}, empreinte=panier.empreinte(p))
+    ETAPE.transition(p, ETAPE.ENREGISTREE_EN_BASE, faits={"numero_court": "C12"}, empreinte=panier.empreinte(p))
     t = _etat(p)
     assert "Commande de cet appel enregistrée (numéro C12)" in t and "Ce qui manque" not in t
 

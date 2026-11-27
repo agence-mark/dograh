@@ -95,8 +95,7 @@ def repartir_de_zero(fiche: dict | None) -> dict[str, Any]:
 
 def remplacer_par(p: dict[str, Any], autre: dict[str, Any]) -> None:
     """La SEULE restauration permise d'un panier entier : le dictionnaire de l'appel garde son identité (la fiche le tient) et prend l'état ``autre`` : l'essai validé
-    (``prealables._valider``), le panier d'avant restauré quand un changement est refusé (``changement.remettre``), le panier neuf d'une nouvelle commande (DC5,
-    ``registre.repartir``). L'étape vient avec cet état : c'est celle qu'il portait ; ce n'est pas une transition, c'est un état déjà cohérent qu'on reprend."""
+    (``prealables._valider``), le panier d'avant restauré quand un changement est refusé (``changement.remettre``). L'étape vient avec cet état : c'est celle qu'il portait ; ce n'est pas une transition, c'est un état déjà cohérent qu'on reprend."""
     p.clear()
     p.update(autre)
 

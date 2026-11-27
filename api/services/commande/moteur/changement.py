@@ -15,7 +15,7 @@ from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _r, commande_de_l_appel
 from api.services.commande.moteur.prealables import chiffrer_le_panier
-from api.services.commande.moteur.articles import etat_apres_ajout
+from api.services.commande.moteur.articles import etat_apres_ajout, vider_commande
 from api.services.commande.moteur.reglement import _le_reglement
 from api.services.commande.moteur.enregistrement import reecrire
 
@@ -31,7 +31,8 @@ async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles
     if r.statut not in ("OK", "DEJA_FAIT"):
         logger.error(f"[.mark] commande {commande.get('numero_court')} : l'annulation est refusée par la base ({r.statut})")
         return _avec(_r("INTERDIT", {"raison": "annulation_impossible", "numero_court": commande.get("numero_court")}, ""), p)
-    ETAPE.transition(p, ETAPE.ANNULEE_APRES_ENREGISTREMENT, numero_court=commande.get("numero_court"))
+    await vider_commande(source, p, regles)  # § 17 l.407 : annuler = vider le panier ; ce qui se dit ensuite est une commande à prendre
+    ETAPE.transition(p, ETAPE.ANNULEE_APRES_ENREGISTREMENT, numero_court=commande.get("numero_court"), numero=str(commande["numero"]))
     CONV.poser_question(p, None)
     return _avec(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
 

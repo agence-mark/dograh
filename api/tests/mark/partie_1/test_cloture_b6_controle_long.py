@@ -56,23 +56,28 @@ async def test_famille_1_l_article_connu_est_garde_du_mode_a_cote_d_un_inconnu(e
     assert "bubble tea" not in _dit_par_le_code(e), _dit_par_le_code(e)
 
 
-async def test_famille_2_annuler_dans_la_fiche_n_y_laisse_rien_entrer(essai_de):
-    """« Une regina, et annulez tout » : annulée, le panier reste vide (DC5, RC8) et le code le dit (RC4)."""
+async def test_famille_2_annuler_dans_la_fiche_vide_puis_l_article_entre(essai_de):
+    """Périmé (§ 17 l.407, décision d'Evan du 24/11 12 h 10, ``decisions-du-coordinateur.md:37`` : « annuler = vider, DC5 tombe ») : « Annulez tout, une regina à la place. » (la phrase d'origine « une regina, et annulez tout » : son sens est laissé à Pierre, ``decisions-du-coordinateur.md``, dernière ligne du 27/11 7 h 23) : l'ordre des cases
+    (vider et annuler, puis ajouter) fait que la regina entre dans le panier vidé ; l'ancien test attendait le refus « commande_annulee » et un panier vide."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
-    r = await e.tour("une regina, et annulez tout", ajouter=[REGINA], annuler_la_commande=True)
-    assert e.p.get("annulee") and not e.p.get("lignes"), e.p.get("lignes")
-    assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit ; C7 B9 : le journal garde le fait, jamais une phrase
-    assert [x["raison"] for x in r.get("refus") or []] == ["commande_annulee"] and r["refus"][0]["a_faire"], r.get("refus")
+    r = await e.tour("annulez tout, une regina à la place", ajouter=[REGINA], annuler_la_commande=True)
+    assert _noms(e) == ["Regina Normale"] and not e.p.get("annulee") and not r.get("refus"), (e.p.get("lignes"), r.get("refus"))
+    assert _dit_par_le_code(e) == "", _dit_par_le_code(e)  # C6 n° 7 : rien n'est dit par le code
 
 
-async def test_famille_2_ni_le_mode_ni_c_est_tout_ne_survivent_a_l_annulation(essai_de):
+async def test_famille_2_annuler_dans_la_fiche_vide_et_le_reste_de_la_fiche_suit(essai_de):
+    """Périmé (§ 17 l.407, même décision) : « annulez, finalement en livraison, c'est tout » : annulée, vidée, puis le reste de la fiche s'applique dans l'ordre des cases (le mode
+    change, rien à relire sur un panier vide). L'ancien test attendait le mode et « c'est tout » écartés après l'annulation (DC5, RC8)."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
     await e.tour("annulez, finalement en livraison, c'est tout", annuler_la_commande=True, mode_de_retrait="livraison", c_est_tout=True)
-    assert e.p.get("annulee") and e.p.get("mode") == "emporter" and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
-    assert not e.p.get("relecture") and _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit ; C7 B9 : le journal garde le fait, jamais une phrase
+    assert not e.p.get("lignes") and e.p.get("mode") == "livraison" and not e.p.get("relecture"), e.p
+    assert _dit_par_le_code(e) == "", _dit_par_le_code(e)  # C6 n° 7 : le modèle dit l'annulation d'après les résultats de la fiche ; le mode changé rouvre un panier vide (``toucher``)
+    # R3 de l'audit 8b-2 : annulée dans la fiche et le panier finit vide : le fait donné au modèle est l'annulation (jamais « c'est tout »), et l'issue d'appel est posée
+    assert J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, J.fait_accompli(e.p)
+    assert e.fiche_de_l_appel.get("call_disposition") == "commande_annulee", e.fiche_de_l_appel.get("call_disposition")
 
 
 async def test_famille_3_c_est_tout_attend_l_article_en_doute(essai_de):
@@ -99,3 +104,13 @@ async def test_famille_2_le_refus_du_reglement_n_annule_pas_l_annulation(essai_d
     await e.tour("annulez, par carte, c'est Léa", annuler_la_commande=True, moyen_de_paiement="carte_bancaire", prenom="Léa")
     assert e.p.get("annulee") and not e.p.get("lignes"), e.p.get("lignes")
     assert _dit_par_le_code(e) == "" and J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, (_dit_par_le_code(e), J.fait_accompli(e.p))  # C6 n° 7 (décision d'Evan 25/11 9 h 30) : le modèle le dit ; C7 B9 : le journal garde le fait, jamais une phrase
+
+
+async def test_annulee_dans_la_fiche_puis_c_est_tout_le_fait_dit_est_l_annulation(essai_de):
+    """Client « Annulez tout, c'est tout. » (commande commencée) / avant (8b-2) : le dernier geste de la fiche, « c'est tout », parlait à la place de l'annulation / après : le fait gardé est
+    l'annulation, puisque la commande est toujours annulée à la fin de la fiche (§ 17 l.407)."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await e.tour("annulez tout, c'est tout", annuler_la_commande=True, c_est_tout=True)
+    assert e.p.get("annulee") and J.fait_accompli(e.p) == {"fait": "annulee_en_cours"}, (e.p.get("etape"), J.fait_accompli(e.p))

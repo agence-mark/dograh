@@ -11,7 +11,6 @@ from datetime import timedelta
 
 from api.db.bases_clients.restauration_commun import maintenant
 from api.services.actions_communes import conversation as CONV
-from api.services.commande import etape as ETAPE_
 from api.services.commande import moteur
 
 from .test_l04_cuisine import _a_emporter, _faits, _jusqu_a_l_enregistrement, _premier_article, _refuser_la_proposition
@@ -127,35 +126,6 @@ async def test_a4_une_parenthese_qui_porte_une_allergie_est_dite():
 # --------------------------------------------------------------------------- 7 : une réponse écartée ne vaut jamais « autre » là où « autre » a un effet
 
 from api.services.commande import registre as RQ  # noqa: E402
-
-
-async def _annulee_avec_sa_question(essai_de):
-    e = await essai_de()
-    await e.tour("à emporter", mode_de_retrait="emporter")
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    await e.tour("non, et annulez tout", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "refuse"}, annuler_la_commande=True)
-    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert CONV.question_de(e.p)["type"] == RQ.TYPE_NOUVELLE_COMMANDE, CONV.question_de(e.p)
-    return e
-
-
-async def test_dc5_article_redit_sans_reponse_garde_la_question(essai_de):
-    """Pierre 7 : « euh attendez » (une fiche sans réponse) à « Voulez-vous en passer une nouvelle ? » ne ferme pas toute commande pour le reste de l'appel."""
-    e = await _annulee_avec_sa_question(essai_de)
-    q = CONV.question_de(e.p)
-    await e.tour("euh attendez, une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert (CONV.question_de(e.p) or {}).get("id") == q["id"], CONV.question_de(e.p)
-    await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
-    assert ETAPE_.courante(e.p) == RQ.EN_COURS, e.p
-
-
-async def test_dc5_non_ne_pose_pas_de_drapeau_definitif(essai_de):
-    """Pierre 7 : seul un « non » dit ferme la proposition d'une nouvelle commande ; un article dit plus tard la propose de nouveau."""
-    e = await _annulee_avec_sa_question(essai_de)
-    await e.tour("non merci", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "refuse"})
-    assert not CONV.question_de(e.p), CONV.question_de(e.p)
-    await e.tour("finalement une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert (CONV.question_de(e.p) or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE, CONV.question_de(e.p)
 
 
 async def test_dc4_oui_avec_mauvais_numero_garde_la_question(essai_de):

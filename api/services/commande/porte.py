@@ -120,6 +120,7 @@ A_FAIRE_DE_LA_CONFIRMATION = (  # C6 n° 5 et 10 : le modèle confirme avec ses 
 A_FAIRE_DU_CHANGEMENT = (  # C6 n° 6 : le modèle dit que la commande enregistrée est changée ; le nouveau total et la question sont dits par le code juste après sa phrase
     "dis-lui avec tes mots que sa commande est changée, sans prix et sans question : le code dit le nouveau total et la question juste après ta phrase"
 )
+A_SANS_LE_NUMERO_DE_COMMANDE = "sans numéro de commande : le code dit le nouveau numéro juste après ta phrase"  # 8b-2 : le numéro change, il n'est entendu qu'une fois
 A_FAIRE_AVANT_LE_NUMERO_DICTE = (  # C6 n° 12 : DC10, le modèle dit ce que la fiche a fait ; la relecture du numéro dicté et sa question sont dites par le code après sa phrase
     "dis-lui avec tes mots ce que sa fiche a fait, sans numéro de téléphone et sans question : le code relit le numéro dicté et pose la question juste après ta phrase"
 )
@@ -217,7 +218,7 @@ def _avec_le_nouveau_numero(textes: dict[str, Any], phrase_du_numero_de_commande
     """Reprise R1 de 8b-1b : le numéro de commande a changé avec le changement (son préfixe suit le mode) ; sa phrase réglée passe en tête de la suite du code, après la phrase du modèle."""
     if not phrase_du_numero_de_commande:
         return textes
-    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x)}
+    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x), "a_faire_du_numero": A_SANS_LE_NUMERO_DE_COMMANDE}  # une consigne de plus, jamais collée à l'autre
 
 
 def _avec_l_adresse(textes: dict[str, Any], dernier: Resultat) -> dict[str, Any]:
@@ -407,13 +408,6 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             return Resultat("OK", {"annulation_abandonnee": True}, "")  # seul un « non » dit abandonne ; la commande reste enregistrée
         # Pierre 7 : « autre » (une fiche sans réponse, un mauvais numéro écartés, « euh attendez ») n'abandonne rien : la question reste posée
         return Resultat("OK", {"rien_ajoute": True}, "")
-    if question["type"] == RQ.TYPE_NOUVELLE_COMMANDE:
-        if sens == "accepte":
-            RQ.repartir(p)  # DC5 : une commande neuve ; l'article se redit dans sa case
-            return Resultat("OK", {"nouvelle_commande": True}, "")
-        if sens == "refuse":
-            return Resultat("OK", {"rien_ajoute": True}, "")  # seul un « non » dit la ferme ; un article dit plus tard la propose de nouveau (aucun drapeau définitif)
-        return Resultat("OK", {"rien_ajoute": True}, "")  # Pierre 7 : « autre » ne ferme rien
     if question["type"] == "proposition":
         if sens == "autre":
             # DC3 (Evan, 22/11) : une proposition se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas (rien n'est ajouté)
@@ -931,37 +925,11 @@ def _prenom_qui_change(p: dict[str, Any], case: str, valeur: Any) -> bool:
     return case == P.CLE_DU_PRENOM and ETAPE.courante(p) == RQ.ENREGISTREE and moteur.prenom_retenu(str(valeur)) != P.prenom_de(p)
 
 
-def _cases_qui_changent(fiche: dict[str, Any]) -> list[str]:
-    return [c for c in (*contrat.CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
-
-
-def _refus_de_la_commande_annulee(f: LaFiche) -> None:
-    """DC5 (Evan, 22/11) : la commande annulée n'existe plus ; rien n'y entre ; le code le dit et propose d'en passer une nouvelle."""
-    repart = bool(f.reponse and f.reponse.get("sens") == "accepte" and (CONV.question_de(f.p) or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE)  # B1 : la réponse écartée n'écarte rien d'autre
-    if ETAPE.courante(f.p) == RQ.ANNULEE and not repart:
-        dites = _cases_qui_changent(f.fiche)
-        if dites:
-            f.refus.append(B.refus("commande_annulee", dites, reste="la commande est annulée ; une nouvelle commande est proposée à la personne : dis-le avec tes mots (la commande est annulée, rien ne s'y ajoute, veut-elle en passer une nouvelle ?) et attends sa réponse"))
-            RQ.proposer_une_nouvelle_commande(f.p)
-
-
-def _refus_de_la_commande_annulee_dans_la_fiche(f: LaFiche, refusees_en_propre: set[str]) -> None:
-    """DC5 et RC8 (Evan, 22/11) : annulée DANS cette fiche (« annulez », ou le « oui » à l'annulation d'une commande enregistrée, RC4), la commande n'existe plus,
-    comme si elle l'était déjà : ni article, ni mode, ni « c'est tout » de la même fiche n'y entrent ; le modèle dit l'annulation (C6 n° 7). Ces cases sont écartées à part : un
-    refus ordinaire écarterait aussi l'annulation (``DEPEND_DE_TOUT``), qui est justement ce que la personne a demandé."""
-    p, fiche, reponse = f.p, f.fiche, f.reponse
-    if fiche.get("annuler_la_commande") is True and ETAPE.courante(p) != RQ.ANNULEE and "*" not in f.ecartees and "annuler_la_commande" not in refusees_en_propre:
-        f.ecartees.discard("annuler_la_commande")  # le refus d'une autre case (le règlement avant l'accord de la relecture) n'annule pas l'annulation voulue
-        dites = _cases_qui_changent(fiche)
-        if dites:
-            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; dis-le avec tes mots, attends la réponse de la personne"))
-            f.ecartees |= set(dites)
-    if ((CONV.question_de(p) or {}).get("type") == RQ.TYPE_ANNULATION and reponse and reponse.get("sens") == "accepte"
-            and ETAPE.courante(p) == RQ.ENREGISTREE and "*" not in f.ecartees):
-        dites = _cases_qui_changent(fiche)
-        if dites:
-            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; dis-le avec tes mots, attends la réponse de la personne"))
-            f.ecartees |= set(dites)
+def _garder_l_annulation_voulue(f: LaFiche, refusees_en_propre: set[str]) -> None:
+    """RC4 : le refus d'une autre case (le règlement avant l'accord de la relecture) n'écarte pas l'annulation que la personne a demandée : « annuler » reste dans ``cases_ecartees``
+    seulement quand elle est refusée pour elle-même. Le reste de la fiche suit l'ordre des cases : vider, puis ajouter (§ 17 l.407, plus de refus après l'annulation)."""
+    if f.fiche.get("annuler_la_commande") is True and ETAPE.courante(f.p) != ETAPE.ANNULEE and "*" not in f.ecartees and "annuler_la_commande" not in refusees_en_propre:
+        f.ecartees.discard("annuler_la_commande")
 
 
 async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
@@ -1029,10 +997,9 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
                 reponse=fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None)
     f.refus = [x for x in (reponse_ecartee, case_ecartee) if x is not None]
     await _refus_des_cases(f, f.refus)
-    _refus_de_la_commande_annulee(f)
     propres = [c for r in f.refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"]]
     f.ecartees = cases_ecartees(propres)
-    _refus_de_la_commande_annulee_dans_la_fiche(f, set(propres))
+    _garder_l_annulation_voulue(f, set(propres))
     # B4 (M6, point 3) : une case déjà faite dans ce tour, à l'identique (la fiche refaite après un refus partiel), n'est pas refaite
     f.deja_faites = {c for c, v in f.fiche.items() if c not in f.ecartees and case_deja_faite(p, tour, c, v)}
     await _lire_ce_qui_est_deja_pose(f)
@@ -1392,6 +1359,9 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     Un refus (hors zone, article inconnu, heure…) n'est jamais dit par le code : le modèle le dit d'après les faits (``refus_de_la_fiche``), le journal de ce qui est dit dit
     s'il l'a déjà entendu (une issue, puis la sortie)."""
     ctx, p, dernier, tour = f.ctx, f.p, f.dernier, f.tour
+    annulation = next((r for r in reversed(f.bruts) if r.faits.get("annulee") or r.faits.get("commande_annulee")), None)
+    if annulation is not None and _panier_vide_apres_l_annulation(p):
+        dernier = annulation  # § 17 l.407 : annulée dans cette fiche et le panier finit vide (un mode ou « c'est tout » qui suit n'y change rien) : le fait dit est l'annulation, jamais le dernier geste
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
@@ -1404,6 +1374,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
         consignes.append((C.QUESTION, A_FAIRE_DE_L_HEURE))
     if textes.get("a_faire"):
         consignes.append((C.RESTE, str(textes["a_faire"])))  # C6 n° 5 et 6 : le modèle dit le fait accompli, le code la suite
+    if textes.get("a_faire_du_numero"):
+        consignes.append((C.RESTE, str(textes["a_faire_du_numero"])))  # 8b-2 : le numéro change, le code le dit après la phrase du modèle ; sa consigne est rangée à part, ``une_consigne`` les met dans l'ordre
     if refusants:  # C5 : le refus se lit sur les refusants, plus sur le texte de secours (une suggestion vide garde sa consigne)
         # Le refus se dit une fois comme un fait (B3, M5, C7, DF7) ; redit, le journal donne l'issue, puis la sortie. Une question née avec le refus se dit d'une seule voix avec lui.
         etape = J.fait_redit(p, " ".join(J.identite_du_refus(r) for r in refusants), tour, _seuil_de_sortie(ctx))
@@ -1726,11 +1698,17 @@ def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
     return ISSUES.issue_de_fin_d_appel(fiche_de_l_appel, CLE_ISSUES_REGLEES, "commande_abandonnee", _commande_commencee)
 
 
-def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any]) -> None:
-    """Après la fiche : enregistrée, ou annulée (en cours ou enregistrée) dans CE geste."""
+def _panier_vide_apres_l_annulation(p: dict[str, Any]) -> bool:
+    """Une annulation faite dans la fiche vaut jusqu'au bout si le panier finit vide : rien en cours, rien gardé de côté (R3 de l'audit 8b-2 ; un mode qui suit efface la marque « annulée » sans rouvrir de commande)."""
+    return bool(p.get("annulee")) or not (p.get("lignes") or p.get("dits_en_attente"))
+
+
+def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any], resultats: list[dict[str, Any]] | None = None) -> None:
+    """Après la fiche : enregistrée, ou annulée (en cours ou enregistrée) dans CE geste, même si un mode ou un « c'est tout » qui suit a effacé la marque et que le panier finit vide."""
+    annulee_dans_la_fiche = any((x.get("faits") or {}).get("annulee") or (x.get("faits") or {}).get("commande_annulee") for x in resultats or [])
     if p.get("enregistree") and not avant.get("enregistree"):
         poser_l_issue(ctx, "commande_enregistree")
-    elif (p.get("annulee") and not avant.get("annulee")) or (p.get("numero_de_la_commande_annulee") and p.get("numero_de_la_commande_annulee") != avant.get("numero_de_la_commande_annulee")):
+    elif (annulee_dans_la_fiche and _panier_vide_apres_l_annulation(p)) or (p.get("annulee") and not avant.get("annulee")) or (p.get("numero_de_la_commande_annulee") and p.get("numero_de_la_commande_annulee") != avant.get("numero_de_la_commande_annulee")):
         poser_l_issue(ctx, "commande_annulee")
 
 
@@ -1841,7 +1819,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 DU.assembler(retour, poser_le_minimum(ctx, p, retour), await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour),
                              poser_la_regle_de_la_ligne(retour.get("resultats") or [], retour), poser_les_regles_de_l_article(retour.get("resultats") or [], retour, p),
                              poser_le_prix_du_poids(retour.get("resultats") or [], retour), await poser_la_remise_du_code(ctx, source, p, regles, retour), poser_la_ligne_retiree(retour))
-                _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
+                _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant, retour.get("resultats"))
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))
                 return avec_le_fait_du_numero_affiche(retour, contexte_appelant_affiche(ctx))

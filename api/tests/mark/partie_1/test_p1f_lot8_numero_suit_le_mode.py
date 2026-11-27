@@ -46,3 +46,18 @@ async def test_r1_un_changement_dans_le_meme_mode_garde_le_numero_et_ne_le_redit
     o = await partie.geste("G6")
     assert o is not None and (o.base or {}).get("numero_court") == numero, (o.base or {}).get("numero_court") if o else None
     assert numero not in o.dit_par_le_code, o.textes
+
+
+async def test_le_numero_change_la_consigne_dit_au_modele_de_ne_pas_le_dire_le_code_le_dit_une_seule_fois(faire_monde, monkeypatch):
+    """Audit 8b-1b, mineur 1 (8b-2) : Client (à emporter, E12) « Finalement, livrez-moi au 3 rue de Paris. » / avant : la consigne « dis que la commande est changée » ne défendait pas
+    au modèle de dire le numéro, qui pouvait le redire avant le code : « L12 » entendu deux fois / après : la consigne dit « sans numéro de commande », le code dit L12 une fois."""
+    partie, numero = await _a_emporter_numerote_par_type(faire_monde, monkeypatch)
+    o = await partie._executer("L", "finalement livrez-moi au 3 rue de Paris à Senlis", {"mode_de_retrait": "livraison", **ADRESSE}, C._inchange)
+    assert "sans numéro de commande" in str((o.retour or {}).get("a_faire") or ""), (o.retour or {}).get("a_faire")
+    assert o.dit_par_le_code.count("L" + numero[1:]) == 1, o.dit_par_le_code
+
+
+async def test_le_numero_ne_change_pas_la_consigne_ne_parle_pas_du_numero(faire_monde, monkeypatch):
+    partie, _ = await _a_emporter_numerote_par_type(faire_monde, monkeypatch)
+    o = await partie.geste("G6")
+    assert "numéro de commande" not in str((o.retour or {}).get("a_faire") or ""), (o.retour or {}).get("a_faire")
