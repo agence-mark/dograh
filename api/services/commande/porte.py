@@ -120,6 +120,7 @@ A_FAIRE_DE_LA_CONFIRMATION = (  # C6 n° 5 et 10 : le modèle confirme avec ses 
 A_FAIRE_DU_CHANGEMENT = (  # C6 n° 6 : le modèle dit que la commande enregistrée est changée ; le nouveau total et la question sont dits par le code juste après sa phrase
     "dis-lui avec tes mots que sa commande est changée, sans prix et sans question : le code dit le nouveau total et la question juste après ta phrase"
 )
+A_SANS_LE_NUMERO_DE_COMMANDE = "sans numéro de commande : le code dit le nouveau numéro juste après ta phrase"  # 8b-2 : le numéro change, il n'est entendu qu'une fois
 A_FAIRE_AVANT_LE_NUMERO_DICTE = (  # C6 n° 12 : DC10, le modèle dit ce que la fiche a fait ; la relecture du numéro dicté et sa question sont dites par le code après sa phrase
     "dis-lui avec tes mots ce que sa fiche a fait, sans numéro de téléphone et sans question : le code relit le numéro dicté et pose la question juste après ta phrase"
 )
@@ -217,7 +218,8 @@ def _avec_le_nouveau_numero(textes: dict[str, Any], phrase_du_numero_de_commande
     """Reprise R1 de 8b-1b : le numéro de commande a changé avec le changement (son préfixe suit le mode) ; sa phrase réglée passe en tête de la suite du code, après la phrase du modèle."""
     if not phrase_du_numero_de_commande:
         return textes
-    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x)}
+    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x),
+            "a_faire": " ; ".join(x for x in (textes.get("a_faire"), A_SANS_LE_NUMERO_DE_COMMANDE) if x)}
 
 
 def _avec_l_adresse(textes: dict[str, Any], dernier: Resultat) -> dict[str, Any]:
