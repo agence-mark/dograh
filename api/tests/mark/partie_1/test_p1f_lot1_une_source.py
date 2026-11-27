@@ -206,7 +206,7 @@ def test_chaque_phrase_du_code_est_un_motif_regle_de_la_liste_fermee():
 
 def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
     assert "nouvelle_commande" not in CAT.PHRASES_DU_CODE, "DC5 n'est pas une phrase du code : un refus suivi d'une question, que le modèle dit"
-    assert INFO.NOUVELLE_COMMANDE_PROPOSEE == "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
+    assert not hasattr(INFO, "NOUVELLE_COMMANDE_PROPOSEE"), "§ 17 l.407 : DC5 tombe, plus de nouvelle commande proposée"
     # C6 n° 5 à 7 (décision d'Evan 25/11 9 h 30) : la confirmation, le changement et l'annulation passent au modèle ; C7 B9 : leurs textes de secours sont supprimés, le
     # journal garde le fait accompli en faits (``fait`` : enregistree, changee, annulee, annulee_en_cours ; ``quand_dit``, ``total``), vérifié par ``test_p1f_lot7c7_fait_accompli_en_faits``
 
@@ -215,7 +215,7 @@ def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
     from api.services.commande import registre
 
     p = {"enregistree": {"total": 2180}}
-    assert registre.TEXTE_NOUVELLE_COMMANDE == INFO.NOUVELLE_COMMANDE_PROPOSEE
+    assert not hasattr(registre, "TEXTE_NOUVELLE_COMMANDE") and not hasattr(registre, "repartir")  # § 17 l.407 : DC5 tombe
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : la question DC4 n'a plus de texte du code ; le montant d'aujourd'hui, en lettres, est exigé de la phrase du modèle
     assert registre.montant_enregistre_dit(p) == "vingt et un euros quatre-vingts" and registre.montant_enregistre_dit({}) is None and not hasattr(registre, "texte_de_l_annulation")
     assert not hasattr(registre, "texte_du_changement")  # C6 n° 6 (décision d'Evan 25/11 9 h 30) : le code ne compose plus le changement
