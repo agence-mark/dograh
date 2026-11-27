@@ -59,11 +59,12 @@ async def test_une_allergie_au_tour_suivant_puis_un_nouveau_oui_garde_le_meme_nu
 
 async def _le_filet_sur_un_appel_note_termine(e) -> None:
     """Le filet du rattrapage (E11) joué sur l'appel de la partie, noté terminé, dont la ligne a plus d'une heure : tout ce qui est encore ``retenue`` part."""
-    from api.services.restauration.appel_et_memoire.memoire_de_l_appel import EtatDeLAppel
+    from api.db.bases_clients.restauration_commun import maintenant
+    from api.services.restauration.appel_et_memoire.memoire_de_l_appel import (
+        EtatDeLAppel,
+    )
     from api.services.restauration.caisse import rattrapage
     from api.services.restauration.caisse.prises.prise import poser_prise_de_test
-
-    from api.db.bases_clients.restauration_commun import maintenant
 
     await e.monde.c.execute("UPDATE mark.resto_commande SET maj_le = $2::timestamptz - interval '60 minutes' WHERE appel_id = $1", str(e.ctx.run_id), await maintenant(e.monde.c))  # l'heure de la base d'essai, pas celle du serveur
     await e.monde.c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test') ON CONFLICT (site_id) DO NOTHING", e.monde.a)
