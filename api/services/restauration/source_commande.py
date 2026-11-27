@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration, restauration_en_plus
+from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_carte import accord_du_produit
 from api.db.bases_clients.restauration_signalement_carte import signaler_une_regle_inconnue
 from api.db.bases_clients.annonce_heure import dite
@@ -502,6 +503,8 @@ class SourceClasseur:
         informée par sa prise. ``OK`` ; ``DEJA_FAIT`` ; ``INTERDIT`` (déjà préparée et remise, ou statut final) ; ``INTROUVABLE``. Une caisse en panne ne
         défait pas l'annulation (R1 : au journal, le rattrapage la rejoint). Lot 8b-1b (T24 (2), § 17) : une commande ``retenue`` n'a jamais été reçue par la caisse ni dite
         au portail : elle s'annule en base seulement, rien n'est dit ni gardé « à dire »."""
+        # T35 : la marque « accord retiré » d'abord, seule : si l'annulation qui suit échoue et que l'appel plante, le filet du rattrapage ne l'envoie pas
+        await liaison_db.marquer_l_accord_retire(self.c, self.lieu.etablissement_id, numero)
         commande = await commande_complete(self.c, self.lieu.etablissement_id, numero)
         if commande is None:
             return Resultat("INTROUVABLE", {"numero": numero})
