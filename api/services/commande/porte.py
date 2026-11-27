@@ -792,6 +792,7 @@ class LaFiche:
     etat_avant: str = ""
     avant_enregistree: dict | None = None
     garde_en_question: dict | None = None
+    d01: tuple[dict | None, set[int]] | None = None  # ``garde_article_deja_en_question`` calculée une fois dans ``_lire`` (T34 R1), relue par ``_lire_ce_qui_est_deja_pose``
     reponse_sans_objet: bool = False
     informations_faites: bool = False
     resultats: list[dict] = field(default_factory=list)
@@ -944,7 +945,8 @@ async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
     CONV.poser_question(p, None if f.reponse else f.question_avant)
     f.etat_avant = ETAPE.courante(p)  # n° 8 et n° 45 : l'étape d'AVANT la fiche ; ce que la fiche change se lit dans l'étape d'après
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
-    f.garde_en_question, doubles = await garde_article_deja_en_question(source, p, regles, fiche, f.question_avant, {l.get("ref") for l in P.a_completer(p)})
+    f.garde_en_question, doubles = f.d01 if f.d01 is not None else await garde_article_deja_en_question(source, p, regles, fiche, f.question_avant,
+                                                                                                         {l.get("ref") for l in P.a_completer(p)})
     if f.garde_en_question is not None and doubles and len(doubles) < len(fiche.get("ajouter") or []):
         # RC2 : seuls les articles déjà en question sont refusés ; les autres de la même case entrent
         f.refus.append(f.garde_en_question)
@@ -964,20 +966,60 @@ def _cle_de_la_fiche(tour: Any, fiche: dict[str, Any]) -> str:
     return cle_d_idempotence(tour, "fiche", dite)
 
 
+def _fiche_dite(du_modele: dict[str, Any], lue: dict[str, Any], reponse_ecartee: dict | None, case_ecartee: dict | None) -> dict[str, Any]:
+    """T31 : la fiche telle que le modèle l'a DITE, pour « la même au tour d'avant » : la fiche lue, plus ce qui en a été écarté seul (une case pas montrée dans ce tour, B4 ; une
+    réponse sans question, B1). Écartées, elles restent des mots de la personne : « encore une margherita, par carte, c'est Léa » n'est pas « une margherita ». La réponse écartée
+    est marquée : celle qui visait la question du tour d'avant et ne vise plus rien n'est pas la même fiche (PE-1 R4)."""
+    dite = dict(lue)
+    for case in (case_ecartee or {}).get("cases") or []:
+        if du_modele.get(case) is not None:
+            dite[case] = du_modele[case]
+    if reponse_ecartee is not None and isinstance(du_modele.get("reponse"), dict):
+        dite["reponse"] = {**du_modele["reponse"], "ecartee": True}
+    return dite
+
+
 CLE_DES_FICHES_AJOUTEES = "fiches_ajoutees"  # les clés des fiches, et des cases ``ajouter`` du tour, dont un article a été pris (le tour d'avant en fait partie) ; un article refusé n'y entre pas
+CASES_QUI_CHANGENT_LE_PANIER = tuple(c for c in ORDRE_DES_CASES[:ORDRE_DES_CASES.index("ajouter")] if c != "reponse")  # T34 : avec l'une d'elles, l'article redit n'est pas « le même »
 
 
 def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[str, Any]) -> dict[str, Any] | None:
     """Q1/Q2 (c, Pierre 26/11) : une fiche qui AJOUTE et que le tour d'avant a déjà lue, mot pour mot (réponse comprise : un ``reponse`` différent est une autre fiche), n'est ni
     ignorée (« un Coca... et un autre Coca » perdrait le second) ni ajoutée tout de suite : rien n'est appliqué, elle n'est PAS notée (le tour suivant, « un autre » la même, passe), et
     le fait (les articles lus dans la fiche) revient au modèle, qui demande au client si c'est un de plus ou le même. Seule une fiche dont un article a été PRIS compte (``_case_ajouter`` la
-    range) : le même article inconnu redit n'est pas « un de plus », il reste refusé comme avant (journal des refus, sortie). Rend l'enveloppe du refus, ou ``None``."""
-    if not fiche.get("ajouter") or not isinstance(tour, int) or _cle_de_la_fiche(tour - 1, fiche) not in (CONV.de(p).get(CLE_DES_FICHES_AJOUTEES) or []):
+    range) : le même article inconnu redit n'est pas « un de plus », il reste refusé comme avant (journal des refus, sortie). ``fiche`` : la fiche DITE (``_fiche_dite``, T31 : ses cases
+    écartées seules comprises). T34 (Pierre, 27/11 10 h 49) : la comparaison se fait sur les ARTICLES SEULS (la case ``ajouter``, rangée par ``_ranger_la_fiche_ajoutee``), avec ou sans
+    les autres cases (paiement, prénom, mode, réponse, « c'est tout ») : « une margherita, par carte » puis « une margherita » est la même fiche. Sauf la fiche qui change aussi le panier
+    (vider, annuler, retirer, changer une ligne : « annulez tout, une regina à la place ») : l'article redit y a un autre sens, elle reste comparée mot pour mot. La fiche dont la
+    réponse complète TOUS ses articles n'arrive pas ici (``_articles_completes_par_la_reponse``, T34 R1). Rend l'enveloppe du refus, ou ``None``."""
+    if not fiche.get("ajouter") or not isinstance(tour, int):
+        return None
+    ajoutees = CONV.de(p).get(CLE_DES_FICHES_AJOUTEES) or []
+    articles_seuls = not any(fiche.get(c) not in (None, "", [], False) for c in CASES_QUI_CHANGENT_LE_PANIER)
+    if _cle_de_la_fiche(tour - 1, fiche) not in ajoutees and not (articles_seuls and cle_de_la_case(tour - 1, "ajouter", fiche["ajouter"]) in ajoutees):
         return None
     articles = [{"article": a.get("article"), "quantite": a.get("quantite", 1)} for a in fiche["ajouter"] if isinstance(a, dict)]
-    refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire="rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)")
-    return Enveloppe("REJETEE", faits={"articles": articles}, raison=refus["raison"], a_faire=refus["a_faire"],
+    # T34 R2 : rien de la fiche n'est appliqué ; les autres cases dites (leurs NOMS, jamais leurs valeurs) sont rendues au modèle, qui les remet dans la fiche refaite
+    non_prises = [c for c in ORDRE_DES_CASES if c != "ajouter" and fiche.get(c) not in (None, "", [], False)
+                  and not (c == "reponse" and isinstance(fiche.get(c), dict) and fiche[c].get("implicite"))]
+    refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire=(  # une consigne entière dans chaque cas, jamais deux collées (8b-2 R4)
+        "rien n'est ajouté, ni l'article ni les autres cases de la fiche (faits.cases_non_prises) : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles), "
+        "et refais la fiche avec ces cases seules, sans l'article, tant que le client n'a pas répondu à « un de plus ou le même ? »" if non_prises else
+        "rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)"))
+    faits: dict[str, Any] = {"articles": articles, **({"cases_non_prises": non_prises} if non_prises else {})}
+    return Enveloppe("REJETEE", faits=faits, raison=refus["raison"], a_faire=refus["a_faire"],
                      plus={"refus": [refus], "cases_refusees": refus["cases"], "fiche_appliquee": False}).vers_json()
+
+
+def _articles_completes_par_la_reponse(p: dict[str, Any], fiche: dict[str, Any], doubles: set[int]) -> set[int]:
+    """T34 R1 (audit du 27/11) : les rangs de ``ajouter`` que la réponse de la fiche COMPLÈTE vraiment, ceux que D01 refuse (``garde_article_deja_en_question``) : une réponse dite par
+    le modèle (jamais ``implicite``), à la question posée sur un article (taille, options, étape), qui choisit quelque chose (des valeurs, ou ``accepte``). « Une regina. » / « Quelle
+    taille ? » / la regina redite avec « normale » : la regina est complétée, rien n'entre deux fois. Une réponse ``autre`` sans valeur (« euh, je sais pas ») ne complète rien : vide.
+    ``doubles`` : les rangs que D01 refuse, calculés une seule fois dans ``_lire``."""
+    reponse, question = fiche.get("reponse"), CONV.question_de(p)
+    if not fiche.get("ajouter") or not isinstance(reponse, dict) or reponse.get("implicite") or (question or {}).get("type") not in QUESTIONS_SUR_UN_ARTICLE:
+        return set()
+    return set(doubles)
 
 
 async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaFiche | dict[str, Any]:
@@ -988,14 +1030,27 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
     tour = (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0)
-    identique = _fiche_identique_au_tour_d_avant(p, tour, fiche)
+    dite = _fiche_dite(fiche_du_modele, fiche, reponse_ecartee, case_ecartee)
+    cle = _cle_de_la_fiche(tour, dite)
+    # T31 R1 : la fiche refaite dans le même tour, sa case ``ajouter`` déjà faite, n'ajoute rien : pas de question (l'article vient d'être pris), le chemin normal la range
+    refaite = bool(dite.get("ajouter")) and case_deja_faite(p, tour, "ajouter", dite["ajouter"])
+    # T34 R1 : seule la fiche dont la réponse complète TOUS les articles redits est dispensée (la regina redite avec sa taille) ; un autre article redit à côté (la margherita
+    # du tour d'avant) reste jugé sur les articles (T34) : la question, jamais un second exemplaire sans rien demander ; une réponse qui ne choisit rien ne dispense rien
+    d01 = await garde_article_deja_en_question(ctx.source, p, ctx.regles, fiche, CONV.question_de(p), {l.get("ref") for l in P.a_completer(p)})
+    completes = _articles_completes_par_la_reponse(p, fiche, d01[1])
+    dispensee = bool(fiche.get("ajouter")) and len(completes) == len(fiche["ajouter"])
+    identique = None if refaite or dispensee else _fiche_identique_au_tour_d_avant(p, tour, dite)
     if identique is not None:
+        if completes and isinstance(identique.get("faits"), dict):
+            # la regina que la réponse complète n'est pas « un de plus ou le même ? » : seuls les articles redits sans être complétés sont rendus au modèle
+            identique["faits"]["articles"] = [{"article": a.get("article"), "quantite": a.get("quantite", 1)} for i, a in enumerate(fiche["ajouter"])
+                                              if i not in completes and isinstance(a, dict)]
         return identique
-    cle = _cle_de_la_fiche(tour, fiche)
     if deja_executee(p, cle):  # rejouée à l'identique dans ce tour : rien ne change (E11)
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
     f = LaFiche(ctx=ctx, ex=ex, fiche=fiche, tour=tour, cle=cle, reponse_ecartee=reponse_ecartee, case_ecartee=case_ecartee,
                 reponse=fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None)
+    f.d01 = d01
     f.refus = [x for x in (reponse_ecartee, case_ecartee) if x is not None]
     await _refus_des_cases(f, f.refus)
     propres = [c for r in f.refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"]]

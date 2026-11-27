@@ -236,6 +236,9 @@ def _rep(p, sens: str, **plus) -> dict | None:
     return {"reponse": {"question_id": q["id"], "sens": sens, **plus}} if q.get("id") else None
 
 
+_CASES_QUI_CHANGENT_LE_PANIER = ("vider_le_panier", "annuler_la_commande", "annuler_une_commande_enregistree", "retirer_article", "changer_quantite")  # T34, écrites ici à la main
+
+
 def _reponse_vivante(fiche: dict[str, Any], avant: dict[str, Any]) -> bool:
     """La réponse de la fiche vise la question posée dans cet état (sinon le code l'écarte seule, B1)."""
     reponse, q = fiche.get("reponse"), question(avant)
@@ -379,11 +382,19 @@ class Partie:
         """PE-1 (Q1/Q2 c, Pierre 26/11 ; ``bilan-point-d-etape-7b-c.md:274``) : la fiche qui ajoute, mot pour mot celle que le juge a attendue appliquée au tour d'avant (tour d'avant exactement), ou la fiche refaite dans ce tour-là (R2),
         n'est pas appliquée : le modèle demande « un de plus ou le même ? » (rien ne change, ni l'ajout ni les retraits de la même fiche). Un refus jugé n'est jamais « appliquée » : à la fiche
         suivante la même s'applique (« un autre »), le juge ne regarde que ce qu'il a lui-même attendu. « Mot pour mot » compte la réponse : une réponse qui visait la question posée au tour
-        d'avant et ne vise plus rien au rejeu est écartée SEULE (B1), la fiche qui reste n'est plus celle d'avant : elle s'applique."""
+        d'avant et ne vise plus rien au rejeu est écartée SEULE (B1), la fiche qui reste n'est plus celle d'avant : elle s'applique.
+        T34 (Pierre, 27/11 10 h 49, ``decisions-du-coordinateur.md``) : « mot pour mot » devient « les articles seuls » : la même case ``ajouter``, avec ou sans les autres cases
+        (paiement, prénom, mode, réponse), est la même fiche ; sauf la fiche qui change aussi le panier (vider, annuler, retirer, changer une ligne), comparée mot pour mot.
+        T34 R1 (audit du 27/11, aligné sur ``porte._articles_completes_par_la_reponse``) : seule la fiche dont la réponse complète TOUS ses articles est dispensée (D01 les refuse,
+        ``_ajouts_deja_repondus`` : des valeurs ou ``accepte``) ; une réponse ``autre`` sans valeur ne dispense rien, un autre article redit à côté reste jugé sur les articles."""
         if not fiche or not fiche.get("ajouter"):
             return False
+        if sum(_ajouts_deja_repondus(fiche, avant).values()) == sum(int(a.get("quantite") or 1) for a in fiche["ajouter"]):
+            return False  # la regina redite avec sa taille : la réponse la complète, rien n'entre deux fois
         precedent = self.fiche_de_l_appel_tour() - 1
-        return any(tour == precedent and dite == fiche and vivante == _reponse_vivante(fiche, avant) for tour, dite, vivante in self.ajoutees)
+        articles_seuls = not any(fiche.get(c) not in (None, "", [], False) for c in _CASES_QUI_CHANGENT_LE_PANIER)
+        return any(tour == precedent and ((dite == fiche and vivante == _reponse_vivante(fiche, avant)) or (articles_seuls and dite.get("ajouter") == fiche["ajouter"]))
+                   for tour, dite, vivante in self.ajoutees)
 
     def _ranger_la_fiche_ajoutee(self, fiche: dict[str, Any] | None, avant: dict[str, Any], appliquee: bool) -> None:
         """La fiche qui ajoute et que le juge attend appliquée devient « celle du tour d'avant » pour le tour suivant ; la fiche refaite dans le même tour avec la même case ``ajouter``
