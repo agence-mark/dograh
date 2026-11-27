@@ -251,6 +251,7 @@ function Commandes({ etab, r, temps, poser, relireTemps }: { etab: number; r: Re
             reglage: {
                 moyens_paiement: reglage.moyens_paiement, plafond_titre_restaurant: reglage.moyens_paiement.includes("titre_restaurant") && plafond !== "" ? centimes(plafond) : undefined, numero_mode: reglage.numero_mode,
                 prefixe_mixte: reglage.prefixe_mixte, prefixe_numero_court: reglage.prefixe_numero_court, notes_libres: reglage.notes_libres, titre_alcool_exclu: reglage.titre_alcool_exclu, titre_sans_rendu: reglage.titre_sans_rendu, pause_caisse_pause_telephone: reglage.pause_caisse_pause_telephone,
+                conservation_client_mois: reglage.conservation_client_mois, filet_retenue_min: reglage.filet_retenue_min,
             },
             ...(seuils ? { seuils: { alerte_sans_reponse_min: seuils.alerte_sans_reponse_min, releve_messages_min: seuils.releve_messages_min } } : {}),
             ...(imprimante ? { imprimante } : {}),
@@ -377,6 +378,14 @@ function Commandes({ etab, r, temps, poser, relireTemps }: { etab: number; r: Re
                 <Champs>
                     <Ligne libelle={t("Conservation de la fiche", "Record retention")}>
                         <Nombre valeur={String(reglage.conservation_client_mois)} changer={(v) => setReglage({ ...reglage, conservation_client_mois: Math.min(36, Math.max(1, Math.round(Number(v)) || 1)) })} unite={t("mois", "months")} min={1} max={36} libelle={t("Conservation de la fiche", "Record retention")} />
+                    </Ligne>
+                </Champs>
+            </Section>
+
+            <Section titre={t("Commande d'un appel coupé", "Order from a dropped call")} info={t("Si la fin d'un appel n'a pas pu être jouée, la commande acceptée part quand même en cuisine : au plus tôt ce nombre de minutes après le dernier « oui », et seulement une fois l'appel fini. Si elle ne peut pas partir, le restaurant reçoit une alerte (120 minutes au plus).", "If a call's end could not run, the accepted order still goes to the kitchen: no sooner than this many minutes after the last “yes”, and only once the call is over. If it cannot go, the restaurant gets an alert (120 minutes at most).")}>
+                <Champs>
+                    <Ligne libelle={t("Délai avant l'envoi", "Delay before sending")}>
+                        <Nombre valeur={String(reglage.filet_retenue_min)} changer={(v) => setReglage({ ...reglage, filet_retenue_min: Math.min(120, Math.max(1, Math.round(Number(v)) || 1)) })} unite={t("min", "min")} min={1} max={120} libelle={t("Délai avant l'envoi", "Delay before sending")} />
                     </Ligne>
                 </Champs>
             </Section>

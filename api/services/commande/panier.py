@@ -10,6 +10,7 @@ Toute modification du panier invalide la relecture déjà faite (``relecture`` r
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from datetime import date, datetime
@@ -98,6 +99,71 @@ def remplacer_par(p: dict[str, Any], autre: dict[str, Any]) -> None:
     ``registre.repartir``). L'étape vient avec cet état : c'est celle qu'il portait ; ce n'est pas une transition, c'est un état déjà cohérent qu'on reprend."""
     p.clear()
     p.update(autre)
+
+
+# 7c R1, lot 8b-1b (T13) : ce que la base a reçu et qu'une fiche peut changer (ce que l'empreinte lit, l'adresse, la note, la consigne au livreur) ; gardé à
+# l'enregistrement par l'étape (``commande_enregistree``)
+CLES_DE_LA_COMMANDE_ENREGISTREE = ("mode", "zone", "adresse", "heure_voulue", "moment_voulu", "heure_voulue_dite", "lignes", "note", "consigne_livreur")
+# T13 : ce que la base reçoit et que l'empreinte ne lit pas (l'empreinte dit si la relecture vaut encore : l'adresse n'y entre pas)
+CLES_HORS_EMPREINTE = ("adresse", "note", "consigne_livreur")
+# T18 (Pierre, 26/11 ~18 h) : le prénom de ``client``, gardé dans la copie sous cette clé, se compare et se réécrit comme l'adresse
+CLE_DU_PRENOM = "prenom"
+
+
+def prenom_de(p: dict[str, Any]) -> str | None:
+    return (p.get("client") or {}).get("prenom")
+
+
+def commande_recue(p: dict[str, Any]) -> dict[str, Any]:
+    """Une copie de la commande telle que la base la reçoit à l'instant (jamais partagée avec le panier qui continue de changer)."""
+    return copy.deepcopy({**{k: p.get(k) for k in CLES_DE_LA_COMMANDE_ENREGISTREE}, CLE_DU_PRENOM: prenom_de(p)})
+
+
+def commande_changee(p: dict[str, Any]) -> bool:
+    """La commande enregistrée de cet appel diffère-t-elle de ce que la base a reçu ? L'empreinte (les lignes, le mode, la zone, l'heure), puis ce qu'elle ne lit pas
+    (T13 : l'adresse, la note, la consigne au livreur ; T18 : le prénom), comparé à la copie ``commande_enregistree`` ; une commande enregistrée avant cette copie : l'empreinte seule."""
+    if empreinte(p) != p.get("empreinte_enregistree"):
+        return True
+    recue = p.get("commande_enregistree")
+    if not isinstance(recue, dict):
+        return False
+    return any(recue.get(k) != p.get(k) for k in CLES_HORS_EMPREINTE) or (CLE_DU_PRENOM in recue and recue[CLE_DU_PRENOM] != prenom_de(p))
+
+
+def revenir_a_la_commande_enregistree(p: dict[str, Any], avant: dict[str, Any]) -> None:
+    """7c R1 (Pierre A2 : tout ou rien) : le panier revient à ce que la base a reçu, jamais au seul panier du début de la fiche : une ligne qui attendait sa taille depuis
+    un tour d'avant ne revient pas, ce qu'elle accompagnait non plus. La conversation, les numéros et le reste de l'état sont ceux d'avant la fiche ; le prénom gardé
+    revient dans ``client``. Une commande enregistrée avant cette copie : le panier d'avant, sans ses lignes en attente."""
+    recue = copy.deepcopy(avant.get("commande_enregistree"))
+    if not isinstance(recue, dict):
+        recue = {"lignes": [l for l in avant["lignes"] if not l.get("attente")]}
+    neuf = {**copy.deepcopy(avant), **{k: v for k, v in recue.items() if k != CLE_DU_PRENOM}}
+    if CLE_DU_PRENOM in recue:
+        neuf["client"] = {**(neuf.get("client") or {}), "prenom": recue[CLE_DU_PRENOM]}
+    remplacer_par(p, neuf)
+
+
+def lignes_completees(avant: dict[str, Any], p: dict[str, Any]) -> list[dict[str, Any]]:
+    """Les lignes qui attendaient leur réponse (leur taille) dans ``avant`` et que ``p`` a complétées (même numéro de ligne, plus rien n'attend)."""
+    en_attente = {l["n"] for l in avant["lignes"] if l.get("attente")}
+    return [l for l in p["lignes"] if l.get("n") in en_attente and not l.get("attente")]
+
+
+def revenir_apres_un_refus(p: dict[str, Any], avant: dict[str, Any]) -> list[str]:
+    """T16, option C (règle A2 de Pierre « tout ou rien ») : un changement refusé d'une commande enregistrée. La fiche refusée complétait une ligne en attente : la ligne
+    sort, et ce qui l'accompagnait sans être écrit en base aussi (retour à la commande enregistrée) ; sinon le panier redevient celui d'avant la fiche (une ligne en attente
+    qu'elle ne touchait pas reste, sa question aussi). Rend les noms des lignes retirées, lus dans le panier."""
+    completees = lignes_completees(avant, p)
+    if completees:
+        revenir_a_la_commande_enregistree(p, avant)
+    else:
+        remplacer_par(p, avant)
+    return [str(l.get("nom")) for l in completees]
+
+
+def voie_de_l_adresse(adresse: Any) -> str | None:
+    """La voie d'une adresse (« 3 rue de Paris ») telle que le panier la garde."""
+    return adresse.get("voie") if isinstance(adresse, dict) else (str(adresse) if adresse else None)
 
 
 def numeroter_les_lignes(p: dict[str, Any]) -> None:

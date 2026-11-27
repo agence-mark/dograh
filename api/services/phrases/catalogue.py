@@ -121,6 +121,8 @@ APRES_ENREGISTREMENT = "apres_enregistrement"
 TOTAL_RELECTURE = "total_relecture"
 TOTAL_APRES_CORRECTION = "total_apres_correction"
 TOTAL_APRES_CHANGEMENT = "total_apres_changement"  # C6 n° 6 : le nouveau total d'une commande enregistrée puis changée, dit après la phrase du modèle
+# Reprise R1 de 8b-1b (exception « le numéro » d'Evan, 25/11 9 h 30) : le numéro de commande changé par un changement après le « oui » (son préfixe suit le mode), dit après la phrase du modèle
+NUMERO_DE_COMMANDE_CHANGE = "numero_de_commande_change"
 RENDU_DE_MONNAIE = "rendu_de_monnaie"  # C6 n° 5 : le rendu calculé par le code, dit après la confirmation du modèle et avant la question M108
 CONFIRMATION_REGLEE = "confirmation_reglee"  # PE-2 (Q4, point d'étape du 26/11) : « C'est enregistré. », dite par le code seulement quand la relance de la confirmation du modèle a échoué (commande seulement)
 NUMERO_DICTE_RELU = "numero_dicte_relu"  # DC10 (Evan, 22/11) : le numéro dicté relu avant l'enregistrement, réglable, allumé par défaut
@@ -597,6 +599,23 @@ MOTIFS: dict[str, Motif] = {
             variables=("total",),
         ),
         Motif(
+            id=NUMERO_DE_COMMANDE_CHANGE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Commande changée après l'enregistrement : le nouveau numéro",
+            libelle_en="Order changed after the save: the new number",
+            quand_fr="Après la phrase de l'agent qui dit que la commande enregistrée est changée, quand son numéro de commande change (son préfixe suit le mode, par exemple une commande à emporter passée en livraison) : le code dit le nouveau numéro, avant le nouveau total. « {numero} » est remplacé par le numéro : une phrase sans « {numero} » est refusée.",
+            quand_en="After the agent's sentence saying the saved order is changed, when its order number changes (its prefix follows the mode, for example a takeaway order switched to delivery): the code says the new number, before the new total. « {numero} » is replaced by the number: a sentence without « {numero} » is refused.",
+            a_un_delai=False,
+            variantes_defaut=("Votre numéro de commande devient {numero}.",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Jamais éteinte : sans elle, la personne garderait un numéro faux. On change son texte, pas son existence.",
+            eteinte_en="Never off: without it the person would keep a wrong number. Change its text, not its existence.",
+            moment=MOMENT_ACTION,
+            verrouille=True,
+            variables=("numero",),
+        ),
+        Motif(
             id=RENDU_DE_MONNAIE,
             famille=FAMILLE_ANNONCE,
             libelle_fr="Après un enregistrement : le rendu de monnaie",
@@ -667,7 +686,7 @@ MOTIFS: dict[str, Motif] = {
 
 # Les motifs d'un problème (déclenchés par un fait) : un compteur dans l'appel, jamais de délai.
 # C6 : la liste FERMÉE des phrases que le code dit encore mot pour mot (les autres sont dites par le modèle d'après les faits). Complétée par chaque commit de C6 qui rend un motif neuf.
-PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, TOTAL_APRES_CHANGEMENT, RENDU_DE_MONNAIE, NUMERO_RETENU, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE,
+PHRASES_DU_CODE = frozenset({TOTAL_RELECTURE, TOTAL_APRES_CORRECTION, TOTAL_APRES_CHANGEMENT, NUMERO_DE_COMMANDE_CHANGE, RENDU_DE_MONNAIE, NUMERO_RETENU, NUMERO_DICTE_RELU, NUMERO_AFFICHE_GARDE,
                              APRES_ENREGISTREMENT, CONFIRMATION_REGLEE})
 
 MOTIFS_DE_PROBLEME = tuple(m.id for m in MOTIFS.values() if m.moment == MOMENT_PROBLEME)

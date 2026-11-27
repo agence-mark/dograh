@@ -711,7 +711,6 @@ async def test_plusieurs_commandes_et_une_commande_annulee_se_disent_par_leur_se
 
 
 async def _changer(appel, monkeypatch, *, mode=None):
-    monkeypatch.setattr(changement, "_permet_l_annulation", lambda _source: True)
     avant = copy.deepcopy(appel.p)
     avant["enregistree"] = {"numero": "00000000-0000-0000-0000-000000000001", "numero_court": "12", "total": 200}
     if mode:

@@ -47,7 +47,7 @@ from api.services.commande.briques import formule_a_etapes, ligne_de_formule_lim
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
 from api.services.mots_dits import montant_en_lettres
-from api.services.phrases.catalogue import CONFIRMATION_REGLEE, RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
+from api.services.phrases.catalogue import CONFIRMATION_REGLEE, NUMERO_DE_COMMANDE_CHANGE, RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
 from api.services.commande import panier as P
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
@@ -213,9 +213,26 @@ def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_
             "fait_accompli": {"fait": "changee", "total": total}, "a_faire": A_FAIRE_DU_CHANGEMENT}
 
 
+def _avec_le_nouveau_numero(textes: dict[str, Any], phrase_du_numero_de_commande: str | None) -> dict[str, Any]:
+    """Reprise R1 de 8b-1b : le numéro de commande a changé avec le changement (son préfixe suit le mode) ; sa phrase réglée passe en tête de la suite du code, après la phrase du modèle."""
+    if not phrase_du_numero_de_commande:
+        return textes
+    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x)}
+
+
+def _avec_l_adresse(textes: dict[str, Any], dernier: Resultat) -> dict[str, Any]:
+    """Lot 8b-1b (E-2) : l'adresse d'une commande enregistrée a changé : elle entre dans les faits du changement et le modèle doit la dire (``chiffres_exiges`` ; sa voie,
+    « 3 rue de Paris ») ; aucun nouvel accord n'est demandé."""
+    adresse = (dernier.faits or {}).get("adresse")
+    if not adresse:
+        return textes
+    return {**textes, "fait_accompli": {**(textes.get("fait_accompli") or {}), "adresse": adresse}, "chiffres_exiges": {**(textes.get("chiffres_exiges") or {}), "adresse": adresse}}
+
+
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None, phrase_du_total: str | None = None, phrase_du_rendu: str | None = None,
-                   phrase_du_changement: str | None = None, phrase_du_numero: str | None = None, phrase_de_confirmation: str | None = None) -> dict[str, Any]:
+                   phrase_du_changement: str | None = None, phrase_du_numero: str | None = None, phrase_de_confirmation: str | None = None,
+                   phrase_du_numero_de_commande: str | None = None) -> dict[str, Any]:
     """Les phrases réglées que le code dit lui-même au retour de cette fiche (vide : aucune), toujours APRÈS la phrase du modèle (``suffixe`` ; C6 n° 12 : plus rien n'est dit avant
     elle), avec ce que le modèle doit dire (``a_faire``, ``chiffres_exiges``) et le fait accompli gardé au journal. La question réglée du numéro dicté (DC10, ``QUESTIONS_DITES_PAR_LE_CODE``)
     suit la phrase du modèle, seule question, à la fin (ordre de « C6 révisée », comme la question du numéro de la réservation). ``deja_enregistree`` : la commande l'était avant cette fiche (un changement se dit, ``remplace`` ; une réponse sans
@@ -225,7 +242,8 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     ``phrase_du_total`` (C6) : la phrase réglée du total de la relecture, que le code dit après la phrase du modèle (elle porte la question) ; ``suffixe``.
     ``phrase_du_rendu`` (C6 n° 5) : la phrase réglée du rendu de monnaie, dite après la confirmation du modèle (``_textes_de_la_confirmation``) ; ``phrase_du_changement`` (C6 n° 6) : celle
     du nouveau total d'une commande enregistrée puis changée (``_textes_du_changement``). ``phrase_du_numero`` (C6 n° 10) : la phrase réglée du numéro dicté et retenu (motif
-    ``numero_retenu``), dite après la phrase du modèle et avant la suite du code (le total, le rendu, M108) ; seule une suite du code la porte (sans suite, la question du modèle finit le tour)."""
+    ``numero_retenu``), dite après la phrase du modèle et avant la suite du code (le total, le rendu, M108) ; seule une suite du code la porte (sans suite, la question du modèle finit le tour).
+    ``phrase_du_numero_de_commande`` (reprise R1 de 8b-1b) : le nouveau numéro d'une commande changée dont le numéro a changé, en tête de la suite du changement."""
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
@@ -234,10 +252,12 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     if enregistree and dernier.faits.get("remplace"):
         # B2 (M3, TF2) : changée après l'être : le modèle le dit, le code dit le nouveau total ; rien de ce qui se dit n'a changé, sans le total (RC3) ; l'heure a changé : la confirmation
         if (p.get("enregistree") or {}).get("total") != total_d_avant:
-            return _textes_du_changement(p, question_apres, phrase_du_changement, montant=True)
-        if fait_de_la_confirmation(dernier) == J.fait_accompli(p):
-            return _textes_du_changement(p, question_apres, phrase_du_changement, montant=False)
-        return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
+            textes_du_changement = _textes_du_changement(p, question_apres, phrase_du_changement, montant=True)
+        elif fait_de_la_confirmation(dernier) == J.fait_accompli(p):
+            textes_du_changement = _textes_du_changement(p, question_apres, phrase_du_changement, montant=False)
+        else:
+            textes_du_changement = _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
+        return _avec_l_adresse(_avec_le_nouveau_numero(textes_du_changement, phrase_du_numero_de_commande), dernier)
     if enregistree and not deja_enregistree:
         return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation est dite par le modèle, DC4 garde ses deux temps ; le code ne dit rien après sa phrase
@@ -891,7 +911,7 @@ async def _refus_des_cases(f: LaFiche, refus: list[dict]) -> None:
         # l'une après l'autre, la seconde échouait (« Il n'y a encore rien dans la commande. ») ; les deux sont refusées, avec la question à poser
         refus.append(B.refus("conflit_sur_une_ligne", [c for c in ("retirer_article", "changer_quantite") if fiche.get(c)],
                              a_faire=f"rien n'est changé sur la ligne {', '.join(doublees)} : elle y a dit deux choses ; demande-lui ce qu'elle veut pour cette ligne"))
-    fin_redite = [c for c in contrat.CASES_DE_FIN if fiche.get(c) not in (None, "")]
+    fin_redite = [c for c in contrat.CASES_DE_FIN if fiche.get(c) not in (None, "") and not _prenom_qui_change(p, c, fiche.get(c))]
     if ETAPE.courante(p) == RQ.ENREGISTREE and fin_redite:
         # B4 (M7, table « phase → cases ») : enregistrée, le règlement, le numéro et le prénom ne changent plus rien ; avant, notés en silence et
         # « C'est noté » dit (RC4, E16 → G19)
@@ -903,6 +923,12 @@ async def _refus_des_cases(f: LaFiche, refus: list[dict]) -> None:
     fin = B.recapitulatif_pas_accepte(fiche, contrat.CASES_DE_FIN, ETAPE.accord(p), accepte_ici)
     if fin is not None:
         refus.append(fin)
+
+
+def _prenom_qui_change(p: dict[str, Any], case: str, valeur: Any) -> bool:
+    """T18 (Pierre, 26/11 ~18 h) : le prénom est une valeur de la commande en base, comme l'adresse : dit autrement après l'enregistrement, il la change (réécrite au tour même,
+    partie à la fin) ; le même prénom redit ne change rien (``deja_fait``, comme avant)."""
+    return case == P.CLE_DU_PRENOM and ETAPE.courante(p) == RQ.ENREGISTREE and moteur.prenom_retenu(str(valeur)) != P.prenom_de(p)
 
 
 def _cases_qui_changent(fiche: dict[str, Any]) -> list[str]:
@@ -1143,11 +1169,11 @@ async def _case_c_est_tout(f: LaFiche) -> tuple[Resultat, str] | None:
 
 
 async def _case_annuler_enregistree(f: LaFiche) -> tuple[Resultat, str]:
-    if moteur.commande_de_l_appel(f.p) is not None and moteur.annulation_possible(f.source):
+    if moteur.commande_de_l_appel(f.p) is not None:
         # DC4 (Evan, 22/11) : premier temps : la question de confirmation, posée par le modèle avec le montant (exigé de sa phrase, C6 n° 7) ; rien n'est annulé avant le « oui »
         RQ.demander_l_annulation(f.p)
         return Resultat("OK", {"confirmation_demandee": True}, ""), "annuler_une_commande_enregistree"
-    return await moteur.annuler_commande_enregistree(f.source, f.p, f.regles), "annuler_une_commande_enregistree"  # la raison du refus (introuvable, impossible)
+    return await moteur.annuler_commande_enregistree(f.source, f.p, f.regles), "annuler_une_commande_enregistree"  # la raison du refus (introuvable)
 
 
 async def _appliquer_la_case(f: LaFiche, case: str) -> tuple[Resultat, str | None] | None:
@@ -1218,16 +1244,16 @@ async def _proposition_apres_les_cases(f: LaFiche) -> None:
 
 async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
     p, avant = f.p, f.avant_enregistree
-    if (avant is None or moteur.commande_de_l_appel(p) is None or P.empreinte(p) == p.get("empreinte_enregistree")
+    if (avant is None or moteur.commande_de_l_appel(p) is None or not P.commande_changee(p)
             or (P.a_completer(p) and moteur.manque_pour_remplacer(f.source, p) is None)):
         # une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse ; le panier redevenu la commande enregistrée ne change rien ; un panier vidé en diffère (RC8).
         # 7c (Pierre A2, B4 M2) : un manque (l'adresse d'une livraison) se constate d'abord, même quand une ligne attend : rien ne change, le panier redevient celui d'avant
         return
     # RC8 : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2) : rien ne change, la confirmation est posée
-    # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
+    # E10, 8b-1b (E4, T13, T18) : la commande de cet appel, déjà enregistrée, a changé (lignes, mode, adresse, note, consigne, prénom) : sa ligne est réécrite en base (ou rien ne change, avec la raison)
     f.dernier = await moteur.changer_commande_enregistree(f.source, p, f.regles, f.appelant, avant)
     f.resultats.append(_resultat_public("changer_la_commande_enregistree", f.dernier))
-    if f.dernier.statut == "INCOMPLETE" and f.dernier.manque == "articles" and moteur.annulation_possible(f.source):
+    if f.dernier.statut == "INCOMPLETE" and f.dernier.manque == "articles":
         RQ.demander_l_annulation(p)  # B4 (M2) + DC4 : tout retirer d'une commande enregistrée, c'est l'annuler : rien n'a changé, la confirmation en deux temps est posée
 
 
@@ -1350,6 +1376,17 @@ def _phrase_du_changement(ctx: Any, p: dict[str, Any], dernier: Resultat | None)
     return phrase_du_code(ctx, TOTAL_APRES_CHANGEMENT, int(p.get("version") or 0), total=montant_en_lettres(int(total)))
 
 
+def _phrase_du_numero_de_commande(ctx: Any, p: dict[str, Any], dernier: Resultat | None) -> str | None:
+    """Reprise R1 de 8b-1b : la phrase réglée du nouveau numéro de commande (motif ``numero_de_commande_change``, ``{numero}`` remplacé, rien d'autre), quand le changement de ce tour
+    a changé le numéro court (``remplace`` : celui d'avant) ; ``None`` sinon."""
+    if dernier is None or dernier.statut not in STATUTS_ENREGISTRES or not dernier.faits.get("remplace"):
+        return None
+    numero = dernier.faits.get("numero_court")
+    if not numero or numero == dernier.faits.get("remplace"):
+        return None
+    return phrase_du_code(ctx, NUMERO_DE_COMMANDE_CHANGE, int(p.get("version") or 0), numero=str(numero))
+
+
 def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[int, str]]:
     """Ce que le code dit lui-même au retour de la fiche (rangé dans la fiche de l'appel : la relecture, la confirmation, le fait accompli) ; rend les consignes du retour avec leur rang.
     Un refus (hors zone, article inconnu, heure…) n'est jamais dit par le code : le modèle le dit d'après les faits (``refus_de_la_fiche``), le journal de ce qui est dit dit
@@ -1360,7 +1397,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
                             phrase_du_rendu=_phrase_du_rendu(ctx, p, dernier), phrase_du_changement=_phrase_du_changement(ctx, p, dernier),
                             phrase_du_numero=phrase_du_numero_retenu(ctx, dernier.faits if dernier is not None else None, int(p.get("version") or 0)),
-                            phrase_de_confirmation=_phrase_de_confirmation(ctx, p))
+                            phrase_de_confirmation=_phrase_de_confirmation(ctx, p), phrase_du_numero_de_commande=_phrase_du_numero_de_commande(ctx, p, dernier))
     refusants = refusants_de_la_fiche(f)
     consignes: list[tuple[int, str]] = []
     if heures_a_dire(f) and nee is None:

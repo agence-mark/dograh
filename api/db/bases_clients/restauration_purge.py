@@ -18,6 +18,8 @@ from api.db.bases_clients.restauration_commun import maintenant, poser_session
 
 OBJETS_PERSONNELS = ("resto_commande", "resto_client", "resto_reservation")
 SANS_VENTE = "('annulee', 'refusee', 'echec')"
+# T29 : une commande ``retenue`` n'est jamais partie en caisse (la fin de l'appel ou le filet l'auraient envoyée) : comptée parmi les commandes, hors des ventes
+HORS_VENTE = "('annulee', 'refusee', 'echec', 'retenue')"
 MODULE = "restauration"
 
 
@@ -41,10 +43,10 @@ async def purger(connexion: asyncpg.Connection, avant: datetime) -> dict:
                 SELECT site_id, jour, mode,
                        count(*)::int AS nb,
                        (count(*) FILTER (WHERE statut IN {SANS_VENTE}))::int AS annulees,
-                       coalesce(sum(total) FILTER (WHERE statut NOT IN {SANS_VENTE}), 0)::int AS ca,
-                       coalesce(sum(frais) FILTER (WHERE statut NOT IN {SANS_VENTE}), 0)::int AS frais,
+                       coalesce(sum(total) FILTER (WHERE statut NOT IN {HORS_VENTE}), 0)::int AS ca,
+                       coalesce(sum(frais) FILTER (WHERE statut NOT IN {HORS_VENTE}), 0)::int AS frais,
                        coalesce(sum((SELECT coalesce(sum((r ->> 'montant')::int), 0) FROM jsonb_array_elements(remises) r))
-                                FILTER (WHERE statut NOT IN {SANS_VENTE}), 0)::int AS remises
+                                FILTER (WHERE statut NOT IN {HORS_VENTE}), 0)::int AS remises
                 FROM vieilles GROUP BY site_id, jour, mode
             )
             INSERT INTO mark.resto_recap_jour (site_id, jour, mode, nb_commandes, nb_annulees, chiffre_affaires, frais, remises)

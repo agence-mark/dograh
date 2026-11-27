@@ -397,14 +397,24 @@ async def commandes_retenues_a_reprendre(
 ) -> list[tuple[str, str, datetime]]:
     """Lot 8b-1a (E11) : une page des commandes ``retenue`` de CET établissement, avec un appel, qui n'ont plus bougé depuis ``jusqu_a`` : ``(numero, appel_id, maj_le)``,
     dans l'ordre ``(maj_le, numero)``, après ``apres`` (la dernière ligne de la page d'avant). Le rattrapage lit toutes les pages et n'envoie que celles dont l'appel est
-    terminé en base : une page pleine d'appels encore en cours ne cache jamais la suivante (audit 8b-1a, R2). Sans appel : jamais relue (rien ne dit qu'il est fini)."""
+    fini : une page pleine d'appels encore en cours ne cache jamais la suivante (audit 8b-1a, R2). Sans appel : jamais relue (rien ne dit qu'il est fini). Déjà alertée par le
+    filet (lot 8b-1b) : plus relue."""
     de_maj, de_numero = apres if apres is not None else (None, None)
     lignes = await connexion.fetch(
-        "SELECT numero, appel_id, maj_le FROM mark.resto_commande WHERE site_id = $1 AND statut = 'retenue' AND appel_id IS NOT NULL AND maj_le <= $2 "
+        "SELECT numero, appel_id, maj_le FROM mark.resto_commande WHERE site_id = $1 AND statut = 'retenue' AND appel_id IS NOT NULL AND filet_alerte_le IS NULL AND maj_le <= $2 "
         "AND ($4::timestamptz IS NULL OR (maj_le, numero) > ($4::timestamptz, $5::uuid)) ORDER BY maj_le, numero LIMIT $3",
         etablissement_id, jusqu_a, limite, de_maj, de_numero,
     )
     return [(str(r["numero"]), r["appel_id"], r["maj_le"]) for r in lignes]
+
+
+async def marquer_l_alerte_du_filet(connexion: asyncpg.Connection, etablissement_id: int, numero: str) -> bool:
+    """Lot 8b-1b (T24 (1)) : pose l'heure de l'alerte du filet sur une commande encore ``retenue`` ; ``True`` pour le SEUL appel qui la pose (une alerte par commande)."""
+    pose = await connexion.fetchval(
+        "UPDATE mark.resto_commande SET filet_alerte_le = $3 WHERE site_id = $1 AND numero = $2 AND statut = 'retenue' AND filet_alerte_le IS NULL RETURNING 1",
+        etablissement_id, uuid.UUID(str(numero)), await maintenant(connexion),
+    )
+    return bool(pose)
 
 
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:

@@ -19,7 +19,7 @@ from api.services.commande import panier as P
 from api.tests.mark.partie_1 import combinaisons as C
 
 API = I.RACINE_API
-CLES_ECRITES_PAR_L_ETAPE = {"etape", "enregistree", "annulee", "numero_de_la_commande_annulee", "empreinte_enregistree"}
+CLES_ECRITES_PAR_L_ETAPE = {"etape", "enregistree", "annulee", "numero_de_la_commande_annulee", "empreinte_enregistree", "commande_enregistree"}
 
 
 def test_la_table_est_fermee_chaque_etape_connait_chaque_evenement():

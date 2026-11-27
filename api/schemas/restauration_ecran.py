@@ -258,6 +258,10 @@ class ReglageDuModule(BaseModel):
     moyens_paiement: list[MoyenDePaiement] = Field(default_factory=list)
     plafond_titre_restaurant: int | None = None
     conservation_client_mois: int = 12
+    filet_retenue_min: int = Field(
+        default=2,
+        description="Minutes après le dernier « oui » avant que le filet reprenne une commande dont la fin d'appel n'a pas été jouée. Elle ne part qu'une fois l'appel fini "
+                    "(noté terminé ou, à la voix, plus long que la durée maximale d'un appel) ; une commande qui ne peut pas partir alerte le restaurant une fois.")
 
 
 class ReglageChange(BaseModel):
@@ -275,6 +279,7 @@ class ReglageChange(BaseModel):
     moyens_paiement: list[MoyenDePaiement] | None = Field(default=None, max_length=5)
     plafond_titre_restaurant: int | None = Field(default=None, ge=0, le=1_000_000)
     conservation_client_mois: int | None = Field(default=None, ge=1, le=36)
+    filet_retenue_min: int | None = Field(default=None, ge=1, le=120)  # les bornes de la migration 054
 
 
 class TempsRecurrent(BaseModel):

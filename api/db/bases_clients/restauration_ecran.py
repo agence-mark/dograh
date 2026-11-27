@@ -32,6 +32,7 @@ from api.db.bases_clients.restauration_commun import (
 )
 from api.db.bases_clients.horaires_caisse import notifier_le_referentiel
 from api.db.bases_clients.restauration_liaison import horaires_de_l_etablissement
+from api.db.bases_clients.restauration_reglage import PAR_DEFAUT_DU_MODULE
 from api.db.bases_clients.restauration_synonymes import LONGUEUR_SYNONYME, MAX_SYNONYMES
 from api.db.bases_clients.restauration_zone import centre_de_l_etablissement
 from api.services.actions_communes.moyens_de_paiement import MOYENS_PAR_DEFAUT
@@ -328,6 +329,7 @@ async def reglages_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id:
         "numero_mode": r["numero_mode"] if r else "aucun", "prefixe_mixte": r["prefixe_mixte"] if r else "MIX", "notes_libres": r["notes_libres"] if r else True,
         "titre_alcool_exclu": r["titre_alcool_exclu"] if r else True, "titre_sans_rendu": r["titre_sans_rendu"] if r else True,
         "pause_caisse_pause_telephone": r["pause_caisse_pause_telephone"] if r else True,
+        "filet_retenue_min": r["filet_retenue_min"] if r else PAR_DEFAUT_DU_MODULE["filet_retenue_min"],  # lot 8b-1b : un chiffre du métier est un réglage visible (refus 18)
     }
     recurrents = [
         {"id": x["id"], "type": x["type"], "jours": sorted(x["jours"]), "debut": x["debut"].strftime("%H:%M"), "fin": x["fin"].strftime("%H:%M"), "minutes_ajoutees": x["minutes_ajoutees"]}

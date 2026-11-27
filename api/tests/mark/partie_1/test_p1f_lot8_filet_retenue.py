@@ -4,7 +4,7 @@ de l'appel n'a jamais été jouée (serveur redémarré pendant l'appel).
 | Test | Ce qu'il prouve |
 |---|---|
 | appel terminé sans crochet | la ligne « retenue » part au passage suivant du rattrapage, une fois (rejoué : rien de plus) |
-| appel encore en cours | elle ne part pas |
+| appel encore en cours | elle ne part pas (son dernier « oui » est plus récent que le plus long appel : lot 8b-1b, T24) |
 | lignes bloquées devant | plus de 50 « retenue » plus anciennes, d'appels encore en cours ou sans appel, ne bloquent jamais celle d'un appel terminé |
 | délai réglé | le délai est un réglage du module (``filet_retenue_min``) : une ligne plus récente que lui attend, quel que soit l'état de l'appel |
 """
@@ -14,6 +14,7 @@ from __future__ import annotations
 import pytest
 
 from api.db.bases_clients.restauration_reglage import PAR_DEFAUT_DU_MODULE
+from api.services.restauration.appel_et_memoire.memoire_de_l_appel import EtatDeLAppel
 from api.services.restauration.caisse import rattrapage
 from api.services.restauration.caisse.prises.prise import poser_prise_de_test
 from api.tests.mark.partie_1 import combinaisons as C
@@ -31,12 +32,13 @@ async def _vieillir(partie: C.Partie, minutes: int) -> None:
 
 
 async def _rattraper(partie: C.Partie, *, termine: bool) -> None:
-    async def appel_termine(cle: str) -> bool:
-        return termine and cle == str(partie.e.ctx.run_id)   # seul l'appel de la partie est terminé
+    async def etats_des_appels(cles: list[str]) -> dict[str, EtatDeLAppel]:
+        run = str(partie.e.ctx.run_id)  # seul l'appel de la partie est connu (à la voix) ; terminé ou non
+        return {c: EtatDeLAppel(termine=termine, au_clavier=False) for c in cles if c == run}
 
     poser_prise_de_test(partie.e.source.prise)
     try:
-        await rattrapage.rattrapage_des_envois(bases=[(7, partie.e.monde.base)], appel_termine=appel_termine)
+        await rattrapage.rattrapage_des_envois(bases=[(7, partie.e.monde.base)], etats_des_appels=etats_des_appels)
     finally:
         poser_prise_de_test(None)
 
@@ -56,8 +58,10 @@ async def test_un_appel_termine_sans_crochet_sa_commande_part_au_passage_suivant
 
 
 async def test_un_appel_encore_en_cours_sa_commande_ne_part_pas(faire_monde, monkeypatch):
+    """Pierre 27/11 ~4 h (decisions-du-coordinateur.md:125) : un appel jamais noté terminé ne retient plus sa commande pour toujours ; « encore en cours » = son dernier
+    « oui » est plus récent que le plus long appel à la voix (avant : une heure, aujourd'hui fini)."""
     partie = await _retenue(faire_monde, monkeypatch)
-    await _vieillir(partie, 60)
+    await _vieillir(partie, 10)
     await _rattraper(partie, termine=False)
     assert partie.e.source.prise.recues == [] and await _statut(partie) == "retenue"
 

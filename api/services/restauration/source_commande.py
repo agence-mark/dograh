@@ -28,6 +28,7 @@ from api.db.bases_clients.restauration_commande import (
     article_de_la_carte,
     commande_complete,
     formules_de_la_carte,
+    reecrire_la_commande,
     chiffrer_panier,
     creneau_refuse,
     statut_de_fermeture,
@@ -453,11 +454,14 @@ class SourceClasseur:
             r.faits["envoi"] = ENVOI_A_LA_FIN_DE_L_APPEL
         return r
 
-    async def verifier_l_enregistrement(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
-        """Clôture (Pierre A2) : ce que ``enregistrer`` refuserait, constaté sans rien écrire ; ``OK`` ou le même refus. Sert à changer une commande enregistrée
-        en tout ou rien (l'ancienne n'est annulée qu'une fois la nouvelle sûre d'entrer)."""
+    async def reecrire_la_commande(self, numero: str, brouillon: dict[str, Any], jeton: str) -> Resultat:
+        """Lot 8b-1b (E4) : la commande ``retenue`` de l'appel est réécrite à sa place (même numéro, même numéro court), contrôlée comme à l'enregistrement ; rien ne part en
+        caisse (§ 17 l.404). Le fait ``envoi`` est celui de l'enregistrement."""
         brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
-        return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton, a_blanc=True)
+        r = await reecrire_la_commande(self.c, self.lieu.etablissement_id, numero, brouillon, jeton)
+        if r.statut == "ENREGISTREE":
+            r.faits["envoi"] = ENVOI_A_LA_FIN_DE_L_APPEL
+        return r
 
     async def _panier_chiffre(self, p: dict[str, Any], ctx: Any) -> dict[str, Any]:
         """Le panier du direct AVEC ses prix : le prix de chaque ligne et le total, en centimes, chiffrés par la source (jamais par le modèle). Sans chiffrage possible
@@ -493,19 +497,16 @@ class SourceClasseur:
             await flux.poser_le_panier(organisation, etablissement, ctx.run_id, await self._panier_chiffre(p, ctx))
             await flux.emettre(organisation, etablissement, "commande.panier", {"appel_id": str(ctx.run_id), "version": p["version"]})
 
-    def permet_l_annulation(self) -> bool:
-        """Lot 4 (E10) : la caisse de l'établissement sait-elle annuler une commande reçue ? Lu sur la fiche de capacités de la prise, jamais sur son nom."""
-        return bool(self.capacites.annulation)
-
     async def annuler_une_commande(self, numero: str) -> Resultat:
         """Lot 4 (E10) : la commande ``numero`` de CET établissement passe à ``annulee`` (chemin fermé du classeur, source ``agent``), puis la caisse est
         informée par sa prise. ``OK`` ; ``DEJA_FAIT`` ; ``INTERDIT`` (déjà préparée et remise, ou statut final) ; ``INTROUVABLE``. Une caisse en panne ne
-        défait pas l'annulation (R1 : au journal, le rattrapage la rejoint)."""
+        défait pas l'annulation (R1 : au journal, le rattrapage la rejoint). Lot 8b-1b (T24 (2), § 17) : une commande ``retenue`` n'a jamais été reçue par la caisse ni dite
+        au portail : elle s'annule en base seulement, rien n'est dit ni gardé « à dire »."""
         commande = await commande_complete(self.c, self.lieu.etablissement_id, numero)
         if commande is None:
             return Resultat("INTROUVABLE", {"numero": numero})
         r = await restauration.changer_statut(self.c, self.lieu.etablissement_id, numero, commande["statut"], "annulee", "agent")
-        if r.statut != "OK":
+        if r.statut != "OK" or commande["statut"] == "retenue":
             return r
         try:
             if self.prise is not None:
@@ -519,31 +520,10 @@ class SourceClasseur:
                 await _informer_la_caisse(self.lieu.organisation_id, self.c, self.lieu.etablissement_id, self.lieu.nom_base, numero, "annulee")
         except Exception as erreur:  # noqa: BLE001 -- R1 : la caisse en panne ne défait pas l'annulation ; on le voit ici
             logger.error(f"[.mark] Order {numero}: telling the till about the cancellation failed: {erreur!r}")
-        if self.lieu.organisation_id and commande["statut"] != "retenue":  # § 17 : une commande retenue n'a jamais été dite au portail (``commande.creee`` part à la fin de l'appel)
+        if self.lieu.organisation_id:
             await flux.emettre(self.lieu.organisation_id, self.lieu.etablissement_id, "commande.statut",
                                {"numero": numero, "de": commande["statut"], "vers": "annulee", "source": "agent"})
         return r
-
-    async def alerter_d_un_doublon(self, ancien: str, nouveau: str) -> None:
-        """Un changement d'une commande enregistrée : la nouvelle est acceptée par la caisse mais l'ancienne n'a pas pu être annulée. Risque de doublon en cuisine : l'échelle de secours
-        du restaurant (ticket, SMS au gérant) et le message partent tout de suite. Une panne de l'alerte est journalisée, jamais une seconde panne."""
-        from asyncpg import PostgresError
-        try:
-            from api.services.restauration.caisse.envoi_caisse import secours_par_defaut
-            from api.services.restauration.envois_et_sms.secours import secours_de_la_commande
-
-            commande = await commande_complete(self.c, self.lieu.etablissement_id, ancien)
-            if commande is None:
-                return
-            court = commande.get("numero_court")
-            await secours_de_la_commande(self.c, self.lieu.organisation_id, self.lieu.etablissement_id, commande, "doublon possible : l'ancienne version n'a pas pu être annulée")
-            await secours_par_defaut(
-                self.lieu.organisation_id, f"Commande {court} : risque de doublon en cuisine",
-                f"La commande {court} a été changée par le client : la nouvelle version est prise (n° {nouveau}) mais l'ancienne n'a pas pu être annulée. Vérifiez qu'elle ne part pas en double.\n\n"
-                f"Order {court} was changed by the customer: the new version is accepted but the old one could not be cancelled. Please check it is not made twice.",
-            )
-        except (PostgresError, OSError, ValueError, RuntimeError) as erreur:  # dire un doublon ne doit pas en faire une panne
-            logger.error(f"[.mark] Order {ancien}: the duplicate alert failed: {type(erreur).__name__}")
 
     def statut_de_l_enregistrement(self) -> str:
         """Toujours ``ENREGISTREE`` : au « oui », la commande est en base, la caisse ne l'a pas encore (§ 17) ; ce qu'elle sait dire ne change rien ici."""

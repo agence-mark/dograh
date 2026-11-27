@@ -285,6 +285,31 @@ async def appel_termine_en_base(cle: str) -> bool:
         return False
 
 
+@dataclass(frozen=True)
+class EtatDeLAppel:
+    """Ce que la base principale dit d'un appel au filet du rattrapage (lot 8b-1b) : noté terminé, et à la voix ou au clavier."""
+
+    termine: bool
+    au_clavier: bool
+
+
+async def etats_des_appels_en_base(cles: list[str]) -> dict[str, EtatDeLAppel] | None:
+    """L'état de plusieurs appels en UNE lecture de la base principale (audit 8b-1a : jamais une question par ligne et par minute). Un appel inconnu est absent ;
+    une clé qui n'est pas un numéro d'appel aussi. Illisible : ``None`` (au journal ; le filet ne décide rien sur une lecture ratée)."""
+    from api.db import db_client
+    from api.enums import WorkflowRunMode
+
+    ids = sorted({int(c) for c in cles if str(c).isdigit()})
+    if not ids:
+        return {}
+    try:
+        lignes = await db_client.get_workflow_runs_completion(ids)
+    except Exception:
+        logging.exception("[.mark] Catch-up net: the calls' state could not be read")  # le journal standard : l'erreur y est écrite avec sa pile
+        return None
+    return {str(i): EtatDeLAppel(termine=fini, au_clavier=mode == WorkflowRunMode.TEXTCHAT.value) for i, fini, mode in lignes}
+
+
 async def fermer_les_appels_inactifs(sauf: str | None = None, *, appel_termine: Callable[[str], Awaitable[bool]] = appel_termine_en_base) -> int:
     """Ferme les appels ouverts de CE processus : au clavier ceux restés sans geste depuis ``INACTIVITE_AU_CLAVIER_S`` ; à la voix ceux restés sans geste depuis
     ``INACTIVITE_A_LA_VOIX_S`` ET déjà terminés en base (un appel qui parle sans outil n'a pas de geste, il n'est pas inactif). Jamais celui qu'on nomme ni ceux dont
