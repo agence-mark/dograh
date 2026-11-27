@@ -196,6 +196,7 @@ def test_chaque_phrase_du_code_est_un_motif_regle_de_la_liste_fermee():
     assert CAT.PHRASES_DU_CODE == {
         CAT.TOTAL_RELECTURE, CAT.TOTAL_APRES_CORRECTION, CAT.TOTAL_APRES_CHANGEMENT, CAT.RENDU_DE_MONNAIE, CAT.NUMERO_RETENU,
         CAT.NUMERO_DICTE_RELU, CAT.NUMERO_AFFICHE_GARDE, CAT.APRES_ENREGISTREMENT, CAT.CONFIRMATION_REGLEE,  # PE-2 Q4 (bilan Q4, choix C) : « C'est enregistré. », services/phrases/catalogue.py:125 et :671
+        CAT.NUMERO_DE_COMMANDE_CHANGE,  # reprise R1 de 8b-1b (décisions du coordinateur 27/11 1 h 54, à confirmer par Pierre) : le numéro de commande changé
     }
     assert all(CAT.MOTIFS[m].variantes_defaut for m in CAT.PHRASES_DU_CODE)
     # ni DC5, ni le repli de panne (audit du lot 1)

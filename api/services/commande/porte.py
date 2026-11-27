@@ -47,7 +47,7 @@ from api.services.commande.briques import formule_a_etapes, ligne_de_formule_lim
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
 from api.services.mots_dits import montant_en_lettres
-from api.services.phrases.catalogue import CONFIRMATION_REGLEE, RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
+from api.services.phrases.catalogue import CONFIRMATION_REGLEE, NUMERO_DE_COMMANDE_CHANGE, RENDU_DE_MONNAIE, TOTAL_APRES_CHANGEMENT
 from api.services.commande import panier as P
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
@@ -213,6 +213,13 @@ def _textes_du_changement(p: dict[str, Any], question_apres: str | None, phrase_
             "fait_accompli": {"fait": "changee", "total": total}, "a_faire": A_FAIRE_DU_CHANGEMENT}
 
 
+def _avec_le_nouveau_numero(textes: dict[str, Any], phrase_du_numero_de_commande: str | None) -> dict[str, Any]:
+    """Reprise R1 de 8b-1b : le numéro de commande a changé avec le changement (son préfixe suit le mode) ; sa phrase réglée passe en tête de la suite du code, après la phrase du modèle."""
+    if not phrase_du_numero_de_commande:
+        return textes
+    return {**textes, "suffixe": " ".join(x for x in (phrase_du_numero_de_commande, textes.get("suffixe")) if x)}
+
+
 def _avec_l_adresse(textes: dict[str, Any], dernier: Resultat) -> dict[str, Any]:
     """Lot 8b-1b (E-2) : l'adresse d'une commande enregistrée a changé : elle entre dans les faits du changement et le modèle doit la dire (``chiffres_exiges`` ; sa voie,
     « 3 rue de Paris ») ; aucun nouvel accord n'est demandé."""
@@ -224,7 +231,8 @@ def _avec_l_adresse(textes: dict[str, Any], dernier: Resultat) -> dict[str, Any]
 
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None, phrase_du_total: str | None = None, phrase_du_rendu: str | None = None,
-                   phrase_du_changement: str | None = None, phrase_du_numero: str | None = None, phrase_de_confirmation: str | None = None) -> dict[str, Any]:
+                   phrase_du_changement: str | None = None, phrase_du_numero: str | None = None, phrase_de_confirmation: str | None = None,
+                   phrase_du_numero_de_commande: str | None = None) -> dict[str, Any]:
     """Les phrases réglées que le code dit lui-même au retour de cette fiche (vide : aucune), toujours APRÈS la phrase du modèle (``suffixe`` ; C6 n° 12 : plus rien n'est dit avant
     elle), avec ce que le modèle doit dire (``a_faire``, ``chiffres_exiges``) et le fait accompli gardé au journal. La question réglée du numéro dicté (DC10, ``QUESTIONS_DITES_PAR_LE_CODE``)
     suit la phrase du modèle, seule question, à la fin (ordre de « C6 révisée », comme la question du numéro de la réservation). ``deja_enregistree`` : la commande l'était avant cette fiche (un changement se dit, ``remplace`` ; une réponse sans
@@ -234,7 +242,8 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     ``phrase_du_total`` (C6) : la phrase réglée du total de la relecture, que le code dit après la phrase du modèle (elle porte la question) ; ``suffixe``.
     ``phrase_du_rendu`` (C6 n° 5) : la phrase réglée du rendu de monnaie, dite après la confirmation du modèle (``_textes_de_la_confirmation``) ; ``phrase_du_changement`` (C6 n° 6) : celle
     du nouveau total d'une commande enregistrée puis changée (``_textes_du_changement``). ``phrase_du_numero`` (C6 n° 10) : la phrase réglée du numéro dicté et retenu (motif
-    ``numero_retenu``), dite après la phrase du modèle et avant la suite du code (le total, le rendu, M108) ; seule une suite du code la porte (sans suite, la question du modèle finit le tour)."""
+    ``numero_retenu``), dite après la phrase du modèle et avant la suite du code (le total, le rendu, M108) ; seule une suite du code la porte (sans suite, la question du modèle finit le tour).
+    ``phrase_du_numero_de_commande`` (reprise R1 de 8b-1b) : le nouveau numéro d'une commande changée dont le numéro a changé, en tête de la suite du changement."""
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
@@ -243,10 +252,12 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     if enregistree and dernier.faits.get("remplace"):
         # B2 (M3, TF2) : changée après l'être : le modèle le dit, le code dit le nouveau total ; rien de ce qui se dit n'a changé, sans le total (RC3) ; l'heure a changé : la confirmation
         if (p.get("enregistree") or {}).get("total") != total_d_avant:
-            return _avec_l_adresse(_textes_du_changement(p, question_apres, phrase_du_changement, montant=True), dernier)
-        if fait_de_la_confirmation(dernier) == J.fait_accompli(p):
-            return _avec_l_adresse(_textes_du_changement(p, question_apres, phrase_du_changement, montant=False), dernier)
-        return _avec_l_adresse(_textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation), dernier)
+            textes_du_changement = _textes_du_changement(p, question_apres, phrase_du_changement, montant=True)
+        elif fait_de_la_confirmation(dernier) == J.fait_accompli(p):
+            textes_du_changement = _textes_du_changement(p, question_apres, phrase_du_changement, montant=False)
+        else:
+            textes_du_changement = _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
+        return _avec_l_adresse(_avec_le_nouveau_numero(textes_du_changement, phrase_du_numero_de_commande), dernier)
     if enregistree and not deja_enregistree:
         return _textes_de_la_confirmation(p, dernier, question_apres, phrase_du_rendu, phrase_du_numero, phrase_de_confirmation)
     # C6 n° 7 (décision d'Evan 25/11 9 h 30) : l'annulation est dite par le modèle, DC4 garde ses deux temps ; le code ne dit rien après sa phrase
@@ -1365,6 +1376,17 @@ def _phrase_du_changement(ctx: Any, p: dict[str, Any], dernier: Resultat | None)
     return phrase_du_code(ctx, TOTAL_APRES_CHANGEMENT, int(p.get("version") or 0), total=montant_en_lettres(int(total)))
 
 
+def _phrase_du_numero_de_commande(ctx: Any, p: dict[str, Any], dernier: Resultat | None) -> str | None:
+    """Reprise R1 de 8b-1b : la phrase réglée du nouveau numéro de commande (motif ``numero_de_commande_change``, ``{numero}`` remplacé, rien d'autre), quand le changement de ce tour
+    a changé le numéro court (``remplace`` : celui d'avant) ; ``None`` sinon."""
+    if dernier is None or dernier.statut not in STATUTS_ENREGISTRES or not dernier.faits.get("remplace"):
+        return None
+    numero = dernier.faits.get("numero_court")
+    if not numero or numero == dernier.faits.get("remplace"):
+        return None
+    return phrase_du_code(ctx, NUMERO_DE_COMMANDE_CHANGE, int(p.get("version") or 0), numero=str(numero))
+
+
 def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[int, str]]:
     """Ce que le code dit lui-même au retour de la fiche (rangé dans la fiche de l'appel : la relecture, la confirmation, le fait accompli) ; rend les consignes du retour avec leur rang.
     Un refus (hors zone, article inconnu, heure…) n'est jamais dit par le code : le modèle le dit d'après les faits (``refus_de_la_fiche``), le journal de ce qui est dit dit
@@ -1375,7 +1397,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
                             phrase_du_rendu=_phrase_du_rendu(ctx, p, dernier), phrase_du_changement=_phrase_du_changement(ctx, p, dernier),
                             phrase_du_numero=phrase_du_numero_retenu(ctx, dernier.faits if dernier is not None else None, int(p.get("version") or 0)),
-                            phrase_de_confirmation=_phrase_de_confirmation(ctx, p))
+                            phrase_de_confirmation=_phrase_de_confirmation(ctx, p), phrase_du_numero_de_commande=_phrase_du_numero_de_commande(ctx, p, dernier))
     refusants = refusants_de_la_fiche(f)
     consignes: list[tuple[int, str]] = []
     if heures_a_dire(f) and nee is None:

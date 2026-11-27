@@ -998,22 +998,43 @@ async def reecrire_la_commande(connexion: asyncpg.Connection, etablissement_id: 
     return _enregistree(faits, annonce, a.mode, a.maintenant, a.fuseau)
 
 
+def _numero_court_reecrit(a: _ACommande, ancienne: asyncpg.Record) -> str:
+    """Reprise R1 de l'audit de 8b-1b : le préfixe suit le mode de numéro (``type`` : L, E, S ; ``moyen`` : le règlement), le compteur du jour reste celui de la commande.
+    Le préfixe d'avant est recalculé sur la ligne d'avant avec les mêmes réglages ; s'il ne la précède pas (réglages changés pendant l'appel), le numéro est gardé tel quel."""
+    module, ancien_numero = a.reglages["module"], str(ancienne["numero_court"] or "")
+    paiement = ancienne["paiement"]
+    paiement = (json.loads(paiement) if isinstance(paiement, str) else paiement) or {}
+
+    def prefixe(mode: str, moyens: list[dict], reste: dict) -> str:
+        return _prefixe_du_numero(module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste, a.reglages["prefixe_numero_court"])
+
+    ancien = prefixe(ancienne["mode"], paiement.get("moyens") or [], paiement.get("reste_par_moyen") or {})
+    if not ancien_numero.startswith(ancien):
+        return ancien_numero
+    return prefixe(a.mode, a.moyens, a.reste) + ancien_numero[len(ancien):]
+
+
 async def _reecrire_la_ligne(connexion: asyncpg.Connection, a: _ACommande, numero: uuid.UUID) -> str | None:
     """La réécriture en UNE transaction ; la requête vérifie elle-même que la ligne est encore ``retenue`` (une fin d'appel qui l'envoie en même temps attend ce verrou et part
-    avec la nouvelle version). Le compte de commandes du client ne bouge pas : c'est la même commande. Rend le numéro court, ``None`` si rien n'est réécrit."""
+    avec la nouvelle version). Le compte de commandes du client ne bouge pas : c'est la même commande. Le numéro court garde son compteur et prend le préfixe de la nouvelle
+    version (``_numero_court_reecrit``). Rend le numéro court, ``None`` si rien n'est réécrit."""
     client, brouillon = a.client, a.brouillon
     taux_du_panier = taux_majoritaire(a.calculees)
     async with connexion.transaction():
         await poser_session(connexion, "agent", "commande:reecriture")
+        ancienne = await connexion.fetchrow(
+            "SELECT numero_court, mode, paiement FROM mark.resto_commande WHERE numero = $1 AND site_id = $2 AND statut = 'retenue' FOR UPDATE", numero, a.etablissement_id)
+        if ancienne is None:
+            return None
         numero_court = await connexion.fetchval(
             "UPDATE mark.resto_commande SET mode = $3, heure_voulue = $4, heure_annoncee = $5, telephone = $6, prenom = $7, second_numero = $8::jsonb, adresse = $9::jsonb, "
             "zone_id = $10, remises = $11::jsonb, sous_total = $12, frais = $13, total = $14, paiement = $15::jsonb, note = $16, maj_le = $17, taux_tva_frais = $18, "
-            "consigne_livreur = $19 WHERE numero = $1 AND site_id = $2 AND statut = 'retenue' RETURNING numero_court",
+            "consigne_livreur = $19, numero_court = $20 WHERE numero = $1 AND site_id = $2 AND statut = 'retenue' RETURNING numero_court",
             numero, a.etablissement_id, a.mode, a.heure_voulue, a.heure_annoncee, client["telephone"], client.get("prenom"),
             json.dumps(client["second_numero"]) if client.get("second_numero") else None, json.dumps(brouillon["adresse"]) if brouillon.get("adresse") else None,
             a.zone["id"] if a.zone else None, _remises_en_json(a.retenues, taux_du_panier), a.sous_total, a.frais, a.total,
             json.dumps({"moyens": a.moyens, "rendu_sur": a.paiement.get("rendu_sur"), "reste_par_moyen": a.reste}), brouillon.get("note"), a.maintenant,
-            taux_du_panier if a.frais else None, brouillon.get("consigne_livreur") or None,
+            taux_du_panier if a.frais else None, brouillon.get("consigne_livreur") or None, _numero_court_reecrit(a, ancienne),
         )
         if numero_court is None:
             return None
