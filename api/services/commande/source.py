@@ -87,9 +87,10 @@ class Source(Protocol):
     async def enregistrer(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
         """L'enregistrement DÉFINITIF (recalcule tout, refuse l'incomplet, anti-doublon) ; rien ne part pendant l'appel : l'envoi part à sa fin (§ 17)."""
 
-    async def reecrire_la_commande(self, numero: str, brouillon: dict[str, Any], jeton: str) -> Resultat:
+    async def reecrire_la_commande(self, numero: str, brouillon: dict[str, Any], jeton: str, *, rouvrir: bool = False) -> Resultat:
         """Lot 8b-1b (E4) : la commande ``numero`` de l'appel, changée après le « oui », est réécrite à sa place (même numéro), contrôlée comme ``enregistrer`` (tout ou rien) ;
-        rien ne part pendant l'appel (§ 17 l.404). ``ENREGISTREE`` ou le refus."""
+        rien ne part pendant l'appel (§ 17 l.404). ``ENREGISTREE`` ou le refus. Lot 8b-2 (§ 17 l.407) : ``rouvrir`` reprend aussi la ligne que cet appel a annulée (annuler = vider,
+        on recommande dans le même appel) ; sans elle (introuvable, ou plus rouvrable), ``INTROUVABLE`` ou ``INTERDIT``."""
 
     async def annuler_une_commande(self, numero: str) -> Resultat:
         """La commande ``numero`` de CET appel passe à « annulée » ; une commande que la caisse n'a pas reçue (« retenue », § 17) s'annule sans elle.

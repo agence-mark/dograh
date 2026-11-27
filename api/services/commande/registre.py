@@ -17,7 +17,6 @@ from typing import Any
 
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import conversation as CONV
-from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import etape as ETAPE
 from api.services.commande.briques import formule_a_etapes
@@ -36,8 +35,6 @@ def finie(p: dict[str, Any]) -> bool:
 
 TYPE_DU_NUMERO = "numero_affiche"
 TYPE_DU_NUMERO_DICTE = "numero_dicte"  # DC10 : le numéro dicté relu avant l'enregistrement
-TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
-TEXTE_NOUVELLE_COMMANDE = INFO.NOUVELLE_COMMANDE_PROPOSEE  # proposée au modèle, jamais dite mot pour mot par le code (DC5 : un refus suivi d'une question)
 TYPE_DE_L_ETAPE = formule_a_etapes.TYPE_DE_LA_QUESTION  # le type de la question née d'une étape (jamais réécrit ici)
 CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une question d'hésitation
 # DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question, avec le montant, est posée par le modèle (C6 n° 7, montant exigé de sa phrase)
@@ -61,7 +58,7 @@ def demander_l_annulation(p: dict[str, Any]) -> None:
 # L'ordre fixe : on finit ce qui est commencé (le doute sur un article, sa taille, l'étape de sa formule) avant de proposer, de relire, puis d'identifier.
 # L'heure proposée vient en tête : fermé, la commande pour plus tard est la première question (décision d'Evan, 21/11 : « dès le début de l'appel,
 # le magasin est fermé, voulez-vous planifier pour l'ouverture à 18 h »).
-ORDRE = (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO,
+ORDRE = (TYPE_ANNULATION, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO,
          TYPE_DU_NUMERO_DICTE)
 CLE_DES_NUMEROS = RC.CLE_DES_NUMEROS
 CLE_DES_QUESTIONS = RC.CLE_DES_QUESTIONS  # objet → question (texte, choix…) ; une seule est posée (``conversation.question_de``)
@@ -117,8 +114,6 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     """La question existe tant que ceci est vrai DANS L'ÉTAT (audit du code M1, tableau des quatre propriétés)."""
     if q.get("type") == TYPE_ANNULATION:
         return ETAPE.courante(p) == ENREGISTREE
-    if q.get("type") == TYPE_NOUVELLE_COMMANDE:
-        return ETAPE.courante(p) == ANNULEE
     t = q.get("type")
     if ETAPE.courante(p) == ANNULEE or (ETAPE.courante(p) == ENREGISTREE and t not in ("variante", "ambiguite", TYPE_DE_L_ETAPE)):
         # enregistrée, la commande se change encore (E10) : la question d'une ligne changée se pose ; les autres sont closes
@@ -147,12 +142,12 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
 
 def _ferme(q: dict[str, Any], sens: str | None, r: Any, valeurs: list[str] | None) -> bool:
     """Lot 7a (n° 7) : cette réponse ferme-t-elle la question ? Lu sur le type, le sens et le statut du résultat, jamais sur un drapeau posé par la réponse.
-    La relecture ne se ferme que sur un « oui » ; la question qui demande un « oui » ou un « non » (annulation, nouvelle commande, numéro) ne se ferme que sur l'un
+    La relecture ne se ferme que sur un « oui » ; la question qui demande un « oui » ou un « non » (annulation, numéro) ne se ferme que sur l'un
     des deux ; l'heure proposée, le doute et l'étape restent posés quand la réponse n'a rien posé."""
     t = q.get("type")
     if t == "relecture":
         return sens == "accepte" and not (r.faits or {}).get("relecture_pas_entendue")  # C6 : un « oui » sans la phrase du total dite ne ferme rien
-    if t in (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, TYPE_DU_NUMERO, TYPE_DU_NUMERO_DICTE):
+    if t in (TYPE_ANNULATION, TYPE_DU_NUMERO, TYPE_DU_NUMERO_DICTE):
         return sens in ("accepte", "refuse")
     if t == "heure_proposee":
         return not (sens == "autre" and not any(str(v).strip() for v in valeurs or []))  # le texte nettoyé, comme la réponse à l'heure (R5)
@@ -192,24 +187,6 @@ def fermee_sans_reponse_au_tour_d_avant(p: dict[str, Any], type_de_la_question: 
 
 def fermer(p: dict[str, Any], q: dict[str, Any] | None, sens: str | None = None) -> None:
     RC.fermer(TABLE, p, q, sens)
-
-
-def proposer_une_nouvelle_commande(p: dict[str, Any]) -> None:
-    """DC5 (Evan, 22/11) : un article dit après l'annulation n'entre pas ; le code le dit et propose une nouvelle commande (sa question au registre)."""
-    ouvrir(p, {"type": TYPE_NOUVELLE_COMMANDE, "texte": TEXTE_NOUVELLE_COMMANDE})
-
-
-def repartir(p: dict[str, Any]) -> None:
-    """DC5 : « oui » à la nouvelle commande : un panier neuf, sur place (la même fiche de l'appel), le client, le mode et l'adresse gardés ; les numéros
-    des questions continuent (jamais un numéro redonné à un autre objet)."""
-    neuf = P.nouveau()
-    for cle in ("client", "mode", "zone", "adresse", "connu", "vente_en_plus_faite", "proposition_refusee"):
-        if cle in p:
-            neuf[cle] = p[cle]
-    for cle in (CLE_DES_NUMEROS, RC.CLE_DU_PROCHAIN):  # la conversation continue : jamais un numéro redonné
-        if cle in CONV.de(p):
-            CONV.de(neuf)[cle] = CONV.de(p)[cle]
-    P.remplacer_par(p, neuf)
 
 
 def tout_fermer(p: dict[str, Any]) -> None:

@@ -54,8 +54,6 @@ RAISONS_DU_METIER = frozenset({
     # lot 11 (formules) : un choix sans la déclinaison de la taille (FOR6), un mode que la formule n'a pas (FOR7), deux alternatives mêlées (FOR12), un nombre de
     # personnes que la carte n'a pas (FOR10)
     "choix_sans_la_taille", "mode_non_permis", "alternatives_melangees", "personnes_hors_liste",
-    # clôture B1, DC5 (Evan, 22/11) : un article dit après l'annulation de la commande (elle n'existe plus ; une nouvelle est proposée)
-    "commande_annulee",
     # correctifs du contrôle long, famille 3 (RC10) : « c'est tout » dit pendant qu'un article est encore en doute : la question en doute vient d'abord
     "a_finir_avant",
     # lot 7b-A, ligne 87 : un envoi demandé à l'accueil qui n'aboutit pas (le statut du module, dit au modèle au lieu d'une panne)

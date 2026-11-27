@@ -407,13 +407,6 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             return Resultat("OK", {"annulation_abandonnee": True}, "")  # seul un « non » dit abandonne ; la commande reste enregistrée
         # Pierre 7 : « autre » (une fiche sans réponse, un mauvais numéro écartés, « euh attendez ») n'abandonne rien : la question reste posée
         return Resultat("OK", {"rien_ajoute": True}, "")
-    if question["type"] == RQ.TYPE_NOUVELLE_COMMANDE:
-        if sens == "accepte":
-            RQ.repartir(p)  # DC5 : une commande neuve ; l'article se redit dans sa case
-            return Resultat("OK", {"nouvelle_commande": True}, "")
-        if sens == "refuse":
-            return Resultat("OK", {"rien_ajoute": True}, "")  # seul un « non » dit la ferme ; un article dit plus tard la propose de nouveau (aucun drapeau définitif)
-        return Resultat("OK", {"rien_ajoute": True}, "")  # Pierre 7 : « autre » ne ferme rien
     if question["type"] == "proposition":
         if sens == "autre":
             # DC3 (Evan, 22/11) : une proposition se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas (rien n'est ajouté)
@@ -931,39 +924,6 @@ def _prenom_qui_change(p: dict[str, Any], case: str, valeur: Any) -> bool:
     return case == P.CLE_DU_PRENOM and ETAPE.courante(p) == RQ.ENREGISTREE and moteur.prenom_retenu(str(valeur)) != P.prenom_de(p)
 
 
-def _cases_qui_changent(fiche: dict[str, Any]) -> list[str]:
-    return [c for c in (*contrat.CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
-
-
-def _refus_de_la_commande_annulee(f: LaFiche) -> None:
-    """DC5 (Evan, 22/11) : la commande annulée n'existe plus ; rien n'y entre ; le code le dit et propose d'en passer une nouvelle."""
-    repart = bool(f.reponse and f.reponse.get("sens") == "accepte" and (CONV.question_de(f.p) or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE)  # B1 : la réponse écartée n'écarte rien d'autre
-    if ETAPE.courante(f.p) == RQ.ANNULEE and not repart:
-        dites = _cases_qui_changent(f.fiche)
-        if dites:
-            f.refus.append(B.refus("commande_annulee", dites, reste="la commande est annulée ; une nouvelle commande est proposée à la personne : dis-le avec tes mots (la commande est annulée, rien ne s'y ajoute, veut-elle en passer une nouvelle ?) et attends sa réponse"))
-            RQ.proposer_une_nouvelle_commande(f.p)
-
-
-def _refus_de_la_commande_annulee_dans_la_fiche(f: LaFiche, refusees_en_propre: set[str]) -> None:
-    """DC5 et RC8 (Evan, 22/11) : annulée DANS cette fiche (« annulez », ou le « oui » à l'annulation d'une commande enregistrée, RC4), la commande n'existe plus,
-    comme si elle l'était déjà : ni article, ni mode, ni « c'est tout » de la même fiche n'y entrent ; le modèle dit l'annulation (C6 n° 7). Ces cases sont écartées à part : un
-    refus ordinaire écarterait aussi l'annulation (``DEPEND_DE_TOUT``), qui est justement ce que la personne a demandé."""
-    p, fiche, reponse = f.p, f.fiche, f.reponse
-    if fiche.get("annuler_la_commande") is True and ETAPE.courante(p) != RQ.ANNULEE and "*" not in f.ecartees and "annuler_la_commande" not in refusees_en_propre:
-        f.ecartees.discard("annuler_la_commande")  # le refus d'une autre case (le règlement avant l'accord de la relecture) n'annule pas l'annulation voulue
-        dites = _cases_qui_changent(fiche)
-        if dites:
-            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; dis-le avec tes mots, attends la réponse de la personne"))
-            f.ecartees |= set(dites)
-    if ((CONV.question_de(p) or {}).get("type") == RQ.TYPE_ANNULATION and reponse and reponse.get("sens") == "accepte"
-            and ETAPE.courante(p) == RQ.ENREGISTREE and "*" not in f.ecartees):
-        dites = _cases_qui_changent(fiche)
-        if dites:
-            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; dis-le avec tes mots, attends la réponse de la personne"))
-            f.ecartees |= set(dites)
-
-
 async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
     """L'état d'AVANT la fiche (la question posée, le panier d'avant, l'étape) et ce que la fiche ne peut pas faire : une réponse déjà sans objet, un article déjà en question."""
     p, fiche, source, regles = f.p, f.fiche, f.source, f.regles
@@ -1029,10 +989,8 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
                 reponse=fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None)
     f.refus = [x for x in (reponse_ecartee, case_ecartee) if x is not None]
     await _refus_des_cases(f, f.refus)
-    _refus_de_la_commande_annulee(f)
     propres = [c for r in f.refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"]]
     f.ecartees = cases_ecartees(propres)
-    _refus_de_la_commande_annulee_dans_la_fiche(f, set(propres))
     # B4 (M6, point 3) : une case déjà faite dans ce tour, à l'identique (la fiche refaite après un refus partiel), n'est pas refaite
     f.deja_faites = {c for c, v in f.fiche.items() if c not in f.ecartees and case_deja_faite(p, tour, c, v)}
     await _lire_ce_qui_est_deja_pose(f)

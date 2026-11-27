@@ -454,11 +454,11 @@ class SourceClasseur:
             r.faits["envoi"] = ENVOI_A_LA_FIN_DE_L_APPEL
         return r
 
-    async def reecrire_la_commande(self, numero: str, brouillon: dict[str, Any], jeton: str) -> Resultat:
+    async def reecrire_la_commande(self, numero: str, brouillon: dict[str, Any], jeton: str, *, rouvrir: bool = False) -> Resultat:
         """Lot 8b-1b (E4) : la commande ``retenue`` de l'appel est réécrite à sa place (même numéro, même numéro court), contrôlée comme à l'enregistrement ; rien ne part en
         caisse (§ 17 l.404). Le fait ``envoi`` est celui de l'enregistrement."""
         brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
-        r = await reecrire_la_commande(self.c, self.lieu.etablissement_id, numero, brouillon, jeton)
+        r = await reecrire_la_commande(self.c, self.lieu.etablissement_id, numero, brouillon, jeton, rouvrir=rouvrir)
         if r.statut == "ENREGISTREE":
             r.faits["envoi"] = ENVOI_A_LA_FIN_DE_L_APPEL
         return r

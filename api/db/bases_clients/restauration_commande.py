@@ -981,16 +981,22 @@ async def enregistrer_commande(
     return _enregistree(faits, annonce, a.mode, a.maintenant, a.fuseau)
 
 
-async def reecrire_la_commande(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, brouillon: dict, jeton_relecture: str | None) -> Resultat:
+async def reecrire_la_commande(
+    connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, brouillon: dict, jeton_relecture: str | None, *, rouvrir: bool = False
+) -> Resultat:
     """Lot 8b-1b (E4 ; § 17 l.404) : la commande ``retenue`` de l'appel, changée après le « oui », est RÉÉCRITE à sa place : même numéro, même numéro court, même clé
     anti-doublon ; ses lignes, ses totaux, ses remises, sa note, son adresse, le prénom et le règlement deviennent ceux du brouillon, contrôlé et chiffré comme à l'enregistrement
     (tout ou rien : un refus ne touche à rien). Rien ne part en caisse : la fin de l'appel enverra cette version. ``ENREGISTREE`` (les mêmes faits que l'enregistrement), le
-    refus de l'enregistrement, ``INTERDIT`` (``statut_actuel`` : la ligne n'est plus ``retenue``) ou ``INTROUVABLE``."""
+    refus de l'enregistrement, ``INTERDIT`` (``statut_actuel`` : la ligne n'est plus ``retenue``) ou ``INTROUVABLE``.
+
+    Lot 8b-2 (§ 17 l.407 : annuler = vider, on peut recommander dans le même appel) : ``rouvrir`` accepte aussi la ligne que CET appel a annulée sans qu'elle soit jamais partie
+    (``annulee``, ``envoyee_le`` vide, même ``appel_id``) : elle redevient ``retenue`` avec la nouvelle version, même numéro et même numéro court ; le compte de commandes du client,
+    diminué à l'annulation, remonte d'une."""
     refus, a, annonce = await _controler_la_commande(connexion, etablissement_id, brouillon, jeton_relecture, "retenue")
     if refus is not None or a is None:
         return refus or _refus("ARGUMENT_INVALIDE")
     numero = uuid.UUID(str(numero))
-    numero_court = await _reecrire_la_ligne(connexion, a, numero)
+    numero_court = await _reecrire_la_ligne(connexion, a, numero, rouvrir)
     if numero_court is None:
         actuel = await connexion.fetchval("SELECT statut FROM mark.resto_commande WHERE numero = $1 AND site_id = $2", numero, etablissement_id)
         return Resultat("INTROUVABLE", {"numero": str(numero)}) if actuel is None else Resultat("INTERDIT", {"numero": str(numero), "statut_actuel": actuel})
@@ -1014,7 +1020,11 @@ def _numero_court_reecrit(a: _ACommande, ancienne: asyncpg.Record) -> str:
     return prefixe(a.mode, a.moyens, a.reste) + ancien_numero[len(ancien):]
 
 
-async def _reecrire_la_ligne(connexion: asyncpg.Connection, a: _ACommande, numero: uuid.UUID) -> str | None:
+# Les lignes qu'une réécriture peut prendre : la ``retenue`` de l'appel ; avec ``rouvrir``, aussi celle que cet appel a annulée sans qu'elle soit jamais partie (§ 17 l.407)
+_LIGNE_REECRITE = "(statut = 'retenue' OR ($3::boolean AND statut = 'annulee' AND envoyee_le IS NULL AND appel_id IS NOT DISTINCT FROM $4))"
+
+
+async def _reecrire_la_ligne(connexion: asyncpg.Connection, a: _ACommande, numero: uuid.UUID, rouvrir: bool = False) -> str | None:
     """La réécriture en UNE transaction ; la requête vérifie elle-même que la ligne est encore ``retenue`` (une fin d'appel qui l'envoie en même temps attend ce verrou et part
     avec la nouvelle version). Le compte de commandes du client ne bouge pas : c'est la même commande. Le numéro court garde son compteur et prend le préfixe de la nouvelle
     version (``_numero_court_reecrit``). Rend le numéro court, ``None`` si rien n'est réécrit."""
@@ -1022,28 +1032,32 @@ async def _reecrire_la_ligne(connexion: asyncpg.Connection, a: _ACommande, numer
     taux_du_panier = taux_majoritaire(a.calculees)
     async with connexion.transaction():
         await poser_session(connexion, "agent", "commande:reecriture")
+        appel = a.brouillon.get("appel_id")
         ancienne = await connexion.fetchrow(
-            "SELECT numero_court, mode, paiement FROM mark.resto_commande WHERE numero = $1 AND site_id = $2 AND statut = 'retenue' FOR UPDATE", numero, a.etablissement_id)
+            f"SELECT numero_court, mode, paiement, statut FROM mark.resto_commande WHERE numero = $1 AND site_id = $2 AND {_LIGNE_REECRITE} FOR UPDATE",
+            numero, a.etablissement_id, rouvrir, appel)
         if ancienne is None:
             return None
         numero_court = await connexion.fetchval(
             "UPDATE mark.resto_commande SET mode = $3, heure_voulue = $4, heure_annoncee = $5, telephone = $6, prenom = $7, second_numero = $8::jsonb, adresse = $9::jsonb, "
             "zone_id = $10, remises = $11::jsonb, sous_total = $12, frais = $13, total = $14, paiement = $15::jsonb, note = $16, maj_le = $17, taux_tva_frais = $18, "
-            "consigne_livreur = $19, numero_court = $20 WHERE numero = $1 AND site_id = $2 AND statut = 'retenue' RETURNING numero_court",
+            "consigne_livreur = $19, numero_court = $20, statut = 'retenue' WHERE numero = $1 AND site_id = $2 AND (statut = 'retenue' OR ($21::boolean AND statut = 'annulee' "
+            "AND envoyee_le IS NULL AND appel_id IS NOT DISTINCT FROM $22)) RETURNING numero_court",
             numero, a.etablissement_id, a.mode, a.heure_voulue, a.heure_annoncee, client["telephone"], client.get("prenom"),
             json.dumps(client["second_numero"]) if client.get("second_numero") else None, json.dumps(brouillon["adresse"]) if brouillon.get("adresse") else None,
             a.zone["id"] if a.zone else None, _remises_en_json(a.retenues, taux_du_panier), a.sous_total, a.frais, a.total,
             json.dumps({"moyens": a.moyens, "rendu_sur": a.paiement.get("rendu_sur"), "reste_par_moyen": a.reste}), brouillon.get("note"), a.maintenant,
-            taux_du_panier if a.frais else None, brouillon.get("consigne_livreur") or None, _numero_court_reecrit(a, ancienne),
+            taux_du_panier if a.frais else None, brouillon.get("consigne_livreur") or None, _numero_court_reecrit(a, ancienne), rouvrir, appel,
         )
         if numero_court is None:
             return None
         await connexion.execute("DELETE FROM mark.resto_commande_ligne WHERE numero = $1 AND site_id = $2", numero, a.etablissement_id)
         await _ecrire_les_lignes(connexion, numero, a.etablissement_id, a.calculees)
         await connexion.execute(
-            "UPDATE mark.resto_client SET prenom = coalesce($3, prenom), maj_le = $4 WHERE site_id = $1 AND telephone = $2",
-            a.etablissement_id, client["telephone"], client.get("prenom"), a.maintenant,
+            "UPDATE mark.resto_client SET prenom = coalesce($3, prenom), nb_commandes = nb_commandes + $5, maj_le = $4 WHERE site_id = $1 AND telephone = $2",
+            a.etablissement_id, client["telephone"], client.get("prenom"), a.maintenant, 1 if ancienne["statut"] == "annulee" else 0,  # rouverte : l'annulation l'avait retirée du compte
         )
+        oublier(connexion, ("nb_commandes_du_client", a.etablissement_id, client["telephone"]))
         oublier(connexion, cle_du_client(a.etablissement_id, client["telephone"]))
         await _noter_les_offres_acceptees(connexion, a, numero)
     return numero_court

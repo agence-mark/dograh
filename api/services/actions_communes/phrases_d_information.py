@@ -29,5 +29,3 @@ def consigne_si_liste(noms: list[Any]) -> dict[str, str]:
 SOURCE_FICHE = "D'après la fiche"
 SOURCE_FICHE_DU_RESTAURANT = "D'après la fiche du restaurant"
 SOURCE_ARTICLES = "D'après nos articles"
-
-NOUVELLE_COMMANDE_PROPOSEE = "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"  # DC5 : un refus suivi d'une question, proposée au modèle

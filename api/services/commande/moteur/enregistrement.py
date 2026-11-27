@@ -178,7 +178,15 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
     porte des faits (l'heure dite ``quand_dit``, le mode, le rendu de monnaie ``rendu``) ; le modèle dit la confirmation, la porte dit ensuite le rendu (motif réglé) et la question M108."""
     await _garder_l_habitude(source, p)
     jeton = (p.get("relecture") or {}).get("jeton") or uuid.uuid4().hex
-    r = await source.enregistrer(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
+    brouillon = _brouillon_de_la_commande(p, chiffre, paiement, appelant, regles)
+    annulee = p.get(ETAPE.CLE_DE_LA_LIGNE_ANNULEE)
+    if annulee:
+        # § 17 l.407 : annuler = vider, puis recommander dans le même appel : la ligne que cet appel a annulée est rouverte avec la nouvelle version (même numéro), jamais envoyée annulée
+        r = await source.reecrire_la_commande(str(annulee), brouillon, jeton, rouvrir=True)
+        if r.statut in ("INTROUVABLE", "INTERDIT") and (r.faits or {}).get("numero") == str(annulee):
+            r = await source.enregistrer(brouillon, jeton)  # elle n'est plus rouvrable : la nouvelle commande est écrite à part, jamais perdue
+    else:
+        r = await source.enregistrer(brouillon, jeton)
     return _apres_l_ecriture(source, p, r, chiffre, paiement)
 
 
