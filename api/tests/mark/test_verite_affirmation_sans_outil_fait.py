@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 
+from api.services.pipecat.reponse_avalee import phrase_de_repli_par_defaut
 from api.services.workflow import chiffres_sans_source as c
 from api.services.workflow.verite_des_actions import RAISON_ACTION_NON_FAITE, VerificateurDeReplique
 from api.tests.mark.test_verite_des_actions import Banc, _morceau, _reponse, _service, _texte  # noqa: F401
@@ -98,31 +99,33 @@ async def _jouer_avec(service, messages):
     return [m async for m in await service.get_chat_completions(_Contexte(list(messages)))]
 
 
-async def test_2571_c_est_note_apres_trois_incomplets_et_un_plafond_est_remplace_par_la_question_de_l_outil():
+async def test_2571_c_est_note_apres_trois_incomplets_et_un_plafond_relance_le_modele_sans_dire_le_texte_de_l_outil():
     banc = _banc_de_prod()
     service = _service([_morceau(DIT_2571), _morceau(fin="stop")], banc, _reponse("jamais"))
     morceaux = await _jouer_avec(service, MESSAGES_2571)
-    assert _texte(morceaux) == "À emporter ou en livraison ?"
-    assert service.requetes == []  # remplacée, sans relance
+    # Lot 8d (périmé par REPRISE.md:30 : « le modèle parle, jamais le code ») : plus remplacée par le texte de l'outil ; le modèle est relancé avec la consigne.
+    assert _texte(morceaux) == "jamais" and "À emporter ou en livraison ?" not in _texte(morceaux)
+    assert len(service.requetes) == 1
     retenue = VerificateurDeReplique(banc.moteur, banc.agent).controler(DIT_2571, MESSAGES_2571)
     assert retenue.raison == RAISON_ACTION_NON_FAITE and retenue.detail.casefold().startswith("c'est noté")
 
 
-async def test_2571_la_relance_d_une_retenue_qui_affirme_le_faux_est_remplacee_par_la_question_de_l_outil():
+async def test_2571_la_relance_d_une_retenue_qui_affirme_le_faux_ne_dit_pas_le_texte_de_l_outil():
     banc = _banc_de_prod()
     origine = "Vos deux pizzas seront prêtes à 21 h 15."  # retenue pour le chiffre sans source
     service = _service([_morceau(origine), _morceau(fin="stop")], banc, _reponse(DIT_2571))
     morceaux = await _jouer_avec(service, MESSAGES_2571)
     assert len(service.requetes) == 1  # la relance a bien eu lieu
-    assert _texte(morceaux) == "À emporter ou en livraison ?"
+    # Lot 8d, reprise R1 : la relance affirme encore le faux (« c'est noté », rien n'est enregistré) : jamais dite, ni le texte de l'outil ; la phrase réglée du module.
+    assert _texte(morceaux) == phrase_de_repli_par_defaut()
 
 
-async def test_2572_c_est_note_apres_une_heure_ambigue_est_remplace_par_la_question_de_l_heure():
+async def test_2572_c_est_note_apres_une_heure_ambigue_relance_le_modele_sans_dire_le_texte_de_l_outil():
     banc = _banc_de_prod()
     service = _service([_morceau(DIT_2572), _morceau(fin="stop")], banc, _reponse("jamais"))
     morceaux = await _jouer_avec(service, MESSAGES_2572)
-    assert _texte(morceaux) == "Est-ce huit heures trente ou vingt heures trente ?"
-    assert service.requetes == []
+    assert _texte(morceaux) == "jamais" and "huit heures trente ou vingt" not in _texte(morceaux)  # lot 8d : relancé, jamais remplacé par le texte de l'outil
+    assert len(service.requetes) == 1
 
 
 async def test_sains_rien_n_est_retenu():

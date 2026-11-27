@@ -150,7 +150,8 @@ def est_un_echec(statut_de_l_execution: str, donnees: Mapping[str, Any] | None) 
 
 
 def retour_d_echec_repete(dernier: str | None) -> dict[str, Any]:
-    return {"statut": STATUT_ECHEC_REPETE, "faits": {"dernier_statut": dernier}, "suggestion": STRATEGIE}
+    # Lot 8d : le fait d'abord (le même appel a échoué deux fois) ; la stratégie est une consigne pour le modèle, jamais une phrase à dire (il parle, pas le code).
+    return {"statut": STATUT_ECHEC_REPETE, "faits": {"dernier_statut": dernier, "deja_echoue_deux_fois": True}, "consigne": STRATEGIE}
 
 
 # --------------------------------------------------------------------------- écritures en file
