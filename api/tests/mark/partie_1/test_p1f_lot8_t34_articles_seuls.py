@@ -246,3 +246,39 @@ async def test_r1_l_autre_article_redit_avec_la_reponse_pose_la_question(essai_d
     r = await e.fiche(reponse=reponse)
     assert RAISON not in _raisons(r) and _margheritas(e) == 1 and _combien(e, "regina") == 1, r
     assert not P.a_completer(e.p), e.p  # la regina a sa taille
+
+
+async def _cas_2_refuse(essai_de):
+    """Le cas 2 de R1 jusqu'à la fiche refusée : la margherita prise, la regina qui attend sa taille, « Normale » redite avec les deux articles. Rend (l'essai, le retour, la réponse)."""
+    from api.services.actions_communes import conversation as CONV
+
+    e = await essai_de()
+    await a_emporter(e)
+    await e.tour("une margherita normale et une regina", ajouter=[MARGHERITA, REGINA_SANS_TAILLE])
+    q = CONV.question_de(e.p)
+    reponse = {"question_id": q["id"], "sens": "accepte", "valeurs": ["Normale"]}
+    r = await e.tour("normale", ajouter=[MARGHERITA, REGINA_SANS_TAILLE], reponse=reponse)
+    assert RAISON in _raisons(r), r
+    return e, r, reponse
+
+
+async def test_r1_les_articles_rendus_au_modele_sont_ceux_que_la_reponse_ne_complete_pas(essai_de):
+    """Audit du correctif R1, point 1 : ``faits.articles`` (ce que le modèle demande « un de plus ou le même ? ») ne porte que la margherita ; la regina vient d'avoir sa taille,
+    la redemander ferait croire au client qu'elle est en double."""
+    _, r, _ = await _cas_2_refuse(essai_de)
+    assert r["faits"]["articles"] == [{"article": "margherita", "quantite": 1}], r["faits"]
+
+
+async def test_r1_la_fiche_jamais_refaite_laisse_la_taille_en_attente_et_bloque_la_relecture(essai_de):
+    """Audit du correctif R1, point 2 (garde) : le modèle ne refait PAS la fiche avec la réponse seule. La regina attend toujours sa taille, sa question reste posée ; « c'est
+    tout » ne mène jamais à la relecture avec le total tant que la taille manque : elle n'est jamais perdue en silence."""
+    from api.services.actions_communes import conversation as CONV
+
+    e, _, _ = await _cas_2_refuse(essai_de)
+    assert P.a_completer(e.p), e.p
+    for _ in range(3):
+        q = CONV.question_de(e.p) or {}
+        assert q.get("type") == "variante", q
+        r = await e.tour("non merci, c'est tout", c_est_tout=True, **FIN)
+        assert (CONV.question_de(e.p) or {}).get("type") != "relecture" and not e.p.get("relecture"), (e.p.get("relecture"), r)
+        assert P.a_completer(e.p) and _margheritas(e) == 1 and _combien(e, "regina") == 1, e.p
