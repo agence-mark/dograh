@@ -1106,6 +1106,8 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         if r.statut in ("AMBIGU", "CHOIX_OBLIGATOIRE"):
             # D25 : chaque article qui demande ouvre SA question au registre, qui les pose l'une après l'autre : aucun n'est perdu
             RQ.ouvrir(f.p, _question_de(r, 0, f.tour, f.p))
+            if ETAPE.annulee(f.p):
+                ETAPE.transition(f.p, ETAPE.PANIER_TOUCHE)  # 8b-3 : annulée puis un article qui demande (« laquelle ? ») dans la même fiche : la commande continue, sa question ne tombe pas avec l'annulation
             premiere_demande = premiere_demande or r
     # Le résultat de la fiche ne dépend pas de l'ordre des articles : le premier article qui demande est le fait de la fiche ; sinon, dès qu'un article est pris, c'est l'état du
     # panier après le dernier article PRIS (total, proposition), qu'un refus placé avant ou après ne recouvre pas ; les refus se lisent sur tous les résultats (``refusants_de_la_fiche``)
@@ -1700,7 +1702,12 @@ def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
 
 def _panier_vide_apres_l_annulation(p: dict[str, Any]) -> bool:
     """Une annulation faite dans la fiche vaut jusqu'au bout si le panier finit vide : rien en cours, rien gardé de côté (R3 de l'audit 8b-2 ; un mode qui suit efface la marque « annulée » sans rouvrir de commande)."""
-    return bool(p.get("annulee")) or not (p.get("lignes") or p.get("dits_en_attente"))
+    return bool(p.get("annulee")) or not (p.get("lignes") or p.get("dits_en_attente") or _question_d_article_ouverte(p))
+
+
+def _question_d_article_ouverte(p: dict[str, Any]) -> bool:
+    """8b-3 : un article qui demande (doute, taille, étape de sa formule) tient la commande ouverte : un panier avec une question sur un article n'est pas vide."""
+    return any(isinstance(q, dict) and q.get("type") in RQ.QUESTIONS_AVANT_LA_RELECTURE for q in (CONV.de(p).get(RQ.CLE_DES_QUESTIONS) or {}).values())
 
 
 def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any], resultats: list[dict[str, Any]] | None = None) -> None:
