@@ -37,3 +37,15 @@ async def test_au_changement_de_tour_la_liste_ne_garde_que_le_tour_d_avant(faire
     await partie._executer("C", None, {"ajouter": [{"article": "margherita", "quantite": 2, "variante": "Normale"}]}, C._plus(C.MARGHERITA, 2))
     partie.e.dit("encore")
     assert not partie._identique_au_tour_d_avant(MARGHERITA_DITE, partie.p), "deux tours plus tard, la fiche du premier tour n'est plus celle du tour d'avant"
+
+
+async def test_vider_et_annuler_dans_la_fiche_puis_redire_un_article_garde_n_est_pas_une_faute_rc2(faire_monde, monkeypatch):
+    """§ 17 l.407 (annuler = vider, l'article dit ensuite entre) : E2 (livraison, pas d'adresse), « une regina normale » (gardée de côté, faute d'adresse), puis « on vide et on annule, une
+    regina normale » : l'ancien article gardé part avec le vidage, le nouveau est gardé à son tour. Le compte des articles gardés ne bouge pas (1 avant, 1 après) : le juge RC2 ne doit
+    pas y voir un article perdu (suite tirée E2 → G1 · G14+G1, ``test_suites_tirees``)."""
+    partie = C.Partie(await faire_monde("casa-italia"), monkeypatch)
+    assert await partie.recette("E2")
+    await partie.geste("G1")
+    o = await partie.fusion(("G14", "G1"))
+    assert o is not None and C.en_attente(o.avant) == 1 == C.en_attente(o.apres) and not C.lignes_de(o.apres), (C.en_attente(o.avant), C.en_attente(o.apres))
+    assert C.rc2(o) == [], C.rc2(o)
