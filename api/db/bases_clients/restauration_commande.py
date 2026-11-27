@@ -1228,13 +1228,13 @@ async def _fenetre(connexion: asyncpg.Connection, etablissement_id: int, jour: d
 
 
 async def commandes_planifiees(connexion: asyncpg.Connection, etablissement_id: int, du: datetime, au: datetime) -> dict:
-    """Les commandes dont l'heure voulue tombe dans ``[du, au[`` (hors annulées, refusées, en échec) et le chiffre
+    """Les commandes dont l'heure voulue tombe dans ``[du, au[`` (hors annulées, refusées, en échec, et ``retenue`` : pas encore partie en caisse, T29) et le chiffre
     d'affaires à venir (E-17)."""
     if du.tzinfo is None or au.tzinfo is None:
         raise ValueError("Les bornes doivent être aware.")
     lignes = await connexion.fetch(
         "SELECT * FROM mark.resto_commande WHERE site_id = $1 AND heure_voulue >= $2 AND heure_voulue < $3 "
-        "AND statut NOT IN ('annulee', 'refusee', 'echec') ORDER BY heure_voulue, numero_court",
+        "AND statut NOT IN ('annulee', 'refusee', 'echec', 'retenue') ORDER BY heure_voulue, numero_court",
         etablissement_id, du, au,
     )
     return {"commandes": [_commande(r) for r in lignes], "nombre": len(lignes), "chiffre_affaires": sum(r["total"] for r in lignes)}

@@ -61,12 +61,13 @@ def _rendue(r: asyncpg.Record, resultats: dict[tuple[str, str], tuple[int, int, 
 
 
 async def remises_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id: int) -> list[dict[str, Any]]:
-    """Les remises de l'établissement, celles qui servent d'abord, avec ce qu'elles ont fait sur les commandes gardées (ni annulées, ni refusées, ni en échec)."""
+    """Les remises de l'établissement, celles qui servent d'abord, avec ce qu'elles ont fait sur les commandes gardées (ni annulées, ni refusées, ni en échec, ni ``retenue`` :
+    jamais partie en caisse, T29)."""
     groupes = await connexion.fetch(
         "SELECT coalesce(r.value ->> 'ref_caisse', '') AS ref, coalesce(r.value ->> 'nom', '') AS nom, count(*)::int AS n, coalesce(sum(c.total), 0)::bigint AS ca, "
         "coalesce(sum(CASE WHEN r.value ->> 'montant' ~ '^-?[0-9]+$' THEN abs((r.value ->> 'montant')::bigint) ELSE 0 END), 0)::bigint AS remise "
         "FROM mark.resto_commande c, LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(c.remises) = 'array' THEN c.remises ELSE '[]'::jsonb END) AS r(value) "
-        "WHERE c.site_id = $1 AND c.statut NOT IN ('annulee', 'refusee', 'echec') GROUP BY 1, 2",
+        "WHERE c.site_id = $1 AND c.statut NOT IN ('annulee', 'refusee', 'echec', 'retenue') GROUP BY 1, 2",
         etablissement_id,
     )
     resultats = {(g["ref"], g["nom"].strip().lower()): (g["n"], g["ca"], g["remise"]) for g in groupes}
