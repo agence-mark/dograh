@@ -1003,10 +1003,10 @@ def _fiche_identique_au_tour_d_avant(p: dict[str, Any], tour: Any, fiche: dict[s
     # T34 R2 : rien de la fiche n'est appliqué ; les autres cases dites (leurs NOMS, jamais leurs valeurs) sont rendues au modèle, qui les remet dans la fiche refaite
     non_prises = [c for c in ORDRE_DES_CASES if c != "ajouter" and fiche.get(c) not in (None, "", [], False)
                   and not (c == "reponse" and isinstance(fiche.get(c), dict) and fiche[c].get("implicite"))]
-    a_faire = "rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)"
-    if non_prises:
-        a_faire += " ; les autres cases de la fiche ne sont pas prises non plus (faits.cases_non_prises) : refais la fiche avec ces cases seules, sans l'article, tant que le client n'a pas répondu à « un de plus ou le même ? »"
-    refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire=a_faire)
+    refus = B.refus("fiche_identique_au_tour_d_avant", ["ajouter"], a_faire=(  # une consigne entière dans chaque cas, jamais deux collées (8b-2 R4)
+        "rien n'est ajouté, ni l'article ni les autres cases de la fiche (faits.cases_non_prises) : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles), "
+        "et refais la fiche avec ces cases seules, sans l'article, tant que le client n'a pas répondu à « un de plus ou le même ? »" if non_prises else
+        "rien n'est ajouté : demande-lui avec tes mots si c'est un de plus ou le même (faits.articles)"))
     faits: dict[str, Any] = {"articles": articles, **({"cases_non_prises": non_prises} if non_prises else {})}
     return Enveloppe("REJETEE", faits=faits, raison=refus["raison"], a_faire=refus["a_faire"],
                      plus={"refus": [refus], "cases_refusees": refus["cases"], "fiche_appliquee": False}).vers_json()
