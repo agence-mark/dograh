@@ -67,7 +67,7 @@ def phrase_de_repli(service: Any) -> str | None:
 
 
 def dernier_message_est_un_resultat_a_reprendre(messages: Any) -> bool:
-    """SA-33 (appel 2557) : le DERNIER message est un résultat d'outil qui propose un texte (``texte_a_dire``, ``suggestion``, au premier niveau ou dans ``data``) :
+    """SA-33 (appel 2557) : le DERNIER message est un résultat d'outil qui propose un texte (``texte_a_dire``, ``suggestion``, au premier niveau ou dans ``data``) ou qui porte une ``consigne`` au modèle :
     la personne attend alors la réponse de l'agent, comme après sa propre réplique, et un flux muet du modèle est relancé. Lot 8d (décision d'Evan 25/11 8 h 45, « le
     modèle parle, jamais le code ») : ce texte n'est plus JAMAIS dit par le code ; il ne sert qu'à savoir que le modèle doit parler (relance, puis phrase réglée). Faux
     pour un texte déjà dit par le code (W17 : le silence du modèle y est la bonne réponse). ⛔ Ne lève jamais."""
@@ -82,7 +82,9 @@ def dernier_message_est_un_resultat_a_reprendre(messages: Any) -> bool:
         if not isinstance(resultat, dict) or resultat.get(CLE_DEJA_DIT):
             return False
         donnees = resultat.get("data") if isinstance(resultat.get("data"), dict) else {}
-        return any(isinstance(t, str) and t.strip() for t in (resultat.get(CLE_TEXTE_A_DIRE), resultat.get(CLE_SUGGESTION), donnees.get(CLE_SUGGESTION)))
+        propose = any(isinstance(t, str) and t.strip() for t in (resultat.get(CLE_TEXTE_A_DIRE), resultat.get(CLE_SUGGESTION), donnees.get(CLE_SUGGESTION)))
+        # Reprise R2 (8d) : un résultat qui porte une consigne au modèle (échec répété, confirmation trop tôt, plafond) attend aussi sa réponse, sans texte à dire.
+        return propose or (isinstance(resultat.get("consigne"), str) and bool(resultat["consigne"].strip()))
     except Exception:  # noqa: BLE001 -- un résultat illisible ne propose rien
         return False
 

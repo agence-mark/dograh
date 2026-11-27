@@ -1216,14 +1216,20 @@ class VerificateurDeReplique:
 
     def controler_la_relance(self, texte: str, messages: Any = None) -> Retenue | None:
         """SA-36 (M87, appel 2571) : la relance d'une réplique retenue était rendue telle quelle ; elle a dit « c'est noté » après trois
-        résultats incomplets et un plafond. Elle est contrôlée sur ce seul point : une retenue qui a un texte à dire à la place le
-        remplace (jamais de seconde relance). ⛔ Ne lève jamais."""
+        résultats incomplets et un plafond. Elle est contrôlée sur ce seul point : une relance qui affirme encore le faux n'est jamais dite
+        (ni le texte d'un outil) ; la retenue rendue porte la phrase réglée « pas compris » de l'agent (lot 8d, reprise R1 ; décision d'Evan
+        25/11 8 h 45 : une relance qui échoue, c'est la phrase réglée). Jamais de seconde relance. ⛔ Ne lève jamais."""
         try:
             if not case_allumee(self.agent):
                 return None
             retenue = self._affirmation_sans_outil_fait(texte, messages)
-            if retenue is None or not retenue.a_dire:
+            if retenue is None:
                 return None
+            from dataclasses import replace
+
+            from api.services.pipecat.reponse_avalee import phrase_de_repli_reglee
+
+            retenue = replace(retenue, a_dire=phrase_de_repli_reglee(getattr(getattr(self.moteur, "active_agent", None), "llm", None)))
             tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
             return retenue
         except Exception as erreur:  # noqa: BLE001
