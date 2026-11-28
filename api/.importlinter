@@ -18,3 +18,15 @@ ignore_imports =
     api.services.commande.contrat -> api.services.gabarits.restauration.textes
     api.services.commande.porte -> api.services.restauration.carte_et_allergenes.recherche_reglages
     api.services.commande.porte -> api.services.restauration.mesures.mesures
+
+[importlinter:contract:2]
+name = Le moteur d'appel et les connecteurs ne connaissent pas le metier restauration
+type = forbidden
+source_modules =
+    api.services.workflow
+    api.services.pipecat
+    api.services.integrations.connectors
+    api.services.outils_mark
+forbidden_modules =
+    api.services.restauration
+allow_indirect_imports = True
