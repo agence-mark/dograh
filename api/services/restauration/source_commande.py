@@ -50,6 +50,7 @@ from api.db.bases_clients.restauration_zone import (
     verifier_adresse as verifier_l_adresse,
 )
 from api.services.actions_communes.moyens_de_paiement import LIBELLES_DITS, MOYEN_DE_BASE_SELON_LA_FICHE, RESERVES_AU_MODE
+from api.services.commande.briques.formule import declinaisons_de_la_formule
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
@@ -160,9 +161,6 @@ def objets_de_la_carte(carte: dict[str, Any], remises: list[Any]) -> dict[str, b
         "code_de_remise": any(r["code"] for r in remises), "poids": any(p.get("unite") in ("g", "kg") for p in carte["produits"]),
         "personnes": any(f.get("personnes") for f in carte["formules"]),  # lot 11 (FOR10) : une formule vendue par nombre de personnes ouvre ``personnes``
     }
-
-
-from api.services.commande.briques.formule import declinaisons_de_la_formule  # noqa: E402
 
 
 class SourceClasseur:
