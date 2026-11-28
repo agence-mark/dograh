@@ -798,7 +798,7 @@ class LaFiche:
     resultats: list[dict] = field(default_factory=list)
     bruts: list[Resultat] = field(default_factory=list)  # les résultats des opérations de la fiche, dans l'ordre : ``refusants_de_la_fiche`` et ``heures_a_dire`` les lisent
     dernier: Resultat | None = None
-    annulation_a_vide: bool = False  # T43 : l'annulation de cette fiche a vidé quelque chose (des lignes, des articles gardés, une commande enregistrée) ; celle d'un panier vide n'est pas un fait
+    annulation_qui_vide: bool = False  # T43 : l'annulation de cette fiche a vidé quelque chose (des lignes, des articles gardés, une commande enregistrée) ; celle d'un panier vide n'est pas un fait
     cle: str = ""  # la clé de la fiche DITE (``_cle_de_la_fiche``) : ``_case_ajouter`` la range quand un article est pris, ``_fiche_identique_au_tour_d_avant`` la relit au tour d'après
 
     @property
@@ -1219,7 +1219,7 @@ async def _appliquer_la_case(f: LaFiche, case: str) -> tuple[Resultat, str | Non
         RQ.tout_fermer(f.p)  # B1 : on recommence : les questions de la commande d'avant tombent avec elle (la proposition comprise)
         return r, case
     if case == "annuler_la_commande":
-        f.annulation_a_vide = bool(f.p.get("lignes") or f.p.get("dits_en_attente") or f.p.get("enregistree"))
+        f.annulation_qui_vide = bool(f.p.get("lignes") or f.p.get("dits_en_attente") or f.p.get("enregistree"))
         r = await annuler(f.source, f.p, f.regles)
         RQ.tout_fermer(f.p)
         return r, case
@@ -1441,7 +1441,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     s'il l'a déjà entendu (une issue, puis la sortie)."""
     ctx, p, dernier, tour = f.ctx, f.p, f.dernier, f.tour
     annulation = next((r for r in reversed(f.bruts) if r.faits.get("annulee") or r.faits.get("commande_annulee")), None)
-    if annulation is not None and (p.get("annulee") or (f.annulation_a_vide and _panier_vide_apres_l_annulation(p))):
+    if annulation is not None and (p.get("annulee") or (f.annulation_qui_vide and _panier_vide_apres_l_annulation(p))):
         # § 17 l.407 : annulée dans cette fiche et le panier finit vide (un mode ou « c'est tout » qui suit n'y change rien) : le fait dit est l'annulation, jamais le dernier geste.
         # T43 : un mode qui suit l'annulation d'un panier déjà vide (« je répète : annulez, en livraison ») : rien n'est annulé de neuf, l'annulation n'est pas redite (RC3)
         dernier = annulation
