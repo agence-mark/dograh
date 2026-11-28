@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from api.services.integrations.connectors.nango import Requete
 
@@ -180,6 +180,28 @@ class Connecteur:
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)
+
+
+@runtime_checkable
+class ConnecteurAFiche(Protocol):
+    """[.mark] Lot 8, 8c-2 (111) : ce qu'un connecteur « à fiche » (commande, réservation, service) peut déclarer EN PLUS d'un connecteur ordinaire : les quatorze
+    crochets facultatifs, écrits ici une fois avec leur type (``None`` : le connecteur n'en a pas, le mécanisme fait comme avant). Les champs restent à plat dans
+    ``Connecteur`` (rien n'est déplacé) ; le mécanisme ne connaît aucun mot de métier, c'est le connecteur qui dit."""
+
+    action_ouverte: Callable[[dict], dict | None] | None
+    etat_pour_le_modele: Callable[[dict, dict], str | None] | None
+    etat_de_l_appel: Callable[[dict], str | None] | None
+    dossier_de_la_parole: Callable[[dict], dict] | None
+    objet_en_cours: Callable[[dict], bool] | None
+    valeur_du_manque: Callable[[dict, dict], str | None] | None
+    cases_visibles: Callable[[dict], frozenset[str]] | None
+    actions_a_cases: frozenset[str] | None
+    sans_tiers: Callable[[Any], Awaitable[bool]] | None
+    forme_selon_l_etat: Callable[[dict], dict] | None
+    etat_final: Callable[[dict], dict] | None
+    porte_la_fiche: str | None
+    porte_la_lecture: str | None
+    issue_de_fin: Callable[[dict], str | None] | None
 
 
 ETATS = ("a_essayer", "pret", "a_activer")
