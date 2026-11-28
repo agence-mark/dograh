@@ -524,9 +524,9 @@ class SourceClasseur:
                 # Lot 19 bis (K5) : gardée « à dire » avant d'être tentée ; le rattrapage la rejoue si la caisse ne répond pas
                 await dire_l_annulation(self.c, self.lieu.organisation_id, self.lieu.etablissement_id, self.prise, numero)
             elif self.lieu.organisation_id:
-                from api.services.restauration.caisse.statut import _informer_la_caisse
+                from api.services.restauration.caisse.statut import informer_la_caisse
 
-                await _informer_la_caisse(self.lieu.organisation_id, self.c, self.lieu.etablissement_id, self.lieu.nom_base, numero, "annulee")
+                await informer_la_caisse(self.lieu.organisation_id, self.c, self.lieu.etablissement_id, self.lieu.nom_base, numero, "annulee")
         except Exception as erreur:  # noqa: BLE001 -- R1 : la caisse en panne ne défait pas l'annulation ; on le voit ici
             logger.error(f"[.mark] Order {numero}: telling the till about the cancellation failed: {erreur!r}")
         if self.lieu.organisation_id:

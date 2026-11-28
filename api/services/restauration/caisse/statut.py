@@ -40,7 +40,7 @@ async def _prise_de(
     return await prise_de_l_etablissement(ContexteDePrise(connexion, organisation_id, etablissement_id, nom_base))
 
 
-async def _informer_la_caisse(
+async def informer_la_caisse(
     organisation_id: int, connexion: Connexion, etablissement_id: int, nom_base: str | None, numero: str, vers: str, resolveur: ResolveurDePrise | None = None
 ) -> bool:
     """Vrai si la caisse a été informée. Seule l'annulation a un geste côté prise ; les autres étapes sont lues sur la caisse."""
@@ -78,6 +78,6 @@ async def changer_le_statut(
     if resultat.statut != "OK":
         return resultat, False
     numero_s = str(resultat.faits["numero"])
-    informee = await _informer_la_caisse(organisation_id, connexion, etablissement_id, nom_base, numero_s, vers, resolveur)
+    informee = await informer_la_caisse(organisation_id, connexion, etablissement_id, nom_base, numero_s, vers, resolveur)
     await flux.emettre(organisation_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": de, "vers": vers, "source": SOURCE})
     return resultat, informee
