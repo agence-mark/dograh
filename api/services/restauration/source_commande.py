@@ -203,18 +203,30 @@ class SourceClasseur:
 
         Rend les listes fermées de la fiche pour le contexte de l'appel (``contrat.listes_du_contexte``) et les objets de la carte qui ouvrent
         des cases (``contrat.CLE_DES_OBJETS``)."""
+        from api.services.commande import contrat
+
+        moment = await maintenant(self.c)
+        await self.charger_les_modes()  # l'état vivant, une requête
+        lu = await self.remplir_l_instantane_de_l_appel(moment)
+        carte, reglages, remises = lu["carte"], lu["reglages"], lu["remises"]
+        moyens = [fiche for fiche, ici in MOYEN_DE_BASE_SELON_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
+        variantes = list(dict.fromkeys(d["nom"] for p in carte["produits"] if len(p["declinaisons"]) > 1 for d in p["declinaisons"]))
+        # lot 11 (FOR6, FOR10) : les tailles d'une formule et ses nombres de personnes sont ses variantes
+        variantes += [d["nom"] for f in carte["formules"] for d in declinaisons_de_la_formule(f) if d["type"] and d["nom"] not in variantes]
+        return contrat.listes_du_contexte(list(self.modes), moyens, variantes), objets_de_la_carte(carte, remises)
+
+    async def remplir_l_instantane_de_l_appel(self, moment: datetime) -> dict[str, Any]:
+        """Les lectures du chargement de l'appel, dans l'ordre : chacune se range dans l'instantané posé sur la connexion (``instantane.py``), seules la
+        carte, les réglages et les remises servent encore à ``charger_pour_l_appel`` (rendus)."""
         from api.db.bases_clients.horaires_caisse import horaires_du_classeur
         from api.db.bases_clients.restauration_carte import ruptures_du_restaurant
         from api.db.bases_clients.restauration_client import index_de_la_carte
         from api.db.bases_clients.restauration_commun import minutes_recurrentes
         from api.db.bases_clients.restauration_remise import remises_actives_a
         from api.db.bases_clients.restauration_zone import centre_de_l_etablissement, zones_de_l_etablissement
-        from api.services.commande import contrat
         from api.services.communes.base import obtenir_base
 
         etablissement = self.lieu.etablissement_id
-        moment = await maintenant(self.c)
-        await self.charger_les_modes()  # l'état vivant, une requête
         carte = await restauration.carte_du_restaurant(self.c, etablissement, moment)
         await ruptures_du_restaurant(self.c, etablissement, moment)
         await zones_de_l_etablissement(self.c, etablissement)
@@ -225,11 +237,7 @@ class SourceClasseur:
         await minutes_recurrentes(self.c, etablissement, MODES_POSSIBLES[0], moment)
         await prise_de_l_etablissement(self.c, etablissement)
         await index_de_la_carte(self.c, etablissement)  # la recherche des noms préparée une fois pour la version de la carte
-        moyens = [fiche for fiche, ici in MOYEN_DE_BASE_SELON_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
-        variantes = list(dict.fromkeys(d["nom"] for p in carte["produits"] if len(p["declinaisons"]) > 1 for d in p["declinaisons"]))
-        # lot 11 (FOR6, FOR10) : les tailles d'une formule et ses nombres de personnes sont ses variantes
-        variantes += [d["nom"] for f in carte["formules"] for d in declinaisons_de_la_formule(f) if d["type"] and d["nom"] not in variantes]
-        return contrat.listes_du_contexte(list(self.modes), moyens, variantes), objets_de_la_carte(carte, remises)
+        return {"carte": carte, "reglages": reglages, "remises": remises}
 
     def exige_une_zone(self, mode: str) -> bool:
         return mode == "livraison"
