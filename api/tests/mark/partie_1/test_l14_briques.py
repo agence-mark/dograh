@@ -46,7 +46,7 @@ async def _lu(e):
     """La lecture du panier par le moteur (le résultat, avec la phrase que le code dit) : ce que ``lire(sujet=panier)`` rend, sans l'enveloppe."""
     from api.services.commande import moteur, porte
 
-    return await moteur.voir_commande(e.source, e.p, porte._regles(e.ctx))
+    return await moteur.voir_commande(e.source, e.p, porte.regles_de_la_commande(e.ctx))
 
 
 def _total_caisse(corps: dict) -> int:

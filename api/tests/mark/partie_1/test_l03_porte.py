@@ -23,6 +23,7 @@ from api.services.actions_communes.plafonds import (
     plafond_d_operations,
 )
 from api.services.commande import porte
+from api.services.commande import porte_du_service
 from api.tests.mark.partie_1.egalite_b12 import CONVERSATIONS, ECARTS_DE_LA_CUISINE, REPONSES, ecarts_de_la_conversation
 
 API = Path(__file__).resolve().parents[3]
@@ -327,15 +328,15 @@ async def test_doute_rend_les_choix(essai_de):
 async def test_service_numero_invente_refuse(essai_de):
     e = await essai_de()
     e.dit("je voudrais savoir où en est ma commande")
-    r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {"telephone": "0611223344", "numero_de_commande": "T12"}, "a_dire": "x"}, e.ctx)
+    r = await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {"telephone": "0611223344", "numero_de_commande": "T12"}, "a_dire": "x"}, e.ctx)
     assert r["raison"] == "valeur_pas_dans_ses_mots", r
 
 
 async def test_service_un_message_par_appel(essai_de):
     e = await essai_de()
     e.dit("dites au patron que la pizza était froide")
-    r1 = await porte.executer_la_fiche_du_service({"laisser_un_message": {"objet": "la pizza était froide"}, "a_dire": "x"}, e.ctx)
-    r2 = await porte.executer_la_fiche_du_service({"laisser_un_message": {"objet": "et le livreur en retard"}, "a_dire": "x"}, e.ctx)
+    r1 = await porte_du_service.executer_la_fiche_du_service({"laisser_un_message": {"objet": "la pizza était froide"}, "a_dire": "x"}, e.ctx)
+    r2 = await porte_du_service.executer_la_fiche_du_service({"laisser_un_message": {"objet": "et le livreur en retard"}, "a_dire": "x"}, e.ctx)
     assert r1["statut"] == "FAIT" and r2["raison"] == "message_deja_laisse_dans_cet_appel", (r1, r2)
 
 

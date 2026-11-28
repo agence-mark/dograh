@@ -97,7 +97,7 @@ async def test_le_numero_de_l_appel_retrouve_avant_de_demander_le_nom(salle, mon
 
 
 async def test_suivi_par_le_numero_de_l_appel(essai_de):
-    from api.services.commande import porte
+    from api.services.commande import porte_du_service
     from api.tests.mark.partie_1.test_l03_porte import _jusqu_a_la_relecture
 
     e = await essai_de()
@@ -108,18 +108,18 @@ async def test_suivi_par_le_numero_de_l_appel(essai_de):
     r = await e.tour("oui, ce numéro", reponse={"question_id": q["id"], "sens": "accepte"})
     assert r["statut"] == "ENREGISTREE", r
     e.dit("où en est ma commande de tout à l'heure")
-    r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    r = await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
     lu = r["resultats"][0]
     assert lu["statut_du_module"] == "OK" and lu["faits"]["numero_court"] and "manque" not in r, r         # lue par le numéro de l'appel, rien n'est redemandé
 
 
 async def test_suivi_sans_numero_dit_ce_qui_manque_au_modele(essai_de):
-    from api.services.commande import porte
+    from api.services.commande import porte_du_service
 
     e = await essai_de()
     e.ctx.appel = {}                                                                                        # numéro masqué
     e.dit("où en est ma commande de tout à l'heure")
-    r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    r = await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
     assert r["statut"] == "A_PRECISER" and r["manque"] == "reference" and "texte_a_dire" not in r, r  # 7b-C4 : le manque est un fait, sa phrase (« Quel est le numéro de la commande ? ») n'est plus donnée au modèle
     assert "panier" not in str(r), r                                                                        # le suivi ne montre pas un panier vide
 
@@ -176,11 +176,11 @@ async def test_p2_aucune_reservation_a_ce_nom_et_ce_jour_est_dit_puis_l_equipe_e
 
 
 async def test_p4_aucune_commande_a_ce_numero_le_dit_et_propose_de_chercher_autrement(essai_de):
-    from api.services.commande import porte
+    from api.services.commande import porte_du_service
 
     e = await essai_de()                                                                                  # numéro d'appel connu, aucune commande
     e.dit("où en est ma commande de tout à l'heure")
-    r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    r = await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
     assert r["statut"] == "INTROUVABLE" and "pas de commande" in r["a_faire"] and "numéro de la commande" in r["a_faire"], r
     assert "ne redemande pas" in r["a_faire"], r                                                          # le numéro de l'appel est déjà connu
 

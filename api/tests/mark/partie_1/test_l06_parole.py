@@ -17,6 +17,7 @@ from pathlib import Path
 from api.services.actions_communes import barriere_des_chiffres as BC
 from api.services.actions_communes import repli as R
 from api.services.commande import porte as PORTE
+from api.services.commande import porte_du_service
 from api.services.commande.note import composer_la_note_de_commande
 
 API = Path(__file__).resolve().parents[3]
@@ -550,12 +551,12 @@ async def test_service_message_une_fois_issue_et_mesure():
 
     ctx = SimpleNamespace(fiche={}, appel={"caller_number": "+33612345678"}, reglages={"issues": {"message_a_transmettre": "Message_Transmis"}},
                           run_id=None, organization_id=1, configurations={})
-    r = await PORTE.executer_la_fiche_du_service({"laisser_un_message": {"objet": "Rappeler pour la privatisation"}, "a_dire": "C'est noté."}, ctx)
+    r = await porte_du_service.executer_la_fiche_du_service({"laisser_un_message": {"objet": "Rappeler pour la privatisation"}, "a_dire": "C'est noté."}, ctx)
     assert r["statut"] == "FAIT" and r["resultats"][0]["faits"] == {"urgent": False}, r
     entree = ctx.fiche[rappels.CLE_RAPPEL][0]
     assert (entree["urgence"], entree["numero"], entree["objet"]) == ("normale", "+33612345678", "Rappeler pour la privatisation")
     assert ctx.fiche["call_disposition"] == "Message_Transmis" and mesures.compte(ctx.fiche).get("service.message_laisse") == 1
-    deux = await PORTE.executer_la_fiche_du_service({"laisser_un_message": {"objet": "Un client attend", "urgent": True}}, ctx)
+    deux = await porte_du_service.executer_la_fiche_du_service({"laisser_un_message": {"objet": "Un client attend", "urgent": True}}, ctx)
     assert deux["statut"] == "REJETEE" and deux["raison"] == "message_deja_laisse_dans_cet_appel" and len(ctx.fiche[rappels.CLE_RAPPEL]) == 1
     outil = SimpleNamespace(category="integration", definition={"config": {"connecteur": "service", "action": "fiche",
                                                                            "reglages": {"issues": {"message_a_transmettre": "Message_Transmis"}}}})

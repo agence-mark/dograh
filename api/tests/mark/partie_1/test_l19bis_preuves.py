@@ -50,7 +50,7 @@ async def _par_la_porte(essai_de, articles: list[dict]):
 async def _par_l_aide(e, articles: list[dict]):
     """L'aide des anciens tests, sur la source et les réglages de la porte, un panier neuf au même mode."""
     async with porte.registre_des_sources.ouvrir("x", e.ctx) as source:
-        regles = porte._regles(e.ctx)
+        regles = porte.regles_de_la_commande(e.ctx)
         p = P.nouveau()
         await moteur.choisir_mode(source, p, regles, "emporter")
         r = await F.ajouter(source, p, regles, *json.loads(json.dumps(articles)))
@@ -84,7 +84,7 @@ async def test_l19bis_v8_parite_de_la_reponse_a_la_question_ouverte(essai_de):
     assert q and q["type"] == "variante", retour
     par_la_porte = await e.tour("normale", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Normale"]})
     async with porte.registre_des_sources.ouvrir("x", e.ctx) as source:
-        regles = porte._regles(e.ctx)
+        regles = porte.regles_de_la_commande(e.ctx)
         p = P.nouveau()
         await moteur.choisir_mode(source, p, regles, "emporter")
         await F.ajouter(source, p, regles, *JEU["margherita_sans_taille"])

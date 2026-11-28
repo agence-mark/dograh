@@ -137,6 +137,9 @@ class Source(Protocol):
     async def annonce(self, mode: str, zone_id: int | None) -> dict[str, Any] | None:
         """L'heure que le code annoncerait maintenant (lot 6) : ``{prete, texte, minutes}``, ou ``None`` si la source ne sait pas."""
 
+    async def apres_le_geste(self, geste: str, avant: int, p: dict[str, Any], r: Resultat, ctx: Any) -> None:
+        """Ce que le portail apprend en direct après un geste réussi (``fiche`` ou ``finaliser``) ; une source qui n'a rien à dire n'en fait rien (lot 8c-2, 109)."""
+
 
 FabriqueDeSource = Callable[..., AbstractAsyncContextManager[Source]]
 

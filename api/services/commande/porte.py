@@ -32,7 +32,6 @@ from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, Enveloppe
-from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, cle_de_la_case, deja_executee, noter_les_cases
@@ -43,7 +42,7 @@ from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
 from api.services.commande.moteur.socle import prealable_du_metier
-from api.services.commande.moteur.socle import CLE_STATUT_LU, STATUTS_PERDUS
+from api.services.commande.moteur.socle import CLE_STATUT_LU
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
@@ -53,7 +52,7 @@ from api.services.commande import panier as P
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
-from api.services.commande.lire import lecture_sur_une_copie, lire
+from api.services.commande.lire import lire
 from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.phrases_du_manque import valeur_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
@@ -71,7 +70,15 @@ RELECTURE_PAS_ENTENDUE = "relecture_pas_entendue"  # fait : le « oui » ne vaut
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur`` (reprise de ``action.py``)
 
 
-def _regles(ctx: Any):
+def ouvrir_la_source(ctx: Any):
+    """La source de l'outil (son réglage ``source``, à défaut le classeur) ouverte pour UN geste, avec les réglages de recherche de l'agent : lue par la
+    porte de la commande et par celle du service (``porte_du_service``, qui n'importe pas la restauration)."""
+    from api.services.restauration.carte_et_allergenes.recherche_reglages import reglages_de_la_recherche
+
+    return registre_des_sources.ouvrir((ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations))
+
+
+def regles_de_la_commande(ctx: Any):
     regles = reglages_de_la_commande(ctx.configurations)
     if regles is not None and is_dataclass(regles):
         regles = replace(regles, question_apres_enregistrement=question_apres_enregistrement(ctx),
@@ -360,13 +367,13 @@ def _faits_gardes() -> tuple[str, ...]:
     return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS, CLE_STATUT_LU)
 
 
-def _faits_publics(r: Resultat) -> dict[str, Any]:
+def faits_publics_de_la_commande(r: Resultat) -> dict[str, Any]:
     return PC.faits_publics(r, _faits_gardes())
 
 
 def faits_vus_par_le_modele(r: Resultat) -> dict[str, Any]:
     """Les faits d'un refus tels que le modèle les reçoit : ils portent tout ce qu'il doit dire (le code n'écrit plus aucun texte de secours, lot 7b-C7)."""
-    return _faits_publics(r)
+    return faits_publics_de_la_commande(r)
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
@@ -376,7 +383,7 @@ def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
 def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
     """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…), sans phrase : le modèle le dit avec ses mots d'après les faits ;
     le module n'écrit plus de texte de secours (lot 7b-C7) : chaque information est un fait."""
-    return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r)}
+    return {"statut_du_module": r.statut, "manque": r.manque, "faits": faits_publics_de_la_commande(r)}
 
 
 async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, question: dict, sens: str | None,
@@ -1602,96 +1609,6 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     return Resultat("OK", {"annulee": True})  # C6 n° 7 : le modèle le dit avec ses mots ; le journal en garde le fait
 
 
-def _laisser_un_message(message: Any, fiche: dict[str, Any], ctx: Any, resultats: list[dict], refus: list[dict]) -> None:
-    """Le message à l'équipe, UNE fois par appel (E30) : la demande est écrite, l'issue de l'appel et sa mesure posées (lot 6, C10 ; sens repris de
-    test_message_et_redites_m102_m113 et test_restauration_service_client, comme l'ancienne action ``laisser_un_message``). Un second message est refusé."""
-    from api.services.service_client.action import _ecrire_la_demande
-
-    if not (isinstance(message, dict) and str(message.get("objet") or "").strip()):
-        return
-    if fiche.get(CLE_MESSAGE_LAISSE):
-        refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], reste="un seul message par appel"))
-    elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
-        fiche[CLE_MESSAGE_LAISSE] = True
-        resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})
-        poser_l_issue(ctx, "message_a_transmettre")
-        from api.services.integrations.connectors import mesures as mesures_des_connecteurs
-
-        mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
-
-
-async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any) -> dict[str, Any]:
-    """La fiche du service (lot 3, étape 9) : retrouver une commande d'un appel précédent (par le numéro qui appelle, ou par un numéro dit ;
-    un téléphone dicté seulement avec le numéro de la commande, D60 ; jamais un numéro qu'elle n'a pas dit, B7 point 8) et laisser un message à
-    l'équipe, UNE fois par appel (E30)."""
-    from api.services.integrations.connectors.actions.service import (
-        retrouver_par_telephone_dicte_exige_le_numero,
-    )
-
-    entier = B.fiche_illisible(fiche_du_modele)
-    if entier is not None:
-        return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier]}).vers_json()
-    fiche = ctx.fiche if isinstance(ctx.fiche, dict) else {}
-    affiche = numero_e164((ctx.appel or {}).get("caller_number"))
-    paroles = list(fiche.get(CLE_DES_PAROLES) or [])
-    resultats: list[dict] = []
-    refus: list[dict] = []
-    a_preciser: dict[str, str] = {}
-    introuvable = ""
-    perdue = ""  # une commande refusée ou en échec : l'offre du message, tenue par le modèle
-    demande = fiche_du_modele.get("retrouver_une_commande_enregistree")
-    if isinstance(demande, dict):
-        numero_dit = str(demande.get("numero_de_commande") or "").strip() or None
-        telephone = str(demande.get("telephone") or "").strip() or None
-        inventes = [c for c, v in (("telephone", telephone), ("numero_de_commande", numero_dit)) if v and not valeur_dite_par_elle(v, c if c == "telephone" else "prenom", paroles)]
-        if inventes:
-            refus.append(B.refus("valeur_pas_dans_ses_mots", ["retrouver_une_commande_enregistree"], valeurs={c: "" for c in inventes},
-                                 reste="un numéro se prend seulement s'il est dit"))
-        else:
-            exige = retrouver_par_telephone_dicte_exige_le_numero(fiche_du_modele, affiche, f"Q-{int(fiche.get('service_prochain_q') or 1)}")
-            if exige is not None:
-                fiche["service_prochain_q"] = int(fiche.get("service_prochain_q") or 1) + 1
-                return exige
-            regles = _regles(ctx)
-            p = P.du_dossier(ctx.fiche)
-            appelant = moteur.Appelant(affiche, str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
-            from api.services.restauration.carte_et_allergenes.recherche_reglages import (
-                reglages_de_la_recherche,
-            )
-
-            async with registre_des_sources.ouvrir((ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)) as source:
-                r = await moteur.retrouver_commande(source, p, regles, appelant, numero_dit)
-            # R-d : le suivi ne montre jamais le panier (un panier vide trompe) ; ce qui manque (le numéro de la commande) ou ce qui se choisit
-            # (plusieurs commandes, F4 : leurs candidats, numéro court et heure dite) est rendu en faits, jamais un « FAIT » muet que le modèle comble de lui-même.
-            # E-36 : le statut lu reste au code (``_faits_gardes``) ; le modèle n'a que la valeur fermée ``etat``.
-            resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": _faits_publics(r)})
-            if r.statut == "OK" and r.faits.get(CLE_STATUT_LU):
-                fiche[CLE_COMMANDE_RETROUVEE] = r.faits[CLE_STATUT_LU]
-                if r.faits[CLE_STATUT_LU] in STATUTS_PERDUS and not fiche.get(CLE_MESSAGE_LAISSE):  # 7b-C4 : un message déjà laissé dans l'appel n'est plus proposé (la porte le refuserait)
-                    perdue = A_FAIRE_DE_LA_COMMANDE_PERDUE
-            if r.statut in ("INCOMPLETE", "AMBIGU") and r.manque:
-                a_preciser = {"manque": r.manque}  # 7b-C4 : la phrase du module n'est plus donnée au modèle ; C7 B4 : lu sur le manque, plus sur le texte
-            elif r.statut == "INTROUVABLE":
-                # P4 : le numéro de l'appel est connu et rien n'y est trouvé : le dire, puis chercher autrement ; jamais redemander ce numéro
-                introuvable = "dis-lui qu'il n'y a pas de commande à ce numéro ; propose de chercher autrement (le numéro de la commande, ou un autre numéro) ; ne redemande pas le numéro de l'appel"
-    _laisser_un_message(fiche_du_modele.get("laisser_un_message"), fiche, ctx, resultats, refus)
-    statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else ("A_PRECISER" if a_preciser else ("INTROUVABLE" if introuvable else "FAIT")))
-    premier = refus[0] if refus else None
-    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or perdue or None),
-                     plus={**({"refus": refus} if refus else {}), **a_preciser}).vers_json()
-
-
-CLE_MESSAGE_LAISSE = "service_message_laisse"
-# B5 (audit des textes § 2.5, « urgent si la commande est en cours ») : le statut de la commande retrouvée dans cet appel, lu par le code ;
-# un message laissé pendant qu'elle est en cours est urgent sans que le modèle ait à le juger.
-CLE_COMMANDE_RETROUVEE = "service_commande_retrouvee_statut"
-STATUTS_FINIS = frozenset({"terminee", "refusee", "annulee", "echec"})
-
-
-def _message_urgent(message: dict, fiche: dict) -> bool:
-    """Urgent : elle a dit que cela ne peut pas attendre (case du modèle), ou la commande retrouvée dans l'appel est en cours (le code)."""
-    statut = fiche.get(CLE_COMMANDE_RETROUVEE)
-    return message.get("urgent") is True or (bool(statut) and statut not in STATUTS_FINIS)
 STATUTS_ENREGISTRES = ("ENREGISTREE", "TRANSMISE")
 
 
@@ -1727,10 +1644,8 @@ def _joindre_la_commande_au_message_de_l_equipe(p: dict[str, Any], ctx: Any) -> 
 
 async def _dire_au_flux(source: Any, avant: int, p: dict[str, Any], enregistrement: Resultat | None, ctx: Any) -> None:
     """Ce que le portail montre en direct (reprise de ``action.py``) : le panier qui change, la commande créée. Jamais une panne de l'appel."""
-    hook = getattr(source, "apres_le_geste", None)
-    if hook is None:
-        return
     try:
+        hook = source.apres_le_geste
         if enregistrement is not None:
             await hook("finaliser", avant, p, enregistrement, ctx)
         else:
@@ -1748,7 +1663,7 @@ def _mesurer(fiche_de_l_appel: Any, retour: dict[str, Any], mode: str | None) ->
 def _prendre_les_notes_du_greffier(p: dict[str, Any], source: Any, fiche_de_l_appel: Any) -> None:
     """E15, E22 (lot 6) : ce que le greffier a noté dans la fiche de l'appel, sous les noms EXACTS que la source déclare (A12, jamais un préfixe),
     gardé dans le panier comme une proposition : la note de la commande le joint sans rien écraser, aucune case n'est posée par lui."""
-    champs = (getattr(source, "champs_du_greffier", None) or {}).get("note") or ()
+    champs = source.champs_du_greffier.get("note") or ()
     if isinstance(fiche_de_l_appel, dict) and champs:
         notes = {c: str(fiche_de_l_appel[c]) for c in champs if isinstance(fiche_de_l_appel.get(c), str) and fiche_de_l_appel[c].strip()}
         p[moteur.CLE_NOTES_DU_GREFFIER] = notes
@@ -1841,43 +1756,6 @@ def contexte_appelant_affiche(ctx: Any) -> str | None:
     return numero_e164((ctx.appel or {}).get("caller_number")) or None
 
 
-# Les quatre outils de l'accueil (textes prouvés, ``textes/gemma-4/outils.json``) : des lectures et un envoi du moteur, sans écriture dans le panier
-# (règle nommée ``lecture_sur_une_copie``). Le connecteur « service » les déclare, la porte les exécute avec la source de l'agent.
-OUTILS_DE_L_ACCUEIL = ("ouverture_en_ce_moment", "heure_annoncee", "remises_disponibles", "envoyer_un_sms")
-
-
-RAISON_DU_STATUT_DE_L_ACCUEIL = {
-    "DEJA_FAIT": "deja_fait", "REFUSEE": "envoi_impossible", "INDISPONIBLE": "envoi_indisponible", "ARGUMENT_INVALIDE": "arguments_illisibles",
-}
-
-
-async def _outil_de_l_accueil(nom: str, source: Any, p: dict[str, Any], regles: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
-    copie = lecture_sur_une_copie(p)
-    mode = arguments.get("mode_de_retrait")
-    mode = mode if mode in ("emporter", "livraison") else None
-    appel_id = str(ctx.run_id) if getattr(ctx, "run_id", None) else None
-    if nom == "ouverture_en_ce_moment":
-        r = await moteur.etat_ouverture(source, copie, regles, mode)
-    elif nom == "heure_annoncee":
-        r = await moteur.heure_annoncee(source, copie, regles, mode)
-    elif nom == "remises_disponibles":
-        r = await moteur.remises_disponibles(source, copie, regles, demande=True, presse=False, refus=False, appel_id=appel_id)
-    else:
-        appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), appel_id)
-        r = await moteur.envoyer_un_message(source, copie, regles, appelant, arguments.get("quoi"), getattr(ctx, "organization_id", None))
-    faits = {k: v for k, v in (r.faits or {}).items() if k != "panier"}
-    resultats = [{"operation": nom, "statut_du_module": r.statut}]
-    if nom != "envoyer_un_sms":
-        # Les trois lectures : le fait lu va au modèle tel quel (fermé, en pause, heure non calculée) ; seul un mode ou une zone qui manque se précise.
-        if r.statut == "INCOMPLETE":
-            return Enveloppe("A_PRECISER", resultats=resultats, faits=faits, plus={"manque": r.manque}).vers_json()
-        return Enveloppe("LU", resultats=resultats, faits=faits).vers_json()
-    if r.statut in ("OK", "RETENU", "TROUVE", "LU"):
-        return Enveloppe("LU", resultats=resultats, faits=faits).vers_json()
-    # ligne 87 : un statut de l'envoi hors de l'enveloppe (éteint, déjà parti, refusé) est dit au modèle, jamais une erreur levée (panne dite au client)
-    return Enveloppe("REJETEE", resultats=resultats, faits=faits, raison=RAISON_DU_STATUT_DE_L_ACCUEIL.get(r.statut, "rien_a_faire")).vers_json()
-
-
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
     debut = time.perf_counter()
     try:
@@ -1894,21 +1772,17 @@ A_FAIRE_DE_LA_PANNE = "le moteur est en panne : dis-lui avec tes mots que tu n'a
 
 
 async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
-    regles = _regles(ctx)
+    regles = regles_de_la_commande(ctx)
     if regles is None:
         return Enveloppe("REJETEE", raison="rien_a_faire").vers_json()
     p = P.du_dossier(ctx.fiche)
     try:
-        from api.services.restauration.carte_et_allergenes.recherche_reglages import (
-            reglages_de_la_recherche,
-        )
+        from api.services.commande import porte_du_service
 
-        async with registre_des_sources.ouvrir(
-            (ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)
-        ) as source_ouverte:
+        async with ouvrir_la_source(ctx) as source_ouverte:
             source = etat_pour_le_modele.SourceQuiRetient(source_ouverte)
-            if action.nom in OUTILS_DE_L_ACCUEIL:
-                return await _outil_de_l_accueil(action.nom, source, p, regles, dict(arguments or {}), ctx)
+            if action.nom in porte_du_service.OUTILS_DE_L_ACCUEIL:
+                return await porte_du_service.executer_un_outil_de_l_accueil(action.nom, source, p, regles, dict(arguments or {}), ctx)
             if action.nom == "lire":
                 retour = await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
                 # PRX5, C6 n° 11 : le prix lu (seul, jamais le total : R2) passe la barrière des chiffres dans ce tour ; le code ne le dit plus

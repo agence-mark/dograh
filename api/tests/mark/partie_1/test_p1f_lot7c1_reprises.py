@@ -17,6 +17,7 @@ import pytest
 
 from api.services.actions_communes.resultat import Resultat
 from api.services.commande import moteur, porte
+from api.services.commande import porte_du_service
 from api.services.commande.moteur import socle
 from api.services.commande.moteur.socle import Appelant
 from api.tests.mark import test_base_client as _BASE
@@ -66,7 +67,7 @@ async def _suivi(essai_de, monkeypatch, statut: str) -> dict:
         return Resultat("OK", {"commandes": [_commande(statut)]})
     monkeypatch.setattr(e.source, "retrouver", retrouver)
     e.dit("où en est ma commande d'hier")
-    r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    r = await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
     return r, e
 
 
@@ -87,8 +88,8 @@ async def test_si_elle_dit_oui_le_message_part_pour_de_bon(essai_de, monkeypatch
 
     _, e = await _suivi(essai_de, monkeypatch, "refusee")
     e.dit("oui")
-    r = await porte.executer_la_fiche_du_service({"laisser_un_message": {"objet": "rappel commande refusée"}, "a_dire": "x"}, e.ctx)
-    assert r["statut"] == "FAIT" and e.ctx.fiche[porte.CLE_MESSAGE_LAISSE] is True, r
+    r = await porte_du_service.executer_la_fiche_du_service({"laisser_un_message": {"objet": "rappel commande refusée"}, "a_dire": "x"}, e.ctx)
+    assert r["statut"] == "FAIT" and e.ctx.fiche[porte_du_service.CLE_MESSAGE_LAISSE] is True, r
     assert e.ctx.fiche[rappels.CLE_RAPPEL][0]["objet"] == "rappel commande refusée"
     assert e.ctx.fiche["call_disposition"] == "message_a_transmettre"  # l'issue de l'appel : sans réglage, le code est le nom de l'issue
 
@@ -97,8 +98,8 @@ async def test_un_message_deja_laisse_n_est_plus_propose_au_suivi_suivant(essai_
     """7b-C4 : une fois le message laissé dans l'appel, un second suivi de la commande perdue ne redonne pas l'offre (la porte refuserait un second message)."""
     r, e = await _suivi(essai_de, monkeypatch, "refusee")
     assert r["a_faire"] == porte.A_FAIRE_DE_LA_COMMANDE_PERDUE
-    e.ctx.fiche[porte.CLE_MESSAGE_LAISSE] = True
-    r2 = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    e.ctx.fiche[porte_du_service.CLE_MESSAGE_LAISSE] = True
+    r2 = await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
     assert porte.A_FAIRE_DE_LA_COMMANDE_PERDUE not in str(r2.get("a_faire") or ""), r2
 
 

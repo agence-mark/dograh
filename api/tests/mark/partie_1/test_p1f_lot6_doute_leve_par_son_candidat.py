@@ -34,4 +34,4 @@ def test_une_reponse_dite_ne_passe_pas_par_la_levee_du_doute():
 
 def test_les_identifiants_des_candidats_ne_sont_jamais_montres_au_modele():
     r = Resultat("AMBIGU", {"candidats": ["Salmone", "Salmone"], "candidats_par_identifiant": [{"libelle": "Salmone", "id": "P-1"}, {"libelle": "Salmone", "id": "P-2"}]}, "")
-    assert porte._faits_publics(r) == {"candidats": ["Salmone", "Salmone"]}
+    assert porte.faits_publics_de_la_commande(r) == {"candidats": ["Salmone", "Salmone"]}

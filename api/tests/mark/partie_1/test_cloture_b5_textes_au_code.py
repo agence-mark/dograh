@@ -69,12 +69,12 @@ def test_b5_la_phrase_dite_seule_est_relue_sans_le_nom():
 
 
 def test_b5_un_message_est_urgent_quand_la_commande_retrouvee_est_en_cours():
-    from api.services.commande import porte
+    from api.services.commande import porte_du_service
 
-    assert porte._message_urgent({"objet": "retard"}, {porte.CLE_COMMANDE_RETROUVEE: "en_preparation"})
-    assert not porte._message_urgent({"objet": "retard"}, {porte.CLE_COMMANDE_RETROUVEE: "terminee"})
-    assert not porte._message_urgent({"objet": "question"}, {})
-    assert porte._message_urgent({"objet": "question", "urgent": True}, {})  # elle a dit que cela ne peut pas attendre
+    assert porte_du_service._message_urgent({"objet": "retard"}, {porte_du_service.CLE_COMMANDE_RETROUVEE: "en_preparation"})
+    assert not porte_du_service._message_urgent({"objet": "retard"}, {porte_du_service.CLE_COMMANDE_RETROUVEE: "terminee"})
+    assert not porte_du_service._message_urgent({"objet": "question"}, {})
+    assert porte_du_service._message_urgent({"objet": "question", "urgent": True}, {})  # elle a dit que cela ne peut pas attendre
 
 
 # « Avant d'annuler, tu proposes de déplacer » : C6 n° 8 (décision d'Evan 25/11 9 h 30), la question est dite par le modèle ; le moteur rend les faits (le moment, les personnes),

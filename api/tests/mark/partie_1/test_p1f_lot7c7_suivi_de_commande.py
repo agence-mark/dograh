@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from api.services.actions_communes.resultat import Resultat
-from api.services.commande import porte
+from api.services.commande import porte_du_service
 
 DEUX = [{"numero_court": "12", "statut": "envoyee", "mode": "emporter", "quand_dit": "midi"},
         {"numero_court": "14", "statut": "envoyee", "mode": "emporter", "quand_dit": "dix-neuf heures"}]
@@ -22,7 +22,7 @@ async def _suivi(essai_de, monkeypatch, commandes: list[dict], appel: dict | Non
         return Resultat("OK", {"commandes": commandes})
     monkeypatch.setattr(e.source, "retrouver", retrouver)
     e.dit("ma commande, elle en est où ?")
-    return await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    return await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
 
 
 async def test_f4_deux_commandes_le_modele_recoit_les_deux_heures(essai_de, monkeypatch):
@@ -75,6 +75,6 @@ async def test_r1_tranche_le_message_laisse_apres_le_suivi_est_urgent_selon_le_s
             return Resultat("OK", {"commandes": [{**DEUX[0], "statut": brut}]})
         monkeypatch.setattr(e.source, "retrouver", retrouver)
         e.dit("ma commande, il manque la boisson, vous pouvez prévenir ?")
-        r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "laisser_un_message": {"objet": "Il manque la boisson"}, "a_dire": "x"}, e.ctx)
+        r = await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "laisser_un_message": {"objet": "Il manque la boisson"}, "a_dire": "x"}, e.ctx)
         message = next(x for x in r["resultats"] if x.get("operation") != "retrouver_une_commande_enregistree")
-        assert message["faits"] == {"urgent": urgent}, (brut, e.ctx.fiche.get(porte.CLE_COMMANDE_RETROUVEE), r)
+        assert message["faits"] == {"urgent": urgent}, (brut, e.ctx.fiche.get(porte_du_service.CLE_COMMANDE_RETROUVEE), r)

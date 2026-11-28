@@ -27,16 +27,12 @@ def _jamais(*_args, **_kwargs):
 
 
 async def _executer(action, arguments, ctx, delai_s):
+    from api.services.commande import porte_du_service
+
     if action.nom == "fiche":
-        from api.services.commande.porte import executer_la_fiche_du_service
-
-        return await executer_la_fiche_du_service(dict(arguments or {}), ctx)
-    from api.services.commande.porte import OUTILS_DE_L_ACCUEIL
-
-    if action.nom in OUTILS_DE_L_ACCUEIL:
-        from api.services.commande.porte import executer as executer_de_la_commande
-
-        return await executer_de_la_commande(action, arguments, ctx, delai_s)
+        return await porte_du_service.executer_la_fiche_du_service(dict(arguments or {}), ctx)
+    if action.nom in porte_du_service.OUTILS_DE_L_ACCUEIL:
+        return await porte_du_service.executer(action, arguments, ctx, delai_s)
     return await service.executer(action, arguments, ctx, delai_s)
 
 

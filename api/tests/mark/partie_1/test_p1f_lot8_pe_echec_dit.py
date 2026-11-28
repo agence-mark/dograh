@@ -9,7 +9,7 @@ Client « Ma commande, elle en est où ? » / commande ``nouvelle`` au troisièm
 from __future__ import annotations
 
 from api.services.actions_communes.resultat import Resultat
-from api.services.commande import porte
+from api.services.commande import porte_du_service
 from api.services.commande.moteur.socle import etat_dit
 
 COMMANDE = {"numero_court": "12", "mode": "emporter", "quand_dit": "midi"}
@@ -22,7 +22,7 @@ async def _suivi(essai_de, monkeypatch, commande: dict) -> dict:
         return Resultat("OK", {"commandes": [{**COMMANDE, **commande}]})
     monkeypatch.setattr(e.source, "retrouver", retrouver)
     e.dit("ma commande, elle en est où ?")
-    return await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    return await porte_du_service.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
 
 
 async def test_une_commande_nouvelle_au_troisieme_essai_est_dite_enregistree(essai_de, monkeypatch):
