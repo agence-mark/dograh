@@ -29,13 +29,6 @@ async def _executer(action, arguments, ctx, delai_s):
     return await executer(action, arguments, ctx, delai_s)
 
 
-def _source_de_la_capacite() -> None:
-    import api.services.restauration.source_reservation  # noqa: F401  # la base du client s'inscrit à l'import
-
-
-_source_de_la_capacite()
-
-
 async def _sans_tiers(ctx) -> bool:
     """Point de contrôle du lot 7 : la source de l'outil (son réglage ``source``, à défaut le classeur) dit si elle écrit chez un client."""
     from api.services.reservation import source as registre_des_sources

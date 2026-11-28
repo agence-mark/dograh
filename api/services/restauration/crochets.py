@@ -2,7 +2,8 @@
 
 Le moteur (voix et clavier) ne nomme plus la restauration : il joue les crochets déclarés au registre (``modules/registre.RESTAURATION``).
 
-- ``inscrire`` (au démarrage de l'API ET de l'ouvrier) : branche l'allergie et la lecture d'un article sur le moteur commun de la commande ;
+- ``inscrire`` (au démarrage de l'API ET de l'ouvrier) : branche l'allergie et la lecture d'un article sur le moteur commun de la commande, et inscrit les sources
+  du classeur (commande, réservation) ;
 - ``au_decroche`` : ``CONTEXTE`` l'ouverture lue (horaires et état de la caisse) ; ``CANAL`` le direct des appels (lot 21) ; ``MONTAGE`` le chargement de l'appel
   (lot 5 : jamais attendu à la voix, la phrase d'accueil ne l'attend pas ; attendu, borné, au clavier qui n'a pas de phrase d'accueil) ;
 - ``fin_du_tour`` (clavier) : l'appel gardé entre deux tours, fermé à la fin de la partie ;
@@ -25,6 +26,8 @@ _DIRECTS: dict[str, DirectDeLAppel] = {}
 
 
 def inscrire() -> None:
+    import importlib
+
     from api.services.commande.moteur.socle import enregistrer_metier
     from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as allergie
     from api.services.restauration.carte_et_allergenes import voir_un_article
@@ -35,6 +38,9 @@ def inscrire() -> None:
         noter_les_faits_donnes=allergie.noter_les_faits_a_dire,
         voir_un_article=voir_un_article.voir_produit,
     )
+    # Lot 8c-2 (106) : les sources du classeur (commande, réservation) s'inscrivent ici, au démarrage, et non plus à l'import d'un connecteur.
+    for nom in ("source_commande", "source_reservation"):
+        importlib.import_module(f"api.services.restauration.{nom}")
 
 
 async def au_decroche(d: Decroche) -> None:

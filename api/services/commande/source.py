@@ -8,7 +8,7 @@ n'importe quel catalogue fermé (pièces, forfaits…) s'ajoute en inscrivant la
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from contextlib import AbstractAsyncContextManager
 from typing import Any, Protocol, runtime_checkable
@@ -140,13 +140,28 @@ class Source(Protocol):
 
 FabriqueDeSource = Callable[..., AbstractAsyncContextManager[Source]]
 
+# Lot 8c-2 (106) : pour CET appel, la source n'écrit dans le système d'aucun client (``Connecteur.sans_tiers``, lu au seul essai au clavier) ; même forme
+# que ``reservation/source.py``. Reçoit le contexte de l'appel. Une source sans réponse : faux.
+SansTiers = Callable[[Any], Awaitable[bool]]
+
 _SOURCES: dict[str, FabriqueDeSource] = {}
+_SANS_TIERS: dict[str, SansTiers] = {}
 SOURCE_PAR_DEFAUT = "classeur"
 
 
-def enregistrer_source(nom: str, fabrique: FabriqueDeSource) -> None:
+def enregistrer_source(nom: str, fabrique: FabriqueDeSource, *, sans_tiers: SansTiers | None = None) -> None:
     """Inscrit une source. ``fabrique(ctx)`` rend un gestionnaire de contexte asynchrone qui produit la source pour un geste."""
     _SOURCES[nom] = fabrique
+    if sans_tiers is None:
+        _SANS_TIERS.pop(nom, None)
+    else:
+        _SANS_TIERS[nom] = sans_tiers
+
+
+async def sans_tiers(nom: str | None, ctx: Any) -> bool:
+    """La source nommée (à défaut ``classeur``) n'écrit, dans cet appel, chez aucun client. Faux quand elle ne le dit pas."""
+    lire = _SANS_TIERS.get(nom or SOURCE_PAR_DEFAUT)
+    return bool(lire is not None and (await lire(ctx)) is True)
 
 
 def ouvrir(nom: str | None, ctx: Any, **options: Any) -> AbstractAsyncContextManager[Source]:

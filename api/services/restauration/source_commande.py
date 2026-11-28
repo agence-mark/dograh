@@ -566,4 +566,22 @@ async def ouvrir_la_source(ctx: Any, *, reglages_de_recherche: ReglagesDeRecherc
         yield source
 
 
-enregistrer_source("classeur", ouvrir_la_source)
+async def sans_tiers(ctx: Any) -> bool:
+    """Lot 6 : la prise de l'établissement de l'appel ne parle à aucun client (caisse de démo du Labo, prise d'essai) : lu sur la prise (lot 8c-2 : la règle
+    vivait dans le connecteur « Commande », qui ne connaît plus la restauration)."""
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
+    from api.services.restauration.caisse.prises import prise as prises
+
+    async with memoire_de_l_appel.geste(ctx) as (connexion, lieu):
+        prise = await prises.prise_de_l_etablissement(prises.ContexteDePrise(connexion, ctx.organization_id, lieu.etablissement_id, lieu.nom_base))
+    if prise is None or getattr(prise, "nom", None) == prises.PrisePortail.nom:
+        # Lot 19 (restaurants installés par le gabarit au lot 18, sans caisse) : la prise du portail n'envoie rien, la commande reste au classeur, la
+        # base du client ; au Labo, ce sont des restaurants de test : même règle que la réservation (``source_reservation.sans_tiers``) ; chez un
+        # client, simulé (B42)
+        from api.services.restauration.caisse.caisse_demo.garde import organisation_est_labo
+
+        return await organisation_est_labo(getattr(ctx, "organization_id", None))
+    return bool(getattr(prise, "sans_tiers", False))
+
+
+enregistrer_source("classeur", ouvrir_la_source, sans_tiers=sans_tiers)
