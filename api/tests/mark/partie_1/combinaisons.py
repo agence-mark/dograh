@@ -245,6 +245,15 @@ def _reponse_vivante(fiche: dict[str, Any], avant: dict[str, Any]) -> bool:
     return isinstance(reponse, dict) and bool(q.get("id")) and reponse.get("question_id") == q.get("id")
 
 
+TEMOIN = "__temoin_du_panier_d_avant__"  # T45 : un article qui n'est pas à la carte, glissé dans le panier d'avant pour voir si l'effet attendu le vide
+
+
+def _vide_le_panier(effet, avant: Counter, p: dict[str, Any]) -> bool:
+    """T45 : l'effet attendu vide-t-il le panier d'avant (vider, annuler, « oui » à l'annulation) ? Le témoin, qu'aucun geste ne vise, ne disparaît que par un vidage."""
+    reste = effet(avant + Counter({TEMOIN: 1}), p)
+    return reste is not None and not reste.get(TEMOIN)
+
+
 def _avec_ligne(f):
     return lambda p: f(p) if _ligne_1(p) else None
 
@@ -432,8 +441,11 @@ class Partie:
         identique = self._identique_au_tour_d_avant(fiche, avant)
         effet_juge = _inchange if identique else effet
         attendu = effet_juge(lignes_de(avant), avant) if effet_juge is not None else None
-        # « appliquée » : le juge attend qu'un article ENTRE (le code ne range que la fiche dont un article a été pris ; un retrait seul, avec un article inconnu, n'en fait pas une)
-        self._ranger_la_fiche_ajoutee(fiche, avant, attendu is not None and bool(+(attendu - lignes_de(avant))))
+        # « appliquée » : le juge attend qu'un article ENTRE (le code ne range que la fiche dont un article a été pris ; un retrait seul, avec un article inconnu, n'en fait pas une).
+        # T45 (Pierre, 28/11 3 h 59) : compté par rapport au panier VIDÉ quand le juge attend le vidage (« on vide et on annule, une margherita et une regina ») : le panier rétrécit,
+        # mais les articles de la fiche sont pris, la fiche est « celle du tour d'avant » au tour suivant, comme dans le code (``porte._ranger_la_fiche_ajoutee``)
+        base = lignes_de(avant) if effet_juge is None or not _vide_le_panier(effet_juge, lignes_de(avant), avant) else Counter()
+        self._ranger_la_fiche_ajoutee(fiche, avant, attendu is not None and bool(+(attendu - base)))
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
             debut = time.perf_counter()
