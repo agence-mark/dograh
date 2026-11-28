@@ -219,24 +219,39 @@ ECART_DE_L_ANNONCE = (("enregistré", "confirmé", "validé"), ("commande", "ré
 FORME_PASSEE_DE_LA_COMMANDE = r"\bcommande\b[^.!?]*\b(?:est|a\s+été)\s+(?:bien\s+|déjà\s+)?pass[ée]e?\b"
 
 
+FAITS_DE_L_ANNULATION = ("annulee", "annulee_en_cours")  # les faits accomplis de l'annulation (``porte.textes_du_code``) : le modèle les dit (C6 n° 7)
+
+
+def _annulation_dite_ce_tour(p: dict) -> bool:
+    """T43 R1 : le fait que le modèle dit à ce tour est l'annulation (gardé au journal par la porte, ``J.dire_le_fait``), même quand un mode qui la suit a effacé la marque
+    « annulee » du dossier (« Annulez, finalement en livraison » : décision du 27/11 7 h 23, le client entend « C'est annulé »). Lue sous la garde de ``annonce_non_fondee``.
+    ⚠ Ordre : le journal du tour est écrit par la porte au retour de la fiche (``porte._textes_de_la_fiche``, ``J.dire_le_fait``), avant tout jugement de la phrase ici
+    (tenu par ``test_le_journal_du_tour_est_ecrit_avant_le_jugement``)."""
+    from api.services.actions_communes import journal_du_dit as J
+
+    faits = J.fait_accompli(p)
+    return bool(faits) and faits.get("fait") in FAITS_DE_L_ANNULATION and not J.dit_a_un_tour_d_avant(p, J.FAIT_ACCOMPLI)
+
+
 def annonce_non_fondee(texte: Any, p: Any) -> bool:
     """Lot 20 (appels 455, 460) : la phrase annonce-t-elle que la commande est enregistrée (confirmée, validée) ou annulée alors que son ÉTAT dit le
     contraire ? La règle « c'est fait » de la vérité des actions (SA-18), comparée au dossier de la parole ; une question n'annonce rien. Un dossier qui
-    ne porte pas « enregistree » (une autre action) n'est pas jugé ici. ⛔ Ne lève jamais (dans le doute : non)."""
+    ne porte pas « enregistree » (une autre action) n'est pas jugé ici. T43 R1 : « annulé » est fondé quand le dossier est annulé OU quand l'annulation est
+    le fait dit de ce tour (``_annulation_dite_ce_tour``). ⛔ Ne lève jamais (dans le doute : non)."""
     try:
         from api.services.workflow.verite_des_actions import _phrases, regle_de_l_action_faite
 
         if not isinstance(p, dict) or "enregistree" not in p or not texte:
             return False
         faite = regle_de_l_action_faite(("enregistré", "confirmé", "validé"), sauf_si_autre_objet=ECART_DE_L_ANNONCE, formes_en_plus=(FORME_PASSEE_DE_LA_COMMANDE,))
-        annulee = regle_de_l_action_faite(("annulé",), sauf_si_autre_objet=ECART_DE_L_ANNONCE)
+        annulee = None if p.get("annulee") or _annulation_dite_ce_tour(p) else regle_de_l_action_faite(("annulé",), sauf_si_autre_objet=ECART_DE_L_ANNONCE)
 
         for phrase in _phrases(str(texte)):
             if phrase.rstrip().endswith("?"):
                 continue
             if faite is not None and not p.get("enregistree") and faite.search(phrase):
                 return True
-            if annulee is not None and not p.get("annulee") and annulee.search(phrase):
+            if annulee is not None and annulee.search(phrase):
                 return True
         return False
     except Exception:  # noqa: BLE001

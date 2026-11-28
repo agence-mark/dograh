@@ -798,6 +798,7 @@ class LaFiche:
     resultats: list[dict] = field(default_factory=list)
     bruts: list[Resultat] = field(default_factory=list)  # les résultats des opérations de la fiche, dans l'ordre : ``refusants_de_la_fiche`` et ``heures_a_dire`` les lisent
     dernier: Resultat | None = None
+    fiche_qui_vide: bool = False  # T43 : le vidage ou l'annulation de cette fiche a vidé quelque chose (des lignes, des articles gardés, une commande enregistrée) ; l'annulation d'un panier déjà vide n'est pas un fait (M2 : « on vide et on annule » en est un)
     cle: str = ""  # la clé de la fiche DITE (``_cle_de_la_fiche``) : ``_case_ajouter`` la range quand un article est pris, ``_fiche_identique_au_tour_d_avant`` la relit au tour d'après
 
     @property
@@ -1214,10 +1215,12 @@ async def _appliquer_la_case(f: LaFiche, case: str) -> tuple[Resultat, str | Non
         f.informations_faites = True
         return await _poser_les_informations(f), "informations"
     if case == "vider_le_panier":
+        f.fiche_qui_vide = f.fiche_qui_vide or bool(f.p.get("lignes") or f.p.get("dits_en_attente"))
         r = await moteur.vider_commande(f.source, f.p, f.regles)
         RQ.tout_fermer(f.p)  # B1 : on recommence : les questions de la commande d'avant tombent avec elle (la proposition comprise)
         return r, case
     if case == "annuler_la_commande":
+        f.fiche_qui_vide = f.fiche_qui_vide or bool(f.p.get("lignes") or f.p.get("dits_en_attente") or f.p.get("enregistree"))
         r = await annuler(f.source, f.p, f.regles)
         RQ.tout_fermer(f.p)
         return r, case
@@ -1439,8 +1442,10 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     s'il l'a déjà entendu (une issue, puis la sortie)."""
     ctx, p, dernier, tour = f.ctx, f.p, f.dernier, f.tour
     annulation = next((r for r in reversed(f.bruts) if r.faits.get("annulee") or r.faits.get("commande_annulee")), None)
-    if annulation is not None and _panier_vide_apres_l_annulation(p):
-        dernier = annulation  # § 17 l.407 : annulée dans cette fiche et le panier finit vide (un mode ou « c'est tout » qui suit n'y change rien) : le fait dit est l'annulation, jamais le dernier geste
+    if annulation is not None and (p.get("annulee") or (f.fiche_qui_vide and _panier_vide_apres_l_annulation(p))):
+        # § 17 l.407 : annulée dans cette fiche et le panier finit vide (un mode ou « c'est tout » qui suit n'y change rien) : le fait dit est l'annulation, jamais le dernier geste.
+        # T43 : un mode qui suit l'annulation d'un panier déjà vide (« je répète : annulez, en livraison ») : rien n'est annulé de neuf, l'annulation n'est pas redite (RC3)
+        dernier = annulation
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee),
@@ -1466,7 +1471,9 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
             consignes.append((C.QUESTION, A_FAIRE_DE_LA_QUESTION))  # n° 12 : une question que le code dit (DC10) suit la phrase du modèle, il ne la pose pas
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("fait_accompli"):
-        J.dire_le_fait(p, textes["fait_accompli"], tour)  # C6 n° 5 : la confirmation dite par le modèle ; le journal en garde le fait (jamais redit par le code, R1)
+        # C6 n° 5 : la confirmation dite par le modèle ; le journal en garde le fait (jamais redit par le code, R1). ⚠ Ordre : écrit ici, au retour de la fiche, AVANT que la parole
+        # juge la phrase du modèle : ``parole_de_la_fiche._annulation_dite_ce_tour`` le relit (T43 R1 ; tenu par ``test_le_journal_du_tour_est_ecrit_avant_le_jugement``)
+        J.dire_le_fait(p, textes["fait_accompli"], tour)
     poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [_refus_pour_le_modele(r) for r in refusants])
     return consignes
 
