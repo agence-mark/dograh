@@ -29,7 +29,8 @@ from api.db.bases_clients import capacite
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
 from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.instantane import stable, vivant
-from api.db.bases_clients.restauration_commande import E164, _heure_dite, _quand_dit
+from api.db.bases_clients.annonce_heure import heure_dite
+from api.db.bases_clients.restauration_commande import E164, quand_dit
 from api.db.bases_clients.restauration_commun import json_lu
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
 
@@ -181,8 +182,8 @@ def _fait(r: asyncpg.Record, noms: dict[int, str], fuseau: ZoneInfo, maintenant_
     return {
         "numero": str(r["numero"]), "debut": r["debut"], "fin": fin, "duree_minutes": r["duree_minutes"], "couverts": r["couverts"],
         "prenom": r["prenom"], "statut": r["statut"], "tables": [noms.get(i, str(i)) for i in r["table_ids"]], "note": r["note"],
-        "quand_dit": _quand_dit(r["debut"], maintenant_, fuseau), "jour_dit": jour_dit(r["debut"].astimezone(fuseau).date()),
-        "heure_dite": _heure_dite(r["debut"], fuseau),  # C6 n° 8 : l'heure seule, exigée de la phrase du modèle qui demande l'annulation (P2)
+        "quand_dit": quand_dit(r["debut"], maintenant_, fuseau), "jour_dit": jour_dit(r["debut"].astimezone(fuseau).date()),
+        "heure_dite": heure_dite(r["debut"], fuseau),  # C6 n° 8 : l'heure seule, exigée de la phrase du modèle qui demande l'annulation (P2)
     }
 
 
@@ -195,7 +196,7 @@ async def _propositions(
     d0, d1 = _jour_borne(debut, fuseau)
     services, unites, occupations, regles, _, _ = salle or await _salle(connexion, etablissement_id, d0, d1, ignorer)
     libres = capacite.creneaux_libres(debut.astimezone(fuseau).date(), couverts, duree, unites, occupations, services, fuseau, maintenant_, regles)
-    return [{"debut": c["debut"], "fin": c["fin"], "quand_dit": _quand_dit(c["debut"], maintenant_, fuseau)} for c in capacite.les_plus_proches(debut, libres, 3)]
+    return [{"debut": c["debut"], "fin": c["fin"], "quand_dit": quand_dit(c["debut"], maintenant_, fuseau)} for c in capacite.les_plus_proches(debut, libres, 3)]
 
 
 def _avec_propositions(refus: Resultat, propositions: list[dict]) -> Resultat:

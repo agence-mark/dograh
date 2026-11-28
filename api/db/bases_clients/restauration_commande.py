@@ -25,9 +25,9 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
-from api.db.bases_clients.annonce_heure import dite
+from api.db.bases_clients.annonce_heure import dite, heure_dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
-from api.services.mots_dits import heure_en_lettres, montant_en_lettres
+from api.services.mots_dits import montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.article_simple import brique_art1_chiffrer
 from api.services.commande.briques import conditions_de_vente, supplement_de_formule, menu_a_taille_liee, lot_a_prix_fixe, choix_entre_deux_contenus, inclus_par_rubrique, a_volonte, livraison_offerte, quota_inclus_puis_payant, option_conditionnelle, prix_par_mode, consigne_et_emballage, produit_au_poids, supplement_selon_la_taille, changer_d_accompagnement, retrait_d_ingredient
@@ -656,17 +656,12 @@ def _prefixe_du_numero(numero_mode: str, prefixe_mixte: str, mode: str, moyens: 
     return fixe
 
 
-def _heure_dite(heure: datetime, fuseau: ZoneInfo) -> str:
-    local = heure.astimezone(fuseau)
-    return heure_en_lettres(local.hour, local.minute)
-
-
-def _quand_dit(heure: datetime, maintenant_: datetime, fuseau: ZoneInfo) -> str:
+def quand_dit(heure: datetime, maintenant_: datetime, fuseau: ZoneInfo) -> str:
     """« 19 h 30 » le jour même, « samedi 14 novembre à 19 h 30 » un autre jour : une commande pour plus tard dit toujours son jour."""
     local = heure.astimezone(fuseau)
     if local.date() == maintenant_.astimezone(fuseau).date():
-        return _heure_dite(heure, fuseau)
-    return f"{jour_dit(local.date())} à {_heure_dite(heure, fuseau)}"
+        return heure_dite(heure, fuseau)
+    return f"{jour_dit(local.date())} à {heure_dite(heure, fuseau)}"
 
 
 async def creneau_refuse(
@@ -688,22 +683,22 @@ async def creneau_refuse(
             return _refus("ARGUMENT_INVALIDE", "heure_voulue", jusqu_a=jusqu_a)
         if heure_voulue < maintenant_ + timedelta(minutes=reglage["delai_minimal"]):
             return _refus("ARGUMENT_INVALIDE", "heure_voulue", trop_tot=True, delai_minimal=reglage["delai_minimal"],
-                                      heure_demandee_dite=_quand_dit(heure_voulue, maintenant_, fuseau))  # 7b-C4 : l'heure demandée entre dans l'identité du refus (trois heures trop tôt ne sont pas un refus redit)
+                                      heure_demandee_dite=quand_dit(heure_voulue, maintenant_, fuseau))  # 7b-C4 : l'heure demandée entre dans l'identité du refus (trois heures trop tôt ne sont pas un refus redit)
     etat = await etat_combine(connexion, etablissement_id, mode, heure_voulue or maintenant_)
     if not etat["ouvert"]:
         raison = etat["raison"]
         quand = etat["reprise"] or etat["prochaine_ouverture"]
         faits = {"raison": raison, "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"]}
         if plus_tard and isinstance(quand, datetime):
-            faits["rouvre_dit"] = _quand_dit(quand, maintenant_, fuseau)
-            faits["heure_demandee_dite"] = _quand_dit(heure_voulue, maintenant_, fuseau)  # idem : une autre heure demandée est un autre refus
+            faits["rouvre_dit"] = quand_dit(quand, maintenant_, fuseau)
+            faits["heure_demandee_dite"] = quand_dit(heure_voulue, maintenant_, fuseau)  # idem : une autre heure demandée est un autre refus
         return _refus(statut_de_fermeture(raison), "heure_voulue" if plus_tard else None, **faits)
     if plus_tard:
         libre = await creneau_complet(connexion, etablissement_id, mode, heure_voulue)
         if libre is not None:
             return _refus(
                 "ARGUMENT_INVALIDE", "heure_voulue",
-                raison="creneau_plein", proposition=libre, proposition_dite=_quand_dit(libre, maintenant_, fuseau), heure_demandee_dite=_quand_dit(heure_voulue, maintenant_, fuseau),
+                raison="creneau_plein", proposition=libre, proposition_dite=quand_dit(libre, maintenant_, fuseau), heure_demandee_dite=quand_dit(heure_voulue, maintenant_, fuseau),
             )
     return None
 
@@ -829,7 +824,7 @@ def _enregistree(faits: dict, annonce: dict | None, mode: str, maintenant_: date
     faits["mode"] = mode
     if annonce is None:
         # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` ``_enregistrer``) : la même forme que l'annonce d'un délai.
-        faits["quand_dit"] = f"pour {_quand_dit(faits['heure_annoncee'], maintenant_, fuseau)}"
+        faits["quand_dit"] = f"pour {quand_dit(faits['heure_annoncee'], maintenant_, fuseau)}"
         return Resultat("ENREGISTREE", faits)
     a = annonce["annonce"]
     faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
@@ -886,7 +881,7 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
             etablissement_id, cle)
         if existante is not None:
             deja = {"numero": str(existante["numero"]), "numero_court": existante["numero_court"], "heure_annoncee": existante["heure_annoncee"], "total": existante["total"],
-                    "quand_dit": _heure_dite(existante["heure_annoncee"], fuseau) if existante["heure_annoncee"] else None}
+                    "quand_dit": heure_dite(existante["heure_annoncee"], fuseau) if existante["heure_annoncee"] else None}
             return Resultat("DEJA_FAIT", deja), numero, ""
         prefixe = _prefixe_du_numero(
             module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,

@@ -25,7 +25,7 @@ from api.db.bases_clients.restauration_signalement_carte import signaler_une_reg
 from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRecherche
 from api.db.bases_clients.restauration_commande import (
-    _quand_dit,
+    quand_dit,
     article_de_la_carte,
     commande_complete,
     formules_de_la_carte,
@@ -265,9 +265,9 @@ class SourceClasseur:
         return await creneau_refuse(self.c, self.lieu.etablissement_id, mode, voulue, await maintenant(self.c), fuseau)
 
     async def quand_dit(self, voulue: datetime) -> str:
-        """« dix-neuf heures trente » le jour même, « vendredi treize novembre à dix-neuf heures trente » un autre jour."""
+        """« dix-neuf heures trente » le jour même, « vendredi treize novembre à dix-neuf heures trente » un autre jour. (Appelle la fonction du même nom de ``restauration_commande``.)"""
         fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
-        return _quand_dit(voulue, await maintenant(self.c), fuseau)
+        return quand_dit(voulue, await maintenant(self.c), fuseau)
 
     # ---- le catalogue
     async def chercher(self, texte: str) -> Resultat:
@@ -374,7 +374,7 @@ class SourceClasseur:
         commandes = [
             {
                 "numero": c["numero"], "numero_court": c["numero_court"], "statut": c["statut"], "mode": c["mode"], "total": c["total"],
-                "quand_dit": _quand_dit(c["heure_voulue"] or c["heure_annoncee"], maintenant_, fuseau) if (c["heure_voulue"] or c["heure_annoncee"]) else None,
+                "quand_dit": quand_dit(c["heure_voulue"] or c["heure_annoncee"], maintenant_, fuseau) if (c["heure_voulue"] or c["heure_annoncee"]) else None,
             }
             for c in r.faits["commandes"]
         ]

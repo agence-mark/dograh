@@ -86,7 +86,7 @@ def annoncer(maintenant: datetime, delai_minutes: int, ajout_minutes: int, atten
     return Annonce("tranche", debut, max(0, round((debut - maintenant).total_seconds() / 60)), debut, debut + timedelta(minutes=LARGEUR_TRANCHE))
 
 
-def _heure_dite(instant: datetime, fuseau: ZoneInfo) -> str:
+def heure_dite(instant: datetime, fuseau: ZoneInfo) -> str:
     local = instant.astimezone(fuseau)
     return heure_en_lettres(local.hour, local.minute)
 
@@ -94,7 +94,7 @@ def _heure_dite(instant: datetime, fuseau: ZoneInfo) -> str:
 def dite(annonce: Annonce, fuseau: ZoneInfo) -> str:
     """L'annonce en français, prête à être dite : « dans trente minutes », « à vingt heures quinze », « entre vingt heures quinze et vingt heures trente »."""
     if annonce.format == "tranche" and annonce.debut and annonce.fin:
-        return f"entre {_heure_dite(annonce.debut, fuseau)} et {_heure_dite(annonce.fin, fuseau)}"
+        return f"entre {heure_dite(annonce.debut, fuseau)} et {heure_dite(annonce.fin, fuseau)}"
     if annonce.format == "heure_fixe":
-        return f"à {_heure_dite(annonce.prete, fuseau)}"
+        return f"à {heure_dite(annonce.prete, fuseau)}"
     return f"dans {duree_en_lettres(annonce.minutes)}"
