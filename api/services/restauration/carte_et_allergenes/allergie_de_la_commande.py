@@ -22,8 +22,8 @@ from api.services.commande.briques import allergenes_du_produit, allergenes_d_un
 from api.services.commande.briques import formule as FO
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r, _racines
-from api.services.commande.moteur.articles import _groupes_a_remplir
+from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, Reglages, avec_le_panier, _r, racines
+from api.services.commande.moteur.articles import groupes_a_remplir
 from api.services.restauration.carte_et_allergenes.signalements import codes_des_signalements
 
 RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
@@ -258,7 +258,7 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
         await _annuler_la_ligne_retenue(source, p)  # R1-bis : la ligne ne doit plus pouvoir partir (filet E11) sans nouveau « oui »
     finally:
         ETAPE.transition(p, ETAPE.ALLERGIE_A_DONNER)  # l'accord est retiré quoi qu'il arrive à l'annulation (une exception imprévue remonte, après le retrait)
-    return _avec(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
+    return avec_le_panier(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
 
 
 async def _regles_d_information(source: Source) -> dict[str, Any]:
@@ -311,11 +311,11 @@ async def _nomme_une_categorie(source: Source, p: dict[str, Any], texte: str) ->
     """« des pizzas », « végétarien » : le texte nomme une CATÉGORIE de la carte, pas un article : la question porte sur le catalogue (sinon « pizzas » cherchait un article et
     la réponse était « introuvable » au lieu de « je ne peux pas le garantir »)."""
     lire = getattr(source, "catalogue", None)
-    voulu = _racines(texte)
+    voulu = racines(texte)
     if lire is None or not voulu:
         return False
     articles = (await lire(p.get("mode") or source.modes[0])).get("articles") or []
-    return any(a.get("categorie") and voulu <= _racines(a["categorie"]) for a in articles)
+    return any(a.get("categorie") and voulu <= racines(a["categorie"]) for a in articles)
 
 
 async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -> Resultat:
@@ -363,7 +363,7 @@ def _option_signale(o: dict, code: str) -> bool | None:
 
 def _options_obligatoires(fiche: dict) -> list[dict]:
     """Les options des choix sans lesquels l'article ne se commande pas (au moins un à prendre)."""
-    return [o for _, g in _groupes_a_remplir(fiche, {"choix": []}) if g["min"] >= 1 for o in g["options"] if o["vendable"]]
+    return [o for _, g in groupes_a_remplir(fiche, {"choix": []}) if g["min"] >= 1 for o in g["options"] if o["vendable"]]
 
 
 _LA_LISTE = re.compile(r"(?<!\w)(?:allerg[eè]nes?|allergies?|signalements?|ingr[ée]dients?)(?!\w)", re.IGNORECASE)

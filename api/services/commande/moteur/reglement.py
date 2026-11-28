@@ -15,7 +15,7 @@ from api.services.commande import etape as ETAPE
 from api.services.commande import lecture, panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import _avec, _r
+from api.services.commande.moteur.socle import avec_le_panier, _r
 from api.services.mots_dits import montant_en_lettres
 from api.services.phrases.catalogue import TOTAL_APRES_CORRECTION, TOTAL_RELECTURE
 
@@ -152,7 +152,7 @@ def rendu_de_monnaie(paiement: dict[str, Any]) -> dict[str, int] | None:
 def _relecture_deja_dite(p: dict[str, Any], total: int) -> Resultat:
     """M106/M107 (appels 2592, 2593) : la fin rappelée sans rien de nouveau (souvent sur une question de la personne pendant le récapitulatif) :
     rien n'est redit ; la parole revient au modèle avec les faits. Le récapitulatif reste valable : un « oui » ensuite le valide."""
-    return _avec(
+    return avec_le_panier(
         _r("INCOMPLETE", {"total": total, "a_confirmer": True, "relecture_deja_dite": True, "rien_de_nouveau": True}, "", "reponse_a_la_relecture"),
         p, total=total,
     )
@@ -208,7 +208,7 @@ def poser_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat) -> 
         "recapitulatif": True, "total": total, "motif_du_total": motif_du_total,
     })
     p["derniere_lecture"], p["derniere_lecture_mode"], p["derniere_lecture_heure"] = maintenant, p["mode"], p.get("heure_voulue_dite")
-    return _avec(_r("INCOMPLETE", faits, "", "relecture"), p, total=total)
+    return avec_le_panier(_r("INCOMPLETE", faits, "", "relecture"), p, total=total)
 
 
 async def regler(
@@ -221,11 +221,11 @@ async def regler(
                 "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
         if (part is not None and brut["part"] is None) or (rendu_sur is not None and brut["rendu_sur"] is None):
             faits = {"montant_illisible": True}
-            return None, _avec(_r("ARGUMENT_INVALIDE", faits, "", "paiement"), p)
+            return None, avec_le_panier(_r("ARGUMENT_INVALIDE", faits, "", "paiement"), p)
         p["paiement"] = {**(p.get("paiement") or {}), **{k: v for k, v in brut.items() if v is not None}}
     paiement, refus = await _le_reglement(source, p, total, p.get("paiement") or {})
     if refus is not None:
         if refus.manque in ("paiement", "paiement_reste"):
             p["paiement"] = None if refus.manque == "paiement" else p["paiement"]
-        return None, _avec(refus, p)
+        return None, avec_le_panier(refus, p)
     return paiement, None

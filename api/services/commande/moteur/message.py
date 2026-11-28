@@ -9,7 +9,7 @@ from typing import Any
 
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import Reglages, _avec, _r
+from api.services.commande.moteur.socle import Reglages, avec_le_panier, _r
 from api.services.commande.moteur.socle import Appelant
 
 
@@ -25,4 +25,4 @@ async def envoyer_un_message(source: Source, p: dict[str, Any], regles: Reglages
         return _r("ARGUMENT_INVALIDE", {}, "", "quoi")  # C7 B5 (Evan 25/11 8 h 45) : le modèle demande quel message d'après le manque
     quoi = quoi.strip().casefold()
     cle = f"{appelant.appel_id or 'sans-appel'}:{quoi}:{appelant.telephone_affiche or ''}"
-    return _avec(await source.envoyer(quoi, appelant.telephone_affiche, cle, organisation), p)
+    return avec_le_panier(await source.envoyer(quoi, appelant.telephone_affiche, cle, organisation), p)

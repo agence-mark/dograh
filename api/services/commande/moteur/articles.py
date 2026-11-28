@@ -20,7 +20,7 @@ from api.services.mots_dits import liste_dite_et, montant_en_lettres, nom_dit
 from api.services.commande.resultat import Resultat
 from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, _r, _sans_accent, texte_de_l_offre
+from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, avec_le_panier, _r, _sans_accent, texte_de_l_offre
 from api.services.commande.moteur.prealables import _article_de_la_carte, chiffrer_le_panier, _prealables, _servi_le, _valider
 
 
@@ -41,7 +41,7 @@ def _est_le_nom(trouve: dict, texte: str) -> bool:
     return norme_de_recherche(trouve["candidats"][0]["libelle"]) == norme_de_recherche(texte)  # SA-52 : « deux » = « 2 »
 
 
-def _groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...], dict]]:
+def groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...], dict]]:
     """Les groupes de choix où ``ligne`` peut ou doit choisir : ceux de l'article, puis ceux des options déjà choisies (une fois imbriqués)."""
     sortie: list[tuple[tuple[str, ...], dict]] = []
 
@@ -76,7 +76,7 @@ def _question(article: dict, ligne: dict) -> dict | None:
     """La première question encore ouverte pour cette ligne : la déclinaison, puis chaque choix obligatoire. ``None`` : la ligne est complète."""
     if not ligne.get("code"):
         return declinaison_nommee.brique_dec1_demander_la_declinaison(article["declinaisons"])
-    for chemin, g in _groupes_a_remplir(article, ligne):
+    for chemin, g in groupes_a_remplir(article, ligne):
         if FO.est_une_etape(g) and _compte(ligne, chemin, g) < choix_entre_deux_contenus.minimum_de_l_etape(g, [c for c in _niveau(ligne["choix"], chemin) if FO.du_groupe(c, g)]):
             return formule_a_etapes.brique_for2_une_etape_a_la_fois(g, list(chemin))  # FOR2 : une étape à la fois ; FOR12 : remplie à la quantité de l'alternative prise
         if FO.est_une_etape(g):
@@ -99,7 +99,7 @@ def choix_obligatoire(faits: dict) -> Resultat:
 
 def _appliquer_les_defauts(article: dict, ligne: dict) -> None:
     """Les options pré-cochées d'un groupe obligatoire sont prises d'office (la sauce de base) ; l'appelant peut en changer."""
-    for chemin, g in _groupes_a_remplir(article, ligne):
+    for chemin, g in groupes_a_remplir(article, ligne):
         if g["min"] >= 1 and _compte(ligne, chemin, g) == 0:
             for o in choix_unique_obligatoire.brique_opt1_choix_obligatoire(g):  # le défaut du groupe, ou celui de l'option : une seule règle (OPT1)
                 if _compte(ligne, chemin, g) < g["max"]:
@@ -144,7 +144,7 @@ def remplacer_un_choix(niveau: list[dict], groupe: dict, option: dict) -> None:
 def _options_disponibles(article: dict, ligne: dict, roles: tuple[str, ...] | None = None) -> dict[str, tuple[tuple[str, ...], dict, dict]]:
     """Index identifiant → (chemin, groupe, option) de tout ce que ``ligne`` peut encore choisir."""
     index: dict[str, tuple[tuple[str, ...], dict, dict]] = {}
-    for chemin, g in _groupes_a_remplir(article, ligne):
+    for chemin, g in groupes_a_remplir(article, ligne):
         if roles and g["role"] not in roles:
             continue
         for o in g["options"]:
@@ -306,7 +306,7 @@ def a_la_taille_de_la_formule(article: dict, ligne: dict) -> Resultat | None:
 def _moities_choisies(article: dict, ligne: dict) -> list[str]:
     """Les noms des moitiés déjà choisies sur la ligne (les options des groupes de rôle ``moities``)."""
     noms: list[str] = []
-    for chemin, g in _groupes_a_remplir(article, ligne):
+    for chemin, g in groupes_a_remplir(article, ligne):
         if g.get("role") != "moities":
             continue
         codes = {o["code"] for o in g["options"]}
@@ -414,7 +414,7 @@ def noter_la_commande(p: dict[str, Any], regles: Reglages, texte: str | None) ->
         return None
     if not regles.notes_libres:
         faits = {"raison": "notes_non_acceptees"}
-        return _avec(_r("HORS_CARTE", faits, ""), p)
+        return avec_le_panier(_r("HORS_CARTE", faits, ""), p)
     p["note"] = note[:LONGUEUR_NOTE]
     return None
 
@@ -430,11 +430,11 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
     if lecture is None:
         return None
     if not str(dit or "").strip():
-        return _avec(_r("OK", {"reduction_annoncee": True}, "", "code_de_remise"), p) if reduction_annoncee else None
+        return avec_le_panier(_r("OK", {"reduction_annoncee": True}, "", "code_de_remise"), p) if reduction_annoncee else None
     verdict = code_de_remise.brique_off3_verifier_le_code(dit, await lecture())
     if "raison" in verdict:
         faits = {"raison": code_de_remise.RAISON, "dit": verdict["dit"]}
-        return _avec(_r("HORS_CARTE", faits, ""), p)
+        return avec_le_panier(_r("HORS_CARTE", faits, ""), p)
     if verdict["code"] not in p.setdefault("codes_dits", []):
         p["codes_dits"].append(verdict["code"])
     if verdict["ref"] not in p.setdefault("remises_du_code", []):
@@ -443,9 +443,9 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
     appliquee = next((r for r in (chiffre.faits.get("remises") or []) if r["ref"] == verdict["ref"]), None) if chiffre is not None and chiffre.statut == "OK" else None
     faits = {"code": verdict["code"], "remise": verdict["nom"], "appliquee": appliquee is not None}
     if appliquee is None:
-        return _avec(_r("OK", faits, ""), p)
+        return avec_le_panier(_r("OK", faits, ""), p)
     # C7 B5 (Evan 25/11 8 h 45) : la remise est un fait (son montant aussi en lettres, le texte du restaurant s'il en a un), le modèle la dit
-    return _avec(_r("OK", {**faits, "reduction": appliquee["montant"], "reduction_dite": montant_en_lettres(appliquee["montant"]), **texte_de_l_offre(appliquee)}, ""), p)
+    return avec_le_panier(_r("OK", {**faits, "reduction": appliquee["montant"], "reduction_dite": montant_en_lettres(appliquee["montant"]), **texte_de_l_offre(appliquee)}, ""), p)
 
 
 # --------------------------------------------------------------------------- #
@@ -473,7 +473,7 @@ def _declinaison_dite(article: dict, trouve: dict) -> dict | None:
     return None
 
 
-async def _un_seul_candidat(source: Source, trouve: Resultat, texte: str) -> tuple[Resultat, str | None]:
+async def un_seul_candidat(source: Source, trouve: Resultat, texte: str) -> tuple[Resultat, str | None]:
     """Un seul article possible et des mots en plus (« tiramisu Classic ») : ce qui reste est le choix dit avec l'article, pas un doute sur
     l'article. Rend l'article retenu et ce qui reste dit ; sinon la recherche telle quelle et ``None``."""
     if trouve.statut != "AMBIGU" or len(trouve.faits.get("candidats", [])) != 1:
@@ -488,7 +488,7 @@ async def _un_seul_candidat(source: Source, trouve: Resultat, texte: str) -> tup
     return trouve, None
 
 
-def _option_dite(article: dict, texte: str) -> dict | None:
+def option_dite(article: dict, texte: str) -> dict | None:
     """L'option de l'article que ``texte`` nomme sans doute (« pistache » dans le groupe des parfums) ; ``None`` : aucune option certaine."""
     index = _options_disponibles(article, {"choix": []})
     if not index:
@@ -592,7 +592,7 @@ async def _un_article(
             texte, variante = collee
     # B5 (N1) : le candidat choisi à la question est pris par son identifiant ; la recherche n'est jamais rejouée sur son nom (la boucle « Kebab »)
     trouve = Resultat("RETENU", {"retenu": ref}, "") if ref else await chercher_l_article(source, texte, regles)
-    trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
+    trouve, dit_en_plus = await un_seul_candidat(source, trouve, texte)
     if personnes is not None and trouve.statut == "AMBIGU" and len(trouve.faits.get("candidats") or []) == 1:
         # FOR10 (conversation FOR10-A du lot 11) : « seau pour quatre personnes » écrit dans ``article`` AVEC ``personnes`` : le seul candidat, vendu par
         # personnes, est retenu ; le reste des mots est le nombre, déjà dans sa sous-case
@@ -713,14 +713,14 @@ async def _un_article(
         ligne["article_nom"] = article["nom"]
         p["lignes"].append(ligne)
         P.toucher(p)
-        return _avec(choix_obligatoire({"article": ligne["nom"], "article_de_la_carte": article["nom"], "question": question}), p)
+        return avec_le_panier(choix_obligatoire({"article": ligne["nom"], "article_de_la_carte": article["nom"], "question": question}), p)
     essai = copy.deepcopy(p)
     if not _fusionner(essai, ligne):
         essai["lignes"].append(ligne)
     P.toucher(essai)
     chiffre = await chiffrer_le_panier(source, essai, regles)
     if _bloque_l_ajout(chiffre):
-        return _avec(chiffre, p)
+        return avec_le_panier(chiffre, p)
     _valider(p, essai)
     return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite, **({"choix_sans_objet": ligne["choix_sans_objet"]} if ligne.get("choix_sans_objet") else {}),
                      **(produit_alcoolise.brique_prx6_regle_d_age_dite(article) or {}),  # PRX6 : un article alcoolisé rend le fait ``alcool``
@@ -890,15 +890,15 @@ async def etat_apres_ajout(source: Source, p: dict[str, Any], regles: Reglages, 
 async def repondre_a_un_choix(source: Source, p: dict[str, Any], regles: Reglages, *, choix: str | None, sans: str | None, note: str | None, moities: str | None) -> Resultat:
     """Pas d'article dit : la réponse à la question ouverte, ou un choix, un retrait, une note sur la dernière ligne."""
     if not (choix or sans or note or moities):
-        return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
+        return avec_le_panier(_r("INCOMPLETE", {}, "", "articles"), p)
     cible = (P.a_completer(p) or p["lignes"][-1:] or [None])[0]
     if cible is None:
-        return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
+        return avec_le_panier(_r("INCOMPLETE", {}, "", "articles"), p)
     attentes = P.a_completer(p)
     if choix and not (sans or note or moities) and sum(1 for l in attentes if l["ref"] == cible["ref"] and l["attente"] == cible.get("attente")) > 1:
         # SA-52 : « deux X dont un sans Y » fait deux lignes qui attendent la même question : la réponse vaut pour les deux.
         if await _repondre_aux_attentes(source, p, regles, choix):
-            return _avec(await etat_apres_ajout(source, p, regles, {}), p)
+            return avec_le_panier(await etat_apres_ajout(source, p, regles, {}), p)
     return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities)
 
 
@@ -934,23 +934,23 @@ async def _travailler_une_ligne(
     article = await _article_de_la_carte(source, essai, ligne["ref"], essai["mode"])
     if article is None:
         faits = {"article": ligne["nom"]}
-        return _avec(_r("INTROUVABLE", faits, ""), p)
+        return avec_le_panier(_r("INTROUVABLE", faits, ""), p)
     attente = ligne.get("attente")
     if variante and not (attente and attente["type"] == "declinaison"):
         refus = changer_la_taille(article, ligne, variante, regles)
         if refus is not None and refus.statut == "RIEN_A_CHANGER" and not (quantite is not None or choix or sans or note or moities):
-            return _avec(refus, p)
+            return avec_le_panier(refus, p)
         if refus is not None and refus.statut != "RIEN_A_CHANGER":
-            return _avec(refus, p)
+            return avec_le_panier(refus, p)
     taille_dite = variante if variante and attente and attente["type"] == "declinaison" else None  # la ligne attend sa taille : la variante y répond
     if attente and attente["type"] == "declinaison" and (taille_dite or choix):
         # La réponse à « quelle taille ? » : la déclinaison dite (le nom d'une taille).
         trouve = _declinaison_choisie(article, taille_dite or choix, regles)
         if trouve is None:
-            return _avec(choix_obligatoire({"article": ligne["nom"], "article_de_la_carte": article["nom"], "question": attente}), p)
+            return avec_le_panier(choix_obligatoire({"article": ligne["nom"], "article_de_la_carte": article["nom"], "question": attente}), p)
         if not trouve["vendable"] or trouve["rupture"]:
             faits = {"nom": f"{article['nom']} {trouve['nom']}"}
-            return _avec(_r("RUPTURE", faits, ""), p)
+            return avec_le_panier(_r("RUPTURE", faits, ""), p)
         ligne["code"] = trouve["code"]
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {trouve['nom']}"
@@ -960,28 +960,28 @@ async def _travailler_une_ligne(
         for texte_en_attente in ligne.pop("choix_a_poser", []):
             erreur = _appliquer_les_choix(article, ligne, texte_en_attente)
             if erreur:
-                return _avec(erreur, p)
+                return avec_le_panier(erreur, p)
         for retrait_en_attente in ligne.pop("retraits_a_poser", []):
             erreur = _appliquer_les_retraits(article, ligne, retrait_en_attente)
             if erreur:
-                return _avec(erreur, p)
+                return avec_le_panier(erreur, p)
     for texte, roles in ((moities, ("moities",)), (choix, None)):
         if texte:
             dans = attente["groupe"] if attente and attente.get("type") in ("groupe", formule_a_etapes.TYPE_DE_LA_QUESTION) and roles is None else None
             erreur = _appliquer_les_choix(article, ligne, texte, roles=roles, dans=dans, notes_libres=regles.notes_libres)
             if erreur:
-                return _avec(erreur, p)
+                return avec_le_panier(erreur, p)
     if sans:
         erreur = (retirer_sur_le_plat if article.get("formule") else _appliquer_les_retraits)(article, ligne, sans)
         if erreur:
-            return _avec(erreur, p)
+            return avec_le_panier(erreur, p)
     erreur = _noter(ligne, note or "", regles)
     if erreur:
-        return _avec(erreur, p)
+        return avec_le_panier(erreur, p)
     if ligne.get("code"):
         erreur = a_la_taille_de_la_formule(article, ligne)  # FOR6 : passer en grand garde les choix (D34, conflit 3)
         if erreur:
-            return _avec(erreur, p)
+            return avec_le_panier(erreur, p)
     if quantite is not None:
         ligne["quantite"] = quantite
     ligne["attente"] = None
@@ -991,9 +991,9 @@ async def _travailler_une_ligne(
     P.toucher_si_change(essai, p)  # n° 8 : une ligne redite à l'identique ne fait pas repartir la relecture
     chiffre = await chiffrer_le_panier(source, essai, regles)
     if _bloque_l_ajout(chiffre):
-        return _avec(chiffre, p)
+        return avec_le_panier(chiffre, p)
     _valider(p, essai)
-    return _avec(await etat_apres_ajout(source, p, regles, {"ligne": ligne["n"], "article": ligne["nom"]}), p)
+    return avec_le_panier(await etat_apres_ajout(source, p, regles, {"ligne": ligne["n"], "article": ligne["nom"]}), p)
 
 
 # --------------------------------------------------------------------------- #
@@ -1067,28 +1067,28 @@ async def modifier(
     changement qui ne tient pas n'est pas posé."""
     cible, refus = await _trouver_la_ligne(p, ligne)
     if refus is not None:
-        return _avec(refus, p)
+        return avec_le_panier(refus, p)
     if quantite is not None and (not isinstance(quantite, int) or isinstance(quantite, bool) or quantite < 0):
-        return _avec(_r("ARGUMENT_INVALIDE", {}, "", "quantite"), p)
+        return avec_le_panier(_r("ARGUMENT_INVALIDE", {}, "", "quantite"), p)
     if quantite and cible.get("lot_de_vente"):  # C4 : une ligne vendue par lot se corrige en PIÈCES, comme à l'ajout (QTE2) ; la ligne compte des lots
         lot = lot_de_vente.brique_qte2_multiple_du_lot({"nom": cible["nom"], "lot_de_vente": cible["lot_de_vente"]}, quantite)
         if lot.get("raison"):
-            return _avec(_r("INTERDIT", lot, ""), p)
+            return avec_le_panier(_r("INTERDIT", lot, ""), p)
         quantite = lot["lots"]
     if quantite is not None and quantite > lecture.QUANTITE_MAX:
         faits = {"quantite_max": lecture.QUANTITE_MAX}  # pas la quantité dite : elle change d'un tour à l'autre et remettrait le compteur du journal à zéro
-        return _avec(_r("ARGUMENT_INVALIDE", faits, "", "quantite"), p)
+        return avec_le_panier(_r("ARGUMENT_INVALIDE", faits, "", "quantite"), p)
     if quantite == 0:
         return await retirer(source, p, regles, ligne=str(cible["n"]))
     if quantite is None and not (choix or sans or note or moities or variante):
-        return _avec(_r("INCOMPLETE", {}, "", "modification"), p)
+        return avec_le_panier(_r("INCOMPLETE", {}, "", "modification"), p)
     return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities, quantite=quantite, variante=variante)
 
 
 async def retirer(source: Source, p: dict[str, Any], regles: Reglages, *, ligne: str | None = None) -> Resultat:
     cible, refus = await _trouver_la_ligne(p, ligne)
     if refus is not None:
-        return _avec(refus, p)
+        return avec_le_panier(refus, p)
     essai = copy.deepcopy(p)
     essai["lignes"] = [l for l in essai["lignes"] if l["n"] != cible["n"]]
     P.toucher(essai)
@@ -1100,7 +1100,7 @@ async def retirer(source: Source, p: dict[str, Any], regles: Reglages, *, ligne:
         faits["total"] = chiffre.faits.get("total")
     elif (minimum := _minimum_non_atteint(chiffre)) is not None:
         faits["minimum_non_atteint"] = minimum
-    return _avec(_r("OK", faits, ""), p)
+    return avec_le_panier(_r("OK", faits, ""), p)
 
 
 async def vider_commande(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
@@ -1110,7 +1110,7 @@ async def vider_commande(source: Source, p: dict[str, Any], regles: Reglages) ->
     essai["dits_en_attente"] = []  # SA-33 : ce qui était gardé avant les préalables part aussi
     P.toucher(essai)
     _valider(p, essai)
-    return _avec(_r("OK", {"vide": True}, ""), p)
+    return avec_le_panier(_r("OK", {"vide": True}, ""), p)
 
 
 def _ligne_dite(l: dict[str, Any]) -> str:

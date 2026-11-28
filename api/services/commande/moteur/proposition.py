@@ -12,7 +12,7 @@ from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _r, cle_de_la_remise
+from api.services.commande.moteur.socle import Appelant, Reglages, avec_le_panier, _r, cle_de_la_remise
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _bloque_l_ajout, chercher_l_article, etat_apres_ajout, _un_article
 
@@ -93,5 +93,5 @@ async def repondre_a_la_proposition(source: Source, p: dict[str, Any], regles: R
     elif sens == "refuse":
         p["proposition_refusee"] = True
     if tot or r.statut not in ("OK",) or r.manque:
-        return _avec(r, p)
+        return avec_le_panier(r, p)
     return await finaliser(source, p, regles, appelant)

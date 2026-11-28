@@ -28,7 +28,7 @@ from api.services.commande.moteur.prealables import (
     question_du_mode,
     retenir_la_seule_commune_livree,
 )
-from api.services.commande.moteur.socle import Reglages, _avec, _r
+from api.services.commande.moteur.socle import Reglages, avec_le_panier, _r
 
 
 async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None, heure_voulue: str | None = None) -> Resultat:
@@ -42,7 +42,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     a_planifier = not etat["ouvert"] and bool(etat.get("planifiee_permise"))
     if not etat["ouvert"] and not a_planifier:
         noter_la_fermeture(p)  # le modèle la dit d'après le statut et les faits (C7a), dès ce tour (T2)
-        return _avec(
+        return avec_le_panier(
             _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""),
             p,
         )
@@ -66,8 +66,8 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         # l'ouverture à 18 h ». La proposition est LA question du début (``heure_proposee``) ; ce qui manque ensuite (les articles, l'adresse) suit sa réponse.
         p["heure_proposee_faite"] = True
         faits = {**faits, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
-        return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
-    return _avec(_r("FERME_PLANIFIABLE", faits, "", r.manque), p)  # C7 B5 : la question en cours (zone, articles) est le manque, le modèle la pose
+        return avec_le_panier(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
+    return avec_le_panier(_r("FERME_PLANIFIABLE", faits, "", r.manque), p)  # C7 B5 : la question en cours (zone, articles) est le manque, le modèle la pose
 
 
 async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, choisi: str, a_planifier: bool) -> Resultat:
@@ -84,20 +84,20 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
     if chiffre.statut != "OK":
         # Le nouveau mode ne tient pas pour un des articles (prix, minimum de la zone, rupture) : dit, rien n'est retiré en silence.
         faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}
-        return _avec(_r("OK", faits, ""), p)
+        return avec_le_panier(_r("OK", faits, ""), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
         if _rien_n_est_pris(p):
             faits["panier_vide"] = True  # M116 : le modèle ne parle pas de la commande comme si elle avait des articles
-        return _avec(_r("OK", faits, "", "zone"), p)  # C7 B5 : le modèle demande l'adresse d'après le manque
+        return avec_le_panier(_r("OK", faits, "", "zone"), p)  # C7 B5 : le modèle demande l'adresse d'après le manque
     repris = await _reprendre_les_dits(source, p, regles)
     if repris is not None:
         # SA-33 : ce qui était dit avant le mode est pris maintenant ; la suite est sa question, ou rien.
-        return _avec(Resultat(repris.statut, {**faits, **repris.faits}, "", repris.manque), p)
+        return avec_le_panier(Resultat(repris.statut, {**faits, **repris.faits}, "", repris.manque), p)
     if not p["lignes"]:
         # Rien n'est encore pris : le résultat le dit (un manque à la fois), pour que le modèle enchaîne sur les articles que la personne a déjà dits,
         # ou les lui demande, au lieu de parler de la commande comme si elle avait des articles.
-        return _avec(_r("OK", faits, "", "articles"), p)
-    return _avec(_r("OK", faits, ""), p)
+        return avec_le_panier(_r("OK", faits, "", "articles"), p)
+    return avec_le_panier(_r("OK", faits, ""), p)
 
 
 def _avec_le_minimum(r: Resultat, faits: dict[str, Any], p: dict[str, Any], manque: str | None) -> Resultat:
@@ -114,7 +114,7 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
     voie_dite, commune_dite = (adresse or "").strip(), (commune or "").strip()
     texte = ", ".join(x for x in (voie_dite, commune_dite) if x)
     if not texte:
-        return _avec(_r("ARGUMENT_INVALIDE", {}, "", "adresse"), p)  # C7 B5 : le modèle redemande l'adresse d'après le manque
+        return avec_le_panier(_r("ARGUMENT_INVALIDE", {}, "", "adresse"), p)  # C7 B5 : le modèle redemande l'adresse d'après le manque
     r = proposer_un_autre_mode_hors_zone(source, await retenir_la_seule_commune_livree(source, await source.verifier_adresse(commune_dite or voie_dite)))
     essai = copy.deepcopy(p)
     if r.statut == "RETENU":
@@ -132,7 +132,7 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
     elif r.statut in ("AMBIGU", "INTROUVABLE") and (essai.get("zone") or essai.get("adresse")):
         essai["zone"] = essai["adresse"] = None  # une adresse en doute ne laisse jamais l'ancienne zone en place
     else:
-        return _avec(r, p)
+        return avec_le_panier(r, p)
     P.toucher(essai)
     faits = dict(r.faits)
     if r.statut == "RETENU":
@@ -140,13 +140,13 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
         if chiffre.statut != "OK":
             faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}  # le minimum de cette zone n'est pas atteint : dit, rien n'est retiré
             _valider(p, essai)
-            return _avec(Resultat(r.statut, faits, "", r.manque), p)
+            return avec_le_panier(Resultat(r.statut, faits, "", r.manque), p)
     _valider(p, essai)
     implique = mode_implique_par_l_adresse(source) if r.statut == "RETENU" and not p.get("mode") else None
     if implique is not None:
         pose = await choisir_mode(source, p, regles, implique)
         if pose.statut in ("OK", "FERME_PLANIFIABLE") or p.get("mode"):
-            return _avec(Resultat(pose.statut if pose.statut != "OK" else r.statut, {**faits, **pose.faits}, "", pose.manque), p)
+            return avec_le_panier(Resultat(pose.statut if pose.statut != "OK" else r.statut, {**faits, **pose.faits}, "", pose.manque), p)
     if r.statut == "HORS_ZONE":
         repris = await _reprendre_les_dits(source, p, regles)
         if repris is not None and repris.faits.get("ajoutes"):
@@ -155,14 +155,14 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
         repris = await _reprendre_les_dits(source, p, regles)
         if repris is not None and repris.statut != "OK":
             # SA-33 : ce qui était dit avant la zone est pris ; sa question passe avant tout.
-            return _avec(Resultat(repris.statut, {**faits, **repris.faits}, "", repris.manque), p)
+            return avec_le_panier(Resultat(repris.statut, {**faits, **repris.faits}, "", repris.manque), p)
         if repris is not None:
             faits["ajoutes"] = repris.faits.get("ajoutes") or []
         elif p.get("mode") and _rien_n_est_pris(p) and not r.manque:
             # M116 (appel 2598) : l'adresse est posée et rien n'est encore pris : le résultat le dit et demande les plats (un manque à la fois),
             # jamais un article cité comme pris sur un panier vide.
             faits["panier_vide"] = True
-            return _avec(_avec_le_minimum(r, faits, p, "articles"), p)
+            return avec_le_panier(_avec_le_minimum(r, faits, p, "articles"), p)
     if r.statut == "RETENU":
-        return _avec(_avec_le_minimum(r, faits, p, r.manque), p)
-    return _avec(Resultat(r.statut, faits, "", r.manque), p)
+        return avec_le_panier(_avec_le_minimum(r, faits, p, r.manque), p)
+    return avec_le_panier(Resultat(r.statut, faits, "", r.manque), p)

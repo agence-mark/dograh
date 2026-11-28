@@ -13,7 +13,7 @@ from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _r, commande_de_l_appel
+from api.services.commande.moteur.socle import Appelant, Reglages, avec_le_panier, _r, commande_de_l_appel
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import etat_apres_ajout, vider_commande
 from api.services.commande.moteur.reglement import _le_reglement
@@ -26,15 +26,15 @@ async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles
     avec la raison quand la commande est introuvable ou que la base refuse (la ligne n'est plus ``retenue``)."""
     commande = commande_de_l_appel(p)
     if commande is None:
-        return _avec(_r("INTROUVABLE", {"raison": "commande_introuvable"}, ""), p)
+        return avec_le_panier(_r("INTROUVABLE", {"raison": "commande_introuvable"}, ""), p)
     r = await source.annuler_une_commande(str(commande["numero"]))
     if r.statut not in ("OK", "DEJA_FAIT"):
         logger.error(f"[.mark] commande {commande.get('numero_court')} : l'annulation est refusée par la base ({r.statut})")
-        return _avec(_r("INTERDIT", {"raison": "annulation_impossible", "numero_court": commande.get("numero_court")}, ""), p)
+        return avec_le_panier(_r("INTERDIT", {"raison": "annulation_impossible", "numero_court": commande.get("numero_court")}, ""), p)
     await vider_commande(source, p, regles)  # § 17 l.407 : annuler = vider le panier ; ce qui se dit ensuite est une commande à prendre
     ETAPE.transition(p, ETAPE.ANNULEE_APRES_ENREGISTREMENT, numero_court=commande.get("numero_court"), numero=str(commande["numero"]))
     CONV.poser_question(p, None)
-    return _avec(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
+    return avec_le_panier(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
 
 
 def _manque_pour_remplacer(source: Source, p: dict[str, Any]) -> str | None:
@@ -63,7 +63,7 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         retirees = P.revenir_apres_un_refus(p, avant)  # T16, option C
         if retirees:
             r = Resultat(r.statut, {**(r.faits or {}), "lignes_en_attente_retirees": retirees}, r.suggestion, r.manque)
-        return _avec(r, p)
+        return avec_le_panier(r, p)
 
     manque = _manque_pour_remplacer(source, p)
     if manque is not None:
@@ -71,7 +71,7 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         faits = {"raison": "changement_incomplet", "manque": manque, "numero_court": commande.get("numero_court")}
         return remettre(_r("INCOMPLETE", faits, "", manque))  # C7 B5 : le modèle dit ce qui manque (les articles : c'est une annulation ; l'adresse) d'après le manque
     if P.a_completer(p):
-        return _avec(await etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien n'est réécrit
+        return avec_le_panier(await etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien n'est réécrit
     chiffre = await chiffrer_le_panier(source, p, regles)
     if chiffre.statut != "OK":
         return remettre(chiffre)

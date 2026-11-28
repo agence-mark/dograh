@@ -14,7 +14,7 @@ from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import phrases_d_information as INFO
-from api.services.commande.moteur.socle import Reglages, _avec, _r, cle_de_la_remise, remise_dite
+from api.services.commande.moteur.socle import Reglages, avec_le_panier, _r, cle_de_la_remise, remise_dite
 from api.services.mots_dits import montant_en_lettres
 from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _minimum_non_atteint
@@ -27,14 +27,14 @@ async def voir_la_carte(source: Source, p: dict[str, Any], regles: Reglages) -> 
     carte = await source.carte_a_lire(p.get("mode") or "emporter")
     noms = [n for r in carte.get("rubriques") or [] for n in r.get("articles") or []]
     carte = {**carte, **INFO.consigne_si_liste(noms)}  # Q8 : la liste complète reste dans les faits, le modèle en dit quelques-uns
-    return _avec(_r("OK", carte, ""), p)
+    return avec_le_panier(_r("OK", carte, ""), p)
 
 
 async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
     """Le panier tel que le code le tient : lignes numérotées, prix, frais, total. Rien d'autre n'est jamais « le total »."""
     if not p["lignes"]:
         faits = {"lignes": [], "total": 0, "vide": True}
-        return _avec(_r("OK", faits, ""), p)
+        return avec_le_panier(_r("OK", faits, ""), p)
     chiffre = await chiffrer_le_panier(source, p, regles)
     minimum = _minimum_non_atteint(chiffre)  # M27 : sous le minimum de la zone, le panier se lit quand même ; on dit ce qui manque
     if minimum is not None:
@@ -42,7 +42,7 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
         sans_zone["zone"] = None
         chiffre = await chiffrer_le_panier(source, sans_zone, regles)
     if chiffre.statut != "OK":
-        return _avec(chiffre, p)
+        return avec_le_panier(chiffre, p)
     calculees = {l["n"]: c for l, c in zip(P.lignes_pretes(p), chiffre.faits.get("lignes", []))}
     lignes = []
     for l in p["lignes"]:
@@ -64,7 +64,7 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
         "offerts": chiffre.faits.get("offerts") or [], **({"livraison_offerte": True} if offerte else {}),
         **({"minimum_non_atteint": minimum} if minimum is not None else {}),
     }
-    return _avec(_r("OK", faits, ""), p, total=total)
+    return avec_le_panier(_r("OK", faits, ""), p, total=total)
 
 
 async def _noter_dite(source: Source, ref: str, appel_id: str | None) -> None:
@@ -97,25 +97,25 @@ async def remises_disponibles(
     if demande:
         if not en_cours:
             faits = {"a_dire": False, "raison": "aucune", "remises": []}
-            return _avec(_r("OK", faits, ""), p)
+            return avec_le_panier(_r("OK", faits, ""), p)
         dites = [{"nom": r["nom"], "phrase": r["phrase"]} for r in en_cours]
         for r in en_cours:
             await _noter_dite(source, r["ref"], appel_id)
         faits = {"a_dire": True, "remises": dites, "appliquees": [r["nom"] for r in appliquees]}
-        return _avec(_r("OK", faits, ""), p)
+        return avec_le_panier(_r("OK", faits, ""), p)
     if p.get("remise_refusee"):
-        return _avec(_r("OK", {"a_dire": False, "raison": "refusee"}), p)
+        return avec_le_panier(_r("OK", {"a_dire": False, "raison": "refusee"}), p)
     if presse:
         p["presse"] = True  # retenu pour tout l'appel : la relecture non plus ne cite aucune offre
-        return _avec(_r("OK", {"a_dire": False, "raison": "presse"}), p)
+        return avec_le_panier(_r("OK", {"a_dire": False, "raison": "presse"}), p)
     if p["mentions_de_remise"] >= regles.mentions_de_remise:
-        return _avec(_r("OK", {"a_dire": False, "raison": "deja_dite"}), p)
+        return avec_le_panier(_r("OK", {"a_dire": False, "raison": "deja_dite"}), p)
     for r in appliquees:
         if J.une_fois(p, cle_de_la_remise(r["ref"])):
             p["mentions_de_remise"] += 1
             await _noter_dite(source, r["ref"], appel_id)
             # C7 B5 : la remise est un fait (son montant aussi en lettres, le texte du restaurant s'il en a un), le modèle la dit
-            return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": remise_dite(r)}, ""), p)
+            return avec_le_panier(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": remise_dite(r)}, ""), p)
     # M25 : une offre « X achetés, Y offerts d'une autre sorte » ATTEINTE ou presque, même sans l'article offert au panier.
     offres = []
     if chiffre is not None and chiffre.statut == "OK" and getattr(source, "offres_a_portee", None) is not None:
@@ -128,13 +128,13 @@ async def remises_disponibles(
             J.noter(p, cle_de_la_remise(o["ref"]))
             await _noter_dite(source, o["ref"], appel_id)
             faits = {"a_dire": True, "moment": "offre_atteinte", "remise": {"nom": o["nom"], "phrase": o.get("phrase"), "choix": o["choix"], "prix": o["proposition"]["prix"]}}
-            return _avec(_r("OK", faits, ""), p)
+            return avec_le_panier(_r("OK", faits, ""), p)
         if o["etat"] == "presque":
             p["mentions_de_remise"] += 1
             J.noter(p, cle_de_la_remise(o["ref"]))
             await _noter_dite(source, o["ref"], appel_id)
             faits = {"a_dire": True, "moment": "offre_presque_atteinte", "remise": {"nom": o["nom"], "manque_articles": o["manque"]}}
-            return _avec(_r("OK", faits, ""), p)
+            return avec_le_panier(_r("OK", faits, ""), p)
     sous_total = chiffre.faits["sous_total"] if chiffre is not None and chiffre.statut == "OK" else 0
     for r in en_cours:
         minimum = r.get("minimum")
@@ -144,8 +144,8 @@ async def remises_disponibles(
             await _noter_dite(source, r["ref"], appel_id)
             reste = minimum - sous_total
             faits = {"a_dire": True, "moment": "seuil_presque_atteint", "remise": {"nom": r["nom"], "manque": reste, "manque_dit": montant_en_lettres(reste)}}  # C7 B5 : aussi en lettres
-            return _avec(_r("OK", faits, ""), p)
-    return _avec(_r("OK", {"a_dire": False, "raison": "rien_a_dire"}), p)
+            return avec_le_panier(_r("OK", faits, ""), p)
+    return avec_le_panier(_r("OK", {"a_dire": False, "raison": "rien_a_dire"}), p)
 
 
 
@@ -159,14 +159,14 @@ async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages
     elif appelant.telephone_affiche:
         trouve = await source.retrouver(telephone=appelant.telephone_affiche)
     else:
-        return _avec(_r("INCOMPLETE", {}, "", "reference"), p)
+        return avec_le_panier(_r("INCOMPLETE", {}, "", "reference"), p)
     if trouve.statut != "OK":
         faits = {"cherche_par": "numero" if numero and numero.strip() else "telephone_affiche"}
-        return _avec(_r("INTROUVABLE", faits, ""), p)
+        return avec_le_panier(_r("INTROUVABLE", faits, ""), p)
     commandes = trouve.faits.get("commandes") or []
     if len(commandes) > 1:
         faits = {"candidats": [{"numero_court": c["numero_court"], "quand_dit": c.get("quand_dit")} for c in commandes]}
-        return _avec(_r("AMBIGU", faits, "", "reference"), p)
+        return avec_le_panier(_r("AMBIGU", faits, "", "reference"), p)
     c = commandes[0]
     faits = {"numero_court": c["numero_court"], "etat": etat_dit(c["statut"]), CLE_STATUT_LU: c["statut"], "mode": c["mode"], "quand_dit": c.get("quand_dit")}
-    return _avec(_r("OK", faits, ""), p)
+    return avec_le_panier(_r("OK", faits, ""), p)

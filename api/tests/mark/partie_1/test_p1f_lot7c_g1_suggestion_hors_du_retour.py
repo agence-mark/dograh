@@ -108,7 +108,7 @@ async def _heure_a_dire(essai_de, suggestions, monkeypatch):
     await e.dit("deux reines à emporter").fiche(ajouter=[{"article": "regina", "quantite": 2, "variante": "Normale"}], mode_de_retrait="emporter")
 
     async def ferme(_source, p, _regles, _appelant, confirmer=False):
-        return _socle._avec(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, FERME, "heure_voulue"), p)
+        return _socle.avec_le_panier(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, FERME, "heure_voulue"), p)
 
     monkeypatch.setattr(porte, "mener_a_la_fin", ferme)
     suggestions.clear()

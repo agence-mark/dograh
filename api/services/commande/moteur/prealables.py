@@ -16,7 +16,7 @@ from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.types import Adresse, MomentVoulu
-from api.services.commande.moteur.socle import Reglages, _avec, _r, _sans_accent
+from api.services.commande.moteur.socle import Reglages, avec_le_panier, _r, _sans_accent
 
 
 # --------------------------------------------------------------------------- #
@@ -50,11 +50,11 @@ async def _prealables(source: Source, p: dict[str, Any], regles: Reglages, pour_
     """Ce qui manque avant les articles (le mode, puis la zone). ``pour_prendre`` : la prise d'un article ; une commune dite hors zone y suffit
     (B12, conversation 2 : l'article est pris, c'est la zone qui est refusée, et elle reste exigée à la fin)."""
     if not p["mode"]:
-        return _avec(await question_du_mode(source, p, "INCOMPLETE"), p)
+        return avec_le_panier(await question_du_mode(source, p, "INCOMPLETE"), p)
     if pour_prendre and p.get("commune_hors_zone"):
         return None
     if regles.ordre_impose and source.exige_une_zone(p["mode"]) and not p.get("zone"):
-        return _avec(_r("INCOMPLETE", {}, "", "zone"), p)  # C7 B5 : le modèle demande l'adresse d'après le manque
+        return avec_le_panier(_r("INCOMPLETE", {}, "", "zone"), p)  # C7 B5 : le modèle demande l'adresse d'après le manque
     return None
 
 
@@ -205,7 +205,7 @@ async def poser_l_heure(source: Source, p: dict[str, Any], texte: str | None) ->
     if r is None:
         return None
     if r.statut != "RETENU" or not r.faits.get("moment_voulu"):
-        return _avec(r, p)
+        return avec_le_panier(r, p)
     poser_le_moment(p, MomentVoulu.depuis_json(r.faits["moment_voulu"]))
     return await verifier_le_creneau(source, p)
 
@@ -268,12 +268,12 @@ async def heure_annoncee(source: Source, p: dict[str, Any], regles: Reglages, mo
     promis : seul l'enregistrement fixe l'heure. Le texte vient du code, jamais d'un calcul du modèle."""
     choisi = _mode_dit(source, mode) if mode else p.get("mode")
     if choisi is None:
-        return _avec(_r("INCOMPLETE", _faits_des_modes(source), "", "mode"), p)
+        return avec_le_panier(_r("INCOMPLETE", _faits_des_modes(source), "", "mode"), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
-        return _avec(_r("INCOMPLETE", {"mode": choisi}, "", "zone"), p)
+        return avec_le_panier(_r("INCOMPLETE", {"mode": choisi}, "", "zone"), p)
     etat = await source.etat(choisi)
     if not etat["ouvert"]:
-        return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""), p)
+        return avec_le_panier(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, ""), p)
     annonce = await source.annonce(choisi, _zone_id(p))
     if annonce is None:
         return _r("INDISPONIBLE", {"mode": choisi}, "")
@@ -319,7 +319,7 @@ def exiger_une_voie(p: dict[str, Any], commune: dict[str, Any]) -> Resultat:
     """Lot 4 (M15, C6, appel 2647) : une adresse ne se retient pas sur la commune seule (« à Gouvieux ») : la commune est gardée, la zone n'est pas
     posée, et la voie est demandée (``manque`` : ``voie``)."""
     p["commune_dite"] = commune.get("nom")
-    return _avec(_r("INCOMPLETE", {"commune": commune, "voie": None}, "", "voie"), p)
+    return avec_le_panier(_r("INCOMPLETE", {"commune": commune, "voie": None}, "", "voie"), p)
 
 
 def mode_implique_par_l_adresse(source: Source) -> str | None:
@@ -355,7 +355,7 @@ async def resoudre_une_date(source: Source, p: dict[str, Any], regles: Reglages,
     # M85 : le moment dit avec le jour (« demain soir ») est gardé dans le panier ; « huit heures et demie » dit ensuite se lit « du soir ».
     dates_futures.retenir_le_moment(p, texte)
     heure_lue = dates_futures.heure_avec_le_moment(p, (heure or "").strip() or None)
-    return _avec(await source.resoudre_une_date((texte or "").strip(), heure_lue), p)
+    return avec_le_panier(await source.resoudre_une_date((texte or "").strip(), heure_lue), p)
 
 
 async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | None:
@@ -369,7 +369,7 @@ async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | N
     if refus is not None:
         P.toucher(p)  # l'heure retirée change l'empreinte, comme l'heure posée
         p["heure_voulue"] = p["heure_voulue_dite"] = p["moment_voulu"] = None
-        return _avec(refus, p)
+        return avec_le_panier(refus, p)
     dire = getattr(source, "quand_dit", None)
     p["heure_voulue_dite"] = await dire(datetime.fromisoformat(p["heure_voulue"])) if dire else None
     return None

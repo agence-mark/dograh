@@ -16,7 +16,7 @@ from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande.etat_pour_le_modele import manque_de_l_identite
 from api.services.commande.phrases_du_manque import Manque
-from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
+from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, avec_le_panier, _r
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, noter_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
@@ -65,7 +65,7 @@ def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | N
         client["second_numero"] = {"numero": second, "qui": None, "pourquoi": None}
     for dit, retenu, case in ((telephone, numero, "telephone"), (second_numero, second, "second_numero")):
         if dit and retenu is None:
-            return _avec(_r("ARGUMENT_INVALIDE", {"numero_illisible": True}, "", case), p)
+            return avec_le_panier(_r("ARGUMENT_INVALIDE", {"numero_illisible": True}, "", case), p)
     return None
 
 
@@ -84,15 +84,15 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
     if manque is Manque.TELEPHONE:
         if J.fois(p, CLE_NUMERO_REFUSE) > J.fois(p, CLE_NUMERO_DEMANDE):
             J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, la demande d'un nouveau numéro, une seule fois ; si elle ne dicte rien, le numéro affiché lui est reproposé
-            return _avec(_r("INCOMPLETE", {}, "", "telephone"), p)  # C6 n° 10 : le modèle demande le numéro (le manque), le code ne dit rien
+            return avec_le_panier(_r("INCOMPLETE", {}, "", "telephone"), p)  # C6 n° 10 : le modèle demande le numéro (le manque), le code ne dit rien
         if appelant.telephone_affiche:
             if J.fois(p, CLE_NUMERO_PROPOSE) <= J.fois(p, CLE_NUMERO_REFUSE):
                 J.noter(p, CLE_NUMERO_PROPOSE)  # une proposition « en cours » de plus que de refus : la question du registre est ouverte
-            return _avec(_r("INCOMPLETE", {}, "", "confirmer_numero"), p)  # C6 n° 10 : le modèle propose le numéro qui s'affiche (la question née, par son type)
+            return avec_le_panier(_r("INCOMPLETE", {}, "", "confirmer_numero"), p)  # C6 n° 10 : le modèle propose le numéro qui s'affiche (la question née, par son type)
     if manque is Manque.TELEPHONE:
-        return _avec(_r("INCOMPLETE", {}, "", "telephone"), p)  # C7 B5 : le modèle demande le numéro d'après le manque
+        return avec_le_panier(_r("INCOMPLETE", {}, "", "telephone"), p)  # C7 B5 : le modèle demande le numéro d'après le manque
     if manque is Manque.PRENOM:
-        return _avec(_r("INCOMPLETE", {}, "", "prenom"), p)  # C7 B5 : le modèle demande le prénom d'après le manque
+        return avec_le_panier(_r("INCOMPLETE", {}, "", "prenom"), p)  # C7 B5 : le modèle demande le prénom d'après le manque
     return _relire_le_numero_dicte(p, regles, appelant)
 
 
@@ -105,7 +105,7 @@ def _relire_le_numero_dicte(p: dict[str, Any], regles: Reglages, appelant: Appel
     question = (regles.question_numero_dicte or "").strip()
     if not question or not tel or tel == appelant.telephone_affiche or p.get("numero_dicte_accepte") == tel:
         return None
-    return _avec(_r("INCOMPLETE", {}, question.replace("{numero}", numero_en_lettres(tel)), "confirmer_numero_dicte"), p)
+    return avec_le_panier(_r("INCOMPLETE", {}, question.replace("{numero}", numero_en_lettres(tel)), "confirmer_numero_dicte"), p)
 
 
 def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: Appelant | None = None) -> Resultat:
@@ -216,11 +216,11 @@ def _apres_l_ecriture(source: Source, p: dict[str, Any], r: Resultat, chiffre: R
             faits["rendu"] = rendu
         ETAPE.transition(p, ETAPE.ENREGISTREE_EN_BASE, faits=P.serialisable(faits), empreinte=P.empreinte(p), commande=P.commande_recue(p))
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
-        return _avec(Resultat(statut, faits), p)  # aucune phrase : le modèle dit le fait accompli d'après ses faits, le journal en garde les faits
+        return avec_le_panier(Resultat(statut, faits), p)  # aucune phrase : le modèle dit le fait accompli d'après ses faits, le journal en garde les faits
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)  # la relecture repart : l'accord d'avant ne vaut plus
         return poser_la_relecture(source, p, chiffre)
-    return _avec(r, p)
+    return avec_le_panier(r, p)
 
 
 def question_de_la_ligne_en_attente(p: dict[str, Any]) -> Resultat | None:
@@ -230,7 +230,7 @@ def question_de_la_ligne_en_attente(p: dict[str, Any]) -> Resultat | None:
     if not en_attente:
         return None
     q = en_attente[0]["attente"]
-    return _avec(choix_obligatoire({"article": en_attente[0]["nom"], "article_de_la_carte": en_attente[0]["article_nom"], "question": q}), p)
+    return avec_le_panier(choix_obligatoire({"article": en_attente[0]["nom"], "article_de_la_carte": en_attente[0]["article_nom"], "question": q}), p)
 
 
 async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, **gestes: Any) -> Resultat:
@@ -246,7 +246,7 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
         dicte = _numero_dit(gestes["telephone"])
         if dicte is None:
             faits = {"numero_illisible": True}
-            return _avec(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
+            return avec_le_panier(_r("ARGUMENT_INVALIDE", faits, "", "telephone"), p)
         if not p.get("enregistree"):
             p.setdefault("client", {})["telephone"] = dicte
     return _avec_les_numeros_retenus(await _finaliser(source, p, regles, appelant, **gestes), p, regles, appelant)
@@ -290,7 +290,7 @@ async def _finaliser(
     qui a changé). Le total est celui de la source."""
     deja = p.get("enregistree")
     if deja and p["lignes"]:
-        return _avec(Resultat("DEJA_FAIT", dict(deja)), p)
+        return avec_le_panier(Resultat("DEJA_FAIT", dict(deja)), p)
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque
@@ -301,14 +301,14 @@ async def _finaliser(
 
     des_lignes = manque_des_lignes(p)
     if des_lignes is Manque.ARTICLES:
-        return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
+        return avec_le_panier(_r("INCOMPLETE", {}, "", "articles"), p)
     if des_lignes is Manque.VARIANTE:
         attente = question_de_la_ligne_en_attente(p)
         if attente is not None:
             return attente
     chiffre = await chiffrer_le_panier(source, p, regles)
     if chiffre.statut != "OK":
-        return _avec(chiffre, p)
+        return avec_le_panier(chiffre, p)
     total = chiffre.faits["total"]
     etat = await source.etat(p["mode"])
     if not etat["ouvert"] and not p.get("heure_voulue"):
@@ -323,18 +323,18 @@ async def _finaliser(
                 # et de faire confirmer par le client » : l'heure de la réouverture est proposée, la personne la confirme (question ``heure_proposee``).
                 faits = {**faits_fermes, "a_planifier": True, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
                 noter_la_fermeture(p)
-                return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
+                return avec_le_panier(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
             faits = {**faits_fermes, "a_planifier": True}
             noter_la_fermeture(p)
-            return _avec(_r("FERME_PLANIFIABLE", faits, "", "heure_voulue"), p)
+            return avec_le_panier(_r("FERME_PLANIFIABLE", faits, "", "heure_voulue"), p)
         noter_la_fermeture(p)
-        return _avec(_r(etat["statut"], faits_fermes, ""), p)
+        return avec_le_panier(_r(etat["statut"], faits_fermes, ""), p)
     refus = await verifier_le_creneau(source, p)
     if refus is not None:
         return refus
     proposition = await proposer_un_article_en_plus(source, p, regles, chiffre)
     if proposition is not None:
-        return _avec(proposition, p)
+        return avec_le_panier(proposition, p)
     attente_allergie = await prealable_du_metier(source, p, regles)  # lot 15 : les faits d'une allergie connue sont donnés au modèle AVANT la relecture et l'enregistrement
     if attente_allergie is not None:
         return attente_allergie

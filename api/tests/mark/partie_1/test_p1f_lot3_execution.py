@@ -179,7 +179,7 @@ async def test_l_heure_refusee_est_dite_par_le_code_et_le_modele_recoit_le_refus
     phrase = "Je ne prends pas de commande pour plus tard."
 
     async def refusee(_source, p, _texte):
-        return moteur.socle._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, phrase, "heure_voulue"), p)
+        return moteur.socle.avec_le_panier(moteur.Resultat("ARGUMENT_INVALIDE", {}, phrase, "heure_voulue"), p)
 
     monkeypatch.setattr(moteur, "poser_l_heure", refusee)
     r = await e.tour("une salmone et un zzzquoi pour vingt-trois heures trente", ajouter=[{"article": "salmone", "quantite": 1}, {"article": "zzzquoi", "quantite": 1}], heure="vingt-trois heures trente")
@@ -232,7 +232,7 @@ async def test_l_heure_refusee_deux_tours_de_suite_n_est_dite_qu_une_fois_et_le_
     await e.tour("à emporter", mode_de_retrait="emporter")
 
     async def refusee(_source, p, _texte):
-        return moteur.socle._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
+        return moteur.socle.avec_le_panier(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
 
     monkeypatch.setattr(moteur, "poser_l_heure", refusee)
     r1 = await e.tour("pour vingt-trois heures trente", heure="vingt-trois heures trente")

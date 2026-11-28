@@ -45,7 +45,7 @@ def _r(statut: str, faits: dict | None = None, suggestion: str = "", manque: str
     return Resultat(statut, faits or {}, suggestion, manque)
 
 
-def _avec(resultat: Resultat, p: dict[str, Any], **plus: Any) -> Resultat:
+def avec_le_panier(resultat: Resultat, p: dict[str, Any], **plus: Any) -> Resultat:
     """Le résultat, avec le résumé du panier : le modèle sait toujours où en est la commande."""
     return Resultat(resultat.statut, {**resultat.faits, "panier": {**P.resume(p), **plus}}, resultat.suggestion, resultat.manque)
 
@@ -123,15 +123,15 @@ def _sans_accent(mot: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", mot.casefold()) if unicodedata.category(c) != "Mn")
 
 
-def _racines(texte: str) -> set[str]:
+def racines(texte: str) -> set[str]:
     """Les mots significatifs, sans accent ni marque du pluriel : « Tartes salées » → ``{tarte, salee}``."""
-    racines = set()
+    trouvees: set[str] = set()
     for mot in re.findall(r"[\w-]+", texte):
         m = _sans_accent(mot)
         if m in _MOTS_DE_LA_QUESTION:
             continue
-        racines.add(m[:-1] if len(m) > 3 and m[-1] in "sx" else m)
-    return racines
+        trouvees.add(m[:-1] if len(m) > 3 and m[-1] in "sx" else m)
+    return trouvees
 
 
 # --------------------------------------------------------------------------- #

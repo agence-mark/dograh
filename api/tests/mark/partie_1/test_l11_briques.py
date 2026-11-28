@@ -835,7 +835,7 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
     q = CONV.question_de(e.p) or {}
 
     async def refusee(_source, p, _texte):
-        return _socle._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
+        return _socle.avec_le_panier(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
 
     monkeypatch.setattr(moteur, "poser_l_heure", refusee)
     r = await e.dit("non merci, mettez-les pour vingt et une heures, c'est tout").fiche(
@@ -859,7 +859,7 @@ async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai
     phrase = "Nous sommes fermés pour le moment, nous rouvrons à dix-huit heures. Pour quel jour et à quelle heure ?"
 
     async def ferme(_source, p, _regles, _appelant, confirmer=False):
-        return _socle._avec(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, phrase, "heure_voulue"), p)
+        return _socle.avec_le_panier(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, phrase, "heure_voulue"), p)
 
     monkeypatch.setattr(porte, "mener_a_la_fin", ferme)
     r = await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))

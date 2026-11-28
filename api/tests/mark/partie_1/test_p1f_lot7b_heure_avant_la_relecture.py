@@ -29,7 +29,7 @@ async def _commande_et_heure_refusee(essai_de, monkeypatch):
 
     async def refusee(source, p, texte):
         if "vingt-trois" in str(texte):  # seule cette heure est refusée par son créneau ; les autres passent par le moteur
-            return _socle._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, REFUS, "heure_voulue"), p)
+            return _socle.avec_le_panier(moteur.Resultat("ARGUMENT_INVALIDE", {}, REFUS, "heure_voulue"), p)
         return await poser(source, p, texte)
 
     monkeypatch.setattr(moteur, "poser_l_heure", refusee)
@@ -81,7 +81,7 @@ async def test_ferme_le_modele_dit_la_fermeture_et_demande_le_jour_et_l_heure(es
 
     async def ferme(_source, p, _regles, _appelant, confirmer=False):
         faits = {"raison": "ferme_horaires", "a_planifier": True, "ouvre_a": "18:00"}
-        return _socle._avec(moteur.Resultat("FERME_PLANIFIABLE", faits, phrase, "heure_voulue"), p)
+        return _socle.avec_le_panier(moteur.Resultat("FERME_PLANIFIABLE", faits, phrase, "heure_voulue"), p)
 
     monkeypatch.setattr(PORTE, "mener_a_la_fin", ferme)
     r = await e.dit("c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))

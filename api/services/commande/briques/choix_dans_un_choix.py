@@ -1,7 +1,7 @@
 """[.mark] Brique OPT4 : le choix dans un choix (inventaire, famille 3).
 
 Une option ouvre un sous-choix (tenders, puis sauce, puis piment) : un groupe rattaché à une option (``parent_option_id``), jusqu'à trois niveaux. Le code descend un
-niveau à la fois (``moteur._groupes_a_remplir``) et la question de chaque niveau est posée quand l'option qui l'ouvre est choisie.
+niveau à la fois (``moteur.groupes_a_remplir``) et la question de chaque niveau est posée quand l'option qui l'ouvre est choisie.
 """
 
 from __future__ import annotations
