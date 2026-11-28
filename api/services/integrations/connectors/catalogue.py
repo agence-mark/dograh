@@ -177,6 +177,9 @@ class Connecteur:
     # Lot 8a (113) : l'issue « abandonnée » de ce connecteur à la fin de l'appel (un dossier commencé, ni enregistré ni annulé, aucune issue posée). Reçoit la fiche de l'appel, rend le
     # code de l'issue ou ``None``. Lu par ``modules/crochets.issue_de_fin`` (voix et clavier), qui choisit entre deux connecteurs par une priorité écrite.
     issue_de_fin: Callable[[dict], str | None] | None = None
+    # Lot 8c-2 (112) : les issues que la FICHE de ce connecteur pose elle-même (enregistrée, annulée, message…) : réservées à son résultat réel, jamais offertes au classement
+    # final (``workflow/issue_reservee.py``). Reçoit les réglages de l'outil (``reglages.issues`` règle le code de chaque issue), rend les codes. ``None`` : aucune.
+    issues_reservees: Callable[[dict | None], tuple[str, ...]] | None = None
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)
@@ -202,6 +205,7 @@ class ConnecteurAFiche(Protocol):
     porte_la_fiche: str | None
     porte_la_lecture: str | None
     issue_de_fin: Callable[[dict], str | None] | None
+    issues_reservees: Callable[[dict | None], tuple[str, ...]] | None  # lot 8c-2 (112)
 
 
 ETATS = ("a_essayer", "pret", "a_activer")

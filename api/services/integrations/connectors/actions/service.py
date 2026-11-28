@@ -105,6 +105,13 @@ def _objet_en_cours(_dossier: dict) -> bool:
     return False
 
 
+def _issues_reservees(reglages: dict | None) -> tuple[str, ...]:
+    """Lot 8c-2 (112) : la fiche du service pose seulement « message à transmettre » (le code réglé sur l'outil)."""
+    from api.services.actions_communes.issues import code_de_l_issue
+
+    return (code_de_l_issue(reglages, "message_a_transmettre"),)
+
+
 def _valeur_du_manque(_dossier: dict, _fiche: dict) -> str | None:
     return None
 
@@ -113,6 +120,7 @@ SERVICE = declarer(
     Connecteur(
         nom="service",
         porte_la_fiche="fiche",
+        issues_reservees=_issues_reservees,
         dossier_de_la_parole=_dossier_de_la_parole,
         objet_en_cours=_objet_en_cours,
         valeur_du_manque=_valeur_du_manque,

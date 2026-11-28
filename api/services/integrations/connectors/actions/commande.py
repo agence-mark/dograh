@@ -62,6 +62,14 @@ async def _sans_tiers(ctx) -> bool:
     return await registre_des_sources.sans_tiers((getattr(ctx, "reglages", None) or {}).get(SOURCE_DE_L_OUTIL), ctx)
 
 
+def _issues_reservees(reglages: dict | None) -> tuple[str, ...]:
+    """Lot 8c-2 (112) : les issues que la fiche de la commande pose elle-même, avec le code réglé sur l'outil."""
+    from api.services.actions_communes.issues import code_de_l_issue
+    from api.services.commande.porte import ISSUES_DE_LA_COMMANDE
+
+    return tuple(code_de_l_issue(reglages, i) for i in ISSUES_DE_LA_COMMANDE)
+
+
 def _issue_de_fin(fiche: dict) -> str | None:
     from api.services.commande.porte import issue_de_fin_d_appel
 
@@ -95,6 +103,7 @@ COMMANDE = declarer(
         forme_selon_l_etat=contrat.forme_selon_l_etat,
         etat_final=_etat_final,
         issue_de_fin=_issue_de_fin,
+        issues_reservees=_issues_reservees,
         libelle="Commande (interne)",
         integration="interne",
         interne=True,
