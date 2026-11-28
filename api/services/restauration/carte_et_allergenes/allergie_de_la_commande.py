@@ -22,7 +22,7 @@ from api.services.commande.briques import allergenes_du_produit, allergenes_d_un
 from api.services.commande.briques import formule as FO
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, Reglages, avec_le_panier, _r, racines
+from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, Reglages, avec_le_panier, racines
 from api.services.commande.moteur.articles import groupes_a_remplir
 from api.services.restauration.carte_et_allergenes.signalements import codes_des_signalements
 
@@ -71,10 +71,7 @@ def _bornee(noms: list[str]) -> dict[str, Any]:
 async def _articles_de_la_carte_concernes(source: Source, p: dict[str, Any], code: str) -> dict[str, Any]:
     """Les articles de la CARTE que l'allergène ``code`` concerne, sans que la personne les nomme : ceux qui le contiennent (allergènes validés) et ceux dont la donnée est inconnue ou seulement
     proposée (à confirmer par l'équipe). Un article dont la liste validée ne le nomme pas n'y figure pas. Les formules n'y sont pas (leur contenu dépend du choix)."""
-    lire = getattr(source, "catalogue", None)
-    if lire is None:
-        return {}
-    articles = (await lire(p.get("mode") or source.modes[0])).get("articles") or []
+    articles = (await source.catalogue(p.get("mode") or source.modes[0])).get("articles") or []
     contiennent = [a["nom"] for a in articles if allergenes_du_produit.brique_inf1_repondre_depuis_la_donnee(codes_des_signalements(a.get("signalements")), code) == "present"]
     inconnus = [a["nom"] for a in articles if a.get("signalements") is None]
     return {"carte": {"contiennent": _bornee(contiennent), "a_confirmer_par_l_equipe": _bornee(inconnus)}}
@@ -104,12 +101,8 @@ async def faits_de_l_allergie(source: Source, p: dict[str, Any], seulement: list
 
 def _signalements_dits(source: Source, texte: str) -> tuple[list[str], bool]:
     """A1 : les codes que le texte nomme (tous), et si une partie du texte n'est pas reconnue. Une source qui ne sait nommer qu'un code : ce code, rien d'inconnu."""
-    tous = getattr(source, "signalements_dits", None)
-    if tous is not None:
-        codes, inconnu = tous(texte)
-        return list(codes), bool(inconnu)
-    code = getattr(source, "signalement_dit", lambda _t: None)(texte)
-    return ([code] if code else []), False
+    codes, inconnu = source.signalements_dits(texte)
+    return list(codes), bool(inconnu)
 
 
 async def _faits_d_un_allergene(source: Source, p: dict[str, Any], code: str, seulement: list[dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -125,8 +118,7 @@ async def _faits_d_un_allergene(source: Source, p: dict[str, Any], code: str, se
 
 async def _libelle_de_l_allergene(source: Source, p: dict[str, Any], code: str) -> str:
     """Le mot de l'allergène dit par la source (``libelles`` du catalogue) ; le code lui-même si la source n'en dit pas."""
-    lire = getattr(source, "catalogue", None)
-    return ((await lire(p.get("mode") or source.modes[0])).get("libelles") or {}).get(code, code) if lire is not None else code
+    return ((await source.catalogue(p.get("mode") or source.modes[0])).get("libelles") or {}).get(code, code)
 
 
 def _signature_de_la_ligne(ligne: dict[str, Any]) -> list[Any]:
@@ -258,13 +250,12 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
         await _annuler_la_ligne_retenue(source, p)  # R1-bis : la ligne ne doit plus pouvoir partir (filet E11) sans nouveau « oui »
     finally:
         ETAPE.transition(p, ETAPE.ALLERGIE_A_DONNER)  # l'accord est retiré quoi qu'il arrive à l'annulation (une exception imprévue remonte, après le retrait)
-    return avec_le_panier(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
+    return avec_le_panier(Resultat("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
 
 
 async def _regles_d_information(source: Source) -> dict[str, Any]:
     """Lot 15 : ce que l'établissement a écrit (consigne d'allergie, halal, renvoi vers le restaurant) ; vide pour une source qui n'en a pas."""
-    lire = getattr(source, "regles_d_information", None)
-    return dict(await lire()) if lire is not None else {}
+    return dict(await source.regles_d_information())
 
 
 def _consigne_d_allergie(info: dict[str, Any]) -> dict[str, Any]:
@@ -292,49 +283,47 @@ def _informations_de_la_fiche(fiche: dict[str, Any], info: dict[str, Any]) -> di
 def _regime_dit(source: Source, fiche: dict[str, Any], regime: str, info: dict[str, Any]) -> Resultat:
     """La réponse sur UN régime pour UN article : seulement ce qui est écrit (étiquette de l'article, case du restaurant pour le halal), sinon « je ne peux pas vous garantir »."""
     nom = fiche["nom"]
-    code = getattr(source, "regime_code", lambda _t: None)(regime)
+    code = source.regime_code(regime)
     if code == halal.CODE:
         ecrit = halal.brique_inf4_dire_ce_qui_est_ecrit(fiche.get("regimes"), bool(info.get("halal_restaurant")))
         if ecrit["article"]:
             faits = {"article": nom, "regime": regime, "etiquete": True}
-            return _r("OK", faits, "")
+            return Resultat("OK", faits, "")
         if ecrit["restaurant"]:
             faits = {"article": nom, "regime": regime, "etiquete": False, "restaurant": True}
-            return _r("OK", faits, "")
+            return Resultat("OK", faits, "")
     elif code and regime_d_un_article.brique_inf3_jamais_sans_etiquette(fiche.get("regimes"), code) == "etiquete":
         faits = {"article": nom, "regime": regime, "etiquete": True}
-        return _r("OK", faits, "")
-    return _r("OK", {"article": nom, "regime": regime, "renseigne": False, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
+        return Resultat("OK", faits, "")
+    return Resultat("OK", {"article": nom, "regime": regime, "renseigne": False, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
 
 
 async def _nomme_une_categorie(source: Source, p: dict[str, Any], texte: str) -> bool:
     """« des pizzas », « végétarien » : le texte nomme une CATÉGORIE de la carte, pas un article : la question porte sur le catalogue (sinon « pizzas » cherchait un article et
     la réponse était « introuvable » au lieu de « je ne peux pas le garantir »)."""
-    lire = getattr(source, "catalogue", None)
     voulu = racines(texte)
-    if lire is None or not voulu:
+    if not voulu:
         return False
-    articles = (await lire(p.get("mode") or source.modes[0])).get("articles") or []
+    articles = (await source.catalogue(p.get("mode") or source.modes[0])).get("articles") or []
     return any(a.get("categorie") and voulu <= racines(a["categorie"]) for a in articles)
 
 
 async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -> Resultat:
     """INF3, INF4 : « du végétarien ? », « c'est halal ? » sans article : seulement les articles ÉTIQUETÉS (et la case halal du restaurant) ; sans étiquette, rien n'est garanti."""
     faits: dict[str, Any] = {"recherche": "sans", "regime": regime, "renseigne": False}
-    code = getattr(source, "regime_code", lambda _t: None)(regime)
+    code = source.regime_code(regime)
     info = await _regles_d_information(source)
     etiquetes: list[str] = []
-    lire = getattr(source, "catalogue", None)
-    if code and lire is not None:
-        etiquetes = regime_d_un_article.articles_etiquetes((await lire(p.get("mode") or source.modes[0])).get("articles") or [], code)
+    if code:
+        etiquetes = regime_d_un_article.articles_etiquetes((await source.catalogue(p.get("mode") or source.modes[0])).get("articles") or [], code)
     restaurant = code == halal.CODE and bool(info.get("halal_restaurant"))
     if etiquetes:
         faits = {**faits, "renseigne": True, "articles": etiquetes, "autres_a_confirmer": True, **INFO.consigne_si_liste(etiquetes), **({"restaurant": True} if restaurant else {})}  # F8 : le reste de la carte n'est pas étiqueté ; Q8 : plusieurs noms
-        return _r("OK", faits, "")
+        return Resultat("OK", faits, "")
     if restaurant:
         faits = {**faits, "renseigne": True, "restaurant": True}
-        return _r("OK", faits, "")
-    return _r("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
+        return Resultat("OK", faits, "")
+    return Resultat("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
 
 
 def _lecture_de_la_formule(fiche: dict[str, Any]) -> Resultat:
@@ -342,7 +331,7 @@ def _lecture_de_la_formule(fiche: dict[str, Any]) -> Resultat:
     barrière des chiffres : C6 n° 11, décision d'Evan 25/11 9 h 30) ; jamais « je ne peux pas le confirmer » pour une formule de la carte."""
     lu = FO.lecture_de_la_formule(fiche)
     faits: dict[str, Any] = {"article": fiche["nom"], "renseigne": True, **lu}
-    return _r("OK", faits, "")  # C7 B5 (Evan 25/11 8 h 45) : les étapes et leurs choix sont des faits, le modèle les dit
+    return Resultat("OK", faits, "")  # C7 B5 (Evan 25/11 8 h 45) : les étapes et leurs choix sont des faits, le modèle les dit
 
 
 def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:
@@ -388,7 +377,7 @@ def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: 
              "a_confirmer_par_l_equipe": mot_inconnu or any(r.faits.get("a_confirmer_par_l_equipe") for r in reponses)}
     if mot_inconnu:
         faits["mot_inconnu"] = True  # le texte dit « pour le reste de ce que vous citez » seulement quand un mot n'est pas reconnu
-    return _r("OK", faits, "")
+    return Resultat("OK", faits, "")
 
 
 def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
@@ -402,11 +391,11 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
     if code is None and not _est_la_liste_demandee(signale):
         # A4 : une chose hors des quatorze (ail, kiwi, fraise) n'est jamais déclarée : « n'en déclare aucun » sonnerait comme un non
         faits = {**faits, "signalement": "inconnu", "hors_liste": True, "a_confirmer_par_l_equipe": True}
-        return _r("OK", faits, "")
+        return Resultat("OK", faits, "")
     if code is None:
         if signalements is None:
             faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
-            return _r("OK", faits, "")
+            return Resultat("OK", faits, "")
         codes = [s["code"] for s in signalements]
         for o in options if option else []:
             codes += [c for c in (o.get("signalements_du_nom") or []) + [s["code"] for s in (o.get("signalements") or [])] if c not in codes]
@@ -414,12 +403,12 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         faits = {**faits, "signalement": "liste", "presents": presents}
         if any(o.get("signalements") is None for o in options):
             faits["options_a_confirmer"] = faits["a_confirmer_par_l_equipe"] = True
-        return _r("OK", faits, "")
+        return Resultat("OK", faits, "")
     faits["code"] = code
     libelle = libelles.get(code, code)
     if signalements is not None and any(s["code"] == code for s in signalements):
         faits = {**faits, "signalement": "present", "libelle": libelle}  # le texte dit l'allergène par son libellé
-        return _r("OK", faits, "")
+        return Resultat("OK", faits, "")
     if option is not None:
         # Lot 15 (INF2) : le produit et l'option choisie ensemble
         option_vue = {"allergenes": codes_des_signalements(option.get("signalements")), "signalements_du_nom": option.get("signalements_du_nom")}
@@ -427,7 +416,7 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         faits = {**faits, "signalement": etat if etat in ("present", "absent_de_la_fiche") else "inconnu", **({"libelle": libelle} if etat in ("present", "absent_de_la_fiche") else {})}
         if faits["signalement"] == "inconnu":
             faits["a_confirmer_par_l_equipe"] = True
-        return _r("OK", faits, "")
+        return Resultat("OK", faits, "")
     return _signalement_selon_les_options(faits, options, signalements, code, libelle)
 
 
@@ -439,15 +428,15 @@ def _signalement_selon_les_options(faits: dict[str, Any], options: list[dict], s
         faits = {**faits, "signalement": "selon_option", "options_qui_contiennent": contiennent, "autres_a_confirmer": bool(inconnues or signalements is None)}
         if faits["autres_a_confirmer"]:
             faits["a_confirmer_par_l_equipe"] = True
-        return _r("OK", faits, "")
+        return Resultat("OK", faits, "")
     if signalements is None:
         faits = {**faits, "signalement": "inconnu", "sans_fiche": True}
-        return _r("OK", faits, "")
+        return Resultat("OK", faits, "")
     if inconnues:
         faits = {**faits, "signalement": "inconnu", "options_a_confirmer": True, "a_confirmer_par_l_equipe": True}  # F7 : « ça dépend du choix » (le texte de secours le disait seul)
     else:
         faits = {**faits, "signalement": "absent_de_la_fiche", "libelle": libelle}
-    return _r("OK", faits, "")
+    return Resultat("OK", faits, "")
 
 
 A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"

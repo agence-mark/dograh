@@ -32,18 +32,15 @@ async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles:
     ``None`` : rien à proposer, la commande continue."""
     if not regles.vente_en_plus or p.get("vente_en_plus_faite") or p.get("proposition_refusee") or not P.lignes_pretes(p) or P.a_completer(p):
         return None
-    chercher = getattr(source, "proposer_en_plus", None)
-    if chercher is None:
-        return None
     if chiffre is None:
         chiffre = await chiffrer_le_panier(source, p, regles)
     if _bloque_l_ajout(chiffre):
         return None  # sous le minimum de la zone, on propose quand même (le minimum se juge à la fin, lot 17)
     p["vente_en_plus_faite"] = True  # une seule fois par commande, même quand rien n'est trouvé
     lignes = chiffre.faits.get("lignes") or []
-    proposition = await chercher(p["mode"], lignes, _peut_parler_d_offre(p, regles))
+    proposition = await source.proposer_en_plus(p["mode"], lignes, _peut_parler_d_offre(p, regles))
     if proposition is not None and proposition.get("raison") == "offre" and not _peut_parler_d_offre(p, regles, proposition["offre"]["ref"]):
-        proposition = await chercher(p["mode"], lignes, False)
+        proposition = await source.proposer_en_plus(p["mode"], lignes, False)
     if proposition is None:
         return None
     offerte = proposition["raison"] == "offre"

@@ -205,6 +205,55 @@ class SourceDePieces:
     async def annonce(self, mode, zone_id):
         return None
 
+    # Les membres de la ``Source`` que le moteur lit sans condition (8c-1, 84) : une source sans catalogue de restaurant n'en a pas à dire.
+    moyens_reserves_au_mode: dict = {}
+    champs_du_greffier: dict = {}
+
+    async def catalogue(self, mode):
+        return {"articles": [], "libelles": {}}
+
+    def codes_d_un_nom(self, nom):
+        return []
+
+    def regime_dit(self, texte):
+        return None
+
+    def regime_code(self, texte):
+        return None
+
+    async def regles_d_information(self):
+        return {}
+
+    def signalement_dit(self, texte):
+        return None
+
+    def signalements_dits(self, texte):
+        return [], False
+
+    async def verifier_un_creneau(self, mode, voulue):
+        return None
+
+    async def quand_dit(self, voulue):
+        return ""
+
+    async def signaler_une_regle_inconnue(self, produit_ref, texte):
+        return False
+
+    async def formules_de_la_carte(self):
+        return []
+
+    async def codes_de_remise(self):
+        return []
+
+    async def noter_une_offre_dite(self, ref, appel_id):
+        return None
+
+    async def offres_a_portee(self, mode, lignes):
+        return []
+
+    async def proposer_en_plus(self, mode, lignes, avec_offre=True):
+        return None
+
 
 async def test_une_autre_source_joue_le_meme_moteur_sans_y_toucher():
     source, p, regles = SourceDePieces(), panier.nouveau(), Reglages(vente_en_plus=False)

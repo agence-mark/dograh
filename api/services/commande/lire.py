@@ -41,8 +41,7 @@ async def _resultat_de_la_lecture(source: Any, copie: dict[str, Any], regles: An
     if sujet == "offres":
         r = await moteur.remises_disponibles(source, copie, regles, demande=True, presse=False, refus=False, appel_id=appel_id)
         # lot 11 (conversation FOR2-B) : les formules sont des offres de la carte ; rendues avec les remises, jamais « rien » quand la carte en a
-        lister = getattr(source, "formules_de_la_carte", None)
-        formules = await lister() if lister is not None else []
+        formules = await source.formules_de_la_carte()
         return Resultat(r.statut, {**r.faits, "formules": formules}, r.suggestion, r.manque) if formules else r
     if sujet in SUJETS_PRATIQUES:
         return await moteur.etat_ouverture(source, copie, regles, None) if sujet == "horaires" else None

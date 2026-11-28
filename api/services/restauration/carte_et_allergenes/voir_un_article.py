@@ -18,7 +18,7 @@ from api.services.commande.briques import formule as FO
 from api.services.commande.moteur.articles import option_dite, un_seul_candidat
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import Reglages, avec_le_panier, _r, racines
+from api.services.commande.moteur.socle import Reglages, avec_le_panier, racines
 from api.services.restauration.carte_et_allergenes.allergie_de_la_commande import _consigne_d_allergie, _faits_du_prix, _informations_de_la_fiche, _lecture_de_la_formule, _nomme_une_categorie, _option_signale, _regime_dit, _regime_du_catalogue, _regles_d_information, _signalement_dit, _signalements_dits
 from api.services.restauration.carte_et_allergenes.signalements import codes_des_signalements
 
@@ -68,20 +68,16 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     texte, evite = (produit or "").strip(), (signale or "").strip()
     trouve = _SANS.search(texte)
     reste, chose = (texte[: trouve.start()].strip(), trouve.group("chose").strip()) if trouve else (texte, evite)
-    regime = getattr(source, "regime_dit", None)
-    regime = regime(f"{texte} {evite}") if regime else None
+    regime = source.regime_dit(f"{texte} {evite}")
     codes, mot_inconnu = _signalements_dits(source, chose) if chose else ([], False)  # Pierre 9 : TOUS les allergènes dits, jamais le dernier seul
     code = codes[0] if codes else None
     if code is None:
         if regime is None:
             return None
-        if texte and getattr(source, "regime_dit", lambda _t: None)(texte) is None and not await _nomme_une_categorie(source, p, texte):
+        if texte and source.regime_dit(texte) is None and not await _nomme_une_categorie(source, p, texte):
             return None  # un article nommé, le régime en « à éviter » : la question porte sur CET article (``_regime_dit``), pas sur le catalogue
         return await _regime_du_catalogue(source, p, regime)
-    lire = getattr(source, "catalogue", None)
-    if lire is None:
-        return None
-    catalogue = await lire(p.get("mode") or source.modes[0])
+    catalogue = await source.catalogue(p.get("mode") or source.modes[0])
     articles = catalogue.get("articles") or []
     voulu = racines(reste)
     categories = sorted({a["categorie"] for a in articles if a.get("categorie") and voulu and voulu <= racines(a["categorie"])})
@@ -102,10 +98,10 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     faits = {"recherche": "sans", "code": code, **({"codes": codes} if len(codes) > 1 else {}), "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
     if surs:
         faits = {**faits, "mot": mot, **INFO.consigne_si_liste(surs)}  # la liste est entière, le modèle en dit quelques-uns s'il y en a plusieurs (Q8) ; ``mot`` est la chose évitée, que le modèle dit
-        return _r("OK", faits, "")
+        return Resultat("OK", faits, "")
     if contiennent and not inconnus and not selon:
-        return _r("OK", faits, "")  # les faits disent combien en contiennent : le modèle le dit
-    return _r("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")  # rien n'est écrit pour le reste : la proposition du module commun, en consigne
+        return Resultat("OK", faits, "")  # les faits disent combien en contiennent : le modèle le dit
+    return Resultat("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")  # rien n'est écrit pour le reste : la proposition du module commun, en consigne
 
 
 # Lot 4 (M49, C13, appels 2640, 2641) : « qu'avez-vous sans oignons ? », « lesquels contiennent du chorizo ? », « un article avec du thon ».
@@ -119,12 +115,11 @@ def _contient_l_ingredient(source: Source, ingredients: list[str] | None, chose:
     if not ingredients:
         return None
     voulus = racines(chose)
-    code = source.signalement_dit(chose) if getattr(source, "signalement_dit", None) else None
-    nommes = getattr(source, "codes_d_un_nom", None)
+    code = source.signalement_dit(chose)
     for ingredient in ingredients:
         if voulus and voulus <= racines(ingredient):
             return True
-        if code and nommes and code in nommes(ingredient):
+        if code and code in source.codes_d_un_nom(ingredient):
             return True
     return False
 
@@ -133,10 +128,7 @@ async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reg
     """Lot 4 (M49, C13) : une LECTURE du catalogue par ingrédient. ``contient`` : les articles qui contiennent la chose (« du thon », « du poisson ») ;
     sinon ceux qui ne la contiennent pas (« sans oignons »). Seule la donnée parle : un article dont le catalogue ne dit pas ce qu'il contient est
     INCONNU, jamais « il n'y en a pas » (E21) ; un article sans la chose n'est dit « sans » que d'après la fiche."""
-    lire = getattr(source, "catalogue", None)
-    if lire is None:
-        return _r("OK", {"recherche": "ingredient", "articles": [], "inconnus": 0, "renseigne": False}, "")  # C7 B5 : ``renseigne`` faux, le modèle dit qu'il ne peut pas confirmer
-    catalogue = await lire(p.get("mode") or source.modes[0])
+    catalogue = await source.catalogue(p.get("mode") or source.modes[0])
     articles = catalogue.get("articles") or []
     voulu = racines(categorie or "")
     if voulu:
@@ -146,7 +138,7 @@ async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reg
     trouves = list(dict.fromkeys(a["nom"] for a, e in etats if e is (True if contient else False)))
     inconnus = sum(1 for _, e in etats if e is None)
     faits = {"recherche": "ingredient", "chose": chose, "contient": contient, "articles": trouves, "inconnus": inconnus, **INFO.consigne_si_liste(trouves)}  # Q8
-    return _r("OK", faits, "")
+    return Resultat("OK", faits, "")
 
 
 def ingredient_demande(texte: str | None) -> tuple[str, bool, str] | None:
@@ -186,14 +178,14 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         if r.faits.get("articles") or r.faits.get("inconnus"):
             return avec_le_panier(r, p)  # « lesquels sans oignons ? » : d'après les ingrédients du catalogue
     if not produit or not produit.strip():
-        return _r("ARGUMENT_INVALIDE", {}, "", "produit")
+        return Resultat("ARGUMENT_INVALIDE", {}, "", "produit")
     cherche = await source.chercher(produit.strip())
     trouve, dit_en_plus = await un_seul_candidat(source, cherche, produit.strip())
     if trouve.statut != "RETENU":
         return avec_le_panier(trouve, p)
     fiche = await source.article(trouve.faits["retenu"], p.get("mode") or source.modes[0])
     if fiche is None:
-        return avec_le_panier(_r("INTROUVABLE", {}, ""), p)
+        return avec_le_panier(Resultat("INTROUVABLE", {}, ""), p)
     option = option_dite(fiche, dit_en_plus) if dit_en_plus else None
     if dit_en_plus and option is None:
         return avec_le_panier(cherche, p)  # le reste dit n'est pas une option certaine : le doute reste un doute
@@ -210,7 +202,7 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
                 J.noter(p, f"regle:{regle['id']}")
         du_moment = produit_du_moment.brique_art3_texte_du_jour(fiche)
         if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
-            return avec_le_panier(_r("OK", {"article": nom, **du_moment}, ""), p)  # C7 B5 : le texte du jour (ou ``renseigne`` faux) est un fait, le modèle le dit
+            return avec_le_panier(Resultat("OK", {"article": nom, **du_moment}, ""), p)  # C7 B5 : le texte du jour (ou ``renseigne`` faux) est un fait, le modèle le dit
         if fiche.get("formule"):  # lot 11 : une formule se lit par ses étapes et ses règles ; son prix est un fait, dit par le modèle (C6 n° 11)
             return avec_le_panier(_lecture_de_la_formule(fiche), p)
         composition = list(fiche.get("ingredients") or [])
@@ -219,15 +211,15 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         avec.update(_informations_de_la_fiche(fiche, info))  # lot 15 (INF3, INF4, INF5, INF7) : régimes, épice, nutrition, ce qui est écrit pour le halal
         prix = _faits_du_prix(fiche)  # PRX5 : le prix « à partir de », un fait que le modèle dit (C6 n° 11)
         if not composition:
-            return avec_le_panier(_r("OK", {"article": nom, "renseigne": False, **avec, **prix}, ""), p)
+            return avec_le_panier(Resultat("OK", {"article": nom, "renseigne": False, **avec, **prix}, ""), p)
         faits = {"article": nom, "renseigne": True, "ingredients": composition, **avec, **prix}
-        return avec_le_panier(_r("OK", faits, ""), p)  # C7 B5 (Evan 25/11 8 h 45) : les ingrédients sont des faits, le modèle les dit
-    regime = getattr(source, "regime_dit", lambda _t: None)(signale)
+        return avec_le_panier(Resultat("OK", faits, ""), p)  # C7 B5 (Evan 25/11 8 h 45) : les ingrédients sont des faits, le modèle les dit
+    regime = source.regime_dit(signale)
     if regime is not None:
         return avec_le_panier(_regime_dit(source, fiche, regime, info), p)
     if info.get("allergies_renvoyees_au_restaurant"):  # D22 : le restaurant a choisi de renvoyer toute question d'allergène vers lui
         faits = {"article": nom, "signalement": "renvoye_au_restaurant", "equipe_confirme": True, **_consigne_d_allergie(info)}
-        return avec_le_panier(_r("OK", faits, ""), p)
+        return avec_le_panier(Resultat("OK", faits, ""), p)
     dit = _signalement_dit(source, fiche, option, signale)
     return avec_le_panier(Resultat(dit.statut, {**dit.faits, **_consigne_d_allergie(info)}, dit.suggestion, dit.manque), p)
 

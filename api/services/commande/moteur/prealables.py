@@ -182,15 +182,14 @@ async def resoudre_l_heure_selon_l_ouverture(source: Source, p: dict[str, Any], 
             r, voulue = meme_jour, datetime.fromisoformat(meme_jour.faits["heure_voulue"])
     if not p.get("mode"):
         return r
-    verifier = getattr(source, "verifier_un_creneau", None)
-    if verifier is None or not _sans_jour_dit(texte, voulue) or await verifier(p["mode"], voulue) is None:
+    if not _sans_jour_dit(texte, voulue) or await source.verifier_un_creneau(p["mode"], voulue) is None:
         return r
     prochaine = (await source.etat(p["mode"])).get("prochaine_ouverture")
     if not isinstance(prochaine, datetime) or prochaine.date() == voulue.date():
         return r
     jour = prochaine.astimezone(voulue.tzinfo)
     autre = _avec_le_moment(await source.resoudre_une_date(f"{jour.day}/{jour.month}", f"{voulue.hour}:{voulue.minute:02d}"), texte)
-    if autre is not None and autre.statut == "RETENU" and await verifier(p["mode"], datetime.fromisoformat(autre.faits["heure_voulue"])) is None:
+    if autre is not None and autre.statut == "RETENU" and await source.verifier_un_creneau(p["mode"], datetime.fromisoformat(autre.faits["heure_voulue"])) is None:
         return autre
     return r
 
@@ -364,14 +363,12 @@ async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | N
     de la source, et l'heure n'est pas gardée (on en demande une autre)."""
     if not p.get("heure_voulue") or not p.get("mode"):
         return None
-    verifier = getattr(source, "verifier_un_creneau", None)
-    refus = await verifier(p["mode"], datetime.fromisoformat(p["heure_voulue"])) if verifier else None
+    refus = await source.verifier_un_creneau(p["mode"], datetime.fromisoformat(p["heure_voulue"]))
     if refus is not None:
         P.toucher(p)  # l'heure retirée change l'empreinte, comme l'heure posée
         p["heure_voulue"] = p["heure_voulue_dite"] = p["moment_voulu"] = None
         return avec_le_panier(refus, p)
-    dire = getattr(source, "quand_dit", None)
-    p["heure_voulue_dite"] = await dire(datetime.fromisoformat(p["heure_voulue"])) if dire else None
+    p["heure_voulue_dite"] = await source.quand_dit(datetime.fromisoformat(p["heure_voulue"]))
     return None
 
 

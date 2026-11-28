@@ -54,18 +54,17 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     # Appel 2610 : la fermeture est marquée dite avec la question du mode (le code ne la redit plus, elle n'est plus qu'un fait).
     noter_la_fermeture(p)
     heure_voulue_dite = None
-    dire = getattr(source, "quand_dit", None)
-    if p.get("heure_voulue") and dire:
+    if p.get("heure_voulue"):
         # Appel 2566 : l'heure est déjà dite et gardée, c'est déjà l'accord pour plus tard ; la proposition de « plus tard » n'est pas refaite (le modèle la
         # tournait en « est-ce que cela vous convient ? »). Le résultat dit pour quand la commande est prise ; le créneau se vérifie à ``finaliser``.
-        heure_voulue_dite = await dire(datetime.fromisoformat(p["heure_voulue"]))
+        heure_voulue_dite = await source.quand_dit(datetime.fromisoformat(p["heure_voulue"]))
     faits = {**r.faits, **{k: etat.get(k) for k in CLES_DE_L_ETAT}, "a_planifier": True, **({"heure_voulue_dite": heure_voulue_dite} if heure_voulue_dite else {})}
     prochaine = etat.get("prochaine_ouverture")
-    if not p.get("heure_voulue") and not p.get("heure_proposee_faite") and isinstance(prochaine, datetime) and dire is not None:
+    if not p.get("heure_voulue") and not p.get("heure_proposee_faite") and isinstance(prochaine, datetime):
         # Evan, 21/11 : « il faut lui indiquer dès le début de l'appel que le magasin est fermé et lui demander si elle veut planifier une commande pour
         # l'ouverture à 18 h ». La proposition est LA question du début (``heure_proposee``) ; ce qui manque ensuite (les articles, l'adresse) suit sa réponse.
         p["heure_proposee_faite"] = True
-        faits = {**faits, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await dire(prochaine)}
+        faits = {**faits, "heure_proposee": prochaine.isoformat(), "heure_proposee_dite": await source.quand_dit(prochaine)}
         return avec_le_panier(_r("FERME_PLANIFIABLE", faits, "", "heure_proposee"), p)
     return avec_le_panier(_r("FERME_PLANIFIABLE", faits, "", r.manque), p)  # C7 B5 : la question en cours (zone, articles) est le manque, le modèle la pose
 

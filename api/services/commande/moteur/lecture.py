@@ -69,11 +69,8 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
 
 async def _noter_dite(source: Source, ref: str, appel_id: str | None) -> None:
     """M38 : une offre rendue à dire est comptée « dite » (une fois par appel). Ne casse jamais l'appel."""
-    noter = getattr(source, "noter_une_offre_dite", None)
-    if noter is None:
-        return
     try:
-        await noter(ref, appel_id)
+        await source.noter_une_offre_dite(ref, appel_id)
     except Exception as erreur:  # noqa: BLE001 -- un compteur d'écran ne défait jamais la réponse à l'appelant
         logger.warning(f"[.mark] Offer said not counted: {erreur!r}")
 
@@ -118,7 +115,7 @@ async def remises_disponibles(
             return avec_le_panier(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": remise_dite(r)}, ""), p)
     # M25 : une offre « X achetés, Y offerts d'une autre sorte » ATTEINTE ou presque, même sans l'article offert au panier.
     offres = []
-    if chiffre is not None and chiffre.statut == "OK" and getattr(source, "offres_a_portee", None) is not None:
+    if chiffre is not None and chiffre.statut == "OK":
         offres = await source.offres_a_portee(p["mode"], chiffre.faits.get("lignes") or [])
     for o in offres:
         if J.deja_dit(p, cle_de_la_remise(o["ref"])):

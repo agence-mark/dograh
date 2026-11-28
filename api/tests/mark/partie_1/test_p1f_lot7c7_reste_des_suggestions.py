@@ -147,6 +147,12 @@ class _SourceDesRemises:
     async def remises_en_cours(self):
         return self.en_cours
 
+    async def offres_a_portee(self, mode, lignes):
+        return []
+
+    async def noter_une_offre_dite(self, ref, appel_id):
+        return None
+
 
 def _panier_pret() -> dict:
     p = P.nouveau()
@@ -208,8 +214,8 @@ async def test_la_carte_lue_n_a_plus_de_texte(vierge, monkeypatch):
 
 
 async def test_la_recherche_par_ingredient_sans_catalogue_n_a_plus_de_texte():
-    r = await V.chercher_par_ingredient(object(), {"mode": "sur_place", "lignes": []}, moteur.Reglages(), "thon", contient=True)
-    assert r.suggestion == "" and r.faits["renseigne"] is False, r
+    r = await V.chercher_par_ingredient(Carte([]), {"mode": "sur_place", "lignes": []}, moteur.Reglages(), "thon", contient=True)
+    assert r.suggestion == "" and r.faits["articles"] == [] and r.faits["inconnus"] == 0, r  # 8c-1 (84) : une source a toujours son catalogue ; vide, il ne dit rien
 
 
 async def test_un_produit_du_moment_lu_n_a_plus_de_texte():

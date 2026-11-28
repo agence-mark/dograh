@@ -103,7 +103,7 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
     reglages = await source.reglages()
     # M90 (appel 2574) : un moyen que la source réserve à certains modes n'est ni proposé ni accepté hors de ces modes. Mécanisme commun : la
     # source déclare ``moyens_reserves_au_mode`` ({moyen: modes}) ; sans déclaration, tous les moyens réglés valent pour tous les modes.
-    reserves = getattr(source, "moyens_reserves_au_mode", None) or {}
+    reserves = source.moyens_reserves_au_mode
     acceptes = [m for m in reglages["moyens_paiement"] if m not in reserves or p.get("mode") in reserves[m]]
     moyen, moyen_reste = le_seul_moyen_de_sa_famille(brut.get("moyen"), acceptes), le_seul_moyen_de_sa_famille(brut.get("moyen_reste"), acceptes)
     if not moyen:

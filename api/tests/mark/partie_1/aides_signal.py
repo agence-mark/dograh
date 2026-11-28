@@ -140,8 +140,23 @@ LIBELLES_ALLERGIE = {"lait": "du lait", "gluten": "du gluten"}
 class SourceAllergie:
     """Ne connaît que le lait et le gluten ; ``halal`` est le seul régime étiqueté."""
 
+    modes = ("sur_place",)
+
     def __init__(self, halal: bool = True):
         self.halal = halal
+
+    # Les membres de la ``Source`` que le métier lit sans condition (8c-1, 84) : cette source n'a ni carte ni régime dit ni consigne écrite.
+    async def catalogue(self, mode):
+        return {"articles": [], "libelles": {}}
+
+    def codes_d_un_nom(self, nom):
+        return []
+
+    def regime_dit(self, texte: str):
+        return None
+
+    async def regles_d_information(self):
+        return {}
 
     def signalement_dit(self, texte: str):
         return next((c for c, libelle in LIBELLES_ALLERGIE.items() if texte in (c, libelle)), None)  # le code, ou son libellé (le multiple redonne le libellé)
@@ -186,6 +201,15 @@ class Carte:
 
     def codes_d_un_nom(self, nom):
         return []
+
+    def regime_dit(self, texte):
+        return None
+
+    def regime_code(self, texte):
+        return None
+
+    async def regles_d_information(self):
+        return {}
 
     async def chercher(self, texte):
         trouve = next((a for a in self.articles if a["nom"].casefold() == texte.casefold()), None)

@@ -426,12 +426,9 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
     - un code inconnu (faux, expiré, d'une remise brouillon ou d'un autre établissement : le même refus) rend la raison ``code_inconnu`` et ne pose rien ;
     - ``reduction_annoncee`` sans code (« j'ai un code » sans le dire) : le retour rend le fait et ``manque`` ``code_de_remise`` ; la question vient du modèle.
     ``None`` : rien à faire."""
-    lecture = getattr(source, "codes_de_remise", None)
-    if lecture is None:
-        return None
     if not str(dit or "").strip():
         return avec_le_panier(_r("OK", {"reduction_annoncee": True}, "", "code_de_remise"), p) if reduction_annoncee else None
-    verdict = code_de_remise.brique_off3_verifier_le_code(dit, await lecture())
+    verdict = code_de_remise.brique_off3_verifier_le_code(dit, await source.codes_de_remise())
     if "raison" in verdict:
         faits = {"raison": code_de_remise.RAISON, "dit": verdict["dit"]}
         return avec_le_panier(_r("HORS_CARTE", faits, ""), p)
@@ -752,9 +749,7 @@ async def _noter_une_regle_inconnue_de_la_carte(source: Source, p: dict[str, Any
     if texte is None:
         return
     inconnue.regle_inconnue_en_note(ligne, texte, regles.notes_libres)
-    signaler = getattr(source, "signaler_une_regle_inconnue", None)
-    if signaler is not None:
-        await signaler(article["id"], texte)
+    await source.signaler_une_regle_inconnue(article["id"], texte)
 
 
 def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:

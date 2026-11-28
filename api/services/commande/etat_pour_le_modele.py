@@ -20,7 +20,7 @@ from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE
 import hashlib
 import json
-from typing import Any
+from typing import Any, get_protocol_members
 
 from loguru import logger
 
@@ -28,6 +28,7 @@ from api.services.actions_communes.moyens_de_paiement import LIBELLES_POUR_LE_MO
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande.phrases_du_manque import Manque
+from api.services.commande.source import Source
 from api.services.commande.contrat import CASES_DE_FIN
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres
 
@@ -80,9 +81,8 @@ class SourceQuiRetient:
             vu: dict[str, Any] = {"ouvert": bool(etat.get("ouvert")), "planifiable": bool(etat.get("planifiee_permise"))}
             if not vu["ouvert"]:
                 quand = etat.get("reprise") or etat.get("prochaine_ouverture")
-                dire = getattr(self._source, "quand_dit", None)
-                if quand is not None and dire is not None and hasattr(quand, "astimezone"):
-                    vu["reprise"] = await dire(quand)
+                if quand is not None and hasattr(quand, "astimezone"):
+                    vu["reprise"] = await self._source.quand_dit(quand)
             self.ouverture[str(mode)] = vu
         except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais le geste
             logger.debug(f"[commande] ouverture non retenue : {erreur!r}")
@@ -109,16 +109,26 @@ class SourceQuiRetient:
         return r
 
 
+def _deleguer(nom: str) -> property:
+    return property(lambda self: getattr(self._source, nom))
+
+
+# ``isinstance(…, Source)`` regarde la classe, pas ``__getattr__`` : chaque membre de la ``Source`` que cette classe ne redéfinit pas est donc déclaré,
+# et rendu tel que la source le dit.
+for _nom in get_protocol_members(Source):
+    if not hasattr(SourceQuiRetient, _nom):
+        setattr(SourceQuiRetient, _nom, _deleguer(_nom))
+
+
 def retenir(p: dict[str, Any], source: Any) -> None:
     """Écrit dans le panier ce que la source a dit pendant le geste (``SourceQuiRetient``) et les modes qu'elle offre. ⛔ Ne lève jamais."""
     try:
         connu = p.setdefault(CLE_CONNU, {})
-        modes = tuple(getattr(source, "modes", ()) or ())
-        libelles = getattr(source, "libelles_des_modes", None) or {}
+        modes = tuple(source.modes or ())
+        libelles = source.libelles_des_modes or {}
         if modes:
             connu["modes"] = {m: libelles.get(m, m) for m in modes}
-            exige = getattr(source, "exige_une_zone", None)
-            connu["modes_a_adresse"] = [m for m in modes if exige is not None and exige(m)]
+            connu["modes_a_adresse"] = [m for m in modes if source.exige_une_zone(m)]
         if isinstance(source, SourceQuiRetient):
             if source.ouverture:
                 connu.setdefault("ouverture", {}).update(source.ouverture)
