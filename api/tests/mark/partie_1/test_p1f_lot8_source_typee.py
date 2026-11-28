@@ -1,6 +1,6 @@
 """[.mark] Lot 8, 8c-1 (84) : la ``Source`` dit tout ce que le métier et le moteur lui demandent. Chaque nom lu par ``getattr(source, "…")`` dans
 ``services/commande`` et ``services/restauration/carte_et_allergenes`` est un membre du ``Protocol`` ; la source du restaurant, et celle qui retient
-au passage, en sont une (``isinstance``). ``commande/porte.py`` est hors de ce test (ses deux lectures passent en 8c-2)."""
+au passage, en sont une (``isinstance``). ``commande/porte.py`` y entre depuis 8c-2 (109)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from api.services.restauration.source_commande import SourceClasseur
 
 RACINE_API = Path(__file__).resolve().parents[3]
 DOSSIERS = ("services/commande", "services/restauration/carte_et_allergenes")
-HORS_DU_TEST = {"services/commande/porte.py"}
+HORS_DU_TEST: set[str] = set()  # 8c-2 (109) : ``commande/porte.py`` y entre (ses deux lectures par ``getattr`` sont devenues des accès directs)
 
 
 def _nom_de_la_source(noeud: ast.expr) -> bool:
