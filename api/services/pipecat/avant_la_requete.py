@@ -245,7 +245,7 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         try:
             # lot 6 : la même forme pour une requête lancée directement au cerveau (``AgentRuntime.run_llm``)
             agent.preparer_la_forme = lambda trame: _forme_de_l_ouverture(moteur, llm, trame)
-        except Exception as erreur:  # noqa: BLE001 -- un agent sans attribut libre garde l'ancien chemin
+        except Exception as erreur:  # un agent sans attribut libre garde l'ancien chemin
             logger.info(f"[passage] forme de l'ouverture non posée sur l'agent (ancien chemin gardé) : {erreur!r}")
         return (
             AvantLaRequete(moteur, llm, FrameDirection.DOWNSTREAM, name=f"{nom}::AvantLaRequete"),

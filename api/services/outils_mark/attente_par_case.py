@@ -36,6 +36,6 @@ def config_avec_l_attente(config: dict[str, Any], connecteur: str | None, action
         famille = famille_de_la_case(action, arguments)
         variantes = familles.get(famille) if famille else None
         return {**config, "phrases_attente": list(variantes)} if variantes else config
-    except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour : la phrase de l'outil reste
+    except Exception as erreur:  # jamais à la place du tour : la phrase de l'outil reste
         logger.warning(f"[attente] phrases d'attente du module illisibles ({connecteur}.{action}) : {erreur!r}")
         return config
