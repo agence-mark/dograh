@@ -105,3 +105,19 @@ async def test_videe_puis_annulee_le_client_entend_l_annulation(essai_de):
     phrase = "C'est annulé. Qu'est-ce que je vous mets ?"
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": phrase, **cases})
     assert (d.mode, d.a_dire) == (PAROLE.A_DIRE_SEUL, phrase), d
+
+
+async def test_une_phrase_renvoyee_de_toute_facon_ne_prend_pas_la_relance_du_tour(essai_de):
+    """M3 de l'audit de T43 : la phrase vide (ou qui porte un chiffre) repasse de toute façon : elle ne prend pas la relance du tour (C5, une par tour). Au passage suivant du même
+    tour, une nouvelle fiche dont la phrase oublie ce qui manque (l'adresse) est encore relancée, jamais « C'est noté. » seul."""
+    e = await essai_de()
+    await _une_margherita_sans_proposition(e)
+    cases = {"annuler_la_commande": True, "mode_de_retrait": "livraison"}
+    r = await e.tour("annulez tout, finalement en livraison", **cases)
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "", **cases})
+    assert d.mode == PAROLE.SECOND_PASSAGE, d
+    assert not PAROLE.etat_du_tour(e.fiche_de_l_appel).relance_du_fait  # rien n'a été relancé pour le manque : la relance du tour reste à prendre
+    r = await e.fiche(heure="dix-neuf heures")  # le second passage du même tour remplit la fiche (une heure) sans l'adresse
+    assert _manque(r), r
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, "heure": "dix-neuf heures"})
+    assert d.mode == PAROLE.SECOND_PASSAGE, d
