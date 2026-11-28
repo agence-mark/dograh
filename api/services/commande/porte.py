@@ -799,6 +799,7 @@ class LaFiche:
     bruts: list[Resultat] = field(default_factory=list)  # les résultats des opérations de la fiche, dans l'ordre : ``refusants_de_la_fiche`` et ``heures_a_dire`` les lisent
     dernier: Resultat | None = None
     annulation_qui_vide: bool = False  # T43 : l'annulation de cette fiche a vidé quelque chose (des lignes, des articles gardés, une commande enregistrée) ; celle d'un panier vide n'est pas un fait
+    vidage_qui_vide: bool = False  # T43 M2 : « on vide et on annule » : le vidage de cette fiche a vidé des lignes ou des articles gardés avant l'annulation, qui compte alors comme ayant vidé
     cle: str = ""  # la clé de la fiche DITE (``_cle_de_la_fiche``) : ``_case_ajouter`` la range quand un article est pris, ``_fiche_identique_au_tour_d_avant`` la relit au tour d'après
 
     @property
@@ -1215,11 +1216,12 @@ async def _appliquer_la_case(f: LaFiche, case: str) -> tuple[Resultat, str | Non
         f.informations_faites = True
         return await _poser_les_informations(f), "informations"
     if case == "vider_le_panier":
+        f.vidage_qui_vide = f.vidage_qui_vide or bool(f.p.get("lignes") or f.p.get("dits_en_attente"))
         r = await moteur.vider_commande(f.source, f.p, f.regles)
         RQ.tout_fermer(f.p)  # B1 : on recommence : les questions de la commande d'avant tombent avec elle (la proposition comprise)
         return r, case
     if case == "annuler_la_commande":
-        f.annulation_qui_vide = bool(f.p.get("lignes") or f.p.get("dits_en_attente") or f.p.get("enregistree"))
+        f.annulation_qui_vide = f.vidage_qui_vide or bool(f.p.get("lignes") or f.p.get("dits_en_attente") or f.p.get("enregistree"))
         r = await annuler(f.source, f.p, f.regles)
         RQ.tout_fermer(f.p)
         return r, case
