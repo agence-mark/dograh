@@ -104,7 +104,7 @@ async def test_l_agent_porte_la_preparation_de_la_forme_de_son_moteur_et_la_requ
     assert await agent.preparer_la_forme("trame") == "trame préparée" and appels == [(moteur, llm, "trame")]
 
     # la requête qui traverse les processeurs se termine par la même préparation
-    monkeypatch.setattr(passage, "_derniere_parole_de_la_personne", lambda contexte: None)
+    monkeypatch.setattr(passage, "derniere_parole_de_la_personne", lambda contexte: None)
     monkeypatch.setattr(passage, "avant_la_requete", AsyncMock(return_value=True))
     trame = SimpleNamespace(speculation=False, context=object())
     assert await AV.preparer_la_requete(moteur, llm, trame) == "trame préparée" and appels[-1] == (moteur, llm, trame)

@@ -502,7 +502,7 @@ def oublier_la_porte_prise_avant(moteur: Any) -> None:
         pass
 
 
-def _derniere_parole_de_la_personne(context: Any) -> bool:
+def derniere_parole_de_la_personne(context: Any) -> bool:
     """La requête répond à la personne (et non à un résultat d'outil ou à une relance) : son dernier message est le sien."""
     from api.services.groupe.passations import est_la_note_de_passation, est_un_resultat_de_travail
 
@@ -534,7 +534,7 @@ async def avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart: float
         greffier = getattr(moteur, "greffier", None)
         if not r.attend_le_greffier or greffier is None or getattr(noeud, "is_end", False):
             return False
-        if la_personne_parle(moteur) or not _derniere_parole_de_la_personne(context):
+        if la_personne_parle(moteur) or not derniere_parole_de_la_personne(context):
             return False
         reglages = getattr(moteur, "_fiche", None)
         fiche = _fiche(moteur)
@@ -588,7 +588,7 @@ async def fiche_deja_vraie_avant_la_requete(moteur: Any, llm: Any, context: Any,
             return False
         if not reglages_du_passage(noeud).le_code_lit_la_fiche:
             return False
-        if la_personne_parle(moteur) or not _derniere_parole_de_la_personne(context):
+        if la_personne_parle(moteur) or not derniere_parole_de_la_personne(context):
             return False
         if porte_a_prendre_sur_la_fiche(moteur, noeud) is None:
             return False
@@ -658,7 +658,7 @@ async def sinon_avant_la_requete(moteur: Any, llm: Any, context: Any, *, depart:
         arete = porte_sinon(noeud)
         if arete is None:
             return False
-        if la_personne_parle(moteur) or not _derniere_parole_de_la_personne(context):
+        if la_personne_parle(moteur) or not derniere_parole_de_la_personne(context):
             return False
         jeton = moteur.jeton_de_visite()
         if porte_prise_avant_la_requete(moteur, jeton):

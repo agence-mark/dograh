@@ -316,7 +316,7 @@ async def arbitre_avant_la_requete(moteur: Any, llm: Any, context: Any, *, depar
         arbitre = getattr(moteur, "arbitre", None)
         if not r.arbitre or arbitre is None:
             return False
-        if passage.la_personne_parle(moteur) or not passage._derniere_parole_de_la_personne(context):
+        if passage.la_personne_parle(moteur) or not passage.derniere_parole_de_la_personne(context):
             return False
         jeton = moteur.jeton_de_visite()
         debut = time.monotonic()

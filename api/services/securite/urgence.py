@@ -105,7 +105,7 @@ async def surveiller(moteur: Any, context: Any) -> str | None:
             return None
         from api.services.workflow import passage_sur_la_fiche as passage
 
-        if not passage._derniere_parole_de_la_personne(context):
+        if not passage.derniere_parole_de_la_personne(context):
             return None
         texte = _derniere_parole(context)
         signal = detecter(texte, reglages.mots_en_plus)

@@ -67,7 +67,7 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
         return trame
     depart = time.monotonic()  # l'attente cumulée (option 2 puis arbitre) ne dépasse jamais le délai de l'étape
     try:
-        if passage._derniere_parole_de_la_personne(trame.context):
+        if passage.derniere_parole_de_la_personne(trame.context):
             passage.oublier_la_porte_prise_avant(moteur)
         if (
             not await passage.avant_la_requete(moteur, llm, trame.context, depart=depart)
@@ -245,8 +245,8 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         try:
             # lot 6 : la même forme pour une requête lancée directement au cerveau (``AgentRuntime.run_llm``)
             agent.preparer_la_forme = lambda trame: _forme_de_l_ouverture(moteur, llm, trame)
-        except Exception:  # noqa: BLE001 -- un agent sans attribut libre garde l'ancien chemin
-            pass
+        except Exception as erreur:  # noqa: BLE001 -- un agent sans attribut libre garde l'ancien chemin
+            logger.info(f"[passage] forme de l'ouverture non posée sur l'agent (ancien chemin gardé) : {erreur!r}")
         return (
             AvantLaRequete(moteur, llm, FrameDirection.DOWNSTREAM, name=f"{nom}::AvantLaRequete"),
             AvantLaRequete(moteur, llm, FrameDirection.UPSTREAM, name=f"{nom}::AvantLaRequeteMontante"),

@@ -203,9 +203,9 @@ async def test_5_la_consigne_de_silence_ne_lance_pas_l_arbitre_et_n_est_pas_une_
         engine.context.add_message(dict(consigne))
         await asyncio.sleep(0.1)
         assert faux.requetes == [] and _lignes(engine) == []
-        assert passage._derniere_parole_de_la_personne(LLMContext(messages=[E5[0], consigne])) is False
+        assert passage.derniere_parole_de_la_personne(LLMContext(messages=[E5[0], consigne])) is False
         # Une vraie parole reste une parole (la distinction ne casse pas le cas courant).
-        assert passage._derniere_parole_de_la_personne(LLMContext(messages=list(E5))) is True
+        assert passage.derniere_parole_de_la_personne(LLMContext(messages=list(E5))) is True
         # Et la requête qui suit la consigne ne passe aucune porte.
         cerveau = await _brancher(engine, FAMILLES[0].values[0])
         await _requete(engine, cerveau, [*E5, {"role": "assistant", "content": "Oui ?"}, consigne])

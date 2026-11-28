@@ -155,7 +155,7 @@ def contexte_avec_le_rappel(moteur: Any, context: Any) -> Any | None:
             return None
         from api.services.workflow import passage_sur_la_fiche as passage
 
-        if not passage._derniere_parole_de_la_personne(context):
+        if not passage.derniere_parole_de_la_personne(context):
             return None
         messages = list(context.get_messages())
         dernier = messages[-1].get("content")
