@@ -80,7 +80,7 @@ async def test_collision_reglement_montant_exact_contre_billet():
     async def reglages():
         return {"moyens_paiement": ["especes", "cheque"]}
 
-    source = SimpleNamespace(reglages=reglages, libelles_des_moyens={})
+    source = SimpleNamespace(reglages=reglages, libelles_des_moyens={}, moyens_reserves_au_mode={})
     p = {"mode": "emporter"}
     _, montant = await reglement._le_reglement(source, p, 1000, {"moyen": "especes", "part": -1})
     _, billet = await reglement._le_reglement(source, p, 1000, {"moyen": "especes", "rendu_sur": 2000, "moyen_du_billet": "cheque"})
