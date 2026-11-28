@@ -92,3 +92,16 @@ async def test_annuler_un_panier_deja_vide_ne_redit_pas_l_annulation(essai_de):
     assert _fait_du_code(e) == {}, _fait_du_code(e)
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE, d
+
+
+async def test_videe_puis_annulee_le_client_entend_l_annulation(essai_de):
+    """M2 de l'audit de T43 : « on vide et on annule, pour 19 h » : le vidage passe avant l'annulation, qui trouve un panier déjà vide. La fiche a pourtant vidé une commande :
+    l'annulation est le fait dit de ce tour (décision du 27/11 7 h 23), et la phrase du modèle qui la dit puis demande ce qui manque part telle quelle."""
+    e = await essai_de()
+    await _une_margherita_sans_proposition(e)
+    cases = {"vider_le_panier": True, "annuler_la_commande": True, "heure": "dix-neuf heures"}
+    r = await e.tour("on vide et on annule, pour dix-neuf heures", **cases)
+    assert _fait_du_code(e) == {"fait": "annulee_en_cours"}, _fait_du_code(e)
+    phrase = "C'est annulé. Qu'est-ce que je vous mets ?"
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": phrase, **cases})
+    assert (d.mode, d.a_dire) == (PAROLE.A_DIRE_SEUL, phrase), d
