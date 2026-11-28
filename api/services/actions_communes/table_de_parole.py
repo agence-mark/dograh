@@ -164,7 +164,11 @@ def _fait_accompli(e: Entrees) -> Decision:
     exiges = e.exiges or {}
     en_double = bool(suite) and pose_une_question(phrase)  # PE-2 (Q5) : une question du modèle viendrait avant la suite du code (le rendu) ou en ferait deux : elle attend le tour suivant
     due = question_due_sans_suite(phrase, suite, e.en_attente)
-    if phrase and not apres_un_refus(etat) and not e.chiffre and not en_double and not due and porte_les_chiffres(phrase, exiges):
+    # T43 : annulée dans la fiche, la commande continue (un mode, une adresse) : ce qui manque est dû comme ailleurs ; le modèle repasse une fois par tour (C5)
+    manque_du = bool(e.du.manque) and not pose_une_question(phrase) and not etat.relance_du_fait
+    if manque_du:
+        etat.relance_du_fait = True
+    if phrase and not manque_du and not apres_un_refus(etat) and not e.chiffre and not en_double and not due and porte_les_chiffres(phrase, exiges):
         etat.jetee = None
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite) if x), motif=FAIT_ACCOMPLI)
     _poser_la_phrase_reglee(e, suite)
