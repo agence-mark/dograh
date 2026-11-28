@@ -222,31 +222,27 @@ FORME_PASSEE_DE_LA_COMMANDE = r"\bcommande\b[^.!?]*\b(?:est|a\s+été)\s+(?:bien
 FAITS_DE_L_ANNULATION = ("annulee", "annulee_en_cours")  # les faits accomplis de l'annulation (``porte.textes_du_code``) : le modèle les dit (C6 n° 7)
 
 
-def annulation_dite_ce_tour(p: Any) -> bool:
+def _annulation_dite_ce_tour(p: dict) -> bool:
     """T43 R1 : le fait que le modèle dit à ce tour est l'annulation (gardé au journal par la porte, ``J.dire_le_fait``), même quand un mode qui la suit a effacé la marque
-    « annulee » du dossier (« Annulez, finalement en livraison » : décision du 27/11 7 h 23, le client entend « C'est annulé »). ⛔ Ne lève jamais."""
-    try:
-        from api.services.actions_communes import journal_du_dit as J
+    « annulee » du dossier (« Annulez, finalement en livraison » : décision du 27/11 7 h 23, le client entend « C'est annulé »). Lue sous la garde de ``annonce_non_fondee``."""
+    from api.services.actions_communes import journal_du_dit as J
 
-        faits = J.fait_accompli(p) if isinstance(p, dict) else None
-        return bool(faits) and faits.get("fait") in FAITS_DE_L_ANNULATION and not J.dit_a_un_tour_d_avant(p, J.FAIT_ACCOMPLI)
-    except Exception:  # noqa: BLE001
-        logger.exception("[parole] fait du tour non lu : l'annulation n'est pas tenue pour dite")
-        return False
+    faits = J.fait_accompli(p)
+    return bool(faits) and faits.get("fait") in FAITS_DE_L_ANNULATION and not J.dit_a_un_tour_d_avant(p, J.FAIT_ACCOMPLI)
 
 
 def annonce_non_fondee(texte: Any, p: Any) -> bool:
     """Lot 20 (appels 455, 460) : la phrase annonce-t-elle que la commande est enregistrée (confirmée, validée) ou annulée alors que son ÉTAT dit le
     contraire ? La règle « c'est fait » de la vérité des actions (SA-18), comparée au dossier de la parole ; une question n'annonce rien. Un dossier qui
     ne porte pas « enregistree » (une autre action) n'est pas jugé ici. T43 R1 : « annulé » est fondé quand le dossier est annulé OU quand l'annulation est
-    le fait dit de ce tour (``annulation_dite_ce_tour``). ⛔ Ne lève jamais (dans le doute : non)."""
+    le fait dit de ce tour (``_annulation_dite_ce_tour``). ⛔ Ne lève jamais (dans le doute : non)."""
     try:
         from api.services.workflow.verite_des_actions import _phrases, regle_de_l_action_faite
 
         if not isinstance(p, dict) or "enregistree" not in p or not texte:
             return False
         faite = regle_de_l_action_faite(("enregistré", "confirmé", "validé"), sauf_si_autre_objet=ECART_DE_L_ANNONCE, formes_en_plus=(FORME_PASSEE_DE_LA_COMMANDE,))
-        annulee = None if p.get("annulee") or annulation_dite_ce_tour(p) else regle_de_l_action_faite(("annulé",), sauf_si_autre_objet=ECART_DE_L_ANNONCE)
+        annulee = None if p.get("annulee") or _annulation_dite_ce_tour(p) else regle_de_l_action_faite(("annulé",), sauf_si_autre_objet=ECART_DE_L_ANNONCE)
 
         for phrase in _phrases(str(texte)):
             if phrase.rstrip().endswith("?"):
