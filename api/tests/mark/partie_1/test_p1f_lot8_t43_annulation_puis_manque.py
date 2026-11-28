@@ -57,15 +57,28 @@ async def test_videe_et_annulee_avec_une_heure_les_articles_qui_manquent_sont_de
     assert d.mode == PAROLE.SECOND_PASSAGE, d
 
 
-async def test_la_phrase_qui_demande_ce_qui_manque_est_dite(essai_de):
-    """Le voisin : la phrase du modèle pose la question de ce qui manque : elle part (rien n'est relancé)."""
+async def test_la_phrase_qui_dit_l_annulation_et_demande_ce_qui_manque_est_dite(essai_de):
+    """Le voisin, et R1 de l'audit de T43 : la phrase du modèle dit l'annulation (décision du 27/11 7 h 23) puis pose la question de ce qui manque : elle part telle quelle.
+    Le mode qui suit efface la marque « annulée » du dossier ; l'annulation reste le fait dit de ce tour, « C'est annulé. » n'est pas une annonce sans fondement."""
     e = await essai_de()
     await _une_margherita_sans_proposition(e)
     cases = {"annuler_la_commande": True, "mode_de_retrait": "livraison"}
     r = await e.tour("annulez tout, finalement en livraison", **cases)
-    phrase = "C'est noté. En livraison, à quelle adresse ?"
+    phrase = "C'est annulé. En livraison, à quelle adresse ?"
+    assert not PF.annonce_non_fondee("La commande est annulée.", e.p), e.p  # la même règle juge la phrase du second passage
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": phrase, **cases})
     assert (d.mode, d.a_dire) == (PAROLE.A_DIRE_SEUL, phrase), d
+
+
+async def test_c_est_annule_sans_annulation_dans_la_fiche_reste_refusee(essai_de):
+    """Le témoin de R1 : rien n'est annulé dans ce tour (un mode seul) : « C'est annulé. » est une annonce sans fondement, le modèle repasse."""
+    e = await essai_de()
+    await _une_margherita_sans_proposition(e)
+    cases = {"mode_de_retrait": "livraison"}
+    r = await e.tour("finalement en livraison", **cases)
+    assert e.p.get("lignes") and PF.annonce_non_fondee("C'est annulé.", e.p), e.p
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est annulé.", **cases})
+    assert d.mode == PAROLE.SECOND_PASSAGE, d
 
 
 async def test_annuler_un_panier_deja_vide_ne_redit_pas_l_annulation(essai_de):
