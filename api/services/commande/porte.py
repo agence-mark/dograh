@@ -1472,7 +1472,9 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
             consignes.append((C.QUESTION, A_FAIRE_DE_LA_QUESTION))  # n° 12 : une question que le code dit (DC10) suit la phrase du modèle, il ne la pose pas
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("fait_accompli"):
-        J.dire_le_fait(p, textes["fait_accompli"], tour)  # C6 n° 5 : la confirmation dite par le modèle ; le journal en garde le fait (jamais redit par le code, R1)
+        # C6 n° 5 : la confirmation dite par le modèle ; le journal en garde le fait (jamais redit par le code, R1). ⚠ Ordre : écrit ici, au retour de la fiche, AVANT que la parole
+        # juge la phrase du modèle : ``parole_de_la_fiche._annulation_dite_ce_tour`` le relit (T43 R1 ; tenu par ``test_le_journal_du_tour_est_ecrit_avant_le_jugement``)
+        J.dire_le_fait(p, textes["fait_accompli"], tour)
     poser_le_fait_bloquant(ctx.fiche, tour, METIER_DU_FAIT_BLOQUANT, [_refus_pour_le_modele(r) for r in refusants])
     return consignes
 

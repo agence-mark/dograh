@@ -224,7 +224,9 @@ FAITS_DE_L_ANNULATION = ("annulee", "annulee_en_cours")  # les faits accomplis d
 
 def _annulation_dite_ce_tour(p: dict) -> bool:
     """T43 R1 : le fait que le modèle dit à ce tour est l'annulation (gardé au journal par la porte, ``J.dire_le_fait``), même quand un mode qui la suit a effacé la marque
-    « annulee » du dossier (« Annulez, finalement en livraison » : décision du 27/11 7 h 23, le client entend « C'est annulé »). Lue sous la garde de ``annonce_non_fondee``."""
+    « annulee » du dossier (« Annulez, finalement en livraison » : décision du 27/11 7 h 23, le client entend « C'est annulé »). Lue sous la garde de ``annonce_non_fondee``.
+    ⚠ Ordre : le journal du tour est écrit par la porte au retour de la fiche (``porte._textes_de_la_fiche``, ``J.dire_le_fait``), avant tout jugement de la phrase ici
+    (tenu par ``test_le_journal_du_tour_est_ecrit_avant_le_jugement``)."""
     from api.services.actions_communes import journal_du_dit as J
 
     faits = J.fait_accompli(p)

@@ -121,3 +121,19 @@ async def test_une_phrase_renvoyee_de_toute_facon_ne_prend_pas_la_relance_du_tou
     assert _manque(r), r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, "heure": "dix-neuf heures"})
     assert d.mode == PAROLE.SECOND_PASSAGE, d
+
+
+async def test_le_journal_du_tour_est_ecrit_avant_le_jugement(essai_de):
+    """L'ordre dont dépend R1 : la porte écrit le fait du tour au journal au retour de la fiche, avant que la parole juge la phrase du modèle
+    (``parole_de_la_fiche._annulation_dite_ce_tour`` le relit). Au tour suivant, le même fait est d'un tour d'avant : « C'est annulé. » redevient sans fondement (RC3)."""
+    from api.services.actions_communes import journal_du_dit as J
+
+    e = await essai_de()
+    await _une_margherita_sans_proposition(e)
+    cases = {"annuler_la_commande": True, "mode_de_retrait": "livraison"}
+    r = await e.tour("annulez tout, finalement en livraison", **cases)
+    assert J.fait_accompli(e.p) == {"fait": "annulee_en_cours"} and not J.dit_a_un_tour_d_avant(e.p, J.FAIT_ACCOMPLI), e.p  # écrit avant tout jugement
+    assert not PF.annonce_non_fondee("C'est annulé.", e.p)
+    PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est annulé. En livraison, à quelle adresse ?", **cases})
+    r = await e.tour("au 3 rue de la Paix", adresse="3 rue de la Paix")
+    assert PF.annonce_non_fondee("C'est annulé.", e.p), e.p
