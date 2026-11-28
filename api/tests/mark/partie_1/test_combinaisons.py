@@ -342,14 +342,16 @@ async def test_fusions_de_deux(faire_monde, monkeypatch, etat):
 
 @pytest.mark.combinaisons_longues
 async def test_suites_tirees(faire_monde, monkeypatch):
-    """2 000 suites de 6 gestes, graine écrite ; chaque suite rouge est réduite à la plus courte qui reste rouge (gardée au rapport comme cas fixe)."""
+    """2 000 suites de 6 gestes, graine écrite ; chaque suite rouge est réduite à la plus courte qui reste rouge (gardée au rapport comme cas fixe). T47 : à heure fixe
+    (``C.OUVERTURE``), le résultat ne dépend plus de l'heure du lancement."""
     monde = await faire_monde("casa-italia")
     resultats, reduites = [], []
-    for etat, suite in C.tirer(GRAINE, int(os.environ.get("MARK_NOMBRE_DE_SUITES", "2000")), 6):
-        r = await C.jouer(monde, monkeypatch, etat, suite)
-        resultats.append(r)
-        if r.fautes and len(reduites) < 25:
-            reduites.append(await C.reduire(monde, monkeypatch, r))
+    with C.horloge.remplacer(monde.base, C.OUVERTURE):
+        for etat, suite in C.tirer(GRAINE, int(os.environ.get("MARK_NOMBRE_DE_SUITES", "2000")), 6):
+            r = await C.jouer(monde, monkeypatch, etat, suite)
+            resultats.append(r)
+            if r.fautes and len(reduites) < 25:
+                reduites.append(await C.reduire(monde, monkeypatch, r))
     _ecrire("suites-tirees", {**C.rapport(resultats, "suites tirées", GRAINE), "reduites": _lignes(reduites)})
     assert not _lignes(resultats), "\n".join(_lignes(reduites)[:60])
 

@@ -345,6 +345,9 @@ RECETTES: dict[str, list[str]] = {
 }
 ETATS = tuple(RECETTES)
 FERMETURE = datetime(2026, 11, 12, 15, 0, tzinfo=ZoneInfo("Europe/Paris"))  # jeudi 15 h : Casa Italia est fermé (11 h à 14 h, 18 h à 22 h 30) ; E9 se joue sous cette horloge
+# T47 (Pierre, 28/11) : les suites tirées se jouent à heure fixe, leur résultat ne dépend plus de l'heure du lancement. Vendredi midi : Casa Italia est ouvert, « pour dix-neuf
+# heures » (G18) est acceptée (à 20 h elle serait refusée). E9 garde sa propre horloge (``FERMETURE``, posée par ``jouer`` par-dessus celle-ci)
+OUVERTURE = datetime(2026, 11, 13, 12, 0, tzinfo=ZoneInfo("Europe/Paris"))
 # Ce que l'état doit montrer une fois la recette jouée ; sinon l'état n'est PAS atteint (dit au rapport, jamais compté comme vert).
 ATTEINT: dict[str, Callable[[dict], bool]] = {
     "E0": lambda p: not p.get("mode") and not p.get("lignes"),
@@ -719,9 +722,18 @@ def rc3(partie: Partie, o: Observation) -> list[Faute]:
     j = partie.journal
     if len(j) >= 2 and j[-1] and j[-1] == j[-2] and o.geste not in ("G35",):
         q = question(o.apres)
-        if not (q.get("texte") and q["texte"] == j[-1]):
+        if not (q.get("texte") and q["texte"] == j[-1]) and not _annule_la_commande_rouverte(o):
             return [("RC3", f"le code redit « {j[-1]} »")]
     return []
+
+
+def _annule_la_commande_rouverte(o: Observation) -> bool:
+    """T47 (Pierre, 28/11 : option A) : « On vide et on annule, pour 19 h. » puis « On vide et on annule. » : l'heure a rouvert la commande annulée (8b-2), la fiche l'annule de
+    nouveau. Le fait de l'annulation redit répond à cette nouvelle demande, ce n'est pas une redite : la fiche annule (case exécutée), la commande n'était pas annulée avant elle
+    (rouverte depuis la dernière annulation) et l'est après. Rien de rouvert, l'annulation redite reste une faute."""
+    fait = ((o.textes or {}).get("fait_accompli") or {}).get("fait")
+    return (fait in PF.FAITS_DE_L_ANNULATION and "annuler_la_commande" in ((o.retour or {}).get("cases_executees") or [])
+            and phase_deduite_des_drapeaux(o.avant) != "annulee" and phase_deduite_des_drapeaux(o.apres) == "annulee")
 
 
 def rc4(o: Observation) -> list[Faute]:
