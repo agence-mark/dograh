@@ -20,6 +20,7 @@ from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import Reglages, _avec, _r, _racines
 from api.services.restauration.carte_et_allergenes.allergie_de_la_commande import _consigne_d_allergie, _faits_du_prix, _informations_de_la_fiche, _lecture_de_la_formule, _nomme_une_categorie, _option_signale, _regime_dit, _regime_du_catalogue, _regles_d_information, _signalement_dit, _signalements_dits
+from api.services.restauration.carte_et_allergenes.signalements import codes_des_signalements
 
 # M104 (appel 2591) : « vous avez des X sans Y ? », « quelque chose sans Y ? », un régime : chercher dans le catalogue ce qui est SANS une chose.
 _SANS = re.compile(r"(?<!\w)sans\s+(?P<chose>.+)$", re.IGNORECASE)
@@ -30,7 +31,7 @@ def _etat_sans(article: dict, code: str) -> str:
     ``selon_le_choix`` : une option obligatoire en contient (A3, lot 19 bis : « sans » ne tient pas si le client peut devoir la prendre) ; ``inconnu`` sinon.
     Une donnée absente n'est JAMAIS « sans » (jamais un faux non)."""
     signalements = article.get("signalements")
-    dit = allergenes_du_produit.brique_inf1_repondre_depuis_la_donnee(None if signalements is None else [s["code"] for s in signalements], code)  # lot 15 (INF1)
+    dit = allergenes_du_produit.brique_inf1_repondre_depuis_la_donnee(codes_des_signalements(signalements), code)  # lot 15 (INF1)
     if dit == "inconnu":
         return "inconnu"
     if dit == "present":

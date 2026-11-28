@@ -24,6 +24,7 @@ from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r, _racines
 from api.services.commande.moteur.articles import _groupes_a_remplir
+from api.services.restauration.carte_et_allergenes.signalements import codes_des_signalements
 
 RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
 
@@ -50,11 +51,11 @@ async def _etat_de_l_allergene_par_ligne(source: Source, p: dict[str, Any], code
         libelle = (fiche.get("signalements_libelles") or {}).get(code, libelle)
         choisi = str(ligne.get("choix") or "").casefold()
         options = [
-            {"allergenes": None if o.get("signalements") is None else [s["code"] for s in o["signalements"]], "signalements_du_nom": o.get("signalements_du_nom")}
+            {"allergenes": codes_des_signalements(o.get("signalements")), "signalements_du_nom": o.get("signalements_du_nom")}
             for o in _options_de_la_fiche(fiche.get("groupes") or []) if o.get("nom") and str(o["nom"]).casefold() in choisi
         ]
         signalements = fiche.get("signalements")
-        lignes.append({"article": ligne["nom"], "etat": allergenes_d_une_option.brique_inf2_produit_et_options(None if signalements is None else [s["code"] for s in signalements], options, code)})
+        lignes.append({"article": ligne["nom"], "etat": allergenes_d_une_option.brique_inf2_produit_et_options(codes_des_signalements(signalements), options, code)})
     return lignes, libelle
 
 
@@ -74,7 +75,7 @@ async def _articles_de_la_carte_concernes(source: Source, p: dict[str, Any], cod
     if lire is None:
         return {}
     articles = (await lire(p.get("mode") or source.modes[0])).get("articles") or []
-    contiennent = [a["nom"] for a in articles if allergenes_du_produit.brique_inf1_repondre_depuis_la_donnee(None if a.get("signalements") is None else [s["code"] for s in a["signalements"]], code) == "present"]
+    contiennent = [a["nom"] for a in articles if allergenes_du_produit.brique_inf1_repondre_depuis_la_donnee(codes_des_signalements(a.get("signalements")), code) == "present"]
     inconnus = [a["nom"] for a in articles if a.get("signalements") is None]
     return {"carte": {"contiennent": _bornee(contiennent), "a_confirmer_par_l_equipe": _bornee(inconnus)}}
 
@@ -421,8 +422,8 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         return _r("OK", faits, "")
     if option is not None:
         # Lot 15 (INF2) : le produit et l'option choisie ensemble
-        option_vue = {"allergenes": None if option.get("signalements") is None else [s["code"] for s in option["signalements"]], "signalements_du_nom": option.get("signalements_du_nom")}
-        etat = allergenes_d_une_option.brique_inf2_produit_et_options(None if signalements is None else [s["code"] for s in signalements], [option_vue], code)
+        option_vue = {"allergenes": codes_des_signalements(option.get("signalements")), "signalements_du_nom": option.get("signalements_du_nom")}
+        etat = allergenes_d_une_option.brique_inf2_produit_et_options(codes_des_signalements(signalements), [option_vue], code)
         faits = {**faits, "signalement": etat if etat in ("present", "absent_de_la_fiche") else "inconnu", **({"libelle": libelle} if etat in ("present", "absent_de_la_fiche") else {})}
         if faits["signalement"] == "inconnu":
             faits["a_confirmer_par_l_equipe"] = True

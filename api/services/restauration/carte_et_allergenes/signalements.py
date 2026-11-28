@@ -35,6 +35,11 @@ def signalements_de(allergenes: list[str] | None) -> list[dict[str, Any]] | None
     return [{"code": c, "libelle": LES_QUATORZE[c][0], "mots": list(LES_QUATORZE[c][1])} for c in allergenes if c in LES_QUATORZE]
 
 
+def codes_des_signalements(signalements: list[dict[str, Any]] | None) -> list[str] | None:
+    """Les codes d'une liste de signalements ; ``None`` reste ``None`` (inconnu : jamais dit « sans »)."""
+    return None if signalements is None else [s["code"] for s in signalements]
+
+
 def codes_nommes(nom: str) -> list[str]:
     """M88 : les codes que le NOM d'une option affirme (« Pistache » → fruits à coque), au mot entier. Sert seulement à dire une PRÉSENCE,
     jamais une absence ; un nom qui dit « sans » n'affirme rien (« pâte sans gluten »)."""
