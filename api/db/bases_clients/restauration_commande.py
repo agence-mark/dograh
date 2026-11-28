@@ -33,6 +33,7 @@ from api.services.commande.briques.article_simple import brique_art1_chiffrer
 from api.services.commande.briques import conditions_de_vente, supplement_de_formule, menu_a_taille_liee, lot_a_prix_fixe, choix_entre_deux_contenus, inclus_par_rubrique, a_volonte, livraison_offerte, quota_inclus_puis_payant, option_conditionnelle, prix_par_mode, consigne_et_emballage, produit_au_poids, supplement_selon_la_taille, changer_d_accompagnement, retrait_d_ingredient
 from api.services.commande.briques import formule as FO
 from api.services.commande.briques.inconnue import regle_inconnue_en_note
+from api.services.commande.moteur.reglement import refus_des_titres
 from api.services.commande.briques.taille_fixant_le_nombre import appliquer_les_quotas
 from api.db.bases_clients.restauration_carte import (
     accord_du_produit,
@@ -748,23 +749,6 @@ def _reglement_lisible(moyens: list, reste: dict, acceptes: set[str]) -> Resulta
     return None
 
 
-def _titres_restaurant(paiement: dict, moyens: list, reste: dict, reglages: dict, total: int, calculees: list[dict]) -> Resultat | None:
-    """Le titre-restaurant : plafond, alcool (jamais payé en titres), rendu (jamais sur un titre)."""
-    module, acceptes, plafond = reglages["module"], set(reglages["moyens_paiement"]), reglages["plafond_titre"]
-    titres = sum(m["montant"] for m in moyens if m["moyen"] == "titre_restaurant") + reste.get("titre_restaurant", 0)
-    if plafond is not None and titres > plafond:
-        return _refus("PLAFOND_TITRE_RESTAURANT", plafond=plafond, montant=titres)
-    if titres and module["titre_alcool_exclu"]:
-        # Un titre-restaurant ne paie pas l'alcool : ce qui dépasse la part sans alcool de la commande est refusé.
-        eligible = max(0, total - sum(l["prix_unitaire"] * l["quantite"] for l in calculees if l["alcool"]))
-        if any(l["alcool"] for l in calculees) and titres > eligible:
-            return _refus("PLAFOND_TITRE_RESTAURANT", plafond=eligible, montant=titres, raison="alcool")
-    if titres and module["titre_sans_rendu"] and paiement.get("rendu_sur") and not any(m["moyen"] == "especes" for m in moyens):
-        # Pas de rendu sur un titre-restaurant : le billet ne se rend que sur des espèces.
-        return _refus("MOYEN_NON_ACCEPTE", moyen="titre_restaurant", acceptes=sorted(acceptes), raison="sans_rendu")
-    return None
-
-
 def _compte_du_reglement(moyens: list, reste: dict, total: int) -> Resultat | None:
     """Les montants sont des entiers positifs et leur somme est exactement le total."""
     if any(not isinstance(m["montant"], int) or m["montant"] < 0 for m in moyens) or any(not isinstance(v, int) or v < 0 for v in reste.values()):
@@ -779,7 +763,7 @@ def _controler_le_reglement(brouillon: dict, reglages: dict, total: int, calcule
     paiement, moyens, reste = _reglement_du_brouillon(brouillon)
     return (
         _reglement_lisible(moyens, reste, set(reglages["moyens_paiement"]))
-        or _titres_restaurant(paiement, moyens, reste, reglages, total, calculees)
+        or refus_des_titres(paiement, moyens, reste, reglages, total, calculees)  # 8c-2 (130) : la règle est celle du moteur (``moteur/reglement.py``), appliquée ici à l'écriture
         or _compte_du_reglement(moyens, reste, total)
     )
 

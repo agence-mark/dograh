@@ -97,6 +97,24 @@ def le_seul_moyen_de_sa_famille(moyen: str | None, acceptes: list[str]) -> str |
     return proches[0] if len(proches) == 1 else moyen
 
 
+def refus_des_titres(paiement: dict, moyens: list, reste: dict, reglages: dict, total: int, calculees: list[dict]) -> Resultat | None:
+    """Le titre-restaurant : plafond, alcool (jamais payé en titres), rendu (jamais sur un titre). Lot 8c-2 (130) : déplacé tel quel de la base du client
+    (``db/bases_clients/restauration_commande.py``), qui l'applique à l'enregistrement (après le « oui », comme avant) ; ``None`` quand tout passe."""
+    module, acceptes, plafond = reglages["module"], set(reglages["moyens_paiement"]), reglages["plafond_titre"]
+    titres = sum(m["montant"] for m in moyens if m["moyen"] == "titre_restaurant") + reste.get("titre_restaurant", 0)
+    if plafond is not None and titres > plafond:
+        return Resultat("PLAFOND_TITRE_RESTAURANT", {"plafond": plafond, "montant": titres}, "", None)
+    if titres and module["titre_alcool_exclu"]:
+        # Un titre-restaurant ne paie pas l'alcool : ce qui dépasse la part sans alcool de la commande est refusé.
+        eligible = max(0, total - sum(l["prix_unitaire"] * l["quantite"] for l in calculees if l["alcool"]))
+        if any(l["alcool"] for l in calculees) and titres > eligible:
+            return Resultat("PLAFOND_TITRE_RESTAURANT", {"plafond": eligible, "montant": titres, "raison": "alcool"}, "", None)
+    if titres and module["titre_sans_rendu"] and paiement.get("rendu_sur") and not any(m["moyen"] == "especes" for m in moyens):
+        # Pas de rendu sur un titre-restaurant : le billet ne se rend que sur des espèces.
+        return Resultat("MOYEN_NON_ACCEPTE", {"moyen": "titre_restaurant", "acceptes": sorted(acceptes), "raison": "sans_rendu"}, "", None)
+    return None
+
+
 async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dict[str, Any]) -> tuple[dict | None, Resultat | None]:
     """Le règlement tel que dit : un moyen, ou une part en un moyen et le reste en un autre (titres, puis espèces sur un billet). Le code
     calcule le reste et la monnaie ; il refuse un moyen non accepté. ``(paiement, None)`` ou ``(None, refus)``."""
