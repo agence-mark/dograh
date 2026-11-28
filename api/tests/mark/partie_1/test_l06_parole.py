@@ -413,25 +413,31 @@ from api.services.outils_mark import variantes_d_attente as VA  # noqa: E402
 
 def test_attente_par_case():
     """L06-17 : la lecture de la carte prend une phrase de sa famille ; l'adresse, la sienne ; une case sans famille garde la phrase de l'outil."""
-    assert AT.config_avec_l_attente({}, "lire", {"sujet": "carte"})["phrases_attente"] == AT.familles()[AT.LECTURE]
-    assert AT.config_avec_l_attente({}, "fiche", {"adresse": "8 rue Solférino", "commune": "Compiègne"})["phrases_attente"] == AT.familles()[AT.ZONE]
-    assert AT.config_avec_l_attente({}, "fiche", {"c_est_tout": True})["phrases_attente"] == AT.familles()[AT.ENREGISTREMENT]
-    assert AT.config_avec_l_attente({"phrase_attente": "Un instant."}, "fiche", {"ajouter": [{"article": "x"}]}) == {"phrase_attente": "Un instant."}
+    from api.services.restauration import attentes as AR
+
+    assert AT.config_avec_l_attente({}, "commande", "lire", {"sujet": "carte"})["phrases_attente"] == AR.familles()[AR.LECTURE]
+    assert AT.config_avec_l_attente({}, "commande", "fiche", {"adresse": "8 rue Solférino", "commune": "Compiègne"})["phrases_attente"] == AR.familles()[AR.ZONE]
+    assert AT.config_avec_l_attente({}, "commande", "fiche", {"c_est_tout": True})["phrases_attente"] == AR.familles()[AR.ENREGISTREMENT]
+    assert AT.config_avec_l_attente({"phrase_attente": "Un instant."}, "commande", "fiche", {"ajouter": [{"article": "x"}]}) == {"phrase_attente": "Un instant."}
 
 
 def test_attente_n_annonce_aucun_resultat():
     """L06-18 : aucune variante ne porte un chiffre ni un résultat (« c'est noté », « c'est fait », « il y a »)."""
+    from api.services.restauration import attentes as AR
+
     interdit = re.compile(r"\d|c'est not[ée]|c'est fait|il y a|enregistr", re.I)
-    for famille, variantes in AT.familles().items():
+    for famille, variantes in AR.familles().items():
         for v in variantes:
             assert not interdit.search(v) and not BC.a_un_chiffre(v), (famille, v)
 
 
 def test_attente_une_par_tour_sans_repetition():
     """L06-19 : jamais deux fois la même variante dans l'appel (mécanisme existant ``variantes_d_attente.choisir``)."""
+    from api.services.restauration import attentes as AR
+
     moteur = SimpleNamespace()
-    config = AT.config_avec_l_attente({}, "lire", {})
-    dites = [VA.choisir(moteur, config) for _ in range(len(AT.familles()[AT.LECTURE]) + 1)]
+    config = AT.config_avec_l_attente({}, "commande", "lire", {})
+    dites = [VA.choisir(moteur, config) for _ in range(len(AR.familles()[AR.LECTURE]) + 1)]
     assert dites[-1] is None and len(set(dites[:-1])) == len(dites) - 1, dites
 
 

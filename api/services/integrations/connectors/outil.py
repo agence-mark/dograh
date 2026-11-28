@@ -260,7 +260,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
         # Chantier Partie 1, lot 6 (D24) : la phrase d'attente de la famille de la case exécutée (lecture, zone, enregistrement).
         from api.services.outils_mark.attente_par_case import config_avec_l_attente
 
-        patience = Patience(engine, config_avec_l_attente(config, config.get("action"), getattr(params, "arguments", None)))
+        patience = Patience(engine, config_avec_l_attente(config, config.get("connecteur"), config.get("action"), getattr(params, "arguments", None)))
         patience.demarrer()
         try:
             trouve = trouver(config.get("connecteur", ""), config.get("action", ""))

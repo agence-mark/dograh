@@ -1,47 +1,41 @@
 """[.mark] Chantier Partie 1, lot 6 (D24) : la phrase d'attente choisie par la case exécutée (lecture de la carte, adresse et zone, réservation
-retrouvée, enregistrement), tirée de sa famille (``gabarits/restauration/attentes.json``) sans répétition dans l'appel (``variantes_d_attente``).
+retrouvée, enregistrement), tirée de sa famille sans répétition dans l'appel (``variantes_d_attente``).
+
+Lot 8, 8c-2 (128) : le mécanisme ne connaît plus le métier. Le module du connecteur (``modules/registre.Module.attentes``, ``module:fonction`` qui rend
+``(familles, famille_de_la_case)``) fournit les familles et la lecture des cases ; la restauration les pose (``restauration/attentes.py``).
 
 Le seuil reste celui de l'outil (``seuil_patience_ms``, 1 200 ms par défaut) : rien n'est dit si l'outil répond avant. Une case sans famille garde
-la phrase d'attente de l'outil, comme avant. ⛔ Ne lève jamais.
+la phrase d'attente de l'outil, comme avant. ⛔ Ne lève jamais (une panne est écrite au journal, la phrase de l'outil reste).
 """
 
 from __future__ import annotations
 
-import json
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-FICHIER = Path(__file__).resolve().parents[1] / "gabarits" / "restauration" / "attentes.json"
-LECTURE, ZONE, RESERVATION, ENREGISTREMENT = "lecture_de_la_carte", "adresse_et_zone", "reservation_retrouvee", "enregistrement"
+from loguru import logger
 
 
-@lru_cache(maxsize=1)
-def familles() -> dict[str, list[str]]:
-    donnees = json.loads(FICHIER.read_text(encoding="utf-8"))
-    return {k: [str(v) for v in vs] for k, vs in donnees.items() if not k.startswith("_") and isinstance(vs, list)}
+def _chemin_des_attentes(connecteur: str | None) -> str | None:
+    """Le module qui donne les phrases d'attente de ce connecteur : celui qui le porte, ou celui qu'il allume (``signal``, comme la commande pour la restauration)."""
+    from api.services.modules.registre import MODULES
+
+    if not connecteur:
+        return None
+    return next((m.attentes for m in MODULES if m.attentes and (connecteur in m.connecteurs or connecteur in m.signal)), None)
 
 
-def famille_de_la_case(action: str | None, arguments: Any) -> str | None:
-    """La famille d'attente de ce geste, d'après l'action et les cases remplies (jamais d'après les mots)."""
-    arguments = arguments if isinstance(arguments, dict) else {}
-    if action == "lire":
-        return LECTURE
-    if action == "retrouver_une_reservation" or arguments.get("retrouver_une_reservation_enregistree"):
-        return RESERVATION
-    if action == "fiche":
-        if arguments.get("c_est_tout") or (isinstance(arguments.get("reponse"), dict) and arguments.get("moyen_de_paiement")):
-            return ENREGISTREMENT
-        if arguments.get("adresse") or arguments.get("commune"):
-            return ZONE
-    return None
-
-
-def config_avec_l_attente(config: dict[str, Any], action: str | None, arguments: Any) -> dict[str, Any]:
+def config_avec_l_attente(config: dict[str, Any], connecteur: str | None, action: str | None, arguments: Any) -> dict[str, Any]:
     """La configuration de l'outil, avec les variantes d'attente de la famille du geste (sinon telle quelle)."""
     try:
+        chemin = _chemin_des_attentes(connecteur)
+        if chemin is None:
+            return config
+        from api.services.modules.crochets import resoudre
+
+        familles, famille_de_la_case = resoudre(chemin)()
         famille = famille_de_la_case(action, arguments)
-        variantes = familles().get(famille) if famille else None
+        variantes = familles.get(famille) if famille else None
         return {**config, "phrases_attente": list(variantes)} if variantes else config
-    except Exception:  # noqa: BLE001
+    except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour : la phrase de l'outil reste
+        logger.warning(f"[attente] phrases d'attente du module illisibles ({connecteur}.{action}) : {erreur!r}")
         return config

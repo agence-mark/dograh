@@ -1,13 +1,14 @@
 """[.mark] Partie 1, lot 8a (T1) : la famille de phrase d'attente d'un geste se lit sur l'action et les cases remplies, jamais sur les mots.
 
-Écrit avant de toucher au rangement (8a, 8c) : il fige ce que ``famille_de_la_case`` rend aujourd'hui, case par case.
+Écrit avant de toucher au rangement (8a, 8c) : il fige ce que ``famille_de_la_case`` rend aujourd'hui, case par case. Depuis 8c-2 (128) la fonction vit dans ``restauration/attentes.py``.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from api.services.outils_mark import attente_par_case as AT
+from api.services.outils_mark import attente_par_case as MECANISME
+from api.services.restauration import attentes as AT
 
 
 @pytest.mark.parametrize(
@@ -48,5 +49,5 @@ def test_chaque_famille_rendue_a_ses_phrases_et_une_case_sans_famille_garde_la_c
     for famille in (AT.LECTURE, AT.ZONE, AT.RESERVATION, AT.ENREGISTREMENT):
         assert AT.familles()[famille]
     config = {"phrases_attente": ["Un instant."]}
-    assert AT.config_avec_l_attente(config, "fiche", {}) == config
-    assert AT.config_avec_l_attente(config, "lire", {})["phrases_attente"] == AT.familles()[AT.LECTURE]
+    assert MECANISME.config_avec_l_attente(config, "commande", "fiche", {}) == config
+    assert MECANISME.config_avec_l_attente(config, "commande", "lire", {})["phrases_attente"] == AT.familles()[AT.LECTURE]

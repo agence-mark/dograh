@@ -85,6 +85,9 @@ class Module:
     au_decroche: str | None = None
     fin_du_tour: str | None = None
     fin_de_l_appel: str | None = None
+    # Lot 8c-2 (128) : les phrases d'attente des outils de ce module (et de ceux qu'il allume, ``signal``) : ``module.chemin:fonction`` qui rend ``(familles, famille_de_la_case)``
+    # (``outils_mark/attente_par_case.py`` les lit). ``None`` : l'outil garde sa phrase d'attente.
+    attentes: str | None = None
     besoins: tuple[Besoin, ...] = ()
     construction: tuple[Reglage, ...] = ()
     terrain: tuple[Reglage, ...] = field(default=())
@@ -295,6 +298,7 @@ RESTAURATION = Module(
     au_decroche="api.services.restauration.crochets:au_decroche",
     fin_du_tour="api.services.restauration.crochets:fin_du_tour",
     fin_de_l_appel="api.services.restauration.crochets:fin_de_l_appel",
+    attentes="api.services.restauration.attentes:attentes",
     # § 3.3 : ce qui est court, stable et utile à presque chaque appel. Le nom, l'adresse, l'état d'ouverture et la prochaine ouverture sont déjà
     # posés par l'établissement (``etablissement``, ``adresse_etablissement``, ``etat_ouverture``, ``reouverture``) : ils ne sont pas répétés ici.
     etiquettes=(
