@@ -245,13 +245,24 @@ def _reponse_vivante(fiche: dict[str, Any], avant: dict[str, Any]) -> bool:
     return isinstance(reponse, dict) and bool(q.get("id")) and reponse.get("question_id") == q.get("id")
 
 
-TEMOIN = "__temoin_du_panier_d_avant__"  # T45 : un article qui n'est pas à la carte, glissé dans le panier d'avant pour voir si l'effet attendu le vide
+class FicheRefuseeEntiere(Counter):
+    """Le panier attendu d'une fiche que le code refuse EN ENTIER avant toute case (B4, M9 : ``porte._lire``, refus « entier ») : rien n'y est pris, pas même un article de la carte."""
 
 
-def _vide_le_panier(effet, avant: Counter, p: dict[str, Any]) -> bool:
-    """T45 : l'effet attendu vide-t-il le panier d'avant (vider, annuler, « oui » à l'annulation) ? Le témoin, qu'aucun geste ne vise, ne disparaît que par un vidage."""
-    reste = effet(avant + Counter({TEMOIN: 1}), p)
-    return reste is not None and not reste.get(TEMOIN)
+def _un_article_pris(fiche: dict[str, Any] | None, avant: dict[str, Any]) -> bool:
+    """T45 (Pierre, 28/11 3 h 59, et reprise de l'audit) : comme ``porte._ranger_la_fiche_ajoutee``, la fiche compte pour « celle du tour d'avant » dès qu'un article de sa case
+    ``ajouter`` est pris (une ligne posée, sa taille encore à demander comprise), même si le panier ne grossit pas : vidé avant dans la même fiche (« on vide et on annule, une
+    margherita »), ou la même ligne retirée et remise (« remplacez-la par une regina »). Pas pris : un article inconnu ou ambigu (``ARTICLES_SANS_EFFET``, deux articles du même nom),
+    ou celui que la réponse de la fiche complète déjà (D01, ``_ajouts_deja_repondus``)."""
+    if not fiche:
+        return False
+    refuses = _ajouts_deja_repondus(fiche, avant)
+    for a in fiche.get("ajouter") or []:
+        nom = str(a.get("article")).casefold()
+        ref = None if nom in ARTICLES_SANS_EFFET else ARTICLES_DITS.get(nom) or _ref_du_nom(nom)
+        if ref and not refuses.get(ref):
+            return True
+    return False
 
 
 def _avec_ligne(f):
@@ -441,11 +452,10 @@ class Partie:
         identique = self._identique_au_tour_d_avant(fiche, avant)
         effet_juge = _inchange if identique else effet
         attendu = effet_juge(lignes_de(avant), avant) if effet_juge is not None else None
-        # « appliquée » : le juge attend qu'un article ENTRE (le code ne range que la fiche dont un article a été pris ; un retrait seul, avec un article inconnu, n'en fait pas une).
-        # T45 (Pierre, 28/11 3 h 59) : compté par rapport au panier VIDÉ quand le juge attend le vidage (« on vide et on annule, une margherita et une regina ») : le panier rétrécit,
-        # mais les articles de la fiche sont pris, la fiche est « celle du tour d'avant » au tour suivant, comme dans le code (``porte._ranger_la_fiche_ajoutee``)
-        base = lignes_de(avant) if effet_juge is None or not _vide_le_panier(effet_juge, lignes_de(avant), avant) else Counter()
-        self._ranger_la_fiche_ajoutee(fiche, avant, attendu is not None and bool(+(attendu - base)))
+        # « appliquée » : le juge attend qu'un article de la case ``ajouter`` soit PRIS (T45 : le drapeau du code, ``porte._ranger_la_fiche_ajoutee``, jamais l'écart net du panier) ;
+        # une fiche identique, refusée en entier ou à l'effet inconnu ne prend rien ; un retrait seul, ou un article inconnu, n'en fait pas une
+        pris = attendu is not None and not identique and not isinstance(attendu, FicheRefuseeEntiere) and _un_article_pris(fiche, avant)
+        self._ranger_la_fiche_ajoutee(fiche, avant, pris)
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
             debut = time.perf_counter()
@@ -570,7 +580,7 @@ class Partie:
             # ce que la même fiche dit ensuite entre dans le panier vidé.
             annule_ici = bool({"G13", "G14"} & set(codes)) or ("G23" in codes and question(p).get("type") == "annulation_enregistree")  # DC4 : le « oui » de la fiche confirme l'annulation
             if isinstance(fiche.get("reponse"), dict) and "sens" in fiche["reponse"] and question(p).get("type") == "etape":
-                return Counter(avant)  # B4 (M9) : à une étape de formule la réponse se dit dans ``valeurs`` ; ``reponse.sens`` n'est pas montré : une sous-case sans objet refuse la fiche entière
+                return FicheRefuseeEntiere(avant)  # B4 (M9) : à une étape de formule la réponse se dit dans ``valeurs`` ; ``reponse.sens`` n'est pas montré : une sous-case sans objet refuse la fiche entière
             if p.get("enregistree") and "G15" in codes and p.get("mode") != "livraison" and not ({"G16", "G17"} & set(codes)):
                 return Counter(avant)  # E10 : changer une commande enregistrée en livraison sans adresse : « changement_incomplet », le panier d'avant revient (le retour le dit : « ta fiche n'a rien changé »)
             c, vu = Counter(avant), p
